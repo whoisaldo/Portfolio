@@ -1,4 +1,4 @@
-// src/components/garage/GarageCinematic.jsx: the controls over the 3D
+// src/components/garage/GarageControls.jsx: the controls over the 3D
 // workshop.
 //
 // The workshop itself is the city's one canvas behind the page; this is the
@@ -12,7 +12,15 @@
 // Only the controls are panes of glass (Panel glass), so only they are
 // frosted. Nothing here moves on its own: the stations, hoods and stance
 // change because the integration says they did, through props, and every
-// action goes back out through a callback. The layer never reads the world.
+// action goes back out through a callback. The layer never reads the world;
+// the one thing the world touches is the markers, which it is handed through
+// `registerPin` and places itself (Markers.jsx). The props are the ones in
+// agents/B5/CONTRACT.md section 2.3, plus a few optional ones: the shop
+// wall's board, the layer's rectangles (onLayout) and a retained request.
+//
+// One polite, atomic status line: the integration's `status` string (what
+// was selected, where a hood came to rest) and the layer's own few words
+// (a focused marker going out of view), whichever came last.
 //
 // Keyboard order is the plan's: stations, car, one marker stop, Parts, hood
 // and stance, the card's own actions, then photographs and credits, then the
@@ -20,8 +28,9 @@
 // puts focus back on whatever opened it. A control that disappears while it
 // has focus (a station change takes the stance buttons away) hands focus to
 // its nearest equivalent instead of dropping it on the page.
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Images, X } from "lucide-react";
+import { useMediaQuery } from "../../hooks";
 import Panel from "../ui/Panel";
 import Tabs from "./Tabs";
 import PartCard from "./PartCard";
@@ -29,53 +38,81 @@ import PartList from "./PartList";
 import Markers from "./Markers";
 import Credits from "./Credits";
 import { ShopCard } from "./Shop";
-import { CARS, STATIONS, findCar, findMod, findStation } from "./cars";
+import { CARS, STATIONS, findCar, findMod, findStation, resolveRequest } from "./cars";
 import { CONTROL, restoreFocus } from "./focus";
+import { useAnnouncer, useControllable, useGarageRequest } from "./state";
+import "./garage.css";
 
 const pad = (n) => String(n).padStart(2, "0");
 
 // The parts of the layer whose rectangles the camera framing and the marker
-// layer need to stay clear of. Reported in stage pixels through onLayout.
+// projection need to stay clear of. Reported in stage pixels through onLayout.
 const MEASURED = ["label", "nav", "car", "actions", "side", "util"];
 
-export default function GarageCinematic({
-  station,
-  onStation,
-  selection,
-  onSelect,
+// A hood reads open from halfway; it has come to rest at either end. The
+// integration may hand in booleans or the timeline's 0..1.
+const amount = (v) => (v === true ? 1 : v === false || v == null ? 0 : Number(v));
+// Any manual override at all (the integration's shape, or a plain boolean).
+const overridden = (o) =>
+  o === true || (o != null && typeof o === "object" && Object.values(o).some((v) => v != null && v !== false));
+
+export default function GarageControls({
+  station: stationProp,
+  activeCar,
+  selection: selectionProp,
   hood,
+  stance = "normal",
+  override,
+  stations,
+  showPrices,
+  registerPin,
+  credits,
+  onStation,
+  onSelect,
   onHood,
-  stance,
   onStance,
-  manual,
   onResumeTour,
-  pins,
+  onMode,
+  status,
   shopGroup,
   onShopGroup,
-  credits,
-  onUsePhotos,
   onLayout,
-  announce,
-  idBase,
-  phone,
-  focusTarget,
-  onFocused,
+  request = null,
+  onRequestApplied,
 }) {
+  const idBase = useId().replace(/:/g, "");
+  const phone = !useMediaQuery("(min-width: 768px)");
+  const [station, setStation] = useControllable(stationProp, onStation, "arrival");
+  const [selection, setSelection] = useControllable(selectionProp, onSelect, null);
+  const [said, announce] = useAnnouncer();
+  useEffect(() => {
+    if (status) announce(status);
+  }, [status, announce]);
+  // Without an integration saying it, the layer names the selection itself.
+  const standalone = status === undefined;
+  useEffect(() => {
+    if (!standalone || !selection) return;
+    const m = findMod(selection.carId, selection.modId);
+    if (m) announce(`${findCar(m.carId).label}: ${m.name}.`);
+  }, [standalone, selection, announce]);
+  const { focusTarget, onFocused } = useGarageRequest(request, onRequestApplied, setSelection, resolveRequest);
   const root = useRef(null);
   const partsButton = useRef(null);
   const titleRef = useRef(null);
   const activator = useRef(null);
   const lastKey = useRef(null);
-  const blockers = useRef([]);
   const parts = useRef({});
   const [listOpen, setListOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
   const pendingHood = useRef(null);
   const pendingStance = useRef(null);
 
-  const here = findStation(station) ?? STATIONS[0];
-  const stationIndex = STATIONS.indexOf(here);
-  const car = findCar(here.carId);
+  // The stations in the integration's order when it gives one, with this
+  // module's labels for the ids it knows.
+  const list = stations?.length ? stations.map((s) => findStation(s.id) ?? { ...s, short: s.label, carId: null }) : STATIONS;
+  const here = list.find((s) => s.id === station) ?? list[0];
+  const stationIndex = list.indexOf(here);
+  const car = findCar(activeCar !== undefined ? activeCar : here.carId);
   const mod = selection ? findMod(selection.carId, selection.modId) : null;
   const listCars = car ? [car] : CARS;
   const atShop = here.id === "shop";
@@ -130,7 +167,6 @@ export default function GarageCinematic({
       const r = n.getBoundingClientRect();
       rects[k] = { x: r.left - base.left, y: r.top - base.top, width: r.width, height: r.height };
     }
-    blockers.current = Object.values(rects).filter((r) => r && r.width > 1 && r.height > 1);
     const layout = { width: base.width, height: base.height, ...rects };
     const sig = JSON.stringify(layout);
     if (sig === reported.current) return;
@@ -152,7 +188,8 @@ export default function GarageCinematic({
   // ---- hood and stance, announced where they come to rest ------------------
   useEffect(() => {
     const p = pendingHood.current;
-    if (p && Boolean(hood?.[p.carId]) === p.open) {
+    const v = amount(hood?.[p?.carId]);
+    if (p && (p.open ? v >= 0.999 : v <= 0.001)) {
       announce(`${findCar(p.carId).label} hood ${p.open ? "open" : "closed"}.`);
       pendingHood.current = null;
     }
@@ -168,7 +205,7 @@ export default function GarageCinematic({
   // ---- choosing ------------------------------------------------------------
   const choose = (m, el, { focusCard = false } = {}) => {
     activator.current = el ?? null;
-    onSelect({ carId: m.carId, modId: m.id }, { source: focusCard ? "list" : "marker" });
+    setSelection({ carId: m.carId, modId: m.id }, { source: focusCard ? "list" : "marker" });
     setCardOpen(false);
     if (focusCard) {
       setListOpen(false);
@@ -178,7 +215,7 @@ export default function GarageCinematic({
 
   const closeCard = () => {
     const back = activator.current;
-    onSelect(null, { source: "card" });
+    setSelection(null, { source: "card" });
     activator.current = null;
     requestAnimationFrame(() => {
       if (back?.isConnected && !back.hidden) back.focus({ preventScroll: true });
@@ -189,7 +226,7 @@ export default function GarageCinematic({
   const step = (dir) => {
     const c = findCar(mod.carId);
     const next = c.mods[(mod.index + dir + c.mods.length) % c.mods.length];
-    onSelect({ carId: next.carId, modId: next.id }, { source: "card" });
+    setSelection({ carId: next.carId, modId: next.id }, { source: "card" });
   };
 
   // A deliberate request may ask for focus once its card exists.
@@ -216,9 +253,9 @@ export default function GarageCinematic({
     announce("That marker is out of view. Focus is on Parts.");
   }, [announce]);
 
-  const stationTabs = STATIONS.map((s) => ({ ...s, key: `station:${s.id}` }));
+  const stationTabs = list.map((s) => ({ ...s, key: `station:${s.id}` }));
   const carTabs = CARS.map((c) => ({ id: c.id, label: c.label, key: `car:${c.id}` }));
-  const hoodOpen = car ? Boolean(hood?.[car.id]) : false;
+  const hoodOpen = car ? amount(hood?.[car.id]) >= 0.5 : false;
   const listId = `${idBase}-parts`;
   const cardDetails = `${idBase}-card-details`;
 
@@ -228,7 +265,7 @@ export default function GarageCinematic({
       <div ref={part("label")} className="gw-label">
         <p className="mono-label text-volt">05 // Garage</p>
         <p className="gw-label-line mono-micro">
-          <span className="text-primary tabular-nums">{pad(stationIndex + 1)} / {pad(STATIONS.length)}</span>
+          <span className="text-primary tabular-nums">{pad(stationIndex + 1)} / {pad(list.length)}</span>
           <span className="text-muted">{here.label}</span>
           {car && <span className="text-dim hidden md:inline">{car.title}</span>}
         </p>
@@ -240,7 +277,7 @@ export default function GarageCinematic({
           <Tabs
             items={stationTabs}
             value={here.id}
-            onChange={(id) => onStation(id, { source: "nav" })}
+            onChange={(id) => setStation(id, { source: "nav" })}
             label="Stations in the garage"
             activate="manual"
             className="gw-stations"
@@ -262,7 +299,7 @@ export default function GarageCinematic({
           <Tabs
             items={carTabs}
             value={car?.id ?? null}
-            onChange={(id) => onStation(id, { source: "car" })}
+            onChange={(id) => setStation(id, { source: "car" })}
             label="Cars"
             activate="manual"
             className="flex"
@@ -272,11 +309,9 @@ export default function GarageCinematic({
       </div>
 
       <Markers
-        car={atShop ? null : car}
+        car={atShop || here.id === "arrival" ? null : car}
         selected={selection}
-        pins={pins}
-        phone={phone}
-        blockers={blockers}
+        registerPin={registerPin}
         onSelect={(m, el) => choose(m, el)}
         onFocusLost={onMarkerFocusLost}
       />
@@ -305,7 +340,7 @@ export default function GarageCinematic({
               aria-label={hoodOpen ? "Close hood" : "Open hood"}
               onClick={() => {
                 pendingHood.current = { carId: car.id, open: !hoodOpen };
-                onHood(car.id, !hoodOpen);
+                onHood?.(car.id, !hoodOpen);
               }}
               {...{ [CONTROL]: "hood" }}
             >
@@ -324,7 +359,7 @@ export default function GarageCinematic({
                   onClick={() => {
                     if (stance === id) return;
                     pendingStance.current = id;
-                    onStance(id);
+                    onStance?.(id);
                   }}
                   {...{ [CONTROL]: `stance:${id}` }}
                 >
@@ -333,7 +368,7 @@ export default function GarageCinematic({
               ))}
             </div>
           )}
-          {(manual?.hood || manual?.stance) && onResumeTour && (
+          {overridden(override) && onResumeTour && (
             <button type="button" className="gw-tab text-volt" aria-label="Resume tour" onClick={onResumeTour} {...{ [CONTROL]: "resume-tour" }}>
               <span className="gw-long">Resume tour</span>
               <span className="gw-short">Resume</span>
@@ -365,7 +400,7 @@ export default function GarageCinematic({
               {listCars.map((c) => (
                 <div key={c.id}>
                   {listCars.length > 1 && <p className="mono-micro text-dim mb-2">{c.title}</p>}
-                  <PartList car={c} selected={selection} onPick={(m, el) => choose(m, el, { focusCard: true })} columns={false} />
+                  <PartList car={c} selected={selection} onPick={(m, el) => choose(m, el, { focusCard: true })} columns={false} showPrices={showPrices} />
                 </div>
               ))}
               {/* On a phone the credits live here, out of the picture. */}
@@ -385,6 +420,7 @@ export default function GarageCinematic({
               onToggleOpen={() => setCardOpen((v) => !v)}
               detailsId={cardDetails}
               stance={mod.id === "virtual-link"}
+              showPrices={showPrices}
             />
           </Panel>
         ) : atShop ? (
@@ -396,9 +432,9 @@ export default function GarageCinematic({
 
       {/* Photographs instead, and the credits. */}
       <div ref={part("util")} className="gw-area-util">
-        {onUsePhotos && (
+        {onMode && (
           <Panel glass size="sm" innerClassName="gw-bar">
-            <button type="button" className="gw-tab" onClick={onUsePhotos} {...{ [CONTROL]: "use-photos" }}>
+            <button type="button" className="gw-tab" onClick={() => onMode("photos")} {...{ [CONTROL]: "use-photos" }}>
               <Images className="w-4 h-4" aria-hidden="true" />
               <span className="gw-long">Photographs</span>
               <span className="gw-short">Photos</span>
@@ -407,6 +443,10 @@ export default function GarageCinematic({
         )}
         <Credits credits={credits} className="gw-credits-overlay gw-credits-in-util" />
       </div>
+
+      <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {said}
+      </p>
     </div>
   );
 }

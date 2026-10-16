@@ -168,7 +168,6 @@
   outline: none;
   box-shadow: 0 0 0 2px #0a0a0c, 0 0 0 4px #fcee0a;
 }
-.gw-pin[hidden] { display: none; }
 .gw-pin-label {
   position: absolute;
   left: 50%;
@@ -196,8 +195,9 @@
 .gw-pin-3d.is-on .gw-pin-label { opacity: 1; }
 
 /* The 3D layer: the stage's own box, pointer-transparent; each marker sits
-   at the stage's top-left corner and is moved onto its part by a transform
-   the world writes every frame. The margin centres the square on the point. */
+   at the stage's top-left corner and is moved onto its part by the
+   translate the world writes every frame (with style.visibility). The
+   margin centres the square on the point. */
 .gw-markers {
   position: absolute;
   inset: 0;
@@ -212,6 +212,8 @@
   pointer-events: auto;
   will-change: transform;
 }
+/* Not shown until the world has placed it once. */
+.gw-pin-3d:not([style*="transform"]) { visibility: hidden; }
 
 /* ---- the photographs ----------------------------------------------------- */
 .gw-frame { isolation: isolate; }
@@ -342,9 +344,7 @@
 .gw-credits-overlay[open] { padding-bottom: 0.75rem; }
 
 /* Desktop: label upper left, the card down the left side, and two rows
-   along the bottom, the car and part controls above the stations. The card's
-   column is at most 22rem and about a fifth of the width, so the middle of
-   the frame stays clear. */
+   along the bottom, the car and part controls above the stations. */
 @media (min-width: 768px) {
   .gw-stage {
     padding: 5.25rem var(--gw-pad-x) 1.5rem;
@@ -357,7 +357,9 @@
       "car   actions .   ."
       "nav   nav   nav   .";
   }
-  .gw-area-side { width: clamp(15rem, calc(20vw - 2rem), 22rem); }
+  /* The card ends at a fifth of the width (the gutter plus the card), so
+     the middle 60 percent is clear down to 1280px; it never passes 22rem. */
+  .gw-area-side { width: clamp(14rem, calc(20vw - var(--gw-pad-x)), 22rem); }
 }
 @media (min-width: 1280px) {
   /* Clear of the section index on the right (see .rail-clear). */

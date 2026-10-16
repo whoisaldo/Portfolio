@@ -82,11 +82,12 @@ export default function PartCard({
   onToggleOpen,
   detailsId,
   stance,
+  showPrices,
   className = "",
 }) {
   const car = findCar(mod.carId);
   const group = groupOf(mod);
-  const price = priceLabel(mod);
+  const price = priceLabel(mod, { show: showPrices });
   const pinned = mod.pins.length > 0;
   const showBody = !compact || open;
 

@@ -1,129 +1,103 @@
 // src/components/garage/Markers.jsx: the part markers over the 3D workshop.
 //
-// One button per part of the car being looked at, placed on the part as the
-// world projects it. The world owns the projection (anchors on the car's own
-// moving nodes, occlusion by the room and the cars, a closed hood hiding the
-// engine); this layer owns the buttons. It is handed a `pins` source with a
-// `subscribe(listener)` method; the listener is called once per rendered
-// frame with
+// One button per part of the car being looked at. The world places them: each
+// button is handed to `registerPin(key, element)` (key `${carId}:${modId}`),
+// and once per rendered frame the world writes its `style.transform` (a
+// translate in stage pixels from the stage's top-left), `style.visibility`
+// ("hidden" behind geometry, under a closed hood, off the image or past the
+// phone's four) and `dataset.occluded`/`dataset.side`. React never sets those,
+// so nothing here re-renders per frame. Until the world has placed a marker
+// it is not shown (garage.css), so none flashes in the corner.
 //
-//   { items: [{ carId, modId, x, y, visible }] }
-//
-// where x and y are CSS pixels in the stage (the sticky box the canvas
-// fills). Nothing here sets React state per frame: each frame writes the
-// buttons' transforms, `hidden` and tabindex straight onto the DOM.
-//
-// On top of what the world says is visible, a marker is hidden when it falls
-// under one of the garage's own controls (`blockers`, measured by the
-// controls themselves), and on a phone at most four show, never closer than
-// a fingertip to each other: the selected one first, then the focused one,
-// then in list order. Every part is still in the Parts list.
-//
-// Keyboard: the shown markers are one roving-tabindex stop; arrow keys and
-// Home/End walk them, Enter or Space selects. If the focused marker is hidden
-// (the car turned, the hood closed), focus moves to a persistent control
-// through `onFocusLost` rather than vanishing with it. Markers never pulse.
-import React, { useEffect, useRef } from "react";
+// What this layer does own is the keyboard. The shown markers are one
+// roving-tabindex stop; arrow keys and Home/End walk the shown ones, Enter or
+// Space selects. A mutation observer watches the world's writes: when the
+// marker holding the Tab stop is hidden the stop moves to one that is shown,
+// and when the marker holding focus is hidden, focus goes to a persistent
+// control through `onFocusLost` rather than vanishing with it. Markers never
+// pulse.
+import React, { useCallback, useEffect, useRef } from "react";
 import { CONTROL } from "./focus";
 import { nextIndex } from "./state";
 
 const pad = (n) => String(n).padStart(2, "0");
-const PHONE_MAX = 4;
-const PHONE_GAP = 44;
-// A marker is centred on its point; keep it this far inside the stage.
-const EDGE = 16;
 
-const inside = (r, x, y) => x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height;
+/** Shown: placed by the world (a transform written) and not hidden by it. */
+const shown = (el) => !!el && el.style.transform !== "" && el.style.visibility !== "hidden";
 
-export default function Markers({ car, selected, pins, phone, blockers, onSelect, onFocusLost }) {
+export default function Markers({ car, selected, registerPin, onSelect, onFocusLost }) {
+  const layer = useRef(null);
   const buttons = useRef(new Map());
-  const seen = useRef(new WeakSet());
+  const refs = useRef(new Map());
   const stop = useRef(null);
   const sel = useRef(selected);
   sel.current = selected;
   const lost = useRef(onFocusLost);
   lost.current = onFocusLost;
-  const isPhone = useRef(phone);
-  isPhone.current = phone;
-  const layer = useRef(null);
-  const size = useRef({ w: Infinity, h: Infinity });
+  const register = useRef(registerPin);
+  register.current = registerPin;
 
-  // The stage's size, kept by an observer so a frame never has to ask for
-  // layout in the middle of writing transforms.
-  useEffect(() => {
-    const el = layer.current;
-    if (!el) return undefined;
-    const ro = new ResizeObserver(() => {
-      size.current = { w: el.clientWidth, h: el.clientHeight };
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
+  // One stable ref callback per part, so a re-render neither unregisters nor
+  // re-registers a button the world is already moving.
+  const refFor = useCallback((carId, modId) => {
+    const key = `${carId}:${modId}`;
+    let fn = refs.current.get(key);
+    if (!fn) {
+      fn = (el) => {
+        if (el) buttons.current.set(modId, el);
+        else buttons.current.delete(modId);
+        register.current?.(key, el ?? null);
+      };
+      refs.current.set(key, fn);
+    }
+    return fn;
+  }, []);
+
+  // Keep the one Tab stop on a shown marker: the current one, else the
+  // selected one, else the first shown.
+  const settle = useCallback(() => {
+    const all = [...buttons.current.entries()];
+    const visible = all.filter(([, el]) => shown(el)).map(([id]) => id);
+    if (!visible.includes(stop.current)) {
+      const s = sel.current;
+      stop.current = s?.carId === car?.id && visible.includes(s.modId) ? s.modId : visible[0] ?? null;
+    }
+    for (const [id, el] of all) {
+      const t = id === stop.current ? 0 : -1;
+      if (el.tabIndex !== t) el.tabIndex = t;
+    }
+    const active = document.activeElement;
+    if (active && all.some(([, el]) => el === active) && !shown(active)) lost.current?.();
   }, [car]);
 
   useEffect(() => {
-    if (!pins?.subscribe || !car) return undefined;
-    const apply = (frame) => {
-      const root = buttons.current;
-      const items = (frame?.items ?? []).filter((it) => it.carId === car.id && root.has(it.modId));
-      const { w, h } = size.current;
-      const blocked = blockers?.current ?? [];
-      const candidates = items.filter(
-        (it) => it.visible && it.x >= EDGE && it.y >= EDGE && it.x <= w - EDGE && it.y <= h - EDGE && !blocked.some((r) => inside(r, it.x, it.y)),
-      );
-
-      const active = document.activeElement;
-      const focusedId = active?.dataset?.markerId ?? null;
-      let shown = candidates;
-      if (isPhone.current) {
-        const rank = (it) => (it.modId === sel.current?.modId && car.id === sel.current?.carId ? 0 : it.modId === focusedId ? 1 : 2);
-        const order = [...candidates].sort((a, b) => rank(a) - rank(b));
-        shown = [];
-        for (const it of order) {
-          if (shown.length >= PHONE_MAX) break;
-          if (shown.some((s) => Math.hypot(s.x - it.x, s.y - it.y) < PHONE_GAP)) continue;
-          shown.push(it);
-        }
-      }
-      const show = new Map(shown.map((it) => [it.modId, it]));
-
-      let focusHidden = false;
-      for (const [id, el] of root) {
-        const it = show.get(id);
-        if (it) {
-          el.style.transform = `translate3d(${it.x.toFixed(1)}px, ${it.y.toFixed(1)}px, 0)`;
-          el.hidden = false;
-          el.classList.toggle("is-low", it.y > h * 0.8);
-        } else {
-          if (el === active) focusHidden = true;
-          el.hidden = true;
-        }
-      }
-
-      // Keep the one Tab stop on a marker that can be seen: the current one,
-      // else the selected one, else the first shown.
-      const order = [...root.keys()].filter((id) => show.has(id));
-      if (!order.includes(stop.current)) {
-        const s = sel.current?.carId === car.id && show.has(sel.current.modId) ? sel.current.modId : order[0] ?? null;
-        stop.current = s;
-      }
-      for (const [id, el] of root) el.tabIndex = id === stop.current ? 0 : -1;
-
-      if (focusHidden) lost.current?.();
-    };
-    return pins.subscribe(apply);
-  }, [pins, car, blockers]);
+    const el = layer.current;
+    if (!el) return undefined;
+    let queued = false;
+    const mo = new MutationObserver(() => {
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => {
+        queued = false;
+        settle();
+      });
+    });
+    mo.observe(el, { subtree: true, attributes: true, attributeFilter: ["style"] });
+    settle();
+    return () => mo.disconnect();
+  }, [settle]);
 
   if (!car) return null;
 
   const onKeyDown = (e) => {
-    const shown = [...buttons.current.values()].filter((el) => !el.hidden);
-    const from = shown.indexOf(document.activeElement);
-    const next = nextIndex(e.key, from >= 0 ? from : 0, shown.length);
+    const list = [...buttons.current.values()].filter(shown);
+    const from = list.indexOf(document.activeElement);
+    const next = nextIndex(e.key, from >= 0 ? from : 0, list.length);
     if (next === null) return;
     e.preventDefault();
-    stop.current = shown[next].dataset.markerId;
-    for (const el of buttons.current.values()) el.tabIndex = el === shown[next] ? 0 : -1;
-    shown[next].focus({ preventScroll: true });
+    stop.current = list[next].dataset.markerId;
+    for (const b of buttons.current.values()) b.tabIndex = b === list[next] ? 0 : -1;
+    list[next].focus({ preventScroll: true });
   };
 
   return (
@@ -132,22 +106,8 @@ export default function Markers({ car, selected, pins, phone, blockers, onSelect
         const on = selected?.carId === car.id && selected?.modId === m.id;
         return (
           <button
-            key={m.id}
-            ref={(el) => {
-              if (!el) {
-                buttons.current.delete(m.id);
-                return;
-              }
-              // A marker starts hidden until a frame places it. React hands
-              // the same element back on every render, so only a new one is
-              // reset, or each render would hide (and unfocus) them all.
-              if (!seen.current.has(el)) {
-                seen.current.add(el);
-                el.hidden = true;
-                el.tabIndex = -1;
-              }
-              buttons.current.set(m.id, el);
-            }}
+            key={`${car.id}:${m.id}`}
+            ref={refFor(car.id, m.id)}
             type="button"
             data-marker-id={m.id}
             className={`gw-pin gw-pin-3d ${on ? "is-on" : ""}`}

@@ -17,7 +17,7 @@
 // plain words, and offers the one action that applies: enter it once it is
 // ready, retry it if it failed, resume it after a lost context. It never
 // switches by itself; whoever owns the layout decides that.
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { ArrowDownRight } from "lucide-react";
 import { scrollToSection } from "../../lib/scroll";
 import { useMediaQuery } from "../../hooks";
@@ -28,31 +28,36 @@ import PartList from "./PartList";
 import PhotoBay from "./PhotoBay";
 import Shop from "./Shop";
 import Credits from "./Credits";
-import { CARS, findCar, findMod } from "./cars";
+import { CARS, findCar, findMod, resolveRequest } from "./cars";
 import { CONTROL } from "./focus";
+import { useAnnouncer, useControllable, useGarageRequest } from "./state";
+import "./garage.css";
 
 const pad = (n) => String(n).padStart(2, "0");
 
-/** The line about the 3D workshop, and its one action. */
-function Availability({ availability, onEnter3D, onRetry, onResume3D }) {
-  const state = availability?.state ?? "unsupported";
-  const pct = availability?.progress != null ? ` ${Math.round(availability.progress * 100)}%` : "";
+/** The line about the 3D workshop, and its one action. `availability` is
+ *  the integration's state ("off", "unsupported", "idle", "loading",
+ *  "ready", "failed", "lost", "restoring"), as a string or as
+ *  { state, progress }. Nothing is said while the workshop is off for
+ *  reasons the reader chose, unsupported, or not yet asked for. */
+function Availability({ availability, reason, canEnter3d, onEnter3d, onRetry, resume }) {
+  const state = typeof availability === "string" ? availability : availability?.state;
+  const progress = typeof availability === "object" ? availability?.progress : null;
+  const pct = progress != null ? ` ${Math.round(progress * 100)}%` : "";
   let text = null;
   let action = null;
   if (state === "loading") text = `Loading the 3D workshop${pct}. The photographs are here meanwhile.`;
-  else if (state === "ready" && onEnter3D) {
-    text = "The 3D workshop is ready.";
-    action = { label: "Enter the 3D workshop", onClick: onEnter3D, key: "enter-3d" };
+  else if (state === "ready" && canEnter3d && onEnter3d) {
+    text = resume ? "The 3D view is back." : "The 3D workshop is ready.";
+    action = { label: resume ? "Resume 3D" : "Enter the 3D workshop", key: resume ? "resume-3d" : "enter-3d", onClick: onEnter3d };
   } else if (state === "failed") {
-    text = availability?.message ?? "The 3D workshop did not load.";
-    if (onRetry) action = { label: "Try again", onClick: onRetry, key: "retry-3d" };
+    text = reason ? `The 3D workshop did not load: ${reason}` : "The 3D workshop did not load.";
+    if (onRetry) action = { label: "Try again", key: "retry-3d", onClick: onRetry };
   } else if (state === "lost") text = "The 3D view stopped. These are the same cars in photographs.";
-  else if (state === "restored" && onResume3D) {
-    text = "The 3D view is back.";
-    action = { label: "Resume 3D", onClick: onResume3D, key: "resume-3d" };
-  } else if (state === "off" && onEnter3D) {
+  else if (state === "restoring") text = "The 3D view is coming back. The photographs stay until it has.";
+  else if (state === "off" && canEnter3d && onEnter3d) {
     text = "The 3D workshop is off.";
-    action = { label: "Turn on 3D", onClick: onEnter3D, key: "enter-3d" };
+    action = { label: "Turn on 3D", key: "enter-3d", onClick: onEnter3d };
   }
   if (!text) return null;
   return (
@@ -69,22 +74,45 @@ function Availability({ availability, onEnter3D, onRetry, onResume3D }) {
 }
 
 export default function GaragePhotos({
-  selection,
-  onSelect,
-  idBase,
+  activeCar,
+  selection: selectionProp,
   availability,
-  onEnter3D,
-  onRetry,
-  onResume3D,
+  reason,
+  reduced = false,
+  showPrices,
   credits,
-  reduced,
+  onSelect,
+  onCar,
+  onEnter3d,
+  onRetry,
+  canEnter3d = false,
+  resume = false,
   contactHref = "#contact",
-  focusTarget,
-  onFocused,
-  carHint,
+  request = null,
+  onRequestApplied,
 }) {
+  const idBase = useId().replace(/:/g, "");
+  const [selection, setSelection] = useControllable(selectionProp, onSelect, null);
+  const [said, announce] = useAnnouncer();
+  const select = useCallback(
+    (next, info) => {
+      setSelection(next, info);
+      const m = next ? findMod(next.carId, next.modId) : null;
+      if (m) announce(`${findCar(m.carId).label}: ${m.name}.`);
+    },
+    [setSelection, announce],
+  );
+  const { focusTarget, onFocused, carHint } = useGarageRequest(request, onRequestApplied, select, resolveRequest);
   const wide = useMediaQuery("(min-width: 768px)");
-  const [carId, setCarId] = useState(selection?.carId ?? "s4");
+  const [ownCar, setOwnCar] = useState(activeCar ?? selection?.carId ?? "s4");
+  const carId = activeCar ?? ownCar;
+  const setCarId = useCallback(
+    (id) => {
+      setOwnCar(id);
+      if (id !== activeCar) onCar?.(id);
+    },
+    [activeCar, onCar],
+  );
   const [viewIds, setViewIds] = useState(() => Object.fromEntries(CARS.map((c) => [c.id, c.views[0].id])));
   const titleRef = useRef(null);
   const car = findCar(carId);
@@ -93,16 +121,20 @@ export default function GaragePhotos({
 
   // A selection made anywhere (the workshop before a lost context, the
   // console, a pending request) brings its car and a photograph of it.
+  // Only a new selection does this, so switching the car tab afterwards is
+  // not undone; the setter is read through a ref for the same reason.
+  const setCar = useRef(setCarId);
+  setCar.current = setCarId;
   useEffect(() => {
     if (!selection?.carId) return;
-    setCarId(selection.carId);
+    setCar.current(selection.carId);
     const m = findMod(selection.carId, selection.modId);
     if (!m?.pins.length) return;
     setViewIds((v) => (m.pins.some((p) => p.view === v[m.carId]) ? v : { ...v, [m.carId]: m.pins[0].view }));
   }, [selection?.carId, selection?.modId]);
 
   useEffect(() => {
-    if (carHint?.carId) setCarId(carHint.carId);
+    if (carHint?.carId) setCar.current(carHint.carId);
   }, [carHint]);
 
   // A deliberate request (a console command, a link) may ask for focus; it
@@ -114,7 +146,7 @@ export default function GaragePhotos({
   }, [focusTarget, mod, onFocused]);
 
   const setView = (id) => setViewIds((v) => ({ ...v, [carId]: id }));
-  const pick = (m) => onSelect({ carId: m.carId, modId: m.id }, { source: "photos" });
+  const pick = (m) => select({ carId: m.carId, modId: m.id }, { source: "photos" });
   const step = (dir) => {
     const i = mod ? mod.index : dir > 0 ? -1 : 0;
     const next = car.mods[(i + dir + car.mods.length) % car.mods.length];
@@ -130,7 +162,7 @@ export default function GaragePhotos({
 
   return (
     <div className="gw-photos" data-garage-layout="photos">
-      <Availability availability={availability} onEnter3D={onEnter3D} onRetry={onRetry} onResume3D={onResume3D} />
+      <Availability availability={availability} reason={reason} canEnter3d={canEnter3d} onEnter3d={onEnter3d} onRetry={onRetry} resume={resume} />
 
       <div className="mt-8 flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
         <Tabs
@@ -199,6 +231,7 @@ export default function GaragePhotos({
               {mod ? (
                 <PartCard
                   mod={mod}
+                  showPrices={showPrices}
                   viewId={view.id}
                   onStep={step}
                   onPin={setView}
@@ -243,7 +276,7 @@ export default function GaragePhotos({
           </div>
 
           <div className="border-t border-ink-line px-4 md:px-6 py-6">
-            <PartList car={car} selected={selection} onPick={pick} />
+            <PartList car={car} selected={selection} onPick={pick} showPrices={showPrices} />
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 md:px-5 py-2.5 border-t border-ink-line">
@@ -282,6 +315,10 @@ export default function GaragePhotos({
           <ArrowDownRight className="w-4 h-4 text-volt" aria-hidden="true" />
         </a>
       </div>
+
+      <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {said}
+      </p>
     </div>
   );
 }

@@ -14,7 +14,7 @@ import { modsIn, priceLabel } from "./cars";
 
 const pad = (n) => String(n).padStart(2, "0");
 
-export default function PartList({ car, selected, onPick, columns = true, className = "" }) {
+export default function PartList({ car, selected, onPick, columns = true, showPrices, className = "" }) {
   const layout = columns ? car.sheet : [car.sheet.flat()];
   return (
     <div className={`${columns ? "grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3" : ""} ${className}`}>
@@ -33,7 +33,7 @@ export default function PartList({ car, selected, onPick, columns = true, classN
                 <ul className="mt-1">
                   {list.map((m) => {
                     const on = selected?.carId === car.id && selected?.modId === m.id;
-                    const price = priceLabel(m, { short: true });
+                    const price = priceLabel(m, { short: true, show: showPrices });
                     return (
                       <li key={m.id}>
                         <button

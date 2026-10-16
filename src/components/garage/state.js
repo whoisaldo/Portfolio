@@ -11,7 +11,7 @@
 // what was chosen and where a hood or the stance came to rest, never what the
 // camera is doing on a given frame. Saying the same thing twice in a row is
 // made audible by clearing first, since an unchanged text node is not read.
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function useControllable(value, onChange, initial) {
   const [own, setOwn] = useState(initial);
@@ -56,4 +56,29 @@ export function nextIndex(key, i, n) {
   if (key === "Home") return 0;
   if (key === "End") return n - 1;
   return null;
+}
+
+/** A retained request ({ id, carId?, modId?, mod?, focus? }), applied once per
+ *  increasing id and then acknowledged, also when it names nothing real so
+ *  the queue can let it go. Returns the one-shot focus target (a deliberate
+ *  activation wants the card's heading focused once it exists) and, for a
+ *  request naming only a car, that car. */
+export function useGarageRequest(request, onRequestApplied, select, resolve) {
+  const applied = useRef(0);
+  const [focusTarget, setFocusTarget] = useState(null);
+  const [carHint, setCarHint] = useState(null);
+  useEffect(() => {
+    if (!request || request.id == null || request.id <= applied.current) return;
+    applied.current = request.id;
+    const sel = resolve(request);
+    if (sel?.modId) {
+      select(sel, { source: "request", requestId: request.id });
+      if (request.focus) setFocusTarget(sel);
+    } else if (sel?.carId && request.carId) {
+      setCarHint({ carId: sel.carId, id: request.id });
+    }
+    onRequestApplied?.(request.id);
+  }, [request, onRequestApplied, select, resolve]);
+  const onFocused = useCallback(() => setFocusTarget(null), []);
+  return { focusTarget, onFocused, carHint };
 }

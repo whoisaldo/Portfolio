@@ -94,8 +94,9 @@ export const modsIn = (car, groupId) => car.mods.filter((m) => m.group === group
 export const sameSel = (a, b) => (a?.carId ?? null) === (b?.carId ?? null) && (a?.modId ?? null) === (b?.modId ?? null);
 
 /** "$700 plus paint match and install", or "$700 +" with `short`. Both cars
- *  go through the S4's formatter, so SHOW_PRICES is still the one switch. */
-export const priceLabel = (mod, opts) => s4.priceLabel(mod, opts);
+ *  go through the S4's formatter, so SHOW_PRICES is still the one switch;
+ *  `show: false` (the integration passing SHOW_PRICES down) hides them too. */
+export const priceLabel = (mod, { show, ...opts } = {}) => (show === false ? null : s4.priceLabel(mod, opts));
 
 /** The car a station belongs to, or null for the arrival and the shop wall. */
 export const carAt = (stationId) => findStation(stationId)?.carId ?? null;
