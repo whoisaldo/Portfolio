@@ -32,7 +32,7 @@
 // restyles one element and not the document.
 import Lenis from "lenis";
 import { attachLenis } from "../lib/scroll";
-import { loadGarage3d } from "../lib/garage3d";
+import { prepareGarageSection } from "../lib/garage3d";
 import { stage, setStage, setHolding, garageCovers, subscribeStage } from "./stage";
 import { shotDim, routeDim, COVER_DIM } from "../data/world";
 import { sections as SECTIONS } from "../data/site";
@@ -206,13 +206,13 @@ export function startScrollStage({ scrim = null, chapter = null, smooth: useLeni
     const k = Math.round(stage.position);
     setHolding(Math.abs(stage.position - k) < 0.01 ? shots[k]?.id ?? null : null);
 
-    // The garage's viewer is heavy: start fetching it once the reader is
-    // past Stack, so it is ready by the time the flight lands in the bay.
+    // The garage's section is a lazy chunk, fetched when the page is idle;
+    // a reader past Stack is headed for it, so it is asked for now.
     if (!garageAsked) {
       const stack = shots.findIndex((s) => s.id === "stack");
       if (stack >= 0 && stage.position > stack) {
         garageAsked = true;
-        loadGarage3d().catch(() => {});
+        prepareGarageSection();
       }
     }
 

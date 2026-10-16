@@ -1,11 +1,37 @@
-// src/lib/garage3d.js: the door to the 3D garage.
+// src/lib/garage3d.js: the doors to the garage.
 //
-// Same shape as drift.js: three.js is never in the main bundle, and the
-// garage's scene is only fetched when the reader switches the bay to the
-// model. The car itself is the GLB the intro drifts (src/three/car), so a
-// reader who watched the intro already has it; the promise waits for it
-// either way. The promise is shared so a second switch never fetches twice,
-// and a failed load resets so a retry gets a second chance.
+// Two lazy chunks, the same shape as drift.js. The section itself
+// (src/sections/Garage.jsx, its parts list, photographs and controls) is
+// not in the main bundle: the page renders a shell for it at once
+// (src/routes/Home.jsx) and fetches the rest when the page is idle, sooner
+// when the reader heads for it. And the old viewer's scene, three.js and
+// all, is fetched only once the section is up and the city is in.
+//
+// Each promise is shared, so a second caller never fetches twice, and a
+// failed load resets, so a retry gets a second chance. The door's loading
+// screen waits for neither: the garage is never in the way of the hero.
+let section = null;
+
+export function loadGarageSection() {
+  if (!section) {
+    section = import("../sections/Garage.jsx").catch((err) => {
+      section = null;
+      throw err;
+    });
+  }
+  return section;
+}
+
+/** Fetch the section now (a deep link, a part asked for, the reader past
+ *  Stack), or once the page is idle (`idle`). Never rejects. */
+export function prepareGarageSection({ idle = false } = {}) {
+  if (typeof window === "undefined") return;
+  const go = () => loadGarageSection().catch(() => {});
+  if (!idle) return go();
+  if (window.requestIdleCallback) window.requestIdleCallback(go, { timeout: 4000 });
+  else window.setTimeout(go, 1500);
+}
+
 let promise = null;
 
 export function loadGarage3d() {
@@ -21,25 +47,4 @@ export function loadGarage3d() {
       });
   }
   return promise;
-}
-
-/**
- * The garage's 3D, built and compiled, for the door's loading screen to wait
- * on. GarageModel says it is expected as it mounts and settles it once its
- * scene is warm (or has failed: the door must not wait on a garage that will
- * never come).
- */
-let settle = null;
-let expected = false;
-export const garageWarm = new Promise((resolve) => {
-  settle = resolve;
-});
-export function expectGarage() {
-  expected = true;
-}
-export function garageExpected() {
-  return expected;
-}
-export function settleGarage() {
-  settle?.();
 }

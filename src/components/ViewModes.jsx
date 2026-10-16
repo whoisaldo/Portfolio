@@ -27,7 +27,6 @@ import { Camera, Eye, X } from "lucide-react";
 import { getWorld, setActiveProject, setActiveRole, stage, useStage } from "../world/stage";
 import { featuredProjects } from "../data/projects";
 import { experiences } from "../data/experience";
-import { car as CAR } from "../data/garage";
 import { chapterLabel } from "../world/scroll-stage";
 import { canPutAway, nudgeLook, pageIfGone, PHOTO_EVENT, setView, takePhoto, toggleView } from "../world/modes";
 import { shutterClick } from "../lib/ui-sfx";
@@ -173,10 +172,18 @@ const sectionOf = (id) => {
   return c ? `${c.num} // ${c.name}` : "";
 };
 
+// The garage's data, for the car's tag: fetched as Look starts, because it
+// rides in the garage's lazy chunk and not in the page's entry.
+let CAR = null;
+const loadCar = () =>
+  CAR
+    ? Promise.resolve(CAR)
+    : import("../data/garage").then((m) => (CAR = m.car)).catch(() => null);
+
 /** What a tag says about a thing, in the data's own words. The board shows
  *  the Work deck's entries and corpo row has a tower per role, in order. */
 function describe(target) {
-  if (target.kind === "car") return { label: sectionOf("garage"), title: `${CAR.year} ${CAR.name}`, line: CAR.engine, hint: "Click: the lamps" };
+  if (target.kind === "car") return { label: sectionOf("garage"), title: CAR ? `${CAR.year} ${CAR.name}` : "", line: CAR?.engine ?? null, hint: "Click: the lamps" };
   if (target.kind === "board") {
     const p = featuredProjects[stage.activeProject] ?? featuredProjects[0];
     return { label: sectionOf("projects"), title: p?.title ?? "", line: null, hint: "Click: the next one" };
@@ -191,6 +198,7 @@ function LookTouch() {
   const tagRef = useRef(null);
   const [tag, setTag] = useState(null);
   useEffect(() => {
+    loadCar();
     const root = document.documentElement;
     const saved = { project: stage.activeProject, roles: stage.activeRoles.slice() };
     let touched = false;

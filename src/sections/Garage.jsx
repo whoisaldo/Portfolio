@@ -34,18 +34,25 @@
 //
 // What used to be the rest of Teardown (the 328xi, the bench, the two
 // competitions) sits under the bay as "Also in the shop", captions intact.
+//
+// This module is a lazy chunk. The section's element, its id and heading
+// are the page's own shell (GarageShell in src/routes/Home.jsx), there from
+// the first paint so a link to #garage always has somewhere to land; this
+// fills it in. The lede goes beside the heading through `ledeSlot`, a node
+// the shell keeps there for it. Requests for a part (src/lib/garage.js)
+// wait until this is up to hear them, and are applied once.
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { car, views, groups, mods, modsIn, pins, findMod, priceLabel, alsoOnTheList, DEFAULT_BAY } from "../data/garage";
 import { teardown } from "../data/life";
-import { GARAGE_EVENT } from "../lib/garage";
+import { ackGarageRequest, latestGarageRequest, subscribeGarageRequests } from "../lib/garage";
 import { useMediaQuery } from "../hooks";
 import CoverBox from "../components/ui/CoverBox";
 import GarageModel from "../components/GarageModel";
 import Picture from "../components/Picture";
 import Panel from "../components/ui/Panel";
-import Glitch from "../components/ui/Glitch";
 
 const pad = (n) => String(n).padStart(2, "0");
 const groupOf = (m) => groups.find((g) => g.id === m.group);
@@ -77,7 +84,7 @@ function centred(p, k) {
   return Math.min(100, Math.max(0, ((k * p) / 100 - 0.5) / (k - 1) * 100));
 }
 
-export default function Garage() {
+export default function Garage({ ledeSlot = null }) {
   const [viewId, setViewId] = useState(views[0].id);
   const [mode, setMode] = useState(DEFAULT_BAY);
   const [selected, setSelected] = useState(null);
@@ -108,12 +115,17 @@ export default function Garage() {
     setViewId((cur) => (m.pins.some((p) => p.view === cur) ? cur : m.pins[0].view));
   }, []);
 
+  // Subscribed first, then the request that may have been waiting for this
+  // to load: none is missed and none is applied twice.
   useEffect(() => {
-    const onOpen = (e) => {
-      if (e.detail?.mod) select(e.detail.mod);
+    const apply = (request) => {
+      if (!request) return;
+      if (request.carId === "s4" && request.modId) select(request.modId);
+      ackGarageRequest(request.id);
     };
-    window.addEventListener(GARAGE_EVENT, onOpen);
-    return () => window.removeEventListener(GARAGE_EVENT, onOpen);
+    const unsubscribe = subscribeGarageRequests(apply);
+    apply(latestGarageRequest());
+    return unsubscribe;
   }, [select]);
 
   // The roving tabindex follows the selection into a new view.
@@ -172,324 +184,315 @@ export default function Garage() {
   }, [cropPin, cropView]);
 
   return (
-    <section id={car.id} data-shot="garage" className="relative bg-ink border-t border-ink-line grain world-clear">
-      <div className="gutter pt-24 md:pt-32 pb-24 md:pb-32">
-        {/* ---- header ---------------------------------------------------- */}
-        <motion.div {...reveal} transition={{ duration: 0.7 }} className="rail-clear">
-          <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
-            <div>
-              <p className="mono-label text-volt mb-4">05 // Garage</p>
-              <Glitch as="h2" className="font-display uppercase text-display-1 text-primary block">
-                Garage
-              </Glitch>
+    <>
+      {/* ---- the lede, beside the shell's heading ---------------------- */}
+      {ledeSlot &&
+        createPortal(
+          <Panel glass className="max-w-[46ch]" innerClassName="px-5 py-4">
+            <p className="prose-dark">{car.lede}</p>
+            {/* The spec line. Machine type, because that is what it is: a
+                year, an engine code and a number. Sentence case, though,
+                and no longer tracked out to the width of a licence plate. */}
+            <p className="mono-ui mono-cased text-dim mt-4">
+              {car.year} {car.name} · {car.engine} · <span className="text-volt">{car.output}</span>
+            </p>
+          </Panel>,
+          ledeSlot,
+        )}
+
+      {/* ---- the bay --------------------------------------------------- */}
+      <motion.div {...reveal} transition={{ duration: 0.6, delay: 0.05 }} className="mt-12 tick-frame relative rail-clear">
+        <Panel glass fill="bg-ink" innerClassName="flex flex-col">
+          {/* Bezel: the name of the machine, and the views. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 md:px-5 py-3 border-b border-ink-line">
+            <div className="flex items-center gap-4 min-w-0">
+              <span className="hazard h-1.5 w-10 opacity-40 shrink-0" aria-hidden="true" />
+              <span className="mono-label text-volt">Bay 01</span>
+              <span className="mono-micro text-dim hidden sm:inline tabular-nums">{pad(mods.length)} parts</span>
             </div>
-            <Panel glass className="max-w-[46ch]" innerClassName="px-5 py-4">
-              <p className="prose-dark">{car.lede}</p>
-              {/* The spec line. Machine type, because that is what it is: a
-                  year, an engine code and a number. Sentence case, though,
-                  and no longer tracked out to the width of a licence plate. */}
-              <p className="mono-ui mono-cased text-dim mt-4">
-                {car.year} {car.name} · {car.engine} · <span className="text-volt">{car.output}</span>
-              </p>
-            </Panel>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <div role="group" aria-label="Bay" className="flex border border-ink-line">
+                {[["model", "3D model"], ["photos", "Photographs"]].map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={mode === id}
+                    onClick={() => setMode(id)}
+                    className={`px-2.5 py-1.5 mono-micro transition-colors focus-visible:shadow-none focus-visible:bg-volt focus-visible:text-ink
+                                ${mode === id ? "bg-volt text-ink font-bold" : "text-muted hover:text-primary"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            <div role="tablist" aria-label="Views of the car" onKeyDown={onTabKey} className="flex flex-wrap gap-1 -mx-1">
+              {views.map((v, i) => {
+                const on = v.id === view.id;
+                return (
+                  <button
+                    key={v.id}
+                    ref={(el) => { tabRefs.current[i] = el; }}
+                    type="button"
+                    role="tab"
+                    id={`${idBase}-tab-${v.id}`}
+                    aria-selected={on}
+                    aria-controls={`${idBase}-view`}
+                    tabIndex={on ? 0 : -1}
+                    onClick={() => setViewId(v.id)}
+                    className={`relative px-3 py-2 mono-label whitespace-nowrap transition-colors focus-visible:outline-none
+                                ${on ? "text-primary" : "text-dim hover:text-primary"}`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`absolute left-0 right-0 bottom-0 h-0.5 bg-volt transition-opacity ${on ? "opacity-100" : "opacity-0"}`}
+                    />
+                    {v.label}
+                  </button>
+                );
+              })}
+            </div>
+            </div>
           </div>
-          <div className="edge-rule mt-10" aria-hidden="true" />
-        </motion.div>
 
-        {/* ---- the bay --------------------------------------------------- */}
-        <motion.div {...reveal} transition={{ duration: 0.6, delay: 0.05 }} className="mt-12 tick-frame relative rail-clear">
-          <Panel glass fill="bg-ink" innerClassName="flex flex-col">
-            {/* Bezel: the name of the machine, and the views. */}
-            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 md:px-5 py-3 border-b border-ink-line">
-              <div className="flex items-center gap-4 min-w-0">
-                <span className="hazard h-1.5 w-10 opacity-40 shrink-0" aria-hidden="true" />
-                <span className="mono-label text-volt">Bay 01</span>
-                <span className="mono-micro text-dim hidden sm:inline tabular-nums">{pad(mods.length)} parts</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                <div role="group" aria-label="Bay" className="flex border border-ink-line">
-                  {[["model", "3D model"], ["photos", "Photographs"]].map(([id, label]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      aria-pressed={mode === id}
-                      onClick={() => setMode(id)}
-                      className={`px-2.5 py-1.5 mono-micro transition-colors focus-visible:shadow-none focus-visible:bg-volt focus-visible:text-ink
-                                  ${mode === id ? "bg-volt text-ink font-bold" : "text-muted hover:text-primary"}`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              <div role="tablist" aria-label="Views of the car" onKeyDown={onTabKey} className="flex flex-wrap gap-1 -mx-1">
-                {views.map((v, i) => {
-                  const on = v.id === view.id;
-                  return (
-                    <button
-                      key={v.id}
-                      ref={(el) => { tabRefs.current[i] = el; }}
-                      type="button"
-                      role="tab"
-                      id={`${idBase}-tab-${v.id}`}
-                      aria-selected={on}
-                      aria-controls={`${idBase}-view`}
-                      tabIndex={on ? 0 : -1}
-                      onClick={() => setViewId(v.id)}
-                      className={`relative px-3 py-2 mono-label whitespace-nowrap transition-colors focus-visible:outline-none
-                                  ${on ? "text-primary" : "text-dim hover:text-primary"}`}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className={`absolute left-0 right-0 bottom-0 h-0.5 bg-volt transition-opacity ${on ? "opacity-100" : "opacity-0"}`}
-                      />
-                      {v.label}
-                    </button>
-                  );
-                })}
-              </div>
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-[minmax(0,3fr)_minmax(19rem,2fr)]">
-              {/* The photograph, with the markers on it. */}
-              <div
-                role="tabpanel"
-                id={`${idBase}-view`}
-                aria-labelledby={`${idBase}-tab-${view.id}`}
-                tabIndex={-1}
-                className="relative min-w-0 border-b md:border-b-0 md:border-r border-ink-line focus-visible:outline-none"
+          <div className="grid md:grid-cols-[minmax(0,3fr)_minmax(19rem,2fr)]">
+            {/* The photograph, with the markers on it. */}
+            <div
+              role="tabpanel"
+              id={`${idBase}-view`}
+              aria-labelledby={`${idBase}-tab-${view.id}`}
+              tabIndex={-1}
+              className="relative min-w-0 border-b md:border-b-0 md:border-r border-ink-line focus-visible:outline-none"
+            >
+              {model ? (
+                <GarageModel
+                  markers={modelMarkers}
+                  selected={selected}
+                  onSelect={select}
+                  view={view.id}
+                  onFallback={() => setMode("photos")}
+                />
+              ) : (
+              <CoverBox
+                key={view.id}
+                width={view.image.width}
+                height={view.image.height}
+                focus={view.focus}
+                className="garage-frame aspect-[4/5] md:aspect-[4/3] bg-ink-deep"
               >
-                {model ? (
-                  <GarageModel
-                    markers={modelMarkers}
-                    selected={selected}
-                    onSelect={select}
-                    view={view.id}
-                    onFallback={() => setMode("photos")}
-                  />
-                ) : (
-                <CoverBox
-                  key={view.id}
-                  width={view.image.width}
-                  height={view.image.height}
-                  focus={view.focus}
-                  className="garage-frame aspect-[4/5] md:aspect-[4/3] bg-ink-deep"
-                >
-                  <div aria-hidden="true" className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url("${view.image.lqip}")` }} />
-                  <Picture
-                    sources={view.image}
-                    alt={view.alt}
-                    sizes={wide ? "60vw" : "100vw"}
-                    loading="lazy"
-                    className="absolute inset-0 w-full h-full"
-                  />
-                  <div className="deck-scanlines absolute inset-0 pointer-events-none" aria-hidden="true" />
-                  <div role="group" aria-label={`Parts pinned on the ${view.label.toLowerCase()} view`} onKeyDown={onPinKey}>
-                    {viewPins.map((p, i) => {
-                      const on = selected === p.mod.id;
-                      return (
-                        <button
-                          key={`${p.mod.id}-${p.view}`}
-                          ref={(el) => { pinRefs.current[i] = el; }}
-                          type="button"
-                          className={`garage-pin ${on ? "is-on" : ""} ${p.y > 80 ? "is-low" : ""}`}
-                          style={{ left: `${p.x}%`, top: `${p.y}%` }}
-                          tabIndex={i === pinFocus ? 0 : -1}
-                          aria-pressed={on}
-                          aria-label={`${p.mod.name}: ${p.label}`}
-                          onClick={() => select(p.mod.id)}
-                          onFocus={() => setPinFocus(i)}
-                        >
-                          <span aria-hidden="true">{pad(p.index + 1)}</span>
-                          <span className="garage-pin-label" aria-hidden="true">{p.mod.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </CoverBox>
-                )}
-                {!model && <div className="absolute top-0 left-0 m-3 flex items-center gap-2 pointer-events-none">
-                  <span className="mono-micro text-dim bg-ink/80 px-2 py-1 tabular-nums">
-                    {pad(viewIndex + 1)} / {pad(views.length)}
-                  </span>
-                  {view.date && <span className="mono-micro text-dim bg-ink/80 px-2 py-1">{view.date}</span>}
-                </div>}
-              </div>
-
-              {/* The detail card. */}
-              <div className="p-5 md:p-6 flex flex-col min-w-0" aria-live="polite">
-                {mod ? (
-                  <>
-                    <p className="mono-label text-volt flex items-center gap-3">
-                      <span>{groupOf(mod)?.label}</span>
-                      <span className="text-dim tabular-nums">{pad(indexOf(mod) + 1)} / {pad(mods.length)}</span>
-                    </p>
-                    <h3 className="mt-3 font-display uppercase text-display-3 text-primary">{mod.name}</h3>
-
-                    <dl className="mt-4 grid grid-cols-[5rem_minmax(0,1fr)] gap-x-4 gap-y-2 items-start">
-                      {mod.brand && (
-                        <>
-                          <dt className="mono-micro text-dim">Brand</dt>
-                          <dd className="text-[0.9375rem] text-muted">{mod.brand}</dd>
-                        </>
-                      )}
-                      {priceLabel(mod) && (
-                        <>
-                          <dt className="mono-micro text-dim">Paid</dt>
-                          <dd className="text-[0.9375rem] text-muted tabular-nums">{priceLabel(mod)}</dd>
-                        </>
-                      )}
-                      <dt className="mono-micro text-dim">Pinned</dt>
-                      <dd className="text-[0.9375rem] text-muted">
-                        {mod.pins.map((p, i) => {
-                          const v = views.find((x) => x.id === p.view);
-                          return (
-                            <span key={p.view} className="inline">
-                              {i > 0 && <span className="text-dim"> · </span>}
-                              <button
-                                type="button"
-                                onClick={() => setViewId(p.view)}
-                                className={`ink-underline text-left transition-colors hover:text-volt ${p.view === view.id ? "text-primary" : ""}`}
-                              >
-                                {v?.label}, {lower(p.label)}
-                              </button>
-                            </span>
-                          );
-                        })}
-                      </dd>
-                    </dl>
-
-                    <p className="mt-4 prose-dark text-[0.9375rem] leading-[1.6]">{mod.note}</p>
-
-                    {/* The close-up: the same photograph, zoomed to the pin.
-                        Never a different picture, because there is not one. */}
-                    {crop && (
-                      <div className="mt-5 tick-frame relative w-full max-w-[16rem]">
-                        <Panel corner="br" edge="bg-ink-line" innerClassName="relative aspect-square overflow-hidden">
-                          <div
-                            role="img"
-                            aria-label={`Close crop of the ${cropView.label.toLowerCase()} photograph: ${lower(cropPin.label)}.`}
-                            className="absolute inset-0 bg-no-repeat"
-                            style={crop}
-                          />
-                          <span className="absolute left-0 bottom-0 m-2 mono-micro text-dim bg-ink/80 px-2 py-1 max-w-[calc(100%-1rem)] truncate">
-                            {cropPin.label}
-                          </span>
-                        </Panel>
-                        <span className="tick tr" aria-hidden="true" />
-                        <span className="tick bl" aria-hidden="true" />
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <p className="mono-label text-volt">The car</p>
-                    <h3 className="mt-3 font-display uppercase text-display-3 text-primary">{car.year} {car.name}</h3>
-                    <dl className="mt-4 grid grid-cols-[5rem_minmax(0,1fr)] gap-x-4 gap-y-2 items-baseline">
-                      <dt className="mono-micro text-dim">Engine</dt>
-                      <dd className="text-[0.9375rem] text-muted">{car.engine}</dd>
-                      <dt className="mono-micro text-dim">Output</dt>
-                      <dd className="text-[0.9375rem] text-volt">{car.output}</dd>
-                      <dt className="mono-micro text-dim">Parts</dt>
-                      <dd className="text-[0.9375rem] text-muted">{mods.length} on the list, {pins.length} markers</dd>
-                    </dl>
-                    <p className="mt-4 prose-dark text-[0.9375rem] leading-[1.6]">{car.outputNote}</p>
-                    <p className="mt-3 prose-dark text-[0.9375rem] leading-[1.6] text-dim">
-                      Pick a marker on the {model ? "model" : "photograph"}, or a line in the sheet below.
-                    </p>
-                  </>
-                )}
-
-                <div className="mt-auto pt-6 flex items-center justify-between gap-4">
-                  <button
-                    type="button"
-                    onClick={() => step(-1)}
-                    className="inline-flex items-center gap-2 mono-label text-muted hover:text-volt focus-visible:text-volt transition-colors py-1"
-                  >
-                    <ChevronLeft className="w-4 h-4" aria-hidden="true" />
-                    Previous part
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => step(1)}
-                    className="inline-flex items-center gap-2 mono-label text-muted hover:text-volt focus-visible:text-volt transition-colors py-1"
-                  >
-                    Next part
-                    <ChevronRight className="w-4 h-4" aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* The sheet: every part, grouped, and a button each. */}
-            <div className="border-t border-ink-line px-4 md:px-6 py-6 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
-              {SHEET.map((column, ci) => (
-                <div key={ci} className="space-y-7">
-                  {column.map((gid) => {
-                    const g = groups.find((x) => x.id === gid);
-                    const list = modsIn(gid);
-                    if (!g || !list.length) return null;
+                <div aria-hidden="true" className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url("${view.image.lqip}")` }} />
+                <Picture
+                  sources={view.image}
+                  alt={view.alt}
+                  sizes={wide ? "60vw" : "100vw"}
+                  loading="lazy"
+                  className="absolute inset-0 w-full h-full"
+                />
+                <div className="deck-scanlines absolute inset-0 pointer-events-none" aria-hidden="true" />
+                <div role="group" aria-label={`Parts pinned on the ${view.label.toLowerCase()} view`} onKeyDown={onPinKey}>
+                  {viewPins.map((p, i) => {
+                    const on = selected === p.mod.id;
                     return (
-                      <div key={gid}>
-                        <h4 className="flex items-baseline justify-between gap-4 pb-2 border-b border-ink-line">
-                          <span className="mono-label text-primary">{g.label}</span>
-                          <span className="mono-micro text-faint tabular-nums">{pad(list.length)}</span>
-                        </h4>
-                        <ul className="mt-1">
-                          {list.map((m) => {
-                            const on = selected === m.id;
-                            const price = priceLabel(m, { short: true });
-                            return (
-                              <li key={m.id}>
-                                <button
-                                  type="button"
-                                  aria-pressed={on}
-                                  onClick={() => select(m.id)}
-                                  className={`garage-row group w-full flex items-baseline gap-3 py-2 text-left transition-colors
-                                              ${on ? "text-volt" : "text-muted hover:text-primary"}`}
-                                >
-                                  <span className="mono-micro text-dim tabular-nums shrink-0 w-6">{pad(indexOf(m) + 1)}</span>
-                                  <span className="text-[0.9375rem] leading-snug grow min-w-0">{m.name}</span>
-                                  {price && <span className="mono-micro text-dim tabular-nums shrink-0">{price}</span>}
-                                </button>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
+                      <button
+                        key={`${p.mod.id}-${p.view}`}
+                        ref={(el) => { pinRefs.current[i] = el; }}
+                        type="button"
+                        className={`garage-pin ${on ? "is-on" : ""} ${p.y > 80 ? "is-low" : ""}`}
+                        style={{ left: `${p.x}%`, top: `${p.y}%` }}
+                        tabIndex={i === pinFocus ? 0 : -1}
+                        aria-pressed={on}
+                        aria-label={`${p.mod.name}: ${p.label}`}
+                        onClick={() => select(p.mod.id)}
+                        onFocus={() => setPinFocus(i)}
+                      >
+                        <span aria-hidden="true">{pad(p.index + 1)}</span>
+                        <span className="garage-pin-label" aria-hidden="true">{p.mod.name}</span>
+                      </button>
                     );
                   })}
                 </div>
-              ))}
+              </CoverBox>
+              )}
+              {!model && <div className="absolute top-0 left-0 m-3 flex items-center gap-2 pointer-events-none">
+                <span className="mono-micro text-dim bg-ink/80 px-2 py-1 tabular-nums">
+                  {pad(viewIndex + 1)} / {pad(views.length)}
+                </span>
+                {view.date && <span className="mono-micro text-dim bg-ink/80 px-2 py-1">{view.date}</span>}
+              </div>}
             </div>
 
-            {/* Status bar. Only true things. The left half is machine state and
-                is set like it; the right half is an instruction somebody has to
-                read, so it is not in uppercase mono at all. */}
-            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 md:px-5 py-2.5 border-t border-ink-line">
-              <span className="mono-label text-dim">
-                <span className="text-muted">{model ? "3D model" : view.label}</span> · {model ? mods.length : viewPins.length} markers
-                {mod && <span> · <span className="text-muted">{mod.name}</span></span>}
-              </span>
-              <span className="hidden md:inline text-[0.8125rem] text-dim">
-                {model ? "Drag to turn. Arrow keys walk the markers." : "Arrow keys walk the markers. Tab reaches the sheet."}
-              </span>
+            {/* The detail card. */}
+            <div className="p-5 md:p-6 flex flex-col min-w-0" aria-live="polite">
+              {mod ? (
+                <>
+                  <p className="mono-label text-volt flex items-center gap-3">
+                    <span>{groupOf(mod)?.label}</span>
+                    <span className="text-dim tabular-nums">{pad(indexOf(mod) + 1)} / {pad(mods.length)}</span>
+                  </p>
+                  <h3 className="mt-3 font-display uppercase text-display-3 text-primary">{mod.name}</h3>
+
+                  <dl className="mt-4 grid grid-cols-[5rem_minmax(0,1fr)] gap-x-4 gap-y-2 items-start">
+                    {mod.brand && (
+                      <>
+                        <dt className="mono-micro text-dim">Brand</dt>
+                        <dd className="text-[0.9375rem] text-muted">{mod.brand}</dd>
+                      </>
+                    )}
+                    {priceLabel(mod) && (
+                      <>
+                        <dt className="mono-micro text-dim">Paid</dt>
+                        <dd className="text-[0.9375rem] text-muted tabular-nums">{priceLabel(mod)}</dd>
+                      </>
+                    )}
+                    <dt className="mono-micro text-dim">Pinned</dt>
+                    <dd className="text-[0.9375rem] text-muted">
+                      {mod.pins.map((p, i) => {
+                        const v = views.find((x) => x.id === p.view);
+                        return (
+                          <span key={p.view} className="inline">
+                            {i > 0 && <span className="text-dim"> · </span>}
+                            <button
+                              type="button"
+                              onClick={() => setViewId(p.view)}
+                              className={`ink-underline text-left transition-colors hover:text-volt ${p.view === view.id ? "text-primary" : ""}`}
+                            >
+                              {v?.label}, {lower(p.label)}
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </dd>
+                  </dl>
+
+                  <p className="mt-4 prose-dark text-[0.9375rem] leading-[1.6]">{mod.note}</p>
+
+                  {/* The close-up: the same photograph, zoomed to the pin.
+                      Never a different picture, because there is not one. */}
+                  {crop && (
+                    <div className="mt-5 tick-frame relative w-full max-w-[16rem]">
+                      <Panel corner="br" edge="bg-ink-line" innerClassName="relative aspect-square overflow-hidden">
+                        <div
+                          role="img"
+                          aria-label={`Close crop of the ${cropView.label.toLowerCase()} photograph: ${lower(cropPin.label)}.`}
+                          className="absolute inset-0 bg-no-repeat"
+                          style={crop}
+                        />
+                        <span className="absolute left-0 bottom-0 m-2 mono-micro text-dim bg-ink/80 px-2 py-1 max-w-[calc(100%-1rem)] truncate">
+                          {cropPin.label}
+                        </span>
+                      </Panel>
+                      <span className="tick tr" aria-hidden="true" />
+                      <span className="tick bl" aria-hidden="true" />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="mono-label text-volt">The car</p>
+                  <h3 className="mt-3 font-display uppercase text-display-3 text-primary">{car.year} {car.name}</h3>
+                  <dl className="mt-4 grid grid-cols-[5rem_minmax(0,1fr)] gap-x-4 gap-y-2 items-baseline">
+                    <dt className="mono-micro text-dim">Engine</dt>
+                    <dd className="text-[0.9375rem] text-muted">{car.engine}</dd>
+                    <dt className="mono-micro text-dim">Output</dt>
+                    <dd className="text-[0.9375rem] text-volt">{car.output}</dd>
+                    <dt className="mono-micro text-dim">Parts</dt>
+                    <dd className="text-[0.9375rem] text-muted">{mods.length} on the list, {pins.length} markers</dd>
+                  </dl>
+                  <p className="mt-4 prose-dark text-[0.9375rem] leading-[1.6]">{car.outputNote}</p>
+                  <p className="mt-3 prose-dark text-[0.9375rem] leading-[1.6] text-dim">
+                    Pick a marker on the {model ? "model" : "photograph"}, or a line in the sheet below.
+                  </p>
+                </>
+              )}
+
+              <div className="mt-auto pt-6 flex items-center justify-between gap-4">
+                <button
+                  type="button"
+                  onClick={() => step(-1)}
+                  className="inline-flex items-center gap-2 mono-label text-muted hover:text-volt focus-visible:text-volt transition-colors py-1"
+                >
+                  <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+                  Previous part
+                </button>
+                <button
+                  type="button"
+                  onClick={() => step(1)}
+                  className="inline-flex items-center gap-2 mono-label text-muted hover:text-volt focus-visible:text-volt transition-colors py-1"
+                >
+                  Next part
+                  <ChevronRight className="w-4 h-4" aria-hidden="true" />
+                </button>
+              </div>
             </div>
-          </Panel>
-          <span className="tick tl" aria-hidden="true" />
-          <span className="tick tr" aria-hidden="true" />
-          <span className="tick bl" aria-hidden="true" />
-          <span className="tick br" aria-hidden="true" />
-        </motion.div>
+          </div>
 
-        {/* A sentence, so it is set as one. This was uppercase mono at 0.18em,
-            which is the single least readable thing the section did. */}
-        <p className="mt-5 prose-dark text-[0.9375rem] text-dim rail-clear">{alsoOnTheList}</p>
+          {/* The sheet: every part, grouped, and a button each. */}
+          <div className="border-t border-ink-line px-4 md:px-6 py-6 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+            {SHEET.map((column, ci) => (
+              <div key={ci} className="space-y-7">
+                {column.map((gid) => {
+                  const g = groups.find((x) => x.id === gid);
+                  const list = modsIn(gid);
+                  if (!g || !list.length) return null;
+                  return (
+                    <div key={gid}>
+                      <h4 className="flex items-baseline justify-between gap-4 pb-2 border-b border-ink-line">
+                        <span className="mono-label text-primary">{g.label}</span>
+                        <span className="mono-micro text-faint tabular-nums">{pad(list.length)}</span>
+                      </h4>
+                      <ul className="mt-1">
+                        {list.map((m) => {
+                          const on = selected === m.id;
+                          const price = priceLabel(m, { short: true });
+                          return (
+                            <li key={m.id}>
+                              <button
+                                type="button"
+                                aria-pressed={on}
+                                onClick={() => select(m.id)}
+                                className={`garage-row group w-full flex items-baseline gap-3 py-2 text-left transition-colors
+                                            ${on ? "text-volt" : "text-muted hover:text-primary"}`}
+                              >
+                                <span className="mono-micro text-dim tabular-nums shrink-0 w-6">{pad(indexOf(m) + 1)}</span>
+                                <span className="text-[0.9375rem] leading-snug grow min-w-0">{m.name}</span>
+                                {price && <span className="mono-micro text-dim tabular-nums shrink-0">{price}</span>}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
 
-        {/* ---- the rest of the shop ---------------------------------------- */}
-        <Shop />
-      </div>
-    </section>
+          {/* Status bar. Only true things. The left half is machine state and
+              is set like it; the right half is an instruction somebody has to
+              read, so it is not in uppercase mono at all. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 md:px-5 py-2.5 border-t border-ink-line">
+            <span className="mono-label text-dim">
+              <span className="text-muted">{model ? "3D model" : view.label}</span> · {model ? mods.length : viewPins.length} markers
+              {mod && <span> · <span className="text-muted">{mod.name}</span></span>}
+            </span>
+            <span className="hidden md:inline text-[0.8125rem] text-dim">
+              {model ? "Drag to turn. Arrow keys walk the markers." : "Arrow keys walk the markers. Tab reaches the sheet."}
+            </span>
+          </div>
+        </Panel>
+        <span className="tick tl" aria-hidden="true" />
+        <span className="tick tr" aria-hidden="true" />
+        <span className="tick bl" aria-hidden="true" />
+        <span className="tick br" aria-hidden="true" />
+      </motion.div>
+
+      {/* A sentence, so it is set as one. This was uppercase mono at 0.18em,
+          which is the single least readable thing the section did. */}
+      <p className="mt-5 prose-dark text-[0.9375rem] text-dim rail-clear">{alsoOnTheList}</p>
+
+      {/* ---- the rest of the shop ---------------------------------------- */}
+      <Shop />
+    </>
   );
 }
 

@@ -21,7 +21,7 @@
 // camera move.
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
-import { expectGarage, loadGarage3d, settleGarage } from "../lib/garage3d";
+import { loadGarage3d } from "../lib/garage3d";
 import { usePrefersReducedMotion } from "../hooks";
 import { coverWorld, stage, subscribeStage } from "../world/stage";
 
@@ -103,7 +103,6 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
           setHoodOpen(scene.isHoodOpen());
           // Its programs built before its first frame, off the main thread.
           await scene.warm();
-          settleGarage();
           if (!alive) return;
           ro = new ResizeObserver(() => scene.resize(wrap.clientWidth, wrap.clientHeight));
           ro.observe(wrap);
@@ -120,27 +119,20 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
         })
         .catch((err) => {
           if (import.meta.env.DEV) console.warn("[garage] 3D unavailable", err);
-          settleGarage();
           if (alive) setState("failed");
         });
     };
 
-    // Built ahead, where its long frames show on nothing: at once with the
-    // door up (its loading screen waits for it), or as soon as the city is
-    // in and the page is idle. Coming near the viewport is the last resort.
-    // Never during the opening cinematic: the door's screen comes before it,
-    // and without a door there is none.
-    expectGarage();
+    // Built ahead, where its long frames show on nothing: as soon as the
+    // city is in and the page is idle. Coming near the viewport is the last
+    // resort. Never under the door: the door does not wait for the garage.
     let idle = 0;
     const whenCity = () => {
       if (stage.status !== "ready" || idle) return;
       idle = window.requestIdleCallback ? window.requestIdleCallback(load, { timeout: 2500 }) : window.setTimeout(load, 500);
     };
     const unsubscribe = subscribeStage(whenCity);
-    const early = window.setTimeout(() => {
-      if (document.documentElement.hasAttribute("data-gated")) load();
-      else whenCity();
-    }, 0);
+    const early = window.setTimeout(whenCity, 0);
     near = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting) return;
       near.disconnect();
