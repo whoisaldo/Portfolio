@@ -572,15 +572,16 @@ def _shutter_w(k):
     box(t, -W / 2 - 0.2, W / 2 + 0.2, H, H + 0.6, -0.12, -0.1, col=GUN_DARK, bottom=True)
     box(k("hazard"), -W / 2 - 0.2, W / 2 + 0.2, H + 0.02, H + 0.08, -0.124, -0.12)
     box(t, -W / 2, W / 2, 0.0, 0.015, p - 0.04, p + 0.04, col=RUBBER)
-    # The motor, its gearbox and the hand chain.
-    mx = W / 2 + 0.35
-    pipe(t, (W / 2 + 0.05, H + 0.3, 0.1), (mx + 0.2, H + 0.3, 0.1), 0.11, segs=12, col=GUN, caps=True)
-    box(t, mx + 0.2, mx + 0.42, H + 0.12, H + 0.48, -0.06, 0.26, col=BLACK_PAINT, bottom=True)
-    pipe(t, (mx + 0.42, H + 0.3, 0.1), (mx + 0.46, H + 0.3, 0.1), 0.13, segs=12, col=GUN_DARK, caps=True)
-    for zc in (0.02, 0.18):
-        pts = [(mx + 0.44, H + 0.17, zc), (mx + 0.44, H - 1.4, zc), (mx + 0.44, 1.25, zc + (0.04 if zc < 0.1 else -0.04))]
+    # The motor, its gearbox and the hand chain, in the room in front of the
+    # drum's right end (the wall is solid beside the opening).
+    mx, mz = W / 2 + 0.35, -0.26
+    pipe(t, (W / 2, H + 0.3, mz), (mx + 0.2, H + 0.3, mz), 0.11, segs=12, col=GUN, caps=True)
+    box(t, mx + 0.2, mx + 0.42, H + 0.12, H + 0.48, mz - 0.16, mz + 0.16, col=BLACK_PAINT, bottom=True)
+    pipe(t, (mx + 0.42, H + 0.3, mz), (mx + 0.46, H + 0.3, mz), 0.13, segs=12, col=GUN_DARK, caps=True)
+    for zc in (mz - 0.08, mz + 0.08):
+        pts = [(mx + 0.44, H + 0.17, zc), (mx + 0.44, H - 1.4, zc), (mx + 0.44, 1.25, zc + (0.04 if zc < mz else -0.04))]
         cable(n, pts, 0.005, col=STEEL_MID, segs=4)
-    cable(t, ((mx + 0.3, H + 0.12, 0.0), (mx + 0.3, H - 0.2, -0.02), (W / 2 + 0.3, H - 0.4, -0.02), (W / 2 + 0.3, 1.6, -0.02)), 0.008, col=CABLE)
+    cable(t, ((mx + 0.3, H + 0.12, mz), (mx + 0.3, H - 0.2, -0.03), (W / 2 + 0.3, H - 0.4, -0.02), (W / 2 + 0.3, 1.6, -0.02)), 0.008, col=CABLE)
     # The station: up, stop, down.
     box(t, W / 2 + 0.22, W / 2 + 0.38, 1.25, 1.6, -0.06, 0.0, col=YELLOW)
     for i, col in enumerate(((0.05, 0.05, 0.05, 1), (0.6, 0.03, 0.02, 1), (0.05, 0.05, 0.05, 1))):

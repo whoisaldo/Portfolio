@@ -461,8 +461,8 @@ if args.render:
         scene.render.filepath = str(path)
         bpy.ops.render.render(write_still=True, scene=scene.name)
         manifest.append({"file": path.name, "name": p["name"], "label": p["label"], "category": p["category"]})
-    (out / "tiles.json").write_text(json.dumps(manifest, indent=1))
     if not only:
+        (out / "tiles.json").write_text(json.dumps(manifest, indent=1))
         # The overview: every row, the scale figures, from high at the front.
         for q in placed:
             q["coll"].hide_render = False
