@@ -25,7 +25,7 @@ SHOT_CAMERAS = {
     "stack_b": (None, (380.0, 38.0, -214.0)),
     # The garage's arrival (cam_garage stays its name for the page's shot):
     # from the rear apron by the door, both cars, their rears to it.
-    "garage": ((454.0, 2.7, -222.8), (462.0, 0.4, -218.5)),
+    "garage": ((453.8, 2.2, -225.0), (462.0, 0.45, -219.0)),
     # The moon sits right of the email headline, over the sky it is meant to
     # read against, clear of the navigation and the links below.
     "contact": ((456.0, 10.4, -203.0), (554.0, 48.5, -110.0)),
@@ -60,7 +60,9 @@ empty("cam_contact_target_portrait", (529.6, 28.2, -89.7))
 # ---------------------------------------------------------------------------
 GARAGE_STATIONS = [
     # id, p, (wide camera, target, fov), (portrait camera, target, fov)
-    ("arrival", 0.0, ((454.0, 2.7, -222.8), (462.0, 0.4, -218.5), 58), ((454.0, 3.6, -228.6), (461.5, 0.8, -220.0), 84)),
+    # (Wide: lower and in the arrival pocket than PLAN's first [454, 2.7,
+    # -222.8], so the S6's own bumper does not hide its tyres' contact.)
+    ("arrival", 0.0, ((453.8, 2.2, -225.0), (462.0, 0.45, -219.0), 58), ((454.0, 3.6, -228.6), (461.5, 0.8, -220.0), 84)),
     ("s4", 0.2, ((468.5, 1.8, -210.8), (462.8, 0.85, -215.0), 48), ((469.4, 2.3, -211.3), (462.5, 0.85, -215.0), 60)),
     ("s4_bay", 0.4, ((466.4, 3.15, -215.9), (463.3, 1.05, -215.0), 44), ((466.9, 3.45, -215.6), (463.25, 1.05, -215.0), 58)),
     ("s6", 0.6, ((467.8, 1.55, -225.6), (462.5, 0.8, -222.0), 48), ((470.0, 2.1, -226.0), (462.5, 0.8, -222.0), 60)),

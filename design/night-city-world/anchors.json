@@ -8535,9 +8535,9 @@
    "name": "cam_garage",
    "kind": "cam",
    "at": [
-    454.0,
-    2.7,
-    -222.8
+    453.8,
+    2.2,
+    -225.0
    ],
    "yaw": 0.0,
    "district": "afterlife",
@@ -8563,9 +8563,9 @@
    "name": "cam_garage_arrival",
    "kind": "cam",
    "at": [
-    454.0,
-    2.7,
-    -222.8
+    453.8,
+    2.2,
+    -225.0
    ],
    "yaw": 0.0,
    "district": "afterlife",
@@ -8592,8 +8592,8 @@
    "kind": "cam",
    "at": [
     462.0,
-    0.4,
-    -218.5
+    0.45,
+    -219.0
    ],
    "yaw": 0.0,
    "district": "afterlife"
@@ -8696,8 +8696,8 @@
    "kind": "cam",
    "at": [
     462.0,
-    0.4,
-    -218.5
+    0.45,
+    -219.0
    ],
    "yaw": 0.0,
    "district": "afterlife",
@@ -8831,8 +8831,8 @@
    "kind": "cam",
    "at": [
     462.0,
-    0.4,
-    -218.5
+    0.45,
+    -219.0
    ],
    "yaw": 0.0,
    "district": "afterlife",
@@ -10105,8 +10105,8 @@
    "kind": "cam",
    "at": [
     462.0,
-    0.4,
-    -218.5
+    0.45,
+    -219.0
    ],
    "yaw": 0.0,
    "district": "afterlife"
