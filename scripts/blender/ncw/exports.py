@@ -125,19 +125,31 @@ def road_graph():
     }
 
 
-def write_all(out):
-    protos = list(P.PROTOS)
-    districts = [d for d, _, _ in plan.DISTRICTS] + ["far"]
-    seen = sorted(set(i[7] for i in P.INSTANCES) | set(districts))
-    di = {d: k for k, d in enumerate(seen)}
+def _props_table(protos, instances, districts):
+    di = {d: k for k, d in enumerate(districts)}
     pi = {n: k for k, n in enumerate(protos)}
-    props = {
+    return {
         "protos": [{"name": n, "box": list(P.PROTOS[n]["box"]), "detail": P.PROTOS[n]["detail"], "reach": P.PROTOS[n]["reach"]}
                    for n in protos],
-        "districts": seen,
-        "instances": [[pi[n], _r(x), _r(y), _r(z), _r(yaw, 4), _r(sy, 3), _r(sxz, 3), di[d]] for n, x, y, z, yaw, sy, sxz, d in P.INSTANCES],
+        "districts": districts,
+        "instances": [[pi[n], _r(x), _r(y), _r(z), _r(yaw, 4), _r(sy, 3), _r(sxz, 3), di[d]] for n, x, y, z, yaw, sy, sxz, d in instances],
     }
-    (out / "props-source.json").write_text(json.dumps(props, separators=(",", ":")))
+
+
+def write_all(out):
+    from ncw.districts import garage_interior as GI
+    # The workshop's props are a list of their own (garage-layout.json's
+    # props_table), which streams with its pack: the city's list is the
+    # city's, and the kit's prototypes are not in it.
+    inside = [i for i in P.INSTANCES if i[7] in GI.SECTORS]
+    city = [i for i in P.INSTANCES if i[7] not in GI.SECTORS]
+    protos = [n for n in P.PROTOS if not n.startswith("garage_")]
+    districts = [d for d, _, _ in plan.DISTRICTS] + ["far"]
+    seen = sorted(set(i[7] for i in city) | set(districts))
+    (out / "props-source.json").write_text(json.dumps(_props_table(protos, city, seen), separators=(",", ":")))
+    used = {i[0] for i in inside}
+    garage_protos = [n for n in P.PROTOS if n in used or (n.endswith(P.NEAR) and n[:-len(P.NEAR)] in used)]
+    garage_props = _props_table(garage_protos, inside, list(GI.SECTORS))
     (out / "road-graph.json").write_text(json.dumps(road_graph(), separators=(",", ":")))
     boxes = []
     for kind, x0, x1, y0, y1, z0, z1, d in B.COLLISION:
@@ -149,7 +161,18 @@ def write_all(out):
         c, s_ = abs(math.cos(yaw)), abs(math.sin(yaw))
         ex, ez = (hx * c + hz * s_) * sxz, (hx * s_ + hz * c) * sxz
         boxes.append({"min": [_r(x - ex), _r(y), _r(z - ez)], "max": [_r(x + ex), _r(y + 2 * hy * sy), _r(z + ez)], "district": d, "kind": n})
+    # The workshop's walls, mezzanine, stair and lift, as a walker or a car
+    # meets them (its overhead steel is for the cameras: garage-layout.json).
+    for c in GI.COLLIDE:
+        if c["nav"]:
+            boxes.append({"min": c["min"], "max": c["max"], "district": GI.sector(*[(a + b) / 2 for a, b in zip(c["min"][::2], c["max"][::2])]),
+                          "kind": "garage_" + c["kind"]})
     (out / "collision.json").write_text(json.dumps({"frame": "world metres", "boxes": boxes}, separators=(",", ":")))
+    layout = garage_layout(GI, inside)
+    # The optimizer packs the workshop's props from here, as it does the
+    # city's from props-source.json.
+    layout["props_table"] = garage_props
+    (out / "garage-layout.json").write_text(json.dumps(layout, indent=1))
     (out / "districts.json").write_text(json.dumps({
         "districts": [{"name": n, "label": label, "bounds": {"x0": b[0], "z0": b[1], "x1": b[2], "z1": b[3]}} for n, b, label in plan.DISTRICTS],
         "streets": [{"name": s.name, "axis": s.axis, "c": s.c, "from": s.a, "to": s.b, "half": s.half, "walk": s.walk,
@@ -158,9 +181,51 @@ def write_all(out):
     (out / "anchors.json").write_text(json.dumps(anchors(), indent=1))
 
 
+def garage_layout(GI, inside):
+    """The workshop for the site in one file: its sectors and portals, the
+    cameras of its stations and poses (wide and portrait), the path graph
+    and the default visit over the scroll, its lights, its boards, and what
+    a camera and a walker must keep clear of (its own solids, and every
+    placed prop's footprint as an oriented box)."""
+    from ncw import cameras as C
+    poses = {}
+    for gid, *rest in C.GARAGE_STATIONS + [(g, None, *r) for g, *r in C.GARAGE_POSES]:
+        (wpos, wtgt, wfov), (ppos, ptgt, pfov) = rest[-2], rest[-1]
+        poses[gid] = {"wide": {"position": list(wpos), "target": list(wtgt), "fov": wfov},
+                      "portrait": {"position": list(ppos), "target": list(ptgt), "fov": pfov},
+                      "anchor": "cam_garage" if gid == "arrival" else f"cam_garage_{gid}",
+                      **({"p": rest[0]} if rest[0] is not None else {}),
+                      **({"cut_only": True} if gid.endswith("_cabin") else {})}
+
+    def gaze(g):
+        return g if isinstance(g, str) else [_r(v, 3) for v in g]
+    route = [{"p": [a, b], "from": f, "to": t, "via": via, "gaze": [gaze(g) for g in gz],
+              "hold": f == t and not via, "states": {k: [list(e) for e in v] for k, v in st.items()}}
+             for a, b, f, t, via, gz, st in C.GARAGE_ROUTE]
+    props = []
+    for n, x, y, z, yaw, sy, sxz, d in inside:
+        hx, hy, hz = P.PROTOS[n]["box"]
+        props.append({"proto": n, "at": [_r(x, 3), _r(y, 3), _r(z, 3)], "yaw": _r(yaw, 4), "half": [_r(hx * sxz, 3), _r(hy * sy, 3), _r(hz * sxz, 3)],
+                      "sector": d})
+    return {
+        **GI.GARAGE,
+        "note": "scripts/blender/ncw/districts/garage_interior.py and ncw/cameras.py write this; the site's own files are its readers",
+        "stations": [g for g, *_ in C.GARAGE_STATIONS],
+        "poses": poses,
+        "nodes": {k: {"wide": list(v), **({"portrait": list(C.GARAGE_NODES_PORTRAIT[k])} if k in C.GARAGE_NODES_PORTRAIT else {})}
+                  for k, v in C.GARAGE_NODES.items()},
+        "edges": [{"a": a, "b": b, "via": via} for a, b, via in C.GARAGE_EDGES],
+        "route": route,
+        "entry": C.GARAGE_ENTRY,
+        "exit": C.GARAGE_EXIT,
+        "clearance": {"eye": 0.45, "near_plane": 0.15, "near": 0.1},
+        "props": props,
+    }
+
+
 # What an empty's custom properties may carry that is a payload for the page
 # (lanes, walks, lights, sign ids), not a description of the place.
-_PAYLOAD = {"lanes", "walks", "lights", "ids", "cars", "paths", "stand"}
+_PAYLOAD = {"lanes", "walks", "lights", "ids", "cars", "paths", "stand", "faces"}
 
 
 def anchors():
