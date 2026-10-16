@@ -1,6 +1,6 @@
 {
  "note": "the garage's prototypes (scripts/blender/ncw/garage): triangles drawn always, triangles drawn near by only (<name>__near, never on a phone), the kit materials each wears, its footprint (half sizes), whether a phone drops it",
- "total_triangles": 32037,
+ "total_triangles": 31973,
  "protos": {
   "garage_lift2": {
    "triangles": 750,
@@ -126,7 +126,7 @@
    "about": "A low-profile trolley jack, saddle forward: the chassis on its two front wheels and rear castors, the lift arm down with its saddle at 0.1 m, the pump and its ram at the back, the handle up at forty-five degrees."
   },
   "garage_creeper": {
-   "triangles": 270,
+   "triangles": 320,
    "near_triangles": 96,
    "materials": [
     "trim"
@@ -335,7 +335,7 @@
     0.01,
     1.05
    ],
-   "detail": true,
+   "detail": false,
    "reach": 220,
    "about": "A flush in-ground lift's pad: its two runway plates level with the floor (an in-ground scissor, down) in their steel frames, a hinged access hatch between them, hazard chevrons on the plates' ends and the wheel stops' marks."
   },
@@ -350,7 +350,7 @@
     0.01,
     3.05
    ],
-   "detail": true,
+   "detail": false,
    "reach": 260,
    "about": "A bay painted out in yellow, 3.5 by 6.1 m: its outline in 60 mm lines broken at the corners, a centre tick at each end, a wheel stop bar across the front."
   },
@@ -416,8 +416,8 @@
    "about": "A 2.4 m workbench: a butcher-block top on a steel frame, a drawer unit, a lower shelf, a bench vise bolted at the left front corner, and on it a battery, a parts tray and a carton."
   },
   "garage_pegboard": {
-   "triangles": 1746,
-   "near_triangles": 134,
+   "triangles": 380,
+   "near_triangles": 1500,
    "materials": [
     "trim"
    ],
@@ -479,8 +479,8 @@
    "about": "A cord reel on the wall at 2.3 m, its drum wound with yellow cord, the cord down to a warm hand lamp hanging at 1.3 m."
   },
   "garage_tyre": {
-   "triangles": 448,
-   "near_triangles": 112,
+   "triangles": 384,
+   "near_triangles": 96,
    "materials": [
     "trim"
    ],
@@ -489,13 +489,13 @@
     0.33,
     0.33
    ],
-   "detail": true,
+   "detail": false,
    "reach": 220,
    "about": "A tyre standing on its tread, its axle along x."
   },
   "garage_wheel": {
-   "triangles": 800,
-   "near_triangles": 232,
+   "triangles": 736,
+   "near_triangles": 216,
    "materials": [
     "trim"
    ],
@@ -504,12 +504,12 @@
     0.33,
     0.33
    ],
-   "detail": true,
+   "detail": false,
    "reach": 220,
    "about": "A wheel on its tyre, standing, its face toward +x: silver five split spokes."
   },
   "garage_tyre_stack": {
-   "triangles": 1024,
+   "triangles": 896,
    "near_triangles": 0,
    "materials": [
     "trim"
@@ -519,7 +519,7 @@
     0.51,
     0.33
    ],
-   "detail": true,
+   "detail": false,
    "reach": 220,
    "about": "Four tyres lying flat in a stack, each a little off the last."
   },
@@ -770,8 +770,8 @@
    "about": "The tune station: a black utility cart, a laptop open on it running a tuning tool (a header, a map grid, three traces), the vehicle interface beside it with its lights, the USB lead to it and the OBD lead from it to the plug at TUNE_PLUG; a notepad, a coffee cup."
   },
   "garage_parts_table": {
-   "triangles": 1212,
-   "near_triangles": 180,
+   "triangles": 712,
+   "near_triangles": 680,
    "materials": [
     "print",
     "trim"
@@ -849,7 +849,7 @@
    "about": "A low drip tray slid under a car, dark with old oil."
   },
   "garage_couch": {
-   "triangles": 172,
+   "triangles": 320,
    "near_triangles": 6,
    "materials": [
     "trim"
@@ -864,7 +864,7 @@
    "about": "A worn two-seat couch in oxblood vinyl: its base, two seat cushions sagged in the middle, two back cushions leaning, the arms, short legs; one cushion split and taped, a seam open on an arm."
   },
   "garage_fridge": {
-   "triangles": 94,
+   "triangles": 120,
    "near_triangles": 24,
    "materials": [
     "glow",
@@ -1042,7 +1042,7 @@
     0.01,
     0.45
    ],
-   "detail": true,
+   "detail": false,
    "reach": 200,
    "about": "BAY 01 stencilled on the floor in yellow, reading from +z."
   },
@@ -1057,7 +1057,7 @@
     0.01,
     0.45
    ],
-   "detail": true,
+   "detail": false,
    "reach": 200,
    "about": "BAY 02 stencilled on the floor in yellow, reading from +z."
   },

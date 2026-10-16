@@ -196,23 +196,23 @@ def _pegboard(k):
         ln = 0.14 + i * 0.02
         outline(x - 0.018, x + 0.018, 2.12 - ln - 0.01, 2.13)
         _hanging(t, x, 2.12, ln, 0.016 + i * 0.0012, 0.003, CHROME)
-        pipe(t, (x, 2.11, 0.04), (x, 2.11, 0.05), 0.012 + i * 0.0008, segs=8, col=CHROME, caps=True)
-        pipe(t, (x, 2.12 - ln, 0.04), (x, 2.12 - ln, 0.05), 0.011 + i * 0.0008, segs=8, col=CHROME, caps=True)
+        pipe(n, (x, 2.11, 0.04), (x, 2.11, 0.05), 0.012 + i * 0.0008, segs=8, col=CHROME, caps=True)
+        pipe(n, (x, 2.12 - ln, 0.04), (x, 2.12 - ln, 0.05), 0.011 + i * 0.0008, segs=8, col=CHROME, caps=True)
         pipe(n, (x, 2.14, 0.03), (x, 2.14, 0.06), 0.003, segs=4, col=STEEL_MID)
     # Screwdrivers, handles up.
     for i, col in enumerate((RED, YELLOW, BLUE, RED, GREEN, BLACK_PAINT)):
         x = -0.28 + i * 0.06
         pipe(t, (x, 1.95, 0.05), (x, 2.08, 0.05), 0.014, segs=6, col=col, caps=True)
-        pipe(t, (x, 1.75 + i * 0.01, 0.05), (x, 1.95, 0.05), 0.0035, segs=4, col=CHROME)
+        pipe(n, (x, 1.75 + i * 0.01, 0.05), (x, 1.95, 0.05), 0.0035, segs=4, col=CHROME)
     # A hammer, a pair of pliers, side cutters.
     outline(0.18, 0.36, 1.62, 2.1)
     pipe(t, (0.27, 1.62, 0.05), (0.27, 1.98, 0.05), 0.014, segs=6, col=WOOD, caps=True)
     box(t, 0.2, 0.34, 1.98, 2.03, 0.03, 0.07, col=GUN_DARK)
     for i, col in enumerate((RED, BLUE)):
         x = 0.45 + i * 0.1
-        beam(t, (x - 0.01, 1.92, 0.045), (x - 0.025, 1.72, 0.045), 0.003, 0.009, col=col)
-        beam(t, (x + 0.01, 1.92, 0.045), (x + 0.025, 1.72, 0.045), 0.003, 0.009, col=col)
-        beam(t, (x, 1.92, 0.045), (x, 2.02, 0.045), 0.003, 0.012, col=CHROME)
+        beam(n, (x - 0.01, 1.92, 0.045), (x - 0.025, 1.72, 0.045), 0.003, 0.009, col=col)
+        beam(n, (x + 0.01, 1.92, 0.045), (x + 0.025, 1.72, 0.045), 0.003, 0.009, col=col)
+        beam(n, (x, 1.92, 0.045), (x, 2.02, 0.045), 0.003, 0.012, col=CHROME)
     # The torque wrench, long and level, and the rail of sockets under it.
     beam(t, (-1.0, 1.42, 0.05), (-0.25, 1.42, 0.05), 0.014, 0.014, col=CHROME)
     pipe(t, (-0.6, 1.42, 0.05), (-0.25, 1.42, 0.05), 0.019, segs=8, col=BLACK_PAINT, caps=True)
@@ -221,7 +221,7 @@ def _pegboard(k):
     for i in range(14):
         x = 0.14 + i * 0.065
         r = 0.011 + i * 0.0012
-        cylinder(t, x, 0.05, 1.26, 1.3 + i * 0.002, r, segs=8, col=CHROME)
+        cylinder(n, x, 0.05, 1.26, 1.3 + i * 0.002, r, segs=8, col=CHROME)
     box(t, -0.1, -0.02, 1.3, 1.38, 0.03, 0.06, col=YELLOW)
     # Hooks left empty.
     for x in (0.75, 0.85, 0.95, 1.05):
@@ -230,7 +230,7 @@ def _pegboard(k):
     box(t, -1.2, 1.2, y0 - 0.06, y0 - 0.04, 0.0, 0.14, col=GUN_DARK)
     for i, col in enumerate((RED, BLUE, YELLOW, BLACK_PAINT, WHITE_PAINT, RED, GREEN)):
         x = -1.1 + i * 0.09
-        lathe(t, x, 0.08, ((y0 - 0.04, 0.032), (y0 + 0.14, 0.032), (y0 + 0.16, 0.02), (y0 + 0.18, 0.012)), segs=8, col=col)
+        lathe(n, x, 0.08, ((y0 - 0.04, 0.032), (y0 + 0.14, 0.032), (y0 + 0.16, 0.02), (y0 + 0.18, 0.012)), segs=8, col=col)
 
 
 @proto("garage_hood_light", box=(0.86, 0.06, 0.05), reach=200)
@@ -294,7 +294,7 @@ TYRE_W = 0.255
 _RIM = 0.242
 
 
-def _tyre(k, c, axis=(1, 0, 0), segs=28, grooves=True):
+def _tyre(k, c, axis=(1, 0, 0), segs=24, grooves=True):
     w = TYRE_W / 2
     prof = ((-w, _RIM), (-w - 0.006, 0.28), (-w + 0.004, 0.316), (-w + 0.022, TYRE_R), (w - 0.022, TYRE_R),
             (w - 0.004, 0.316), (w + 0.006, 0.28), (w, _RIM), (-w, _RIM))
@@ -331,13 +331,13 @@ def _rim(k, c, axis=(1, 0, 0), col=ALU, spokes=5, segs=24):
         revolve(n, tuple(C + A * face + d * 0.05), axis, ((0.0, 0.009), (0.012, 0.009), (0.012, 0.0)), segs=6, col=CHROME)
 
 
-@proto("garage_tyre", box=(0.13, 0.33, 0.33), reach=220, detail=True)
+@proto("garage_tyre", box=(0.13, 0.33, 0.33), reach=220)
 def _tyre_proto(k):
     """A tyre standing on its tread, its axle along x."""
     _tyre(k, (0.0, TYRE_R, 0.0))
 
 
-@proto("garage_wheel", box=(0.13, 0.33, 0.33), reach=220, detail=True)
+@proto("garage_wheel", box=(0.13, 0.33, 0.33), reach=220)
 def _wheel_proto(k):
     """A wheel on its tyre, standing, its face toward +x: silver five
     split spokes."""
@@ -345,11 +345,11 @@ def _wheel_proto(k):
     _rim(k, (0.0, TYRE_R, 0.0))
 
 
-@proto("garage_tyre_stack", box=(0.33, 0.51, 0.33), reach=220, detail=True)
+@proto("garage_tyre_stack", box=(0.33, 0.51, 0.33), reach=220)
 def _tyre_stack(k):
     """Four tyres lying flat in a stack, each a little off the last."""
     for i, (dx, dz) in enumerate(((0.0, 0.0), (0.02, -0.015), (-0.015, 0.01), (0.012, 0.02))):
-        _tyre(k, (dx, TYRE_W / 2 + i * TYRE_W, dz), axis=(0, 1, 0), segs=16, grooves=False)
+        _tyre(k, (dx, TYRE_W / 2 + i * TYRE_W, dz), axis=(0, 1, 0), segs=14, grooves=False)
 
 
 @proto("garage_tyre_rack", box=(1.22, 1.0, 0.25))
@@ -820,7 +820,7 @@ def _parts_table(k):
     # A coilover: its damper body and the spring round it, lying down.
     pipe(t, (0.3, top + 0.06, -0.2), (0.7, top + 0.06, -0.2), 0.025, segs=10, col=lin("c9c8c4"), caps=True)
     pts = [(0.36 + i * 0.006, top + 0.06 + 0.055 * math.sin(i * 0.5), -0.2 + 0.055 * math.cos(i * 0.5)) for i in range(51)]
-    cable(t, pts, 0.008, col=RED, segs=5)
+    cable(n, pts, 0.008, col=RED, segs=5)
     for x in (0.34, 0.68):
         pipe(t, (x, top + 0.06, -0.2), (x + 0.02, top + 0.06, -0.2), 0.07, segs=12, col=STEEL_MID, caps=True)
     carton(k, 0.45, 0.62, top, top + 0.06, 0.12, 0.3, 0.71)

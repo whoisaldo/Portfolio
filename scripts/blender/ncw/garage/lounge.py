@@ -21,7 +21,7 @@ from ncw.kit import GLOW, box, cylinder, pipe, poly, quad
 from ncw.props import BOARD, CARTON, POSTER, SHEET, carton, lathe, proto
 from ncw.garage.shapes import (
     BLACK_PAINT, CABLE, CHROME, GREEN, GRIME, GUN, GUN_DARK, OFFWHITE, RED, RUBBER, STEEL_MID, WHITE_PAINT,
-    WOOD_DARK, YELLOW, beam, cable, flat, lin, obox, shade, stroke, words,
+    WOOD_DARK, YELLOW, beam, cable, flat, lin, shade, soft, stroke, words,
 )
 
 VINYL = lin("3b0a10")
@@ -37,14 +37,13 @@ def _couch(k):
     sagged in the middle, two back cushions leaning, the arms, short legs;
     one cushion split and taped, a seam open on an arm."""
     t, n = k("trim"), k("trim", 1)
-    box(t, -1.0, 1.0, 0.08, 0.38, -0.42, 0.4, col=shade(VINYL, 0.8))
+    soft(t, (0.0, 0.23, -0.01), (1, 0, 0), (0, 1, 0), 1.0, 0.15, 0.41, 0.03, col=shade(VINYL, 0.8), skip=("-v",))
     for i, s in enumerate((-1, 1)):
-        cx = s * 0.47
-        obox(t, (cx, 0.44, 0.04), (1, 0, 0), (0, 1, -0.05 * s), 0.46, 0.065, 0.36, col=VINYL if i else shade(VINYL, 1.1))
-        obox(t, (cx, 0.72, -0.31), (1, 0, 0), (0, 1, 0.22), 0.46, 0.27, 0.09, col=shade(VINYL, 0.95 + 0.1 * i))
+        cx = s * 0.44
+        soft(t, (cx, 0.44, 0.04), (1, 0, 0), (0, 1, -0.05 * s), 0.43, 0.065, 0.36, 0.035, col=VINYL if i else shade(VINYL, 1.1))
+        soft(t, (cx, 0.72, -0.3), (1, 0, 0), (0, 1, 0.22), 0.43, 0.27, 0.09, 0.04, col=shade(VINYL, 0.95 + 0.1 * i))
     for s in (-1, 1):
-        box(t, s * 0.94 - 0.07, s * 0.94 + 0.07, 0.08, 0.66, -0.42, 0.42, col=VINYL)
-        box(t, s * 0.94 - 0.08, s * 0.94 + 0.08, 0.62, 0.68, -0.43, 0.44, col=VINYL_LIGHT)
+        soft(t, (s * 0.94, 0.37, 0.0), (1, 0, 0), (0, 1, 0), 0.08, 0.31, 0.43, 0.035, col=VINYL, skip=("-v",))
     box(t, -1.0, 1.0, 0.38, 1.0, -0.44, -0.4, col=shade(VINYL, 0.7))
     for x in (-0.95, 0.95):
         for z in (-0.38, 0.36):
@@ -61,7 +60,7 @@ def _fridge(k):
     freezer door over the main one, a grille at its foot, stickers, a
     small green light."""
     t, n = k("trim"), k("trim", 1)
-    box(t, -0.3, 0.3, 0.04, 1.45, -0.32, 0.28, col=OFFWHITE)
+    soft(t, (0.0, 0.745, -0.02), (1, 0, 0), (0, 1, 0), 0.3, 0.705, 0.3, 0.025, col=OFFWHITE)
     for y0, y1 in ((0.12, 1.03), (1.05, 1.43)):
         box(t, -0.295, 0.295, y0, y1, 0.28, 0.31, col=shade(OFFWHITE, 1.05))
     quad(t, (-0.29, 1.035, 0.311), (0.29, 1.035, 0.311), (0.29, 1.045, 0.311), (-0.29, 1.045, 0.311), col=GRIME)
@@ -252,13 +251,13 @@ def _floor_words(k, text, w, h, thick, col, mat="hazard"):
     words(k(mat), text, (0.0, 0.004, 0.0), (1, 0, 0), (0, 0, -1), w, h, thick, col)
 
 
-@proto("garage_bay_01", box=(0.9, 0.01, 0.45), reach=200, detail=True)
+@proto("garage_bay_01", box=(0.9, 0.01, 0.45), reach=200)
 def _bay_01(k):
     """BAY 01 stencilled on the floor in yellow, reading from +z."""
     _floor_words(k, "BAY 01", 1.7, 0.42, 0.06, (1, 1, 1, 1))
 
 
-@proto("garage_bay_02", box=(0.9, 0.01, 0.45), reach=200, detail=True)
+@proto("garage_bay_02", box=(0.9, 0.01, 0.45), reach=200)
 def _bay_02(k):
     """BAY 02 stencilled on the floor in yellow, reading from +z."""
     _floor_words(k, "BAY 02", 1.7, 0.42, 0.06, (1, 1, 1, 1))

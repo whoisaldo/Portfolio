@@ -81,6 +81,15 @@ def obox(key, c, u, v, hu, hv, hw, col=(1, 1, 1, 1), skip=(), scale=1.0):
         quad(key, *pts, uvs=((0, 0), (fw * s, 0), (fw * s, fh * s), (0, fh * s)), col=col)
 
 
+def soft(key, c, u, v, hu, hv, hw, r, col=(1, 1, 1, 1), skip=()):
+    """A box with its edges taken off by r (a cushion, a moulded body):
+    three boxes through each other, each short by r on two axes, so every
+    edge reads as a chamfer from outside."""
+    obox(key, c, u, v, hu, hv - r, hw - r, col, skip=tuple(f for f in skip if f in ("+u", "-u")))
+    obox(key, c, u, v, hu - r, hv, hw - r, col, skip=tuple(f for f in skip if f in ("+v", "-v")))
+    obox(key, c, u, v, hu - r, hv - r, hw, col, skip=tuple(f for f in skip if f in ("+w", "-w")))
+
+
 def beam(key, a, b, hw, hh, col=(1, 1, 1, 1), up=(0, 1, 0), ends=True):
     """A rectangular bar from a to b, hw across and hh up (half sizes), its
     up as near `up` as its run allows."""

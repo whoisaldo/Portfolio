@@ -22,7 +22,7 @@ from ncw.kit import box, cylinder, pipe, quad
 from ncw.props import proto
 from ncw.garage.shapes import (
     ALU, BLACK_PAINT, CABLE, CHROME, GUN, GUN_DARK, OFFWHITE, RED, RED_DARK, RUBBER, STEEL_MID, WHITE_PAINT, YELLOW,
-    beam, cable, flat, flat_rect, frame_of, obox, place_in, revolve, shade, words,
+    beam, cable, flat, flat_rect, frame_of, obox, place_in, revolve, shade, soft, words,
 )
 
 # ---------------------------------------------------------------------------
@@ -317,8 +317,8 @@ def _creeper(k):
     """A mechanic's creeper: a padded board on a tube frame with its
     headrest, on six castors."""
     t, n = k("trim"), k("trim", 1)
-    box(t, -0.2, 0.2, 0.08, 0.12, -0.5, 0.42, col=(0.012, 0.012, 0.014, 1), bottom=True)
-    box(t, -0.18, 0.18, 0.12, 0.175, 0.24, 0.46, col=(0.015, 0.015, 0.018, 1))
+    soft(t, (0.0, 0.1, -0.04), (1, 0, 0), (0, 1, 0), 0.2, 0.025, 0.46, 0.015, col=(0.012, 0.012, 0.014, 1))
+    soft(t, (0.0, 0.15, 0.35), (1, 0, 0), (0, 1, 0), 0.18, 0.03, 0.11, 0.018, col=(0.015, 0.015, 0.018, 1))
     for x in (-0.22, 0.22):
         pipe(t, (x, 0.08, -0.5), (x, 0.08, 0.46), 0.012, segs=6, col=RED, caps=True)
     for z in (-0.5, 0.46):
@@ -589,7 +589,7 @@ def _shutter_w(k):
 # The S6's bay: a flush service pad, no posts (nothing tall in front of its
 # mirrors and grille), and painted bay lines.
 # ---------------------------------------------------------------------------
-@proto("garage_service_pad", box=(1.1, 0.01, 1.05), reach=220, detail=True)
+@proto("garage_service_pad", box=(1.1, 0.01, 1.05), reach=220)
 def _service_pad(k):
     """A flush in-ground lift's pad: its two runway plates level with the
     floor (an in-ground scissor, down) in their steel frames, a hinged
@@ -614,7 +614,7 @@ def _service_pad(k):
     box(n, -0.06, 0.06, 0.003, 0.008, 0.3, 0.34, col=CHROME)
 
 
-@proto("garage_bay_lines", box=(1.75, 0.01, 3.05), reach=260, detail=True)
+@proto("garage_bay_lines", box=(1.75, 0.01, 3.05), reach=260)
 def _bay_lines(k):
     """A bay painted out in yellow, 3.5 by 6.1 m: its outline in 60 mm
     lines broken at the corners, a centre tick at each end, a wheel stop
