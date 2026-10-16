@@ -1,0 +1,414 @@
+/* ===========================================================================
+   src/components/garage/garage.css: the garage's controls, and nothing else.
+   ---------------------------------------------------------------------------
+   Imported by GarageUI.jsx, so it ships in the garage's lazy chunk and never
+   in the entry the rest of the site (and /recruiters) shares. Every rule is
+   under a `gw-` class; nothing here restyles a global element, a token or
+   another section.
+
+   Two layouts. `.gw-photos` is ordinary page flow. `.gw-stage` is the thin
+   layer over the 3D workshop: it fills the section's sticky stage, lets the
+   pointer through to the canvas everywhere except its controls, and keeps
+   out of the middle of the frame where the cars are.
+
+   A marker is a small square, numbered like the list, never a circle (the
+   one border-radius on the site belongs to the hero's "Now" flag) and never
+   pulsing. Controls are at least 44px on both axes. Focus inside a pane of
+   glass is an inset volt ring, because the pane's chamfer clip would cut an
+   outset one off at the corners.
+   =========================================================================== */
+
+/* ---- shared controls ----------------------------------------------------- */
+.gw-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: rgb(236 234 228 / 0.56);
+  transition: color 0.15s;
+}
+.gw-tab:hover { color: #eceae4; }
+.gw-tab::after {
+  content: "";
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0.375rem;
+  height: 2px;
+  background: #fcee0a;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.gw-tab.is-on,
+.gw-tab[aria-pressed="true"],
+.gw-tab[aria-expanded="true"] { color: #eceae4; }
+.gw-tab.is-on::after,
+.gw-tab[aria-pressed="true"]::after,
+.gw-tab[aria-expanded="true"]::after { opacity: 1; }
+.gw-tab:focus-visible,
+.gw-step:focus-visible,
+.gw-icon:focus-visible,
+.gw-row:focus-visible,
+.gw-action:focus-visible,
+.gw-text-button:focus-visible,
+.gw-next:focus-visible,
+.gw-car-tab:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px #fcee0a;
+}
+
+.gw-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 0.25rem;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgb(236 234 228 / 0.72);
+  transition: color 0.15s;
+}
+.gw-step:hover { color: #fcee0a; }
+
+.gw-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  color: rgb(236 234 228 / 0.72);
+  transition: color 0.15s;
+}
+.gw-icon:hover { color: #fcee0a; }
+
+.gw-text-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgb(236 234 228 / 0.72);
+  cursor: pointer;
+  list-style: none;
+}
+.gw-text-button::-webkit-details-marker { display: none; }
+.gw-text-button:hover { color: #fcee0a; }
+
+/* The one filled button: the action the availability line offers. */
+.gw-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 1.125rem;
+  background: #fcee0a;
+  color: #0a0a0c;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
+}
+.gw-action:hover { background: #fff56b; }
+.gw-action:focus-visible { box-shadow: inset 0 0 0 2px #0a0a0c, inset 0 0 0 4px #fcee0a; }
+
+.gw-row { min-height: 44px; }
+.gw-row[aria-pressed="true"] .gw-row-index { color: #fcee0a; }
+
+.gw-card-title { overflow-wrap: anywhere; }
+
+/* ---- markers ------------------------------------------------------------- */
+.gw-pin {
+  position: absolute;
+  z-index: 2;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: grid;
+  place-items: center;
+  background: rgb(10 10 12 / 0.84);
+  color: #fcee0a;
+  border: 1px solid rgb(252 238 10 / 0.9);
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+/* The square is 28px; the target around it is 44. */
+.gw-pin::after {
+  content: "";
+  position: absolute;
+  inset: -9px;
+}
+.gw-frame .gw-pin { transform: translate(-50%, -50%); }
+.gw-pin:hover,
+.gw-pin:focus-visible,
+.gw-pin.is-on {
+  background: #fcee0a;
+  color: #0a0a0c;
+}
+.gw-pin:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #0a0a0c, 0 0 0 4px #fcee0a;
+}
+.gw-pin[hidden] { display: none; }
+.gw-pin-label {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translate(-50%, 7px);
+  white-space: nowrap;
+  background: rgb(10 10 12 / 0.92);
+  color: #eceae4;
+  padding: 4px 7px;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.gw-pin.is-low .gw-pin-label {
+  top: auto;
+  bottom: 100%;
+  transform: translate(-50%, -7px);
+}
+.gw-pin:hover .gw-pin-label,
+.gw-pin:focus-visible .gw-pin-label,
+.gw-pin-3d.is-on .gw-pin-label { opacity: 1; }
+
+/* The 3D layer: the stage's own box, pointer-transparent; each marker sits
+   at the stage's top-left corner and is moved onto its part by a transform
+   the world writes every frame. The margin centres the square on the point. */
+.gw-markers {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: clip;
+}
+.gw-pin-3d {
+  left: 0;
+  top: 0;
+  margin: -0.875rem 0 0 -0.875rem;
+  pointer-events: auto;
+  will-change: transform;
+}
+
+/* ---- the photographs ----------------------------------------------------- */
+.gw-frame { isolation: isolate; }
+
+.gw-car-tab {
+  position: relative;
+  min-width: 6.5rem;
+  min-height: 44px;
+  padding: 0.625rem 1rem 0.75rem;
+  text-align: left;
+  color: rgb(236 234 228 / 0.56);
+  border: 1px solid #24242a;
+  background: rgb(10 10 12 / 0.6);
+  transition: color 0.15s, border-color 0.15s;
+}
+.gw-car-tab:hover { color: #eceae4; border-color: rgb(236 234 228 / 0.34); }
+.gw-car-tab.is-on { color: #eceae4; border-color: #fcee0a; }
+.gw-car-tab.is-on .mono-micro { color: #fcee0a; }
+
+.gw-availability {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #24242a;
+}
+
+.gw-next {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  min-height: 44px;
+  padding: 0.5rem 0.25rem;
+  font-size: 1.375rem;
+  transition: color 0.15s;
+}
+.gw-next:hover .font-display { color: #fcee0a; }
+
+.gw-credits summary { width: max-content; }
+
+/* ---- the workshop's stage ------------------------------------------------ */
+.gw-stage {
+  --gw-pad-x: clamp(1.25rem, 4vw, 5rem);
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  pointer-events: none;
+}
+.gw-stage > :not(.gw-markers) { position: relative; z-index: 2; min-width: 0; }
+.gw-stage [data-glass],
+.gw-stage .gw-credits { pointer-events: auto; }
+
+.gw-label {
+  grid-area: label;
+  align-self: start;
+  justify-self: start;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.85), 0 0 14px rgb(0 0 0 / 0.6);
+}
+.gw-label-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.25rem;
+}
+.gw-area-nav { grid-area: nav; align-self: end; justify-self: start; }
+.gw-area-car { grid-area: car; align-self: end; }
+.gw-area-actions { grid-area: actions; align-self: end; }
+.gw-area-util {
+  grid-area: util;
+  align-self: start;
+  justify-self: end;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.gw-credits-in-list { display: none; }
+/* The card's row is whatever the stage has left between the label and the
+   bottom rows; the card shrinks into it and scrolls inside itself rather
+   than running under the controls. */
+.gw-area-side {
+  grid-area: side;
+  align-self: start;
+  justify-self: start;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+}
+.gw-area-side > [data-glass] {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+}
+.gw-area-side > [data-glass] > .gw-panel {
+  flex: 0 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
+.gw-bar {
+  display: flex;
+  align-items: center;
+  padding: 0 0.25rem;
+}
+.gw-stations { display: flex; }
+.gw-station-n { color: rgb(236 234 228 / 0.34); }
+.gw-station.is-on .gw-station-n { color: #fcee0a; }
+/* Long and short forms of a label: the short one on a phone (and, for the
+   stations, below 1024px, where all six would not fit at full length). */
+.gw-short,
+.gw-station-short { display: none; }
+@media (max-width: 1023.98px) {
+  .gw-station-long { display: none; }
+  .gw-station-short { display: inline; }
+}
+
+.gw-panel {
+  padding: 1rem 1.125rem 0.75rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.gw-panel-scroll { padding-bottom: 0.5rem; }
+.gw-credits-overlay {
+  padding: 0 0.75rem;
+  background: rgb(8 8 10 / 0.6);
+  max-width: 22rem;
+}
+.gw-credits-overlay[open] { padding-bottom: 0.75rem; }
+
+/* Desktop: label upper left, the card down the left side, and two rows
+   along the bottom, the car and part controls above the stations. The card's
+   column is at most 22rem and about a fifth of the width, so the middle of
+   the frame stays clear. */
+@media (min-width: 768px) {
+  .gw-stage {
+    padding: 5.25rem var(--gw-pad-x) 1.5rem;
+    gap: 0.75rem;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "label label .     util"
+      "side  side  .     ."
+      "car   actions .   ."
+      "nav   nav   nav   .";
+  }
+  .gw-area-side { width: clamp(15rem, calc(20vw - 2rem), 22rem); }
+}
+@media (min-width: 1280px) {
+  /* Clear of the section index on the right (see .rail-clear). */
+  .gw-stage { padding-right: calc(var(--gw-pad-x) + 5rem); }
+}
+
+/* Phone: a line at the top, everything else in one strip at the bottom. The
+   collapsed card plus both bars stay inside the bottom third or so; an open
+   card or list grows upward and scrolls inside itself. */
+@media (max-width: 767.98px) {
+  .gw-stage {
+    padding: 4.25rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+    gap: 0.5rem;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas:
+      "label util"
+      ".     ."
+      "side    side"
+      "actions actions"
+      "nav     nav";
+  }
+  /* The station bar already has a tab for each car, so the car tabs would
+     only repeat it on a screen this narrow. */
+  .gw-area-car { display: none; }
+  .gw-credits-in-util { display: none; }
+  .gw-credits-in-list { display: block; }
+  .gw-area-side { align-self: end; justify-self: stretch; }
+  .gw-area-actions { justify-self: stretch; }
+  .gw-area-actions [data-glass] { width: 100%; }
+  .gw-area-actions .gw-bar { justify-content: space-between; }
+  .gw-area-nav { justify-self: stretch; }
+  .gw-area-nav [data-glass] { width: 100%; }
+  .gw-stations { width: 100%; justify-content: space-between; }
+  .gw-station { padding: 0 0.375rem; }
+  .gw-station-n,
+  .gw-long { display: none; }
+  .gw-short { display: inline; }
+  .gw-area-side > [data-glass] > .gw-panel { padding: 0.75rem 0.875rem 0.25rem; max-height: 34svh; }
+  .gw-area-side > [data-glass] > .gw-panel:has([aria-expanded="true"]),
+  .gw-area-side > [id$="-parts"] > .gw-panel { max-height: 62svh; }
+  .gw-card-steps { margin-top: 0.25rem; }
+  .gw-label .mono-label { font-size: 0.6875rem; }
+}
+
+/* ---- reduced motion: nothing eases, nothing moves on its own ------------ */
+@media (prefers-reduced-motion: reduce) {
+  .gw-root *,
+  .gw-root *::before,
+  .gw-root *::after { transition-duration: 0s !important; animation: none !important; }
+}
+.gw-root[data-reduced] *,
+.gw-root[data-reduced] *::before,
+.gw-root[data-reduced] *::after { transition-duration: 0s !important; animation: none !important; }

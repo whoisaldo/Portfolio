@@ -1,0 +1,287 @@
+// src/components/garage/GaragePhotos.jsx: the garage as photographs, at its
+// natural height.
+//
+// This is what the garage is whenever the 3D workshop is not: while it loads,
+// when the device has no WebGL or the city is off, when a GPU context is lost,
+// and when the reader simply prefers photographs. It is an ordinary column of
+// content that scrolls past at the speed of the page, never a stationary
+// six-screen spacer, and it ends in a direct link to Contact.
+//
+// Two cars, one bay. The car tabs switch the bay between the S4 and the S6;
+// each car keeps its own photographs (the S4 its five, the S6 the front, rear
+// and engine bay it has), its markers, its grouped list and the same detail
+// card. Choosing a part in the other car's list switches the bay to that car,
+// and to a photograph that shows the part if the current one does not.
+//
+// The availability line at the top says what the 3D workshop is doing, in
+// plain words, and offers the one action that applies: enter it once it is
+// ready, retry it if it failed, resume it after a lost context. It never
+// switches by itself; whoever owns the layout decides that.
+import React, { useEffect, useRef, useState } from "react";
+import { ArrowDownRight } from "lucide-react";
+import { scrollToSection } from "../../lib/scroll";
+import { useMediaQuery } from "../../hooks";
+import Panel from "../ui/Panel";
+import Tabs from "./Tabs";
+import PartCard from "./PartCard";
+import PartList from "./PartList";
+import PhotoBay from "./PhotoBay";
+import Shop from "./Shop";
+import Credits from "./Credits";
+import { CARS, findCar, findMod } from "./cars";
+import { CONTROL } from "./focus";
+
+const pad = (n) => String(n).padStart(2, "0");
+
+/** The line about the 3D workshop, and its one action. */
+function Availability({ availability, onEnter3D, onRetry, onResume3D }) {
+  const state = availability?.state ?? "unsupported";
+  const pct = availability?.progress != null ? ` ${Math.round(availability.progress * 100)}%` : "";
+  let text = null;
+  let action = null;
+  if (state === "loading") text = `Loading the 3D workshop${pct}. The photographs are here meanwhile.`;
+  else if (state === "ready" && onEnter3D) {
+    text = "The 3D workshop is ready.";
+    action = { label: "Enter the 3D workshop", onClick: onEnter3D, key: "enter-3d" };
+  } else if (state === "failed") {
+    text = availability?.message ?? "The 3D workshop did not load.";
+    if (onRetry) action = { label: "Try again", onClick: onRetry, key: "retry-3d" };
+  } else if (state === "lost") text = "The 3D view stopped. These are the same cars in photographs.";
+  else if (state === "restored" && onResume3D) {
+    text = "The 3D view is back.";
+    action = { label: "Resume 3D", onClick: onResume3D, key: "resume-3d" };
+  } else if (state === "off" && onEnter3D) {
+    text = "The 3D workshop is off.";
+    action = { label: "Turn on 3D", onClick: onEnter3D, key: "enter-3d" };
+  }
+  if (!text) return null;
+  return (
+    <div className="gw-availability flex flex-wrap items-center gap-x-5 gap-y-3">
+      <span className="hazard h-1.5 w-8 opacity-40 shrink-0" aria-hidden="true" />
+      <p className="text-[0.9375rem] text-muted">{text}</p>
+      {action && (
+        <button type="button" onClick={action.onClick} className="gw-action" {...{ [CONTROL]: action.key }}>
+          {action.label}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export default function GaragePhotos({
+  selection,
+  onSelect,
+  idBase,
+  availability,
+  onEnter3D,
+  onRetry,
+  onResume3D,
+  credits,
+  reduced,
+  contactHref = "#contact",
+  focusTarget,
+  onFocused,
+  carHint,
+}) {
+  const wide = useMediaQuery("(min-width: 768px)");
+  const [carId, setCarId] = useState(selection?.carId ?? "s4");
+  const [viewIds, setViewIds] = useState(() => Object.fromEntries(CARS.map((c) => [c.id, c.views[0].id])));
+  const titleRef = useRef(null);
+  const car = findCar(carId);
+  const view = car.views.find((v) => v.id === viewIds[carId]) ?? car.views[0];
+  const mod = selection?.carId === carId ? findMod(carId, selection.modId) : null;
+
+  // A selection made anywhere (the workshop before a lost context, the
+  // console, a pending request) brings its car and a photograph of it.
+  useEffect(() => {
+    if (!selection?.carId) return;
+    setCarId(selection.carId);
+    const m = findMod(selection.carId, selection.modId);
+    if (!m?.pins.length) return;
+    setViewIds((v) => (m.pins.some((p) => p.view === v[m.carId]) ? v : { ...v, [m.carId]: m.pins[0].view }));
+  }, [selection?.carId, selection?.modId]);
+
+  useEffect(() => {
+    if (carHint?.carId) setCarId(carHint.carId);
+  }, [carHint]);
+
+  // A deliberate request (a console command, a link) may ask for focus; it
+  // goes to the card's heading once the card exists.
+  useEffect(() => {
+    if (!focusTarget || !mod || focusTarget.carId !== mod.carId || focusTarget.modId !== mod.id) return;
+    titleRef.current?.focus({ preventScroll: false });
+    onFocused?.();
+  }, [focusTarget, mod, onFocused]);
+
+  const setView = (id) => setViewIds((v) => ({ ...v, [carId]: id }));
+  const pick = (m) => onSelect({ carId: m.carId, modId: m.id }, { source: "photos" });
+  const step = (dir) => {
+    const i = mod ? mod.index : dir > 0 ? -1 : 0;
+    const next = car.mods[(i + dir + car.mods.length) % car.mods.length];
+    pick(next);
+  };
+  const markers = car.mods.reduce((n, m) => n + m.pins.length, 0);
+  const viewMarkers = car.mods.filter((m) => m.pins.some((p) => p.view === view.id)).length;
+
+  const carTabs = CARS.map((c) => ({ id: c.id, label: c.label, key: `car:${c.id}`, title: c.title }));
+  const viewTabs = car.views.map((v) => ({ id: v.id, label: v.label, key: `view:${carId}:${v.id}` }));
+  const bayId = `${idBase}-bay`;
+  const viewPanel = `${idBase}-view`;
+
+  return (
+    <div className="gw-photos" data-garage-layout="photos">
+      <Availability availability={availability} onEnter3D={onEnter3D} onRetry={onRetry} onResume3D={onResume3D} />
+
+      <div className="mt-8 flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
+        <Tabs
+          items={carTabs}
+          value={carId}
+          onChange={setCarId}
+          label="Cars in the garage"
+          idBase={`${idBase}-car`}
+          controls={bayId}
+          className="gw-cars flex gap-2"
+          tabClassName="gw-car-tab"
+          render={(t) => (
+            <>
+              <span className="mono-micro text-dim">{t.id === "s4" ? "Bay 01" : "Bay 02"}</span>
+              <span className="block font-display uppercase text-display-3 leading-none mt-1">{t.label}</span>
+            </>
+          )}
+        />
+        <Panel glass className="max-w-[46ch]" innerClassName="px-5 py-4">
+          <p className="prose-dark">{car.car.lede}</p>
+          <p className="mono-ui mono-cased text-dim mt-4">
+            {car.title} · {car.spec[0]} · <span className={car.output ? "text-volt" : ""}>{car.spec[1]}</span>
+          </p>
+        </Panel>
+      </div>
+
+      <div className="mt-10 tick-frame relative">
+        <Panel
+          glass
+          fill="bg-ink"
+          innerClassName="flex flex-col"
+          role="tabpanel"
+          id={bayId}
+          aria-labelledby={`${idBase}-car-tab-${carId}`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 md:px-5 py-3 border-b border-ink-line">
+            <div className="flex items-center gap-4 min-w-0">
+              <span className="hazard h-1.5 w-10 opacity-40 shrink-0" aria-hidden="true" />
+              <span className="mono-label text-volt">{car.bay}</span>
+              <span className="mono-micro text-dim tabular-nums">{car.title}</span>
+              <span className="mono-micro text-dim hidden sm:inline tabular-nums">{pad(car.mods.length)} parts</span>
+            </div>
+            <Tabs
+              items={viewTabs}
+              value={view.id}
+              onChange={setView}
+              label={`Photographs of the ${car.label}`}
+              idBase={`${idBase}-${carId}-view`}
+              controls={viewPanel}
+              className="flex flex-wrap gap-1 -mx-1"
+              tabClassName="gw-tab"
+            />
+          </div>
+
+          <div className="grid md:grid-cols-[minmax(0,3fr)_minmax(19rem,2fr)]">
+            <PhotoBay
+              car={car}
+              view={view}
+              selected={selection}
+              onSelect={pick}
+              wide={wide}
+              panelId={viewPanel}
+              labelledBy={`${idBase}-${carId}-view-tab-${view.id}`}
+            />
+            <div className="p-5 md:p-6 flex flex-col min-w-0">
+              {mod ? (
+                <PartCard
+                  mod={mod}
+                  viewId={view.id}
+                  onStep={step}
+                  onPin={setView}
+                  titleRef={titleRef}
+                  className="flex flex-col grow"
+                />
+              ) : (
+                <div className="gw-card flex flex-col grow">
+                  <p className="mono-label text-volt">The car</p>
+                  <h3 className="gw-card-title mt-2 font-display uppercase text-display-3 text-primary">{car.title}</h3>
+                  <dl className="mt-4 grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-4 gap-y-2 items-baseline">
+                    <dt className="mono-micro text-dim">Engine</dt>
+                    <dd className="text-[0.9375rem] text-muted">{car.car.engine}</dd>
+                    {car.output ? (
+                      <>
+                        <dt className="mono-micro text-dim">Output</dt>
+                        <dd className="text-[0.9375rem] text-volt">{car.output}</dd>
+                      </>
+                    ) : (
+                      <>
+                        <dt className="mono-micro text-dim">Drivetrain</dt>
+                        <dd className="text-[0.9375rem] text-muted">{car.car.drivetrain}</dd>
+                      </>
+                    )}
+                    <dt className="mono-micro text-dim">Parts</dt>
+                    <dd className="text-[0.9375rem] text-muted">
+                      {car.mods.length} on the list, {markers} {markers === 1 ? "marker" : "markers"}
+                    </dd>
+                  </dl>
+                  <p className="mt-4 prose-dark text-[0.9375rem] leading-[1.6]">{car.car.outputNote}</p>
+                  <p className="mt-3 prose-dark text-[0.9375rem] leading-[1.6] text-dim">
+                    Pick a marker on the photograph, or a line in the list below.
+                  </p>
+                  <div className="mt-auto pt-6 flex justify-end">
+                    <button type="button" onClick={() => step(1)} className="gw-step" {...{ [CONTROL]: "card-next" }}>
+                      First part
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="border-t border-ink-line px-4 md:px-6 py-6">
+            <PartList car={car} selected={selection} onPick={pick} />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 md:px-5 py-2.5 border-t border-ink-line">
+            <span className="mono-label text-dim">
+              <span className="text-muted">{car.label}</span> · <span className="text-muted">{view.label}</span> · {viewMarkers}{" "}
+              {viewMarkers === 1 ? "marker" : "markers"}
+              {mod && <span> · <span className="text-muted">{mod.name}</span></span>}
+            </span>
+            <span className="hidden md:inline text-[0.8125rem] text-dim">Arrow keys walk the markers. Tab reaches the list.</span>
+          </div>
+        </Panel>
+        <span className="tick tl" aria-hidden="true" />
+        <span className="tick tr" aria-hidden="true" />
+        <span className="tick bl" aria-hidden="true" />
+        <span className="tick br" aria-hidden="true" />
+      </div>
+
+      {car.footnote && <p className="mt-5 prose-dark text-[0.9375rem] text-dim">{car.footnote}</p>}
+
+      <Shop reduced={reduced} />
+
+      <div className="mt-16 flex flex-wrap items-center justify-between gap-x-8 gap-y-4 pt-6 border-t border-ink-line">
+        <Credits credits={credits} />
+        <a
+          href={contactHref}
+          onClick={(e) => {
+            if (!contactHref.startsWith("#")) return;
+            e.preventDefault();
+            scrollToSection(contactHref.slice(1));
+          }}
+          className="gw-next ml-auto"
+          {...{ [CONTROL]: "contact" }}
+        >
+          <span className="mono-micro text-dim">Next</span>
+          <span className="font-display uppercase text-primary">Contact</span>
+          <ArrowDownRight className="w-4 h-4 text-volt" aria-hidden="true" />
+        </a>
+      </div>
+    </div>
+  );
+}
