@@ -40,7 +40,7 @@ import Credits from "./Credits";
 import { ShopCard, ShopText } from "./Shop";
 import { GARAGE_PHOTOS_ENABLED } from "./features";
 import { CARS, STATIONS, findCar, findMod, findStation, resolveRequest } from "./cars";
-import { ANCHOR, CONTROL, restoreFocus } from "./focus";
+import { ANCHOR, CONTROL, restoreFocus, tryFocus } from "./focus";
 import { useAnnouncer, useControllable, useGarageRequest } from "./state";
 import "./garage.css";
 
@@ -148,6 +148,23 @@ export default function GarageControls({
     };
   }, []);
 
+  // A closed card hands focus back in the commit that removes it, not a frame
+  // later: a phone's frame can outlast the reader's next keypress (and B8's
+  // 120 ms check), and until then focus sat on the page. The opener itself
+  // if it can still take focus (a marker), else the control now carrying its
+  // key (the row, if its list is open again), else Parts, which reopens the
+  // list the row was in.
+  const returnTo = useRef(null);
+  useLayoutEffect(() => {
+    const back = returnTo.current;
+    if (!back) return;
+    returnTo.current = null;
+    if (mod) return;
+    if (tryFocus(back.el)) return;
+    const same = back.key ? root.current?.querySelector(`[${CONTROL}="${CSS.escape(back.key)}"]`) : null;
+    if (!tryFocus(same)) partsButton.current?.focus({ preventScroll: true });
+  });
+
   useLayoutEffect(() => {
     const key = lastKey.current;
     if (!key || !root.current) return;
@@ -220,12 +237,9 @@ export default function GarageControls({
 
   const closeCard = () => {
     const back = activator.current;
-    setSelection(null, { source: "card" });
+    returnTo.current = { el: back, key: back?.getAttribute(CONTROL) ?? null };
     activator.current = null;
-    requestAnimationFrame(() => {
-      if (back?.isConnected && !back.hidden) back.focus({ preventScroll: true });
-      else partsButton.current?.focus({ preventScroll: true });
-    });
+    setSelection(null, { source: "card" });
   };
 
   const step = (dir) => {
