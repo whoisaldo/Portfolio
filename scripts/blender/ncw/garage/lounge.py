@@ -288,7 +288,8 @@ def _cable_ramp(k):
 def _shop_sign(k):
     """The shop's own sign: AFTERLIFE AUTO in neon tube (cyan over pink,
     the garage's two colours) on a black backer 3.4 m wide, a spanner in
-    tube at its left, the transformer box under it, the standoffs and the
+    tube at its left, WATSON / BAY 01 painted at its right as the old
+    room's sign had it, the transformer box under it, the standoffs and the
     tube's dark returns near by. Its back is on the wall (z 0), its foot
     at y 0: set it at the height it hangs."""
     t, n, g = k("trim"), k("trim", 1), k("glow")
@@ -297,6 +298,9 @@ def _shop_sign(k):
         box(t, a, b, c, d, 0.0, 0.06, col=GUN_DARK)
     words(g, "AFTERLIFE", (0.25, 0.64, 0.05), (1, 0, 0), (0, 1, 0), 2.6, 0.36, 0.035, GLOW["cyan"], lift=0.035, gap=0.24)
     words(g, "AUTO", (0.25, 0.22, 0.05), (1, 0, 0), (0, 1, 0), 1.3, 0.24, 0.03, GLOW["pink"], lift=0.035, gap=0.26)
+    # The old room's line under its name: where, and which bay.
+    words(t, "WATSON", (1.27, 0.27, 0.05), (1, 0, 0), (0, 1, 0), 0.48, 0.075, 0.012, OFFWHITE, lift=0.001, gap=0.24)
+    words(t, "BAY 01", (1.27, 0.14, 0.05), (1, 0, 0), (0, 1, 0), 0.48, 0.075, 0.012, OFFWHITE, lift=0.001, gap=0.24)
     stroke(g, _SPANNER, Vector((-1.35, 0.47, 0.085)), Vector((1, 0, 0)), Vector((0, 1, 0)), 0.03, GLOW["amber"])
     # The dark of each tube a hair behind it, and the standoffs.
     words(n, "AFTERLIFE", (0.25, 0.64, 0.05), (1, 0, 0), (0, 1, 0), 2.6, 0.36, 0.05, GRIME, lift=0.02, gap=0.24)

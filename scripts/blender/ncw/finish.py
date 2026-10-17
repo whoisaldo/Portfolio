@@ -19,7 +19,21 @@ tri_count = 0
 proto_tris = 0
 
 
-def _mesh(name, verts, faces, uvs, cols, mat_name):
+def _smooth(mesh, angle=math.radians(35.0)):
+    """Round where it is round: the batches give every face its own
+    vertices, so weld them, shade smooth and keep the edges sharper than
+    `angle` sharp (a tyre's tread is smooth, a box's corners are not)."""
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bm.to_mesh(mesh)
+    bm.free()
+    mesh.shade_smooth()
+    mesh.set_sharp_from_angle(angle=angle)
+
+
+def _mesh(name, verts, faces, uvs, cols, mat_name, smooth=False):
     mesh = bpy.data.meshes.new(PREFIX + name)
     mesh.from_pydata(verts, [], faces)
     uv_layer = mesh.uv_layers.new(name="UVMap")
@@ -34,6 +48,8 @@ def _mesh(name, verts, faces, uvs, cols, mat_name):
             li += 1
     mesh.materials.append(MATS[mat_name])
     mesh.validate()
+    if smooth:
+        _smooth(mesh)
     return mesh
 
 
@@ -45,6 +61,14 @@ def _mesh(name, verts, faces, uvs, cols, mat_name):
 PACK_OF = {"japantown": "japantown", "deck": "deck", "mega": "mega",
            "plaza": "plaza", "corpo": "corpo", "rooftop": "afterlife", "afterlife": "afterlife",
            "avenue_s": "south", "santo": "santo", "canyon_b": "canyon"}
+# The workshop inside the garage (districts/garage_interior.py) is a pack
+# of its own, which the page asks for as the reader nears the Garage section
+# rather than with the districts: one key a visibility sector, each kept as
+# its own batch (and tagged visibilitySector) so the site can cull the room
+# by what a camera sees of it through the door and the office's window.
+from ncw.districts import garage_interior as _garage_in  # noqa: E402
+for _sector in _garage_in.SECTORS:
+    PACK_OF[_sector] = "garage"
 
 # A prototype that only one district's pack sets down rides in that pack and
 # not in the core, which stays the size of what the hero needs (the kit's
@@ -60,6 +84,13 @@ def _proto_pack(name):
     return next(iter(packs)) if len(packs) == 1 else "core"
 
 
+# The garage's kit registers more prototypes than its layout sets down: one
+# nobody placed is left out of the export, not left to default to the core.
+def _unplaced_garage(name):
+    base = (name[:-len(_props.NEAR)] if name.endswith(_props.NEAR) else name).split(_props.SHAPE)[0]
+    return base.startswith("garage_") and base not in _PROTO_PACKS
+
+
 for district, flat in LIGHTS.items():
     empty(f"anchor_lights_{district}", (0, 0, 0), props={"lights": flat, "pack": PACK_OF.get(district, "core")})
 
@@ -68,7 +99,11 @@ for (district, mat_name, detail), b in batches.items():
         continue
     if district.startswith("proto/"):
         name = district[6:]
-        mesh = _mesh(f"proto_{name}_{mat_name}", b.verts, b.faces, b.uvs, b.cols, mat_name)
+        if _unplaced_garage(name):
+            continue
+        # The garage's kit is turned and rounded (tyres, drums, a tank, the
+        # lift's rams): smooth-shaded, its edges kept.
+        mesh = _mesh(f"proto_{name}_{mat_name}", b.verts, b.faces, b.uvs, b.cols, mat_name, smooth=name.startswith("garage_"))
         obj = bpy.data.objects.new(f"proto_{name}_{mat_name}", mesh)
         obj["proto"] = name
         obj["detail"] = 1 if _props.PROTOS[name]["detail"] else 0
@@ -76,11 +111,13 @@ for (district, mat_name, detail), b in batches.items():
         link(obj)
         proto_tris += sum(len(p.vertices) - 2 for p in mesh.polygons)
         continue
-    mesh = _mesh(f"{district}_{mat_name}_{detail}", b.verts, b.faces, b.uvs, b.cols, mat_name)
+    mesh = _mesh(f"{district}_{mat_name}_{detail}", b.verts, b.faces, b.uvs, b.cols, mat_name, smooth=district in _garage_in.SECTORS)
     obj = bpy.data.objects.new(f"{district}_{mat_name}" + ("_detail" if detail else ""), mesh)
     obj["district"] = district
     obj["detail"] = detail
     obj["pack"] = PACK_OF.get(district, "core")
+    if district in _garage_in.SECTORS:
+        obj["visibilitySector"] = district
     link(obj)
     tri_count += sum(len(p.vertices) - 2 for p in mesh.polygons)
 
@@ -97,7 +134,9 @@ scene.render.resolution_y = 1000
 scene.view_settings.view_transform = "AgX"
 scene.render.image_settings.file_format = "PNG"
 
-bpy.context.window.scene = scene
+# Headless (blender -b) has no window to show the scene in.
+if bpy.context.window:
+    bpy.context.window.scene = scene
 for obj in scene.objects:
     obj.select_set(False)
 exported = [o for o in export_coll.objects]
