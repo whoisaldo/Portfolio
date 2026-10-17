@@ -28,10 +28,15 @@ import { UNDER_HOOD, underHood } from "../three/car/slim.js";
 
 // The S6's five, each on the empty its model carries for it (A1's node
 // contract, agents/A1/LOADER-CONTRACT.md). The tunes are in the engine bay.
+// Virtual Link is the exception: its empty is where the module sits, under
+// the floor on the centre line, which no camera outside the car can see.
+// What it does shows at the air suspension's corners, so its pin hangs in
+// the gap between the front tyre and its arch, on the body so it comes
+// down with the drop; as a corner it shows on the side the camera faces.
 export const S6_ANCHORS = {
   "ie-ecu-tune": { node: "mod_ie_ecu_tune", inBay: true },
   "ie-tcu-tune": { node: "mod_ie_tcu_tune", inBay: true },
-  "virtual-link": { node: "mod_virtual_link" },
+  "virtual-link": { part: "wheel_fl", carrier: "body", offset: [0.1, 0.4, 0] },
   "rsnav-head-unit": { node: "mod_rsnav_head_unit" },
   "rs-grille": { node: "mod_rs_grille" },
 };
