@@ -37,14 +37,15 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { execSync } from "node:child_process";
 import { gzipSync } from "node:zlib";
-import { NodeIO, Primitive, PropertyType } from "@gltf-transform/core";
+import { NodeIO, Primitive, PropertyType, VertexLayout } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { dedup, weld, meshopt, prune, textureCompress } from "@gltf-transform/functions";
-import { MeshoptEncoder } from "meshoptimizer";
+import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
 import sharp from "sharp";
 // The garage's one photograph switch, the site's own (B3's): while it is
 // off, no photo board, atlas or URL goes into what the workshop ships.
 import { GARAGE_PHOTOS_ENABLED } from "../src/components/garage/features.js";
+import { BOX as EXTERIOR_BOX, CONTRACT as EXTERIOR_CONTRACT, exteriorProps } from "./world-exterior-props.mjs";
 
 const SOURCE = "design/night-city-world/world-source.glb";
 const OUT = "public/scenes/world";
@@ -81,6 +82,7 @@ const TIERS = {
 };
 
 await MeshoptEncoder.ready;
+await MeshoptDecoder.ready;
 const io = new NodeIO()
   .registerExtensions(ALL_EXTENSIONS)
   .registerDependencies({ "meshopt.encoder": MeshoptEncoder });
@@ -159,9 +161,12 @@ async function compactCore(document) {
       .setAttribute("NORMAL", accessor(like("NORMAL").getType(), new (like("NORMAL").getArray().constructor)(normal), like("NORMAL").getNormalized()))
       .setAttribute("TEXCOORD_0", accessor("VEC2", new (like("TEXCOORD_0").getArray().constructor)(uv), like("TEXCOORD_0").getNormalized()))
       .setAttribute("COLOR_0", accessor("VEC4", new Uint8Array(color), true));
+    // (All the street's, as finish.py labelled each: one owner, kept.)
+    const owners = new Set(signs.map((n) => n.getExtras().visibilitySector));
+    if (owners.size !== 1) throw new Error(`the named signs have ${owners.size} owners: ${[...owners].join(", ")}`);
     const batch = document.createNode("signs_named")
       .setMesh(document.createMesh("signs_named").addPrimitive(prim))
-      .setExtras({ names: signs.map((n) => n.getName().slice(5)), wh });
+      .setExtras({ names: signs.map((n) => n.getName().slice(5)), wh, visibilitySector: [...owners][0] });
     root.listScenes()[0].addChild(batch);
     for (const node of signs) node.dispose();
   }
@@ -506,22 +511,34 @@ console.log(`logos.webp: ${LOGO_W}x${LOGO_ATLAS_H}, ${Math.round((await stat(log
 // out the meshes.
 const props = JSON.parse(await readFile("design/night-city-world/props-source.json", "utf8"));
 const propPaths = {};
-for (const [tier, opts] of Object.entries(TIERS)) {
-  const keep = props.instances.filter((i) => !(opts.dropDetail && props.protos[i[0]].detail));
-  const header = Buffer.from(JSON.stringify({ protos: props.protos, districts: props.districts, count: keep.length }));
-  const pad = (4 - ((4 + header.length) % 4)) % 4;
-  const buf = Buffer.alloc(4 + header.length + pad + keep.length * 16);
-  buf.writeUInt32LE(header.length + pad, 0);
-  header.copy(buf, 4);
-  buf.fill(32, 4 + header.length, 4 + header.length + pad);
-  let o = 4 + header.length + pad;
-  const q = (v) => Math.max(-32767, Math.min(32767, Math.round(v)));
-  for (const [pi, x, y, z, yaw, sy, sxz, di] of keep) {
-    for (const v of [pi, x * 20, y * 50, z * 20, yaw * 10430.2, sy * 100, sxz * 1000, di]) {
-      buf.writeInt16LE(q(v), o);
+// Each instance as the file holds it: its eight numbers, made int16s.
+const q = (v) => Math.max(-32767, Math.min(32767, Math.round(v)));
+const packed = ([pi, x, y, z, yaw, sy, sxz, di]) => [pi, x * 20, y * 50, z * 20, yaw * 10430.2, sy * 100, sxz * 1000, di].map(q);
+// The header's JSON (padded to four bytes with spaces), then the records.
+const propsFile = (header, records) => {
+  const json = Buffer.from(JSON.stringify(header));
+  const pad = (4 - ((4 + json.length) % 4)) % 4;
+  const buf = Buffer.alloc(4 + json.length + pad + records.length * 16);
+  buf.writeUInt32LE(json.length + pad, 0);
+  json.copy(buf, 4);
+  buf.fill(32, 4 + json.length, 4 + json.length + pad);
+  let o = 4 + json.length + pad;
+  for (const record of records) {
+    for (const v of record) {
+      buf.writeInt16LE(v, o);
       o += 2;
     }
   }
+  return buf;
+};
+// (Which of props-source.json's instances each tier's file keeps, in order:
+// for the street's props by the garage, below.)
+const propSources = {};
+for (const [tier, opts] of Object.entries(TIERS)) {
+  const kept = props.instances.map((row, i) => [row, i]).filter(([row]) => !(opts.dropDetail && props.protos[row[0]].detail));
+  const keep = kept.map(([row]) => row);
+  propSources[tier] = kept.map(([, i]) => i);
+  const buf = propsFile({ protos: props.protos, districts: props.districts, count: keep.length }, keep.map(packed));
   propPaths[tier] = `${OUT}/props-${tier}.bin`;
   await writeFile(propPaths[tier], buf);
   // And gzipped beside it, which the page fetches: two thirds smaller.
@@ -543,26 +560,51 @@ for (const [tier, opts] of Object.entries(TIERS)) {
     if (sectorRuns.at(-1)?.sector === sector) sectorRuns.at(-1).count++;
     else sectorRuns.push({ sector, start: i, count: 1 });
   });
-  const header = Buffer.from(JSON.stringify({ protos: garageProps.protos, districts: garageProps.districts, count: keep.length, pack: GARAGE, sectorRuns }));
-  const pad = (4 - ((4 + header.length) % 4)) % 4;
-  const buf = Buffer.alloc(4 + header.length + pad + keep.length * 16);
-  buf.writeUInt32LE(header.length + pad, 0);
-  header.copy(buf, 4);
-  buf.fill(32, 4 + header.length, 4 + header.length + pad);
-  let o = 4 + header.length + pad;
-  const q = (v) => Math.max(-32767, Math.min(32767, Math.round(v)));
-  for (const [pi, x, y, z, yaw, sy, sxz, di] of keep) {
-    for (const v of [pi, x * 20, y * 50, z * 20, yaw * 10430.2, sy * 100, sxz * 1000, di]) {
-      buf.writeInt16LE(q(v), o);
-      o += 2;
-    }
-  }
+  const buf = propsFile({ protos: garageProps.protos, districts: garageProps.districts, count: keep.length, pack: GARAGE, sectorRuns }, keep.map(packed));
   const path = `${OUT}/props-${tier}-garage.bin`;
   await writeFile(path, buf);
   await writeFile(`${path}.gz`, gzipSync(buf, { level: 9 }));
   propPaths[`${tier}-garage`] = path;
   console.log(`props-${tier}-garage.bin.gz: ${keep.length} props, ${Math.round((await stat(`${path}.gz`)).size / 1024)} KB`);
 }
+
+// The street's props in front of the garage, written out as a few static
+// meshes (scripts/world-exterior-props.mjs), and the props file without
+// them, a pair for each tier which the site may draw instead of the tier's
+// own props file. Worked out from what this script has just written (the
+// tier's core GLB, decoded as the site decodes it, and its props file's
+// records), so each vertex is the one the site would have drawn.
+// design/night-city-world/exterior-props.json says what each holds.
+const decodeIo = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.decoder": MeshoptDecoder });
+// (Each attribute its own array, not interleaved: what reads them indexes
+// .array by its item size, as props.js does.)
+const plainIo = new NodeIO().setVertexLayout(VertexLayout.SEPARATE);
+const exterior = { box: EXTERIOR_BOX, tiers: {} };
+for (const [tier, opts] of Object.entries(TIERS)) {
+  const header = { protos: props.protos, districts: props.districts };
+  const records = propSources[tier].map((i) => packed(props.instances[i]));
+  const { document, keep, manifest } = exteriorProps({ core: await decodeIo.read(`${OUT}/world-${tier}.glb`), records, sources: propSources[tier], header, phone: opts.dropDetail });
+  const glb = `${OUT}/world-${tier}-exterior-props.glb`;
+  await plainIo.write(glb, document);
+  // (Gzipped beside it, as the core is: its frames and seeds repeat.)
+  await writeFile(`${glb}.gz`, gzipSync(await readFile(glb), { level: 9 }));
+  const bin = `${OUT}/props-${tier}-batched.bin`;
+  const buf = propsFile({ ...header, count: keep.length }, keep);
+  await writeFile(bin, buf);
+  await writeFile(`${bin}.gz`, gzipSync(buf, { level: 9 }));
+  propPaths[`${tier}-batched`] = bin;
+  // Every part of every placement taken is in one batch, and nothing else.
+  const triangles = manifest.batches.reduce((n, b) => n + b.triangles, 0);
+  if (keep.length + manifest.removed.length !== records.length || triangles !== manifest.triangles) throw new Error(`${glb}: its batches do not hold exactly the placements taken out`);
+  const size = (await stat(glb)).size;
+  sizes[`${tier}-exterior-props`] = size;
+  // (A streamed pack's budget.)
+  if (size > PACK_BUDGET[tier]) throw new Error(`${glb} is ${(size / 1e6).toFixed(2)} MB, over its ${PACK_BUDGET[tier] / 1e6} MB budget`);
+  const gz = (await stat(`${glb}.gz`)).size;
+  exterior.tiers[tier] = { glb: `${glb.replace(/^public/, "")}.gz`, props: `${bin.replace(/^public/, "")}.gz`, bytes: size, gzipBytes: gz, propsGzipBytes: (await stat(`${bin}.gz`)).size, ...manifest };
+  console.log(`world-${tier}-exterior-props.glb: ${(size / 1e3).toFixed(0)} KB (${(gz / 1e3).toFixed(0)} KB gzipped), ${manifest.batches.length} batches, ${manifest.removed.length} placements, ${triangles} triangles`);
+}
+await writeFile("design/night-city-world/exterior-props.json", `${JSON.stringify({ ...EXTERIOR_CONTRACT, ...exterior }, null, 1)}\n`);
 
 // The shop wall's photographs, while the Garage section's photographs are
 // on (they are not, and then nothing is written): its own "Also in the
@@ -667,6 +709,11 @@ for (const name of ["road-graph.json", "collision.json", "districts.json", "anch
 
 const revision = async (path) => createHash("sha256").update(await readFile(path)).digest("hex").slice(0, 12);
 const base = "/scenes/world/";
+const revisions = {};
+for (const tier of Object.keys(TIERS)) {
+  revisions[`${tier}-exterior`] = await revision(`${OUT}/world-${tier}-exterior-props.glb.gz`);
+  revisions[`${tier}-batched`] = await revision(`${propPaths[`${tier}-batched`]}.gz`);
+}
 const metadata = `// Generated by npm run world:assets (scripts/optimize-world.mjs). Do not edit.
 export const worldModelUrl = {
   high: "${base}world-high.glb.gz?v=${await revision(`${OUT}/world-high.glb.gz`)}",
@@ -717,6 +764,12 @@ export const worldGarageLayoutUrl = "${base}garage-layout.json?v=${await revisio
 export const worldPropsUrl = {
   high: "${base}props-high.bin.gz?v=${await revision(`${propPaths.high}.gz`)}",
   phone: "${base}props-phone.bin.gz?v=${await revision(`${propPaths.phone}.gz`)}",
+};
+// The street's props in front of the garage, written out as static meshes,
+// and the props file without them (design/night-city-world/exterior-props.json):
+// both in place of worldPropsUrl, or neither. The site does not read them yet.
+export const worldExteriorPropsUrl = {
+${Object.keys(TIERS).map((tier) => `  ${tier}: {\n    meshes: "${base}world-${tier}-exterior-props.glb.gz?v=${revisions[`${tier}-exterior`]}",\n    props: "${base}props-${tier}-batched.bin.gz?v=${revisions[`${tier}-batched`]}",\n  },`).join("\n")}
 };
 `;
 const metadataPath = "src/data/world-assets.js";
