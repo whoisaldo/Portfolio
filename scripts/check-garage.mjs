@@ -14,6 +14,7 @@
 //   portrait screen (no step larger than a glide makes), lands exactly on
 //   each hold, and under reduced motion only ever shows a hold;
 //   the flights in and out cross the real door's opening;
+//   the exported room solids clear every desired camera and near plane;
 //   where the kit has a garage camera it has all four of its names.
 //
 // And it reports which poses and paths are still the plan's stand-ins: a
@@ -106,16 +107,39 @@ await MeshoptDecoder.ready;
 const assetsSrc = readFileSync("src/data/world-assets.js", "utf8");
 const coreOf = (tier) => `public${assetsSrc.match(new RegExp(`${tier}: "(/scenes/world/world-${tier}\\.glb)`))[1]}`;
 const anchorSets = {};
+const roomSolids = {};
 for (const tier of ["high", "phone"]) {
   const doc = await io.read(coreOf(tier));
+  const pack = await io.read(`public/scenes/world/world-${tier}-garage.glb`);
   const anchors = new Map();
-  for (const node of doc.getRoot().listNodes()) {
+  for (const node of [...doc.getRoot().listNodes(), ...pack.getRoot().listNodes()]) {
     const name = node.getName();
     if (!/^(cam_|anchor_)garage/.test(name)) continue;
     const m = node.getWorldMatrix();
     anchors.set(name, { position: new Vector3(m[12], m[13], m[14]), quaternion: new Quaternion(), extras: node.getExtras() });
   }
   anchorSets[tier] = anchors;
+  // Decode normalized positions before applying the full node transform,
+  // just as GLTFLoader does. Layout metadata cannot certify the exported
+  // collision boxes used by the runtime.
+  roomSolids[tier] = pack.getRoot().listNodes().filter((node) => node.getName().startsWith("collide_garage_")).map((node) => {
+    const box = new three.Box3();
+    const matrix = new three.Matrix4().fromArray(node.getWorldMatrix());
+    const point = new Vector3(), element = [];
+    for (const primitive of node.getMesh()?.listPrimitives() ?? []) {
+      const positions = primitive.getAttribute("POSITION");
+      if (!positions) continue;
+      for (let i = 0; i < positions.getCount(); i++) {
+        positions.getElement(i, element);
+        box.expandByPoint(point.fromArray(element).applyMatrix4(matrix));
+      }
+    }
+    return { name: node.getName(), ...node.getExtras(), box };
+  });
+  check(`${tier} exported camera solids exist`, () => {
+    assert.ok(roomSolids[tier].length > 0);
+    assert.ok(roomSolids[tier].every((row) => !row.box.isEmpty()), "collision meshes must contain positions");
+  });
 }
 check("kit cameras are whole", () => {
   for (const [tier, anchors] of Object.entries(anchorSets)) {
@@ -134,6 +158,23 @@ for (const [tier, anchors] of Object.entries(anchorSets)) {
   visit.placeholders.forEach((p) => placeholders.add(`${tier}:${p}`));
   for (const aspect of [16 / 10, 390 / 844]) {
     const tag = `${tier} ${aspect < 1 ? "portrait" : "landscape"}`;
+    const collision = createGarageCollision({ solids: () => roomSolids[tier] });
+    const clearPose = (pose, label) => {
+      const eye = collision.clearance(pose.position);
+      const near = collision.nearPlane(pose, aspect, .1);
+      assert.ok(eye >= .45 && near >= .15, `${label}: eye ${eye.toFixed(6)}m / near ${near.toFixed(6)}m`);
+    };
+    check(`${tag} exported timeline clearance`, () => {
+      for (let i = 0; i <= 1000; i++) clearPose(visit.at(i / 1000, aspect), `p=${(i / 1000).toFixed(3)}`);
+    });
+    check(`${tag} exported inspection graph clearance`, () => {
+      const pose = visit.at(0, aspect);
+      for (const edge of visit.segments(aspect)) {
+        const count = Math.ceil(edge.length / .01);
+        for (let i = 0; i <= count; i++) clearPose(visit.sample(edge.id, edge.from, edge.into, i / count, aspect, pose), `${edge.id} ${i}/${count}`);
+      }
+      for (const id of ["s4_cabin", "s6_cabin"]) clearPose(visit.pose(id, aspect), id);
+    });
     check(`${tag} continuity`, () => {
       // A route that is continuous takes half the step at twice the
       // samples; a break, or a turn on the spot, takes the same step
