@@ -160,7 +160,7 @@ function sceneFor(id) {
         })),
       };
     case "contact":
-      return { id, label, hold: 5, flight: 0, credits: true, beats: [{ at: 0.4, caption: { label, title: primaryEmail, line: profile.base } }] };
+      return { id, label, hold: 5, flight: 0, beats: [{ at: 0.4, caption: { label, title: primaryEmail, line: profile.base } }] };
     default:
       return { id, label, hold: 6, flight: 4.6, beats: [] };
   }
