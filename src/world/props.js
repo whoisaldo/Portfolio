@@ -70,7 +70,7 @@ export function preloadProps(tier) {
   return cache.get(tier);
 }
 
-function parse(buffer) {
+export function parseProps(buffer) {
   const view = new DataView(buffer);
   const hl = view.getUint32(0, true);
   const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, hl)));
@@ -85,8 +85,6 @@ const _s = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0);
 const _frustum = new THREE.Frustum();
 const _vp = new THREE.Matrix4();
-const _last = new THREE.Vector3(1e9, 0, 0);
-const _lastDir = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 
 /**
@@ -298,7 +296,10 @@ export function opaqueOrder(a, b) {
  * sources (for the light bake), dispose }.
  */
 export function createProps(protoMeshes, buffer, { phone = false, reflectLayer = 0 } = {}) {
-  const { protos, data, count } = parse(buffer);
+  const { protos, data, count } = parseProps(buffer);
+  const attachments = [];
+  const lastPosition = new THREE.Vector3(1e9, 0, 0);
+  const lastDirection = new THREE.Vector3();
   const group = new THREE.Group();
   group.name = "props";
   // The props' own materials (plants) share the kit's uniforms, which any
@@ -544,7 +545,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   const update = (camera) => {
     camera.updateMatrixWorld();
     camera.getWorldDirection(_dir);
-    const moved = camera.position.distanceToSquared(_last) > 0.25 || _dir.dot(_lastDir) < 0.99985;
+    const moved = camera.position.distanceToSquared(lastPosition) > 0.25 || _dir.dot(lastDirection) < 0.99985;
     frames++;
     if (!moved && !stale && frames % 60 !== 0) return;
     stale = false;
@@ -552,8 +553,8 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       cellVis = new Uint8Array(cellList.length);
       cellDist = new Float32Array(cellList.length);
     }
-    _last.copy(camera.position);
-    _lastDir.copy(_dir);
+    lastPosition.copy(camera.position);
+    lastDirection.copy(_dir);
     _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     _frustum.setFromProjectionMatrix(_vp);
     const cam = camera.position;
@@ -658,8 +659,77 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
 
   return {
     group,
-    update,
+    update(camera) {
+      update(camera);
+      for (const child of attachments) child.update(camera);
+    },
     sources,
+    /** A pack has its own placement stream. Partition it before batching,
+     *  so neither baked geometry nor instances erase a visibility sector. */
+    addPlacements(meshes, buffer, { hold = false } = {}) {
+      const parsed = parseProps(buffer);
+      const { protos, data, count, sectorRuns } = parsed;
+      if (!Number.isInteger(count) || count <= 0 || !Array.isArray(sectorRuns) || !sectorRuns.length) throw new Error("garage placements are empty or have no sectors");
+      const covered = new Uint8Array(count);
+      const sectors = new Map();
+      for (const { sector, start, count: n } of sectorRuns) {
+        if (!/^garage_(apron|s4|s6|shop|mezzanine)$/.test(sector) || !Number.isInteger(start) || !Number.isInteger(n) || start < 0 || n <= 0 || start + n > count) throw new Error("invalid garage sector run");
+        if (!sectors.has(sector)) sectors.set(sector, []);
+        for (let i = start; i < start + n; i++) {
+          if (covered[i]++) throw new Error("overlapping garage sector runs");
+          if (!protos[data[i * 8]]) throw new Error("unknown garage placement prototype");
+          sectors.get(sector).push(i);
+        }
+      }
+      if (covered.some((n) => n !== 1)) throw new Error("garage placements lack sector coverage");
+      const available = new Set(meshes.map((mesh) => mesh.userData.proto ?? mesh.name.replace(/^proto_/, "").replace(/_[a-z]+(_[a-z]+)?$/, "")));
+      for (let i = 0; i < count; i++) if (!available.has(protos[data[i * 8]].name)) throw new Error(`missing garage prototype ${protos[data[i * 8]].name}`);
+      const children = [];
+      try {
+        for (const [sector, indices] of sectors) {
+          // The existing decoder consumes the same wire format for each
+          // sector. Pad the JSON header so the Int16 records stay aligned.
+          const text = JSON.stringify({ protos, count: indices.length });
+          const raw = new TextEncoder().encode(text);
+          const encoded = new Uint8Array(raw.length + raw.length % 2);
+          encoded.fill(32);
+          encoded.set(raw);
+          const next = new ArrayBuffer(4 + encoded.length + indices.length * 16);
+          new DataView(next).setUint32(0, encoded.length, true);
+          new Uint8Array(next, 4, encoded.length).set(encoded);
+          const records = new Int16Array(next, 4 + encoded.length);
+          indices.forEach((i, j) => records.set(data.subarray(i * 8, i * 8 + 8), j * 8));
+          const child = createProps(meshes, next, { phone, reflectLayer });
+          child.group.name = `props_${sector}`;
+          child.group.traverse((object) => { object.userData.sector = sector; });
+          children.push(child);
+        }
+      } catch (err) {
+        children.forEach((child) => child.dispose());
+        throw err;
+      }
+      let committed = false;
+      const commit = () => {
+        if (committed) return;
+        committed = true;
+        attachments.push(...children);
+        children.forEach((child) => group.add(child.group));
+        stale = true;
+      };
+      const prepare = function* () {
+        const drawn = [];
+        for (const child of children) child.group.traverse((object) => {
+          if (object.isMesh) drawn.push({ object, geometry: object.geometry, extra: object.isInstancedMesh ? [object.instanceMatrix] : [] });
+        });
+        yield;
+        return drawn;
+      };
+      const result = { count, sources: children.flatMap((child) => child.sources), prepare, commit,
+        disposeBake() { children.forEach((child) => child.disposeBake()); },
+        dispose() { if (!committed) children.forEach((child) => child.dispose()); } };
+      if (!hold) commit();
+      return result;
+    },
     /**
      * Prototypes that came with a district's pack (dressed as the core's
      * were): their instances are drawn from now on. Returns the light they
@@ -742,10 +812,12 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       return Object.fromEntries(sets.filter((st) => !st.near).map((st) => [st.name, `${st.count}/${st.n}`]));
     },
     disposeBake() {
+      attachments.forEach((child) => child.disposeBake());
       for (const m of bakeMeshes) m.geometry.dispose();
       bakeMeshes.length = 0;
     },
     dispose() {
+      attachments.forEach((child) => child.dispose());
       for (const m of bakeMeshes) m.geometry.dispose();
       for (const set of sets) for (const im of set.instanced) im.dispose();
       for (const mesh of baked.values()) {
