@@ -112,10 +112,11 @@ export function createGarageVisibility(anchors) {
       nearOpening = false;
       roadVisible = false;
       cones = [];
-      for (const corners of portals) {
-        // Reflect the aperture with the road, including its sill. The
-        // oblique mirror camera then clips this polygon to its real view.
-        const points = corners.map((p) => new THREE.Vector3(p.x, eye.y < 0 ? -p.y : p.y, p.z));
+      const apertures = eye.y < 0 ? portals.flatMap((points) => [points, points.map((p) => new THREE.Vector3(p.x, -p.y, p.z))]) : portals;
+      for (const points of apertures) {
+        // Keep both the physical opening above the floor and its reflected
+        // opening below it. The mirror's oblique plane chooses which rays
+        // can reach the street without removing its physical aperture.
         const opening = new THREE.Plane().setFromCoplanarPoints(...points.slice(0, 3));
         if (Math.abs(opening.distanceToPoint(eye)) < .5) nearOpening = true;
         let polygon = points;

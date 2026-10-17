@@ -395,7 +395,8 @@ check("late garage prop placements", () => {
   };
   const core = proto("core_test");
   const pack = proto("garage_test");
-  const system = propsModule.createProps([core], wire({ protos: [{ name: "core_test", box: [1, 1, 1] }], count: 0 }, []));
+  const culledSectors = new Set();
+  const system = propsModule.createProps([core], wire({ protos: [{ name: "core_test", box: [1, 1, 1] }], count: 0 }, []), { visibleBox: (box, sector) => { culledSectors.add(sector); return sector !== "garage_s6"; } });
   const buffer = wire({ protos: [{ name: "garage_test", box: [1, 1, 1] }], count: 2, sectorRuns: [{ sector: "garage_s4", start: 0, count: 1 }, { sector: "garage_s6", start: 1, count: 1 }] }, [[0, 9240, 0, -4300, 0, 100, 1000, 0], [0, 9240, 0, -4440, 0, 100, 1000, 0]]);
   const held = system.addPlacements([pack], buffer, { hold: true });
   assert.equal(held.count, 2);
@@ -403,15 +404,23 @@ check("late garage prop placements", () => {
   const steps = held.prepare();
   let result;
   while (!(result = steps.next()).done);
-  assert.equal(result.value.length, 2);
+  assert.equal(result.value.length, 1, "one material batch serves both sectors");
   held.commit();
   held.commit();
-  assert.equal(system.group.children.length, 2, "idempotent commit");
-  for (const sector of ["garage_s4", "garage_s6"]) {
-    const group = system.group.getObjectByName(`props_${sector}`);
-    assert.ok(group);
-    group.traverse((mesh) => { if (mesh.isMesh) assert.equal(mesh.userData.sector, sector); });
-  }
+  assert.equal(system.group.children.length, 1, "idempotent commit");
+  const room = system.group.getObjectByName("props_garage_room");
+  assert.ok(room);
+  room.traverse((mesh) => {
+    if (!mesh.isMesh) return;
+    assert.equal(mesh.userData.sector, "garage_room");
+    assert.deepEqual(mesh.userData.sectorRuns.map((run) => run.sector), ["garage_s4", "garage_s6"]);
+  });
+  const camera = new three.PerspectiveCamera(90, 1.6, .1, 100);
+  camera.position.set(470, 4, -219); camera.lookAt(462, 1, -219); camera.updateMatrixWorld();
+  system.update(camera);
+  const batched = room.children.find((node) => node.isBaked);
+  assert.ok(culledSectors.has("garage_s4") && culledSectors.has("garage_s6"), "both sectors reach the pass culler");
+  assert.equal(Array.from(batched._multiDrawCounts).slice(0, batched._multiDrawCount).reduce((sum, n) => sum + n, 0), 36, "only the visible sector's box is submitted");
   const bad = wire({ protos: [{ name: "garage_test", box: [1, 1, 1] }], count: 1, sectorRuns: [] }, [[0, 9240, 0, -4300, 0, 100, 1000, 0]]);
   assert.throws(() => system.addPlacements([pack], bad), /sectors/);
   system.dispose();
@@ -677,6 +686,29 @@ check("resting frames draw effective manual car state and layout once", () => {
   context.garageState = () => { throw new Error("normal frames do not read the resting key"); };
   frame(208); frame(224);
   assert.equal(drawn.length, 9, "normal frames retain their existing draw schedule");
+});
+
+check("per-pass exterior culling restores visibility and keeps room lights and car shadows", () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const renderScene = renderer.render;");
+  const to = source.indexOf("  const draw =", from);
+  const room = { visible: true }, carRoot = { visible: true };
+  const light = { visible: true, name: "car_lights" };
+  const contact = { visible: true, name: "", isGroup: true };
+  const outside = { visible: true, name: "traffic" };
+  const alreadyHidden = { visible: false, name: "rain" };
+  const scene = { children: [room, carRoot, light, contact, outside, alreadyHidden] };
+  const city = { root: room, visibility: { exteriorVisible: false, prepare() {} }, props: { update() {} } };
+  const camera = { updateMatrixWorld() {} };
+  const renderer = { render() {
+    assert.equal(outside.visible, false);
+    for (const node of [room, carRoot, light, contact]) assert.equal(node.visible, true);
+    throw new Error("render failed");
+  } };
+  runInNewContext(source.slice(from, to), { renderer, city, scene, car: { car: carRoot } });
+  assert.throws(() => renderer.render(scene, camera), /render failed/);
+  assert.equal(outside.visible, true, "the next pass can see the exterior again");
+  assert.equal(alreadyHidden.visible, false, "culling cannot revive a hidden system");
 });
 
 check("portal visibility keeps real openings for main and reflected cameras", () => {

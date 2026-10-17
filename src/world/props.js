@@ -298,7 +298,9 @@ export function opaqueOrder(a, b) {
  * sources (for the light bake), dispose }.
  */
 export function createProps(protoMeshes, buffer, { phone = false, reflectLayer = 0, visibleBox = null } = {}) {
-  const { protos, data, count } = parseProps(buffer);
+  const { protos, data, count, sectorRuns = [] } = parseProps(buffer);
+  const placementSectors = new Array(count).fill("");
+  for (const { sector, start, count: n } of sectorRuns) placementSectors.fill(sector, start, start + n);
   const attachments = [];
   const lastPosition = new THREE.Vector3(1e9, 0, 0);
   const lastDirection = new THREE.Vector3();
@@ -333,15 +335,22 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const [first] = members;
     const shapes = kinds.map((k) => ({ k, v: k.name.startsWith(first.name) && SHAPE.exec(k.name.slice(first.name.length))?.[1] }))
       .filter((s) => s.v).sort((a, b) => a.v - b.v).map((s) => s.k);
-    const dealt = deal(data, list, rule, shapes.length + 1);
-    list.forEach((i, j) => {
-      deals[i] = dealt.deal[j];
-    });
-    if (!shapes.length) continue;
-    first.list = [];
-    list.forEach((i, j) => (dealt.shape[j] ? shapes[dealt.shape[j] - 1] : first).list.push(i));
+    const partitions = new Map();
+    for (const i of list) {
+      const sector = placementSectors[i];
+      if (!partitions.has(sector)) partitions.set(sector, []);
+      partitions.get(sector).push(i);
+    }
+    if (shapes.length) first.list = [];
+    for (const indices of partitions.values()) {
+      const dealt = deal(data, indices, rule, shapes.length + 1);
+      indices.forEach((i, j) => {
+        deals[i] = dealt.deal[j];
+        if (shapes.length) (dealt.shape[j] ? shapes[dealt.shape[j] - 1] : first).list.push(i);
+      });
+    }
   }
-  const cellOf = (x, z) => `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
+  const cellOf = (x, z, sector) => `${Math.floor(x / CELL)},${Math.floor(z / CELL)},${sector}`;
   const decoded = (i, out) => {
     const o = i * 8;
     _p.set(data[o + 1] / 20, data[o + 2] / 50, data[o + 3] / 20);
@@ -359,7 +368,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   const cellIndex = (key) => {
     if (!cellAt.has(key)) {
       cellAt.set(key, cellList.length);
-      cellList.push(new THREE.Box3());
+      cellList.push(Object.assign(new THREE.Box3(), { sector: key.split(",")[2] }));
     }
     return cellAt.get(key);
   };
@@ -403,7 +412,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     // Sort by cell, and note each cell's run.
     const withCell = k.list.map((i) => {
       const o = i * 8;
-      return { i, cell: cellOf(data[o + 1] / 20, data[o + 3] / 20) };
+      return { i, cell: cellOf(data[o + 1] / 20, data[o + 3] / 20, placementSectors[i]) };
     });
     withCell.sort((a, b) => (a.cell < b.cell ? -1 : a.cell > b.cell ? 1 : 0));
     const n = withCell.length;
@@ -513,7 +522,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   };
   const ranks = () => {
     const rank = new Int32Array(cellList.length);
-    const rows = [...cellAt].map(([key, ci]) => [ci, ...key.split(",").map(Number)]);
+    const rows = [...cellAt].map(([key, ci]) => [ci, ...key.split(",").slice(0, 2).map(Number)]);
     rows.sort((a, b) => a[2] - b[2] || a[1] - b[1]).forEach(([ci], r) => {
       rank[ci] = r;
     });
@@ -569,7 +578,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const cam = camera.position;
     for (let c = 0; c < cellList.length; c++) {
       cellDist[c] = cellList[c].distanceToPoint(cam);
-      cellVis[c] = _frustum.intersectsBox(cellList[c]) && (!visibleBox || visibleBox(cellList[c])) ? 1 : 0;
+      cellVis[c] = _frustum.intersectsBox(cellList[c]) && (!visibleBox || visibleBox(cellList[c], cellList[c].sector)) ? 1 : 0;
     }
     for (const set of sets) {
       const reach = set.reach;
@@ -665,6 +674,13 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     return sources;
   };
   const sources = sourcesOf(sets);
+  if (sectorRuns.length) {
+    group.name = "props_garage_room";
+    group.traverse((node) => {
+      node.userData.sector = "garage_room";
+      node.userData.sectorRuns = sectorRuns.map((run) => ({ ...run }));
+    });
+  }
 
   return {
     group,
@@ -673,50 +689,25 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       for (const child of attachments) child.update(camera);
     },
     sources,
-    /** A pack has its own placement stream. Partition it before batching,
-     *  so neither baked geometry nor instances erase a visibility sector. */
+    /** A pack shares material and prototype draws across its open room.
+     *  Sector labels stay on the cell runs, so each camera can still cull
+     *  them independently without drawing the same material per sector. */
     addPlacements(meshes, buffer, { hold = false } = {}) {
       const parsed = parseProps(buffer);
       const { protos, data, count, sectorRuns } = parsed;
       if (!Number.isInteger(count) || count <= 0 || !Array.isArray(sectorRuns) || !sectorRuns.length) throw new Error("garage placements are empty or have no sectors");
       const covered = new Uint8Array(count);
-      const sectors = new Map();
       for (const { sector, start, count: n } of sectorRuns) {
         if (!/^garage_(apron|s4|s6|shop|mezzanine)$/.test(sector) || !Number.isInteger(start) || !Number.isInteger(n) || start < 0 || n <= 0 || start + n > count) throw new Error("invalid garage sector run");
-        if (!sectors.has(sector)) sectors.set(sector, []);
         for (let i = start; i < start + n; i++) {
           if (covered[i]++) throw new Error("overlapping garage sector runs");
           if (!protos[data[i * 8]]) throw new Error("unknown garage placement prototype");
-          sectors.get(sector).push(i);
         }
       }
       if (covered.some((n) => n !== 1)) throw new Error("garage placements lack sector coverage");
       const available = new Set(meshes.map((mesh) => mesh.userData.proto ?? mesh.name.replace(/^proto_/, "").replace(/_[a-z]+(_[a-z]+)?$/, "")));
       for (let i = 0; i < count; i++) if (!available.has(protos[data[i * 8]].name)) throw new Error(`missing garage prototype ${protos[data[i * 8]].name}`);
-      const children = [];
-      try {
-        for (const [sector, indices] of sectors) {
-          // The existing decoder consumes the same wire format for each
-          // sector. Pad the JSON header so the Int16 records stay aligned.
-          const text = JSON.stringify({ protos, count: indices.length });
-          const raw = new TextEncoder().encode(text);
-          const encoded = new Uint8Array(raw.length + raw.length % 2);
-          encoded.fill(32);
-          encoded.set(raw);
-          const next = new ArrayBuffer(4 + encoded.length + indices.length * 16);
-          new DataView(next).setUint32(0, encoded.length, true);
-          new Uint8Array(next, 4, encoded.length).set(encoded);
-          const records = new Int16Array(next, 4 + encoded.length);
-          indices.forEach((i, j) => records.set(data.subarray(i * 8, i * 8 + 8), j * 8));
-          const child = createProps(meshes, next, { phone, reflectLayer, visibleBox });
-          child.group.name = `props_${sector}`;
-          child.group.traverse((object) => { object.userData.sector = sector; });
-          children.push(child);
-        }
-      } catch (err) {
-        children.forEach((child) => child.dispose());
-        throw err;
-      }
+      const children = [createProps(meshes, buffer, { phone, reflectLayer, visibleBox })];
       let committed = false;
       const commit = () => {
         if (committed) return;
