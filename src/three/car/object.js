@@ -43,7 +43,31 @@ export function preloadCar(kind = "s4") {
   return pending[kind];
 }
 
-export function createObject(kind = "s4") {
+// No-argument callers keep the synchronous loader contract. Inspection
+// callers may supply frame slots and cancellation for owned resource copies.
+export function createObject(kind = "s4", options) {
+  const steps = createObjectSteps(kind);
+  if (options?.between) return createSliced(steps, options);
+  let step;
+  do { step = steps.next(); } while (!step.done);
+  return step.value;
+}
+
+async function createSliced(steps, { between, signal }) {
+  try {
+    for (;;) {
+      await between();
+      if (signal?.aborted) throw Object.assign(new Error("Garage preparation was disposed."), { code: "garage-disposed" });
+      const step = steps.next();
+      if (step.done) return step.value;
+    }
+  } catch (error) {
+    steps.return();
+    throw error;
+  }
+}
+
+function* createObjectSteps(kind) {
   const spec = cars[kind];
   if (spec.unavailable) throw unavailable(kind);
   if (!sources[kind]) throw new Error(`Load the Audi ${kind.toUpperCase()} before creating its scene.`);
@@ -51,68 +75,82 @@ export function createObject(kind = "s4") {
   const geometries = new Map();
   const materials = new Map();
   const textures = new Map();
-  car.traverse((obj) => {
-    if (!obj.isMesh) return;
-    const geometry = obj.geometry;
-    if (!geometries.has(geometry)) geometries.set(geometry, geometry.clone());
-    obj.geometry = geometries.get(geometry);
-    const copyMaterial = (original) => {
-      if (!materials.has(original)) {
-        const material = original.clone();
-        for (const [key, value] of Object.entries(material)) {
-          if (!value?.isTexture) continue;
-          if (!textures.has(value)) textures.set(value, value.clone());
-          material[key] = textures.get(value);
+  let complete = false;
+  try {
+    yield;
+    const meshes = [];
+    car.traverse((obj) => { if (obj.isMesh) meshes.push(obj); });
+    for (const obj of meshes) {
+      const geometry = obj.geometry;
+      if (!geometries.has(geometry)) geometries.set(geometry, geometry.clone());
+      obj.geometry = geometries.get(geometry);
+      const copyMaterial = (original) => {
+        if (!materials.has(original)) {
+          const material = original.clone();
+          for (const [key, value] of Object.entries(material)) {
+            if (!value?.isTexture) continue;
+            if (!textures.has(value)) textures.set(value, value.clone());
+            material[key] = textures.get(value);
+          }
+          materials.set(original, material);
         }
-        materials.set(original, material);
-      }
-      return materials.get(original);
-    };
-    obj.material = Array.isArray(obj.material) ? obj.material.map(copyMaterial) : copyMaterial(obj.material);
-    obj.castShadow = true;
-    obj.receiveShadow = true;
-  });
-  car.name = spec.name;
-  car.userData.parts = Object.fromEntries(PARTS.map((name) => [name, car.getObjectByName(name)]));
-  car.userData.wheelRadius = spec.wheelRadius;
-  car.userData.wheelbase = spec.wheelbase;
-  car.userData.forwardAxis = "+Z";
-  const { body, hood_hinge: hood } = car.userData.parts;
-  // A strut is four nodes: its base on the body, its mount on the hood, and
-  // the tube and rod set between them. The S6 has a second, suffixed `_r`.
-  const struts = ["", "_r"].map((suffix) => ["base", "mount", "tube", "rod"].map((part) => car.getObjectByName(`hood_strut_${part}${suffix}`)))
-    .filter((nodes) => nodes.some(Boolean));
-  const start = new Vector3(), end = new Vector3(), direction = new Vector3(), up = new Vector3(0, 1, 0);
-  car.userData.setHoodProgress = (progress) => {
-    if (!hood) return;
-    hood.rotation.x = -1.1 * Math.max(0, Math.min(1, progress));
-    car.updateMatrixWorld(true);
-    for (const [base, mount, tube, rod] of struts) {
-      body.worldToLocal(base.getWorldPosition(start));
-      body.worldToLocal(mount.getWorldPosition(end));
-      direction.subVectors(end, start);
-      const length = direction.length();
-      direction.normalize();
-      tube.position.copy(start);
-      tube.quaternion.setFromUnitVectors(up, direction);
-      tube.scale.set(1, length * 0.58, 1);
-      rod.position.copy(start).addScaledVector(direction, length * 0.45);
-      rod.quaternion.copy(tube.quaternion);
-      rod.scale.set(1, length * 0.55, 1);
+        return materials.get(original);
+      };
+      obj.material = Array.isArray(obj.material) ? obj.material.map(copyMaterial) : copyMaterial(obj.material);
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      yield;
     }
-  };
-  car.userData.setHoodProgress(0);
-  // The body rides over the wheels, so lowering it is one translation: the
-  // S6's Virtual Link drop on its air suspension. Metres below the export;
-  // the caller clamps it to the car's real clearance.
-  const rideHeight = body.position.y;
-  car.userData.setLowering = (metres) => {
-    body.position.y = rideHeight - metres;
-  };
-  car.userData.dispose = () => {
-    geometries.forEach((geometry) => geometry.dispose());
-    materials.forEach((material) => material.dispose());
-    textures.forEach((texture) => texture.dispose());
-  };
-  return car;
+    yield;
+    car.name = spec.name;
+    car.userData.parts = Object.fromEntries(PARTS.map((name) => [name, car.getObjectByName(name)]));
+    car.userData.wheelRadius = spec.wheelRadius;
+    car.userData.wheelbase = spec.wheelbase;
+    car.userData.forwardAxis = "+Z";
+    const { body, hood_hinge: hood } = car.userData.parts;
+    // A strut is four nodes: its base on the body, its mount on the hood, and
+    // the tube and rod set between them. The S6 has a second, suffixed `_r`.
+    const struts = ["", "_r"].map((suffix) => ["base", "mount", "tube", "rod"].map((part) => car.getObjectByName(`hood_strut_${part}${suffix}`)))
+      .filter((nodes) => nodes.some(Boolean));
+    const start = new Vector3(), end = new Vector3(), direction = new Vector3(), up = new Vector3(0, 1, 0);
+    car.userData.setHoodProgress = (progress) => {
+      if (!hood) return;
+      hood.rotation.x = -1.1 * Math.max(0, Math.min(1, progress));
+      car.updateMatrixWorld(true);
+      for (const [base, mount, tube, rod] of struts) {
+        body.worldToLocal(base.getWorldPosition(start));
+        body.worldToLocal(mount.getWorldPosition(end));
+        direction.subVectors(end, start);
+        const length = direction.length();
+        direction.normalize();
+        tube.position.copy(start);
+        tube.quaternion.setFromUnitVectors(up, direction);
+        tube.scale.set(1, length * 0.58, 1);
+        rod.position.copy(start).addScaledVector(direction, length * 0.45);
+        rod.quaternion.copy(tube.quaternion);
+        rod.scale.set(1, length * 0.55, 1);
+      }
+    };
+    car.userData.setHoodProgress(0);
+    // The body rides over the wheels, so lowering it is one translation: the
+    // S6's Virtual Link drop on its air suspension. Metres below the export;
+    // the caller clamps it to the car's real clearance.
+    const rideHeight = body.position.y;
+    car.userData.setLowering = (metres) => {
+      body.position.y = rideHeight - metres;
+    };
+    car.userData.dispose = () => {
+      geometries.forEach((geometry) => geometry.dispose());
+      materials.forEach((material) => material.dispose());
+      textures.forEach((texture) => texture.dispose());
+    };
+    complete = true;
+    return car;
+  } finally {
+    if (!complete) {
+      geometries.forEach((geometry) => geometry.dispose());
+      materials.forEach((material) => material.dispose());
+      textures.forEach((texture) => texture.dispose());
+    }
+  }
 }
