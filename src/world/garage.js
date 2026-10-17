@@ -46,8 +46,8 @@ export function garageLights(anchors = null) {
   const fixtures = anchors ? [...anchors].filter(([name]) => name.startsWith("anchor_garage_light_")) : [];
   if (fixtures.length) return fixtures.map(([, anchor]) => {
     const data = anchor.extras ?? {};
-    const u = new THREE.Vector3(Number(data.width) || 1, 0, 0).applyQuaternion(anchor.quaternion);
-    const v = new THREE.Vector3(0, 0, Number(data.height) || .1).applyQuaternion(anchor.quaternion);
+    const u = new THREE.Vector3(Number(data.length) || 1, 0, 0).applyQuaternion(anchor.quaternion);
+    const v = new THREE.Vector3(0, 0, Number(data.width) || .1).applyQuaternion(anchor.quaternion);
     return { corner: anchor.position.clone().addScaledVector(u, -.5).addScaledVector(v, -.5), u, v,
       normal: new THREE.Vector3(0, -1, 0).applyQuaternion(anchor.quaternion),
       tint: new THREE.Color(data.color ?? "#ffffff").multiplyScalar(Number(data.intensity) || 1), tube: data.kind !== "screen" };
@@ -439,6 +439,13 @@ export function createGarageVisit(anchors) {
   }
   const tierOf = (aspect) => tiers[aspect < 1 ? "portrait" : "wide"];
 
+  // The exterior junction has a complete gaze/lens too, including before
+  // B2 adds a named inspection camera for it.
+  for (const t of Object.values(tiers)) {
+    const position = anchors.get("anchor_garage_node_outside")?.position ?? t.routes.exit.at(-1);
+    t.poses.outside = { position: position.clone(), target: new THREE.Vector3(452, 2.4, -215.3), fov: t.poses.arrival.fov, shift: 0 };
+  }
+
   const _ahead = new THREE.Vector3();
   const _g = new THREE.Vector3();
   const _end = new THREE.Vector3();
@@ -559,10 +566,115 @@ export function createGarageVisit(anchors) {
   const entry = (aspect) => tierOf(aspect).routes.entry;
   const exit = (aspect) => tierOf(aspect).routes.exit;
 
+  // Stations and inspections share the authored route edges. A replacement
+  // request can reverse the current edge, but only branches at its endpoint.
+  // No request ever constructs a line between arbitrary camera positions.
+  const edges = GARAGE_TIMELINE.filter((s) => s.route).map((s) => ({ id: s.route, from: s.from, into: s.into }));
+  edges.push({ id: "apron_s4rear", from: "arrival", into: "s4_rear" }, { id: "entry", from: "outside", into: "arrival" });
+  const locationAt = (p) => {
+    const s = stretchAt(clamp(p, 0, 1));
+    return s.hold ? { node: s.hold } : { edge: s.route, u: easeInOut(clamp((p - s.start) / (s.to - s.start), 0, 1)) };
+  };
+  const edgeOf = (id) => edges.find((e) => e.id === id);
+  const route = (from, to, aspect = 1.6) => {
+    const queue = [{ node: from, cost: 0, path: [] }];
+    const visited = new Set();
+    while (queue.length) {
+      queue.sort((a, b) => a.cost - b.cost);
+      const current = queue.shift();
+      if (current.node === to) return current;
+      if (visited.has(current.node)) continue;
+      visited.add(current.node);
+      for (const edge of edges) {
+        const reverse = edge.into === current.node;
+        if (!reverse && edge.from !== current.node) continue;
+        const node = reverse ? edge.from : edge.into;
+        queue.push({ node, cost: current.cost + pathOf(edge.id, edge.from, edge.into, aspect).length,
+          path: [...current.path, { routeId: edge.id, from: edge.from, into: edge.into, reverse }] });
+      }
+    }
+    throw new Error(`No workshop route from ${from} to ${to}.`);
+  };
+  const navigator = (progress, aspect) => {
+    let location = locationAt(progress);
+    let target = { ...location };
+    let cutPending = false;
+    const lengthOf = (edge) => pathOf(edge.id, edge.from, edge.into, aspect).length;
+    const costTo = (node) => {
+      if (target.node) return route(node, target.node, aspect).cost;
+      const edge = edgeOf(target.edge), length = lengthOf(edge);
+      return Math.min(route(node, edge.from, aspect).cost + target.u * length, route(node, edge.into, aspect).cost + (1 - target.u) * length);
+    };
+    const matches = () => location.node ? location.node === target.node : location.edge === target.edge && Math.abs(location.u - target.u) < 1e-9;
+    const read = (out) => {
+      if (location.node) return copyPose(out, tierOf(aspect).poses[location.node]);
+      const edge = edgeOf(location.edge);
+      return sample(edge.id, edge.from, edge.into, location.u, aspect, out);
+    };
+    const api = {
+      snapshot: () => ({ ...location }),
+      request(destination, { cut = false } = {}) {
+        const next = typeof destination === "number" ? locationAt(destination) : typeof destination === "string" ? { node: destination } : { ...destination };
+        if (next.node && !tierOf(aspect).poses[next.node]) return false;
+        // A cabin is an authored complete pose, never a route through glass.
+        // Leaving that cut also restores the exterior with a labeled cut.
+        if (location.node?.endsWith("_cabin") && next.node !== location.node) {
+          location = { node: location.node.slice(0, 2) };
+          cutPending = true;
+        }
+        target = next;
+        if (cut || next.node?.endsWith("_cabin")) { location = { ...next }; cutPending = true; }
+        return true;
+      },
+      sample(dt, out = makePose()) {
+        let distance = Math.max(0, dt) * 24;
+        for (let i = 0; i < 32 && !matches(); i++) {
+          if (location.node) {
+            let next;
+            if (target.node) next = route(location.node, target.node, aspect).path[0];
+            else {
+              const edge = edgeOf(target.edge), length = lengthOf(edge);
+              const a = route(location.node, edge.from, aspect), b = route(location.node, edge.into, aspect);
+              const reverse = b.cost + (1 - target.u) * length < a.cost + target.u * length;
+              next = (reverse ? b : a).path[0] ?? { routeId: edge.id, reverse };
+            }
+            location = { edge: next.routeId, u: next.reverse ? 1 : 0 };
+          }
+          const edge = edgeOf(location.edge), length = lengthOf(edge);
+          const sameEdge = target.edge === location.edge;
+          const left = costTo(edge.from) + location.u * length;
+          const right = costTo(edge.into) + (1 - location.u) * length;
+          const end = sameEdge ? target.u : Math.abs(left - right) < 1e-7 ? (location.u < .5 ? 1 : 0) : left < right ? 0 : 1;
+          const need = Math.abs(end - location.u) * length;
+          if (need > distance) { location.u += Math.sign(end - location.u) * distance / length; break; }
+          distance -= need;
+          location.u = end;
+          if (sameEdge) break;
+          location = { node: end === 0 ? edge.from : edge.into };
+        }
+        const cut = cutPending;
+        cutPending = false;
+        return { pose: read(out), done: matches(), cut, location: { ...location } };
+      },
+    };
+    return api;
+  };
+
   /** Leaving a route replays the safe visit backwards, then retraces
    *  entry through the door. Returning during that motion reverses the
    *  same cursor; it never constructs an outdoor arc inside the room. */
-  const transition = (progress, aspect) => {
+  const transition = (progress, aspect, cursor = null) => {
+    if (cursor) {
+      const saved = cursor.snapshot();
+      let returning = false;
+      cursor.request("outside");
+      return {
+        reverse(on) { returning = on; cursor.request(on ? saved : "outside"); },
+        seekOutside() { cursor.request("outside", { cut: true }); },
+        outside: () => copyPose(makePose(), tierOf(aspect).poses.outside),
+        sample(dt, out = makePose()) { return { ...cursor.sample(dt, out), p: progress, returning }; },
+      };
+    }
     const start = clamp(progress, 0, 1);
     let p = start;
     let u = 0;
@@ -628,6 +740,10 @@ export function createGarageVisit(anchors) {
 
   return {
     at,
+    navigator,
+    route: (from, to, aspect) => route(from, to, aspect).path,
+    locationAt,
+    segments: (aspect) => edges.map((edge) => ({ ...edge, length: pathOf(edge.id, edge.from, edge.into, aspect).length })),
     transition,
     sample,
     stateAt,

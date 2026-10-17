@@ -26,11 +26,14 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
   const { context } = useStage();
   const [selection, setSelection] = useState(() => getGarageView().selection ?? null);
   const [activeCar, setActiveCar] = useState("s4");
+  const [worldState, setWorldState] = useState({});
   const [station, setStation] = useState("arrival");
   const [partsOpen, setPartsOpen] = useState(false);
   const [previousLayout, setPreviousLayout] = useState(cinematic);
   const [applied, setApplied] = useState(null);
   const savedOverrides = useRef(null);
+  const currentSelection = useRef(selection);
+  currentSelection.current = selection;
   if (cinematic !== previousLayout) {
     setPreviousLayout(cinematic);
     if (cinematic && restoreAnchor?.startsWith("part:")) setPartsOpen(true);
@@ -60,15 +63,18 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
   useLayoutEffect(() => {
     if (!cinematic) return;
     const g = adapter();
-    if (savedOverrides.current) g?.restoreState?.({ ...savedOverrides.current, selection });
-    else g?.select?.(selection);
-  }, [cinematic, context, selection]);
+    if (savedOverrides.current) g?.restoreState?.({ ...savedOverrides.current, selection: currentSelection.current });
+    else g?.select?.(currentSelection.current);
+  }, [cinematic, context]);
   useEffect(() => {
     if (!cinematic) return undefined;
     const g = adapter();
+    setWorldState(g?.state ?? {});
     savedOverrides.current = g?.saveState?.() ?? savedOverrides.current;
     return g?.subscribe?.((state) => {
       savedOverrides.current = g.saveState?.() ?? savedOverrides.current;
+      if (state.type === "pin-hidden") return;
+      setWorldState(state);
       if (state.station) setStation(state.station);
       if (state.selection !== undefined) setSelection(state.selection);
     });
@@ -106,7 +112,7 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     onStation: cinematic ? goStation : (id) => setGarageView({ textStation: id }),
   };
   return <div ref={root} data-garage-ready={cinematic ? "true" : "false"}>
-    {cinematic ? <GarageControls {...common} station={station} stations={GARAGE_STATIONS} hood={adapter()?.state?.hood} stance={adapter()?.state?.lowering ? "lowered" : "normal"} override={adapter()?.state?.override} registerPin={(key, el) => adapter()?.registerPin?.(key, el)} partsOpen={partsOpen} onPartsOpen={setPartsOpen} onHood={(id, open) => adapter()?.setHood?.(id, open)} onStance={(value) => adapter()?.setStance?.(value)} onResumeTour={() => adapter()?.resumeTour?.()} />
+    {cinematic ? <GarageControls {...common} station={station} stations={GARAGE_STATIONS} hood={worldState.hood} stance={worldState.lowering ? "lowered" : "normal"} override={worldState.override} status={worldState.status ?? ""} onLayout={(layout) => adapter()?.setPinLayout?.(layout)} registerPin={(key, el) => adapter()?.registerPin?.(key, el)} partsOpen={partsOpen} onPartsOpen={setPartsOpen} onHood={(id, open) => adapter()?.setHood?.(id, open)} onStance={(value) => adapter()?.setStance?.(value)} onResumeTour={() => adapter()?.resumeTour?.()} />
       : GARAGE_PHOTOS_ENABLED && ArchivedPhotos ? <Suspense fallback={<GarageText {...common} />}><ArchivedPhotos {...common} /></Suspense> : <GarageText {...common} />}
   </div>;
 }

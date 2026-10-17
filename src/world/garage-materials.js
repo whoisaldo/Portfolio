@@ -257,8 +257,9 @@ export function createGarageMaterials(shared, { kit, maxAnisotropy = 8 } = {}) {
         const material = made.get(name);
         const maps = take(name, source);
         for (const [slot, uniform] of [["baseColor", "uMap"], ["metallicRoughness", "uRough"], ["normal", "uNormal"]]) {
-          if (maps[slot] && material.uniforms?.[uniform]) material.uniforms[uniform].value = maps[slot];
+          if (material.uniforms?.[uniform]) material.uniforms[uniform].value = maps[slot] ?? null;
         }
+        if (material.uniforms?.uHasNormal) material.uniforms.uHasNormal.value = maps.normal ? 1 : 0;
         return material;
       }
       const runtime = source.userData?.runtime;
