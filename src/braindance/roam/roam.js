@@ -131,8 +131,15 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   const yielding = createYield(parts.traffic);
   // (`self`: the S4's own, which is not pushed out of the S4 it is.)
   const entryClosed = () => world.garage?.state?.availability !== "ready";
-  const threshold = { x0: 451.3, x1: 452.8, z0: -218.1, z1: -211.9 };
-  const overlapsDoor = (x, z, r, y) => entryClosed() && y < 4.6
+  const portal = parts.city.anchors.get("anchor_garage_portal_door");
+  if (!portal) throw new Error("The workshop doorway is unavailable");
+  const width = Number(portal.extras?.width);
+  const height = Number(portal.extras?.height);
+  if (!(width > 0 && height > 0)) throw new Error("The workshop doorway has no bounds");
+  const threshold = { x0: portal.position.x - 0.7, x1: portal.position.x + 0.8,
+    z0: portal.position.z - width / 2 - 0.1, z1: portal.position.z + width / 2 + 0.1,
+    top: portal.position.y + height / 2 };
+  const overlapsDoor = (x, z, r, y) => entryClosed() && y < threshold.top
     && x + r > threshold.x0 && x - r < threshold.x1 && z + r > threshold.z0 && z - r < threshold.z1;
   const withCars = (self) => Object.assign(Object.create(nav), {
     resolve(p, r, y, bit, tol, feet) {

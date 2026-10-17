@@ -116,7 +116,7 @@ export function solidBoxes(file, garage = null) {
   const pack = (list) => Float32Array.from(list.flatMap((b) => [...b.min, ...b.max]));
   // The stair envelope is a camera obstacle; its actual treads/slope and
   // mezzanine geometry supply walkable triangles instead of a sealed box.
-  const obstacle = (b) => b.nav !== false && b.nav !== 0 && !SOFT.has(b.kind) && !/^(garage_)?(stair|floor)/.test(b.kind);
+  const obstacle = (b) => b.nav !== false && b.nav !== 0 && !SOFT.has(b.kind) && !/^(garage_)?(stair|floor)$/.test(b.kind);
   const boxes = file.boxes.filter((b) => b.kind !== "building" && obstacle(b));
   const seen = new Set(boxes.map((b) => [...b.min, ...b.max].join(",")));
   const add = (box) => {

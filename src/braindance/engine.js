@@ -241,6 +241,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   notice.className = "bd-panel";
   Object.assign(notice.style, { position: "absolute", top: "5rem", left: "50%", transform: "translateX(-50%)", zIndex: "40", maxWidth: "min(28rem, 90vw)", padding: "1rem" });
   const message = document.createElement("p");
+  message.tabIndex = -1;
   message.setAttribute("role", "status");
   message.setAttribute("aria-live", "polite");
   message.setAttribute("aria-atomic", "true");
@@ -249,6 +250,11 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   retry.className = "bd-btn";
   retry.textContent = "Retry workshop";
   retry.style.minHeight = "44px";
+  // Photo mode uses Enter as its shutter. A focused Retry keeps the native
+  // button activation instead of letting that global shortcut consume it.
+  retry.onkeydown = (event) => {
+    if (event.key === "Enter" || event.key === " ") event.stopPropagation();
+  };
   notice.append(message, retry);
   let returnFocus = null;
   const gate = createGarageGate({
@@ -267,7 +273,9 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
         canvas.parentElement?.append(notice);
       }
       message.textContent = status === "failed" ? "The workshop is unavailable. The recording is held at a safe frame." : "Loading the workshop. The recording is held at a safe frame.";
+      if (status === "loading" && document.activeElement === retry) message.focus({ preventScroll: true });
       retry.hidden = status !== "failed";
+      retry.style.display = status === "failed" ? "inline-flex" : "none";
     },
     onReady(request) {
       clock.t = request.time;
@@ -848,7 +856,10 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
         return true;
       } catch (err) {
         if (import.meta.env.DEV) console.warn("[braindance] no free roam", err);
-        if (job === roamJob) set({ roamLoading: null });
+        if (job === roamJob) {
+          set({ roamLoading: null });
+          toast("camera", "Free roam unavailable", "The city could not finish loading. Try Free roam again.", 6000);
+        }
         return false;
       }
     },
