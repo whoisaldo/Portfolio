@@ -22,6 +22,43 @@ import { preloadMoon } from "./moon.js";
 import { catmullRom, curveAt, easeInOut, makePose, copyPose, clamp } from "./shots.js";
 import { GARAGE_POSES, GARAGE_ROUTES, GARAGE_ROUTES_PORTRAIT, GARAGE_TIMELINE, GARAGE_STATES, GARAGE_STATIONS } from "../data/world.js";
 
+// The car owner keeps a development rig until the S6 asset exists. The
+// visitor room can still open: a hidden parent contains that entire rig
+// and its shadow, while the real S4 keeps its road-owned parent. No proxy
+// can draw in any camera pass, or masquerade as a physical car in queries.
+export function createGaragePresentation(createCars, context, { s6Available = true } = {}) {
+  if (s6Available) return createCars(context);
+  const parked = new THREE.Group();
+  parked.name = "garage_pending_s6";
+  parked.visible = false;
+  context.scene.add(parked);
+  const cars = createCars({ ...context, scene: parked, placeholder: true });
+  const physical = (rows) => rows.filter((row) => row.carId !== "s6");
+  for (const name of ["bounds", "anchors", "occluders"]) {
+    const query = cars[name];
+    cars[name] = () => physical(query());
+  }
+  const pick = cars.pick;
+  cars.pick = (ray) => {
+    const visibility = parked.children.map((child) => [child, child.visible]);
+    try {
+      for (const [child] of visibility) child.visible = false;
+      return pick(ray);
+    } finally {
+      for (const [child, visible] of visibility) child.visible = visible;
+    }
+  };
+  const flash = cars.flash;
+  cars.flash = (id) => id === "s6" ? null : flash(id);
+  const dispose = cars.dispose;
+  cars.dispose = () => { dispose(); parked.removeFromParent(); };
+  cars.ready.then(() => {
+    cars.stats.s6.visitorOmitted = true;
+    cars.stats.s6.reason = "The S6 model is being built. Its bay is empty.";
+  }, () => {});
+  return cars;
+}
+
 // The door's travel, in shots before the garage's own (the flight in
 // starts a whole shot out, at the rooftop): up just before the car, which
 // crosses the door's line at about 0.67 of a shot out. The tubes strike as

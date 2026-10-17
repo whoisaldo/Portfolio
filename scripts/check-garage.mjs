@@ -452,6 +452,56 @@ check("floor normal recovery updates sampler presence and clears stale slots", (
   registry.dispose(); source.dispose();
 });
 
+check("Smasher art keeps its declared clamped map and neutral base", () => {
+  const registry = materialModule.createGarageMaterials({});
+  const source = new three.MeshStandardMaterial();
+  source.name = "NCW_garage_identity_poster";
+  source.map = new three.Texture();
+  source.userData = { runtime: "painted_wall", slots: '["baseColor"]', wrap: "clamp", params: { baseTint: "#ffffff", uvScale: [1, 1] } };
+  assert.ok(registry.owns(source));
+  const material = registry.forName(source);
+  assert.equal(material.uniforms.uMap.value, source.map);
+  assert.equal(source.map.colorSpace, three.SRGBColorSpace);
+  assert.equal(source.map.wrapS, three.ClampToEdgeWrapping);
+  assert.equal(source.map.wrapT, three.ClampToEdgeWrapping);
+  assert.equal(material.uniforms.uBase.value.getHex(), 0xffffff);
+  assert.deepEqual(registry.missing, []);
+  registry.dispose(); source.dispose();
+});
+
+// Exercise the car adapter boundary, including another camera and a query
+// after the owner attaches its rig. Child visibility must never expose it.
+const presentationScene = new three.Scene();
+let pendingRoot, pendingShadow, pendingContext, pendingDisposed = false;
+const pendingCars = garage.createGaragePresentation((context) => {
+  pendingContext = context;
+  pendingRoot = new three.Group(); pendingShadow = new three.Group();
+  context.scene.add(pendingRoot, pendingShadow);
+  const rows = [{ carId: "s4" }, { carId: "s6" }];
+  return { ready: Promise.resolve(), stats: { s6: { placeholder: true } },
+    bounds: () => rows, anchors: () => rows, occluders: () => rows,
+    attach: () => { pendingRoot.visible = pendingShadow.visible = true; },
+    pick: () => pendingRoot.visible ? { carId: "s6" } : { carId: "s4" },
+    flash: (id) => id, dispose: () => { pendingDisposed = true; },
+  };
+}, { scene: presentationScene }, { s6Available: false });
+await pendingCars.ready;
+check("unavailable S6 stays invisible and absent from physical queries", () => {
+  pendingCars.attach();
+  assert.equal(pendingContext.placeholder, true);
+  assert.equal(pendingRoot.parent.visible, false);
+  assert.equal(pendingShadow.parent.visible, false);
+  for (const query of ["bounds", "anchors", "occluders"]) assert.deepEqual(pendingCars[query]().map((r) => r.carId), ["s4"]);
+  assert.equal(pendingCars.pick({}).carId, "s4");
+  assert.equal(pendingRoot.visible, true, "query restores the owner's child state");
+  assert.equal(pendingCars.flash("s6"), null);
+  assert.equal(pendingCars.flash("s4"), "s4");
+  assert.equal(pendingCars.stats.s6.visitorOmitted, true);
+  pendingCars.dispose();
+  assert.ok(pendingDisposed);
+  assert.equal(presentationScene.children.length, 0);
+});
+
 // Rig geometry needs no texture pixels. Resolve before phone preparation and
 // retain the same carrier through wheel phases, as the runtime does.
 await carDecoder.ready;

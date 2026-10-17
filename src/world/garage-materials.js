@@ -5,7 +5,7 @@
 // out on the way: a district is the kit's materials on new geometry. The
 // garage's room is the one pack with pictures of its own, a painted and
 // tiled wall, a satin concrete floor with its tyre marks and oil, and the
-// boards of real photographs over the bench, and they arrive with it, long
+// Smasher print over the bench, and they arrive with it, long
 // after the kit's materials were made. So they are taken off the pack's
 // own glTF materials as each is dressed (`forName`), before the pack's
 // material is thrown away, and a material is made for each with them.
@@ -246,7 +246,7 @@ export function createGarageMaterials(shared, { kit, maxAnisotropy = 8 } = {}) {
 
   return {
     /** Whether `name` (a glTF material's) is one of the workshop's own. */
-    owns: (source) => /^NCW_garage_(workshop_(floor|wall)|threshold_wet|shop_photos)(\.\d+)?$/.test(typeof source === "string" ? source : source?.name ?? "") || Boolean(source?.name?.startsWith("NCW_garage_") && source.userData?.runtime),
+    owns: (source) => /^NCW_garage_(workshop_(floor|wall)|threshold_wet|identity_poster|shop_photos)(\.\d+)?$/.test(typeof source === "string" ? source : source?.name ?? "") || Boolean(source?.name?.startsWith("NCW_garage_") && source.userData?.runtime),
     /**
      * The material for the pack's material `source`: made the first time,
      * from that material's own pictures and extras, the same one after.

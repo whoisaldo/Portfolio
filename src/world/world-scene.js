@@ -48,9 +48,9 @@ import { createTraffic, makeTrafficAhead } from "./traffic.js";
 import { createCar } from "./car.js";
 import { createClearance } from "./clearance.js";
 import { createShafts } from "./shafts.js";
-import { createGarageVisit, createGarageCollision, garageLights } from "./garage.js";
+import { createGarageVisit, createGarageCollision, createGaragePresentation, garageLights } from "./garage.js";
 import { LIGHT_BOUNDS } from "./spill.js";
-import { preloadCar } from "../three/car/object.js";
+import { cars as carModels, preloadCar } from "../three/car/object.js";
 import { getGarageView } from "../lib/garage3d.js";
 import { getEnv } from "../lib/env.js";
 import { getLevels } from "../lib/ambient.js";
@@ -1619,11 +1619,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     garageCars?.select(manual.selection);
     if (selection) {
       const mod = findMod(selection.carId, selection.modId);
-      const key = mod.pose === "bay" ? `${selection.carId}_bay` : mod.pose === "front" ? selection.carId : `${selection.carId}_${mod.pose}`;
+      const missingModel = selection.carId === "s6" && carModels.s6.unavailable;
+      const key = missingModel ? mod.pose === "bay" ? "s6_bay" : "s6" : mod.pose === "bay" ? `${selection.carId}_bay` : mod.pose === "front" ? selection.carId : `${selection.carId}_${mod.pose}`;
       if (mod.pose === "bay" && !options?.preserveState) commandHood(selection.carId, 1);
       if (mod.pose === "stance" && !options?.preserveState) manual.lowering = 0;
       const leavingCabin = inspectionCursor?.snapshot().node?.endsWith("_cabin");
       inspectionLabel = mod.pose === "cabin" ? `${selection.carId.toUpperCase()} cabin view. Camera cut.` : `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} ${mod.pose} view.`;
+      if (missingModel) inspectionLabel = `${mod.name ?? mod.title ?? mod.id} selected. The S6 model is being built; its bay is empty.`;
       if (leavingCabin && mod.pose !== "cabin") inspectionLabel += " Exterior camera cut.";
       if (!requestInspection(key, options)) inspectionLabel = `${selection.carId.toUpperCase()} ${mod.pose} view is unavailable. The part details remain available.`;
     } else {
@@ -1744,10 +1746,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         if (disposed) return false;
         // The completed room is still behind text. Cars and their static
         // lighting probe can now prepare against its actual surfaces.
-        if (!garageCars) garageCars = (runtime.default ?? runtime.createGarageCars)({ scene, renderer, shared, tier, reduced, anchors: city.anchors, fixtures, road: car, camera, between });
+        if (!garageCars) garageCars = createGaragePresentation(runtime.default ?? runtime.createGarageCars, { scene, renderer, shared, tier, reduced, anchors: city.anchors, fixtures, road: car, camera, between }, { s6Available: !carModels.s6.unavailable });
         await garageCars.ready;
         if (disposed) return false;
-        if (["s4", "s6"].some((id) => garageCars.stats?.[id]?.placeholder)) throw new Error("Both actual car models are required for the workshop.");
+        if (["s4", "s6"].some((id) => garageCars.stats?.[id]?.placeholder && !garageCars.stats[id].visitorOmitted)) throw new Error("A development car cannot be presented as a finished model.");
         if (diagnostics) await diagnostics.during("garage-probe", () => garageCars.captureProbe?.(city.root));
         else await garageCars.captureProbe?.(city.root);
         if (disposed) return false;
@@ -1860,7 +1862,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const p = clamp(inside.on ? inside.p : stage.garageProgress ?? 0, 0, 1);
     const tour = visit?.stateAt(p, reduced) ?? { hood: { s4: 0, s6: 0 }, lowering: 0 };
     const overrides = stage.view === "cinema" ? { selection: null, hood: { s4: null, s6: null }, lowering: null } : manual;
-    return { availability: garageAvailable, reason: garageReason, visiting: Boolean(visiting()), p, station: manual.selection && stage.view !== "cinema" ? findMod(manual.selection.carId, manual.selection.modId)?.station : visit?.stationAt(p), selection: manual.selection, activeCar: overrides.selection?.carId ?? (typeof inspectionTarget === "string" && /^(s4|s6)/.test(inspectionTarget) ? inspectionTarget.slice(0, 2) : visit?.activeCarAt(p)), status: inspectionLabel,
+    return { availability: garageAvailable, reason: garageReason, models: { s4: true, s6: !carModels.s6.unavailable }, visiting: Boolean(visiting()), p, station: manual.selection && stage.view !== "cinema" ? findMod(manual.selection.carId, manual.selection.modId)?.station : visit?.stationAt(p), selection: manual.selection, activeCar: overrides.selection?.carId ?? (typeof inspectionTarget === "string" && /^(s4|s6)/.test(inspectionTarget) ? inspectionTarget.slice(0, 2) : visit?.activeCarAt(p)), status: inspectionLabel,
       hood: { s4: overrides.hood.s4 == null ? tour.hood.s4 : hoodMotion.s4?.value ?? overrides.hood.s4, s6: overrides.hood.s6 == null ? tour.hood.s6 : hoodMotion.s6?.value ?? overrides.hood.s6 }, lowering: overrides.lowering ?? tour.lowering,
       override: { selection: overrides.selection, hoodS4: overrides.hood.s4, hoodS6: overrides.hood.s6, lowering: overrides.lowering } };
 
@@ -2342,7 +2344,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     for (const row of city?.garageMaterials.report ?? []) for (const slot of row.slots) if (slot.texture) addTexture(slot.texture, "garage");
     const garageTextures = [...textures.values()].filter((t) => t.resident && t.owners.includes("garage") && !t.renderTarget);
     return { complete: garageAvailable === "ready", materialSlots: (city?.garageMaterials.report ?? []).map((row) => ({ ...row, slots: row.slots.map(({ texture, ...slot }) => ({ ...slot, texture: texture?.uuid ?? null })) })),
-      cars: garageCars?.stats ?? null, rigs, sectors, ...allocations, textures: [...textures.values()],
+      cars: garageCars?.stats ?? null, pendingModels: carModels.s6.unavailable ? ["s6"] : [], rigs, sectors, ...allocations, textures: [...textures.values()],
       garageTextureBytes: garageTextures.some((t) => t.bytes === null) ? null : garageTextures.reduce((sum, t) => sum + t.bytes, 0),
       accounting: "Decoded texture storage including mip levels. Shared UUIDs count once. Render targets include transient/disposed records; active marks current allocations. Driver padding is not measurable here. Depth renderbuffers use four bytes per pixel.",
     };
