@@ -511,13 +511,13 @@ function cullable(mesh, names, spheres) {
   let shown = -1;
   const sphere = new THREE.Sphere();
   return {
-    update(frustum) {
+    update(frustum, visibleSphere) {
       let k = 0;
       let changed = false;
       for (let i = 0; i < n; i++) {
         sphere.center.set(spheres[i * 4], spheres[i * 4 + 1], spheres[i * 4 + 2]);
         sphere.radius = spheres[i * 4 + 3];
-        if (!frustum.intersectsSphere(sphere)) continue;
+        if (!frustum.intersectsSphere(sphere) || visibleSphere && !visibleSphere(sphere.center.x, sphere.center.y, sphere.center.z, sphere.radius)) continue;
         if (order[k] !== i) {
           order[k] = i;
           changed = true;
@@ -4098,7 +4098,7 @@ ${colGlow.join("\n")}
     sky,
     // What stands where (the tools under the city's cache read it).
     plan: { lots, forms, boxes, tips, midFrom },
-    update(camera, pixelRatio = 1) {
+    update(camera, pixelRatio = 1, visibility = null) {
       sky.position.copy(camera.position);
       camera.getWorldDirection(look);
       const pitch = Math.asin(Math.max(-1, Math.min(1, look.y))) * (180 / Math.PI);
@@ -4108,8 +4108,8 @@ ${colGlow.join("\n")}
       beaconMat.uniforms.uPixel.value = pixelRatio;
       camera.updateMatrixWorld();
       frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-      for (const c of cullers) c.update(frustum);
-      farStreet.update(frustum, camera.position);
+      for (const c of cullers) c.update(frustum, visibility?.testSphere);
+      farStreet.update(frustum, camera.position, visibility?.testSphere);
     },
     dispose() {
       scene.remove(mesh, blocks, squares, sky, beaconPoints, ...roofMeshes);

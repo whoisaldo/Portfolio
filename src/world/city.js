@@ -31,7 +31,7 @@ import { createBoards } from "./boards.js";
 import { createFloods } from "./floods.js";
 import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
-import { createGarage, createGarageVisibility, garageLights } from "./garage.js";
+import { createGarage, createGarageVisibility, garageCellSector, garageLights } from "./garage.js";
 import { GARAGE_PHOTOS_ENABLED } from "../components/garage/features.js";
 import { createGarageMaterials } from "./garage-materials.js";
 import { appendMeshesSteps, asOneRun, attributeKey, mergeMeshes, mergeMeshesSteps, joinSteps, createCells, cutSteps, Tiled, toFloat } from "./merge.js";
@@ -499,6 +499,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const merged = new Map();
   const cells = createCells(CELL);
   cells.visibleBox = visibility.test;
+  cells.partition = garageCellSector;
   // The wet road's mirror draws only what glows or is glazed (the reflect
   // layer), so it saw straight through every other wall to the signs
   // behind it. Each wall's merged mesh gets a twin for the mirror alone:

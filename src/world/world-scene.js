@@ -344,7 +344,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (disposed) return c;
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier, reduced });
     shafts = createShafts(scene, c.anchors, shared);
-    crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER, walks: c.anchors.get("anchor_crowd")?.extras?.walks ?? [], standers: c.anchors.get("anchor_people")?.extras?.stand ?? [], cover, traffic });
+    crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER, walks: c.anchors.get("anchor_crowd")?.extras?.walks ?? [], standers: c.anchors.get("anchor_people")?.extras?.stand ?? [], cover, traffic, visibleSphere: c.visibility.testSphere });
     steam = createSteam(scene, shared, c.anchors, { reduced });
     steam?.setLights(c.roofLights);
     resize();
@@ -991,6 +991,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       drawCamera.updateMatrixWorld();
       city.visibility.prepare(drawCamera);
       city.props.update(drawCamera);
+      if (drawScene === scene && city.visibility.exteriorVisible) {
+        skyline?.update(drawCamera, renderer.getPixelRatio(), city.visibility);
+        crowd?.update(drawCamera);
+      }
     }
     // Exterior systems use shader-positioned batches, so their ordinary
     // geometry bounds cannot describe a room portal. If every aperture is
@@ -1018,7 +1022,6 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     applyGarageState(dt);
     if (moonView) moon.renderShadows();
     if (moonView !== "only") {
-      skyline?.update(camera, renderer.getPixelRatio());
       rain?.update(flow, camera, env.wet);
       rain?.setCameraVelocity(shutter.fresh ? motion.vel : ZERO);
       bolt?.update();

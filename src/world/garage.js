@@ -76,6 +76,12 @@ export function createGarageUploadPump({ run, pending, canRun, schedule = reques
   return { wake, dispose() { disposed = true; cancel(frame); frame = 0; } };
 }
 
+// Core kit triangles touching the workshop shell keep their own cells.
+// Exterior triangles never inherit a room exemption from another material
+// sharing the same ground tile. This partition changes no geometry.
+const GARAGE_SHELL = new THREE.Box3(new THREE.Vector3(451.7, -.3, -230.3), new THREE.Vector3(476.3, 8.3, -199.7));
+export const garageCellSector = (box) => box.intersectsBox(GARAGE_SHELL) ? "garage_shell" : "exterior";
+
 // Each pass clips the real openings to its own camera before building portal
 // cones. A street cell which overlaps the room stays conservative, but an
 // opening behind the camera cannot keep the entire exterior submitted.
@@ -134,9 +140,14 @@ export function createGarageVisibility(anchors) {
         if (polygon.some((p) => p.y < eye.y && p.y >= -.01)) roadVisible = true;
       }
     },
+    testSphere(x, y, z, radius) {
+      if (!portals.length || !inside || nearOpening) return true;
+      if (x >= room.min.x && x <= room.max.x && y >= room.min.y && y <= room.max.y && z >= room.min.z && z <= room.max.z) return true;
+      return cones.some((planes) => planes.every(({ normal, constant }) => normal.x * x + normal.y * y + normal.z * z + constant >= -radius));
+    },
     test(box, sector = "") {
       if (!portals.length || nearOpening) return true;
-      if (inside && box.intersectsBox(room) && sector !== "exterior") return true;
+      if (inside && (sector.startsWith("garage_") || box.intersectsBox(room) && sector !== "exterior")) return true;
       if (!inside && !sector.startsWith("garage_") && !room.containsBox(box)) return true;
       return cones.some((planes) => planes.every((plane) => {
         positive.set(plane.normal.x > 0 ? box.max.x : box.min.x, plane.normal.y > 0 ? box.max.y : box.min.y, plane.normal.z > 0 ? box.max.z : box.min.z);

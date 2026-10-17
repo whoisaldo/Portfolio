@@ -688,6 +688,29 @@ check("resting frames draw effective manual car state and layout once", () => {
   assert.equal(drawn.length, 9, "normal frames retain their existing draw schedule");
 });
 
+check("room and exterior triangles sharing a tile keep independent visibility", () => {
+  const anchors = new Map([["anchor_garage_portal_door", { position: new Vector3(452, 2.3, -215), quaternion: new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2), extras: { width: 6, height: 4.6 } }]]);
+  const visibility = garage.createGarageVisibility(anchors);
+  const room = new three.Mesh(new three.BoxGeometry(.2, .2, .2));
+  const street = new three.Mesh(new three.BoxGeometry(.2, .2, .2));
+  room.position.set(458, 2, -215); street.position.set(440, 2, -207);
+  room.updateMatrixWorld(); street.updateMatrixWorld();
+  const geometry = mergeModule.mergeMeshes([room, street]);
+  const cells = mergeModule.createCells(48);
+  cells.partition = garage.garageCellSector;
+  cells.visibleBox = visibility.test;
+  const steps = mergeModule.cutSteps(geometry, cells);
+  let result; while (!(result = steps.next()).done);
+  const tile = new mergeModule.Tiled(geometry, new three.MeshBasicMaterial(), cells, result.value);
+  const camera = new three.PerspectiveCamera(60, 1.6, .1, 2000);
+  camera.position.set(462, 2, -215); camera.lookAt(440, 2, -215); camera.updateMatrixWorld();
+  visibility.prepare(camera);
+  tile.onBeforeRender({ info: { render: { frame: 1 } } }, null, camera);
+  assert.deepEqual(cells.list.map((cell) => cell.sector).sort(), ["exterior", "garage_shell"]);
+  assert.equal(Array.from(tile._multiDrawCounts).slice(0, tile._multiDrawCount).reduce((sum, n) => sum + n, 0), 36, "the wall-hidden street box cannot borrow the room's tile exemption");
+  geometry.dispose(); tile.material.dispose(); room.geometry.dispose(); street.geometry.dispose();
+});
+
 check("per-pass exterior culling restores visibility and keeps room lights and car shadows", () => {
   const source = readFileSync("src/world/world-scene.js", "utf8");
   const from = source.indexOf("  const renderScene = renderer.render;");
@@ -718,11 +741,14 @@ check("portal visibility keeps real openings for main and reflected cameras", ()
   const box = (x, y, z) => new three.Box3(new Vector3(x - .1, y - .1, z - .1), new Vector3(x + .1, y + .1, z + .1));
   camera.position.set(462, 2, -215); camera.lookAt(440, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
   assert.ok(visibility.test(box(440, 1, -215)), "street through the doorway");
+  assert.equal(visibility.testSphere(440, 1, -215, .1), true);
+  assert.equal(visibility.testSphere(440, 1, -150, .1), false, "shader-positioned batches use the same portal");
   assert.ok(!visibility.test(box(440, 1, -150)), "street hidden by the side wall");
   assert.ok(visibility.test(box(467, 1, -225), "garage_s6"), "open room remains visible");
   camera.lookAt(475, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
   assert.equal(visibility.exteriorVisible, false, "solid wall has no visible portal");
   assert.equal(visibility.roadVisible, false, "no road mirror behind the wall");
+  assert.equal(visibility.testSphere(440, 1, -215, .1), false);
   assert.equal(visibility.test(box(440, 1, -215)), false, "opening behind camera submits no street");
   camera.position.y = -2; camera.lookAt(440, -2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
   assert.ok(visibility.test(box(440, 1, -215)), "reflected aperture keeps street light");

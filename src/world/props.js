@@ -299,7 +299,7 @@ export function opaqueOrder(a, b) {
  */
 export function createProps(protoMeshes, buffer, { phone = false, reflectLayer = 0, visibleBox = null } = {}) {
   const { protos, data, count, sectorRuns = [] } = parseProps(buffer);
-  const placementSectors = new Array(count).fill("");
+  const placementSectors = new Array(count).fill("exterior");
   for (const { sector, start, count: n } of sectorRuns) placementSectors.fill(sector, start, start + n);
   const attachments = [];
   const lastPosition = new THREE.Vector3(1e9, 0, 0);
