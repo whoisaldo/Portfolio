@@ -1463,6 +1463,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let markers = null;
   let lastGarageSignature = null;
   let manual = { selection: null, hood: { s4: null, s6: null }, lowering: null };
+  const hoodMotion = { s4: null, s6: null };
+  const commandHood = (id, value) => {
+    const from = garageCars?.hood[id] ?? garageState().hood[id];
+    manual.hood[id] = value == null ? null : clamp(Number(value), 0, 1);
+    hoodMotion[id] = value == null || reduced ? null : { from, value: from, to: manual.hood[id], time: 0 };
+  };
+  const clearHoodMotion = () => { hoodMotion.s4 = null; hoodMotion.s6 = null; };
   const directedGarageState = (state = {}) => {
     const tour = state.p != null ? visit.stateAt(state.p, reduced) : { hood: { s4: 0, s6: 0 }, lowering: 0 };
     return { hood: state.hood ?? tour.hood, lowering: state.lowering ?? tour.lowering, driving: Boolean(state.free) };
@@ -1487,9 +1494,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (selection) {
       const mod = findMod(selection.carId, selection.modId);
       const key = mod.pose === "bay" ? `${selection.carId}_bay` : mod.pose === "front" ? selection.carId : `${selection.carId}_${mod.pose}`;
-      if (mod.pose === "bay" && !options?.preserveState) manual.hood[selection.carId] = 1;
+      if (mod.pose === "bay" && !options?.preserveState) commandHood(selection.carId, 1);
       if (mod.pose === "stance" && !options?.preserveState) manual.lowering = 0;
+      const leavingCabin = inspectionCursor?.snapshot().node?.endsWith("_cabin");
       inspectionLabel = mod.pose === "cabin" ? `${selection.carId.toUpperCase()} cabin view. Camera cut.` : `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} ${mod.pose} view.`;
+      if (leavingCabin && mod.pose !== "cabin") inspectionLabel += " Exterior camera cut.";
       if (!requestInspection(key, options)) inspectionLabel = `${selection.carId.toUpperCase()} ${mod.pose} view is unavailable. The part details remain available.`;
     } else {
       inspectionTarget = null;
@@ -1501,6 +1510,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const applyGarageState = (dt) => {
     if (!garageCars) return;
     const tape = directed?.garage;
+    if (!tape) for (const id of ["s4", "s6"]) {
+      const motion = hoodMotion[id];
+      if (!motion) continue;
+      motion.time = Math.min(.9, motion.time + Math.max(0, dt));
+      motion.value = motion.from + (motion.to - motion.from) * easeInOut(motion.time / .9);
+      if (motion.time === .9) hoodMotion[id] = null;
+    }
     const state = tape ? { ...garageState(), ...directedGarageState({ ...tape, free: directed.free ?? tape.free }) } : garageState();
     // Keep S6 physically parked while either camera or S4 is outdoors.
     if (garageAvailable === "ready") garageCars.attach();
@@ -1527,6 +1543,26 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     for (const key of hidden ?? []) garageSubscribers.forEach((fn) => fn({ type: "pin-hidden", key }));
   };
   const publishGarage = () => garageSubscribers.forEach((fn) => fn(garageState()));
+  // Readiness runs while the real S4 may still be on the street. Queries
+  // and the offscreen frame must use its parked bay pose without changing
+  // the road controller's distance, speed or mode, or leaking a visible move.
+  // This callback is synchronous; the transform is restored before any yield.
+  const withParkedS4 = (fn) => {
+    const root = car.car;
+    const saved = { position: root.position.clone(), quaternion: root.quaternion.clone(), scale: root.scale.clone(), visible: root.visible };
+    const bay = city.anchors.get("anchor_garage_bay");
+    try {
+      root.position.copy(bay.position);
+      root.quaternion.copy(bay.quaternion);
+      root.scale.set(1, 1, 1);
+      root.visible = true;
+      root.updateWorldMatrix(true, true);
+      return fn();
+    } finally {
+      root.position.copy(saved.position); root.quaternion.copy(saved.quaternion); root.scale.copy(saved.scale); root.visible = saved.visible;
+      root.updateWorldMatrix(true, true);
+    }
+  };
   const prepareGarage = () => {
     if (!hasGaragePack(tier) || !carRuntime) return Promise.resolve(false);
     if (!garageRoom) {
@@ -1589,16 +1625,18 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           const state = visit.stateAt(p, reduced);
           garageCars.applyState(state);
           const candidate = visit.at(p, a, undefined, reduced);
-          if (garageCollision.clearance(candidate.position) < .45 || garageCollision.nearPlane(candidate, a, camera.near) < .15) throw new Error(`Workshop camera clearance failed at ${p.toFixed(3)}.`);
+          const parked = withParkedS4(() => garageCars.bounds());
+          const collision = createGarageCollision({ solids: () => city.garageSolids, cars: () => parked });
+          if (collision.clearance(candidate.position) < .45 || collision.nearPlane(candidate, a, camera.near) < .15) throw new Error(`Workshop camera clearance failed at ${p.toFixed(3)}.`);
           if (i % 20 === 0) await between();
         }
         // Inspection changes may take any graph branch with either hood
         // open. Validate complete oriented poses against the conservative
         // union once, including the doorway and the rear inspection spur.
         garageCars.applyState({ hood: { s4: 0, s6: 0 }, lowering: 1 });
-        const carBoxes = garageCars.bounds();
+        const carBoxes = withParkedS4(() => garageCars.bounds());
         garageCars.applyState({ hood: { s4: 1, s6: 1 }, lowering: 0 });
-        for (const row of garageCars.bounds()) carBoxes.find((b) => b.carId === row.carId).box.union(row.box);
+        for (const row of withParkedS4(() => garageCars.bounds())) carBoxes.find((b) => b.carId === row.carId).box.union(row.box);
         const graphCollision = createGarageCollision({ solids: () => city.garageSolids, cars: () => carBoxes });
         for (const a of [1440 / 900, 390 / 844]) {
           for (const edge of visit.segments(a)) {
@@ -1634,7 +1672,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
             camera.updateMatrixWorld();
             city.props.update(camera);
             renderer.setRenderTarget(warmTarget);
-            renderer.render(scene, camera);
+            withParkedS4(() => {
+              let inspection = garageCars.anchors().find((anchor) => anchor.carId === "s4")?.owner;
+              while (inspection && inspection.parent !== car.car) inspection = inspection.parent;
+              if (!inspection) throw new Error("The S4 inspection representation is unavailable.");
+              car.setInspection(inspection, true);
+              renderer.render(scene, camera);
+            });
           } finally {
             camera.position.copy(previousCamera.position);
             camera.quaternion.copy(previousCamera.quaternion);
@@ -1679,7 +1723,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const tour = visit?.stateAt(p, reduced) ?? { hood: { s4: 0, s6: 0 }, lowering: 0 };
     const overrides = stage.view === "cinema" ? { selection: null, hood: { s4: null, s6: null }, lowering: null } : manual;
     return { availability: garageAvailable, reason: garageReason, visiting: Boolean(visiting()), p, station: manual.selection && stage.view !== "cinema" ? findMod(manual.selection.carId, manual.selection.modId)?.station : visit?.stationAt(p), selection: manual.selection, status: inspectionLabel,
-      hood: { s4: overrides.hood.s4 ?? tour.hood.s4, s6: overrides.hood.s6 ?? tour.hood.s6 }, lowering: overrides.lowering ?? tour.lowering,
+      hood: { s4: overrides.hood.s4 == null ? tour.hood.s4 : hoodMotion.s4?.value ?? overrides.hood.s4, s6: overrides.hood.s6 == null ? tour.hood.s6 : hoodMotion.s6?.value ?? overrides.hood.s6 }, lowering: overrides.lowering ?? tour.lowering,
       override: { selection: overrides.selection, hoodS4: overrides.hood.s4, hoodS6: overrides.hood.s6, lowering: overrides.lowering } };
 
   };
@@ -2185,11 +2229,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         get fixtures() { return [...city.anchors].filter(([name]) => name.startsWith("anchor_garage_light_")).map(([name, row]) => ({ name, ...row, ...row.extras })); },
         registerPin(key, element) { if (element) pinElements.set(key, element); else pinElements.delete(key); },
         saveState: () => ({ ...manual, hood: { ...manual.hood } }),
-        restoreState(saved) { if (saved) { manual = { ...saved, hood: { ...saved.hood } }; selectGaragePart(manual.selection, { cut: true, preserveState: true }); } },
+        restoreState(saved) { if (saved) { manual = { ...saved, hood: { ...saved.hood } }; clearHoodMotion(); selectGaragePart(manual.selection, { cut: true, preserveState: true }); } },
         select: selectGaragePart,
         setHood(id, value) { if (id in manual.hood) {
-          manual.hood[id] = value == null ? null : Number(value);
-          garageCars?.setHood(id, manual.hood[id] ?? visit.stateAt(stage.garageProgress, reduced).hood[id]);
+          commandHood(id, value);
           publishGarage();
         } },
         setStance(value) {
@@ -2198,7 +2241,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           garageCars?.setLowering(manual.lowering ?? visit.stateAt(stage.garageProgress, reduced).lowering);
           publishGarage();
         },
-        resumeTour() { manual = { selection: null, hood: { s4: null, s6: null }, lowering: null }; inspectionTarget = null; inspectionLabel = "Tour resumed."; publishGarage(); },
+        resumeTour() { manual = { selection: null, hood: { s4: null, s6: null }, lowering: null }; clearHoodMotion(); inspectionTarget = null; inspectionLabel = "Tour resumed."; publishGarage(); },
         /** The room's pack, built in (resolves false with none to build). */
         prepare: prepareGarage,
         goStation(id) {
@@ -2206,6 +2249,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           const y = st ? garageScrollFor(st.p) : null;
           if (y !== null) {
             manual = { selection: null, hood: { s4: null, s6: null }, lowering: null };
+            clearHoodMotion();
             inspectionTarget = null;
             inspectionLabel = "";
             requestInspection(st.p);

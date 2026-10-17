@@ -380,6 +380,7 @@ export function createGarageVisit(anchors) {
     const cam = `cam_garage_${key}`;
     const tgt = `${cam}_target`;
     if (has(cam) && has(tgt)) {
+      if (portrait && (!has(`${cam}_portrait`) || !has(`${tgt}_portrait`))) placeholders.add(`${key}:portrait`);
       const c = anchors.get(portrait && has(`${cam}_portrait`) ? `${cam}_portrait` : cam);
       const t = anchors.get(portrait && has(`${tgt}_portrait`) ? `${tgt}_portrait` : tgt);
       const extras = anchors.get(cam).extras ?? {};
@@ -387,7 +388,7 @@ export function createGarageVisit(anchors) {
       return { position: c.position.clone(), target: t.position.clone(), fov, shift: 0 };
     }
     const d = GARAGE_POSES[key];
-    if (!d) return null;
+    if (!d) { placeholders.add(key); return null; }
     placeholders.add(key);
     const [position, target, fov] = d[portrait ? "portrait" : "wide"] ?? d.wide;
     return { position: new THREE.Vector3().fromArray(position), target: new THREE.Vector3().fromArray(target), fov, shift: 0 };
