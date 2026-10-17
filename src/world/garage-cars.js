@@ -25,6 +25,7 @@ import { createContactShadow } from "../three/car/street-contact.js";
 import { mods as S4_MODS } from "../data/garage.js";
 import { oneProgram } from "./car.js";
 import { fixturesFrom, GARAGE_LIGHT_LOOK, scopeCarLighting } from "./garage-lighting.js";
+import { UNDER_HOOD, underHood } from "../three/car/slim.js";
 
 // The S6's five, each on the empty its model carries for it (A1's node
 // contract, agents/A1/LOADER-CONTRACT.md). The tunes are in the engine bay.
@@ -43,8 +44,9 @@ export const MAX_DROP = 0.055;
 // A phone's inspected cars, in triangles (PLAN.md budgets).
 export const HIGH_TRIANGLES = { s4: 128868, s6: 150000 };
 export const PHONE_TRIANGLES = { s4: 60000, s6: 70000 };
-// How strongly the paint reflects the workshop.
+// How strongly the paint reflects the workshop, and the engine bay less.
 const PROBE_GAIN = GARAGE_LIGHT_LOOK.probeGain;
+const ENGINE_GAIN = PROBE_GAIN * GARAGE_LIGHT_LOOK.engineProbe;
 // The S4's hood shuts in this long when the car has to leave (the garage's
 // own buttons take about as long).
 const HOOD_SECONDS = 0.9;
@@ -390,9 +392,19 @@ export function createGarageCars(ctx) {
   };
   const bind = (probe) => {
     road.setProbe(probe, PROBE_GAIN);
-    for (const m of Object.values(made)) m.root.traverse((o) => {
-      if (o.isMesh) for (const material of [].concat(o.material)) if (material.isMeshStandardMaterial) { material.envMap = probe; material.envMapIntensity = PROBE_GAIN; }
-    });
+    for (const m of Object.values(made)) {
+      // A material shared with anything outside the bay keeps the paint's gain.
+      const engine = new Set(), outside = new Set();
+      m.root.traverse((o) => {
+        if (o.isMesh) for (const material of [].concat(o.material)) if (material.isMeshStandardMaterial) (UNDER_HOOD.test(material.name) || underHood(o, m.root) ? engine : outside).add(material);
+      });
+      for (const material of [...engine, ...outside]) {
+        material.envMap = probe;
+        material.envMapIntensity = engine.has(material) && !outside.has(material) ? ENGINE_GAIN : PROBE_GAIN;
+        // The merged paint carries the engine's plain parts too (slim.js).
+        if (material.userData.matte) material.userData.matte.value = GARAGE_LIGHT_LOOK.engineProbe;
+      }
+    }
   };
   const setHoods = () => {
     for (const kind of ["s4", "s6"]) {
