@@ -155,11 +155,21 @@ def write_all(out):
     for kind, x0, x1, y0, y1, z0, z1, d in B.COLLISION:
         boxes.append({"min": [_r(x0), _r(y0), _r(z0)], "max": [_r(x1), _r(y1), _r(z1)], "district": d, "kind": "building"})
     for n, x, y, z, yaw, sy, sxz, d in P.INSTANCES:
+        solids = P.PROTOS[n].get("solids")
+        if solids is not None:
+            # What of it stands in the way, in its own frame (ncw/garage's
+            # lifts, doors and machines are mostly air inside their box;
+            # an empty list is a floor mark): each box turned with it.
+            c, s_ = math.cos(yaw), math.sin(yaw)
+            for x0, x1, y0, y1, z0, z1 in solids:
+                xs = [x + (ox * c + oz * s_) * sxz for ox in (x0, x1) for oz in (z0, z1)]
+                zs = [z + (oz * c - ox * s_) * sxz for ox in (x0, x1) for oz in (z0, z1)]
+                boxes.append({"min": [_r(min(xs)), _r(y + y0 * sy), _r(min(zs))], "max": [_r(max(xs)), _r(y + y1 * sy), _r(max(zs))],
+                              "district": d, "kind": n})
+            continue
         hx, hy, hz = P.PROTOS[n]["box"]
         if y > 1.0:
             continue  # on a roof or a wall: nothing a car or a walker meets
-        if d in GI.SECTORS and n.startswith(GI.SPANNING):
-            continue  # a lift, a door's fittings, a mark on the floor: open between its parts
         c, s_ = abs(math.cos(yaw)), abs(math.sin(yaw))
         ex, ez = (hx * c + hz * s_) * sxz, (hx * s_ + hz * c) * sxz
         boxes.append({"min": [_r(x - ex), _r(y), _r(z - ez)], "max": [_r(x + ex), _r(y + 2 * hy * sy), _r(z + ez)], "district": d, "kind": n})

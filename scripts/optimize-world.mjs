@@ -19,7 +19,9 @@
 //   public/scenes/world/world-*-garage.glb the workshop inside the garage,
 //                                        its own maps in it (below)
 //   public/scenes/world/props-*-garage.bin its props, apart from the city's
-//   public/scenes/world/garage-boards-*.webp the shop wall's photographs
+//   public/scenes/world/garage-boards-*.webp the shop wall's photographs,
+//                                        only while GARAGE_PHOTOS_ENABLED is
+//                                        on (it is not: none is written)
 //   public/scenes/world/garage-layout.json its cameras, paths, lights,
 //                                        sectors, portals and collision
 //   src/data/world-assets.js             their URLs, with a content hash so
@@ -40,6 +42,9 @@ import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { dedup, weld, meshopt, prune, textureCompress } from "@gltf-transform/functions";
 import { MeshoptEncoder } from "meshoptimizer";
 import sharp from "sharp";
+// The garage's one photograph switch, the site's own (B3's): while it is
+// off, no photo board, atlas or URL goes into what the workshop ships.
+import { GARAGE_PHOTOS_ENABLED } from "../src/components/garage/features.js";
 
 const SOURCE = "design/night-city-world/world-source.glb";
 const OUT = "public/scenes/world";
@@ -56,8 +61,9 @@ const PACK_BUDGET_OF = { japantown: { high: 2.6e6, phone: 1.2e6 } };
 const PACK_ORDER = ["core", "south", "canyon", "plaza", "deck", "corpo", "afterlife", "santo", "japantown", "mega"];
 // The workshop inside the garage is a pack too (worldPackUrl[tier].garage),
 // but the page asks for it on its own as the reader nears the Garage
-// section, with its props (worldPackPropsUrl) and its boards' photographs
-// (worldGarageBoardsUrl); the maps its materials keep, slot by slot, which
+// section, with its props (worldPackPropsUrl) (and, only while the
+// section's photographs are on, its boards' atlas, worldGarageBoardsUrl);
+// the maps its materials keep, slot by slot, which
 // every other pack and surface has taken off. Each of its materials says
 // what it needs on itself (glTF extras: runtime, slots, params, wrap), and
 // design/night-city-world/garage-materials.json is the manifest of them.
@@ -65,6 +71,8 @@ const GARAGE = "garage";
 const GARAGE_MAPS = {
   NCW_garage_workshop_wall: ["baseColor"],
   NCW_garage_workshop_floor: ["baseColor", "metallicRoughness", "normal"],
+  // The old room's Adam Smasher print, on its own surface by the bench.
+  NCW_garage_identity_poster: ["baseColor"],
 };
 const keeps = (material, slot) => (GARAGE_MAPS[material.getName()] ?? []).includes(slot);
 const TIERS = {
@@ -204,6 +212,9 @@ async function garageCheck(document, size, triangles) {
   const sectors = {};
   for (const node of root.listNodes()) {
     const e = node.getExtras() ?? {};
+    if (!GARAGE_PHOTOS_ENABLED && (/^garage_board_/.test(node.getName()) || e.assetKind === "personal-photo")) {
+      throw new Error(`world-*-garage.glb: ${node.getName()} is a photograph, and the garage's photographs are off`);
+    }
     if (!node.getMesh()) continue;
     if (e.proto) continue;
     if (!e.visibilitySector) throw new Error(`world-*-garage.glb: ${node.getName()} has no visibilitySector`);
@@ -212,6 +223,7 @@ async function garageCheck(document, size, triangles) {
   const maps = {};
   for (const material of root.listMaterials()) {
     const name = material.getName();
+    if (!GARAGE_PHOTOS_ENABLED && /^NCW_garage_shop_photos/.test(name)) throw new Error(`world-*-garage.glb: ${name} ships while the garage's photographs are off`);
     const slots = {
       baseColor: material.getBaseColorTexture(), metallicRoughness: material.getMetallicRoughnessTexture(),
       normal: material.getNormalTexture(), emissive: material.getEmissiveTexture(),
@@ -225,21 +237,22 @@ async function garageCheck(document, size, triangles) {
           sha256: createHash("sha256").update(tex.getImage()).digest("hex").slice(0, 16) };
       }
     }
-    if (/^NCW_garage_(workshop_wall|workshop_floor|threshold_wet|shop_photos)$/.test(name)) {
+    if (/^NCW_garage_(workshop_wall|workshop_floor|threshold_wet|identity_poster|shop_photos)$/.test(name)) {
       const ex = material.getExtras() ?? {};
       const slotsOf = typeof ex.slots === "string" ? JSON.parse(ex.slots) : ex.slots;
       if (!ex.runtime || !Array.isArray(slotsOf)) throw new Error(`world-*-garage.glb: ${name} has no runtime/slots extras`);
       // The photographs' map is fetched apart (worldGarageBoardsUrl), not embedded.
       const embedded = name === "NCW_garage_shop_photos" ? [] : slotsOf;
       if (JSON.stringify(embedded) !== JSON.stringify(GARAGE_MAPS[name] ?? [])) throw new Error(`world-*-garage.glb: ${name}'s slots extras ${JSON.stringify(slotsOf)} disagree with the pack's maps`);
-      extrasOf[name] = { runtime: ex.runtime, slots: slotsOf, wrap: ex.wrap, params: typeof ex.params === "string" ? JSON.parse(ex.params) : ex.params };
+      extrasOf[name] = { runtime: ex.runtime, slots: slotsOf, wrap: ex.wrap, params: typeof ex.params === "string" ? JSON.parse(ex.params) : ex.params,
+        ...(ex.assetKind ? { assetKind: ex.assetKind } : {}) };
     }
     if (GARAGE_MAPS[name]) {
       const prims = root.listMeshes().flatMap((m) => m.listPrimitives()).filter((p) => p.getMaterial() === material);
       if (!prims.length || prims.some((p) => !p.getAttribute("TEXCOORD_0"))) throw new Error(`world-*-garage.glb: ${name} has no UV0`);
     }
   }
-  const reused = [...new Set(root.listMaterials().map((m) => m.getName()).filter((n) => !/^NCW_garage_(workshop|threshold|shop_photos)/.test(n)))].sort();
+  const reused = [...new Set(root.listMaterials().map((m) => m.getName()).filter((n) => !/^NCW_garage_(workshop|threshold|identity_poster|shop_photos)/.test(n)))].sort();
   return { bytes: size, triangles, sectors, maps, reused };
 }
 const extrasOf = {};
@@ -298,7 +311,7 @@ for (const [tier, opts] of Object.entries(TIERS)) for (const pack of PACKS) {
   const COLOR_ONLY = ["trim"];
   const UV_ONLY = ["sidewalk", "concrete", "garage_wall", "facade_t0", "facade_t1", "facade_t2", "garage_wall_back",
     "garage_wall_magenta", "garage_wall_cyan", "lantern", "asphalt",
-    "garage_workshop_wall", "garage_workshop_floor", "garage_threshold_wet", "garage_shop_photos"];
+    "garage_workshop_wall", "garage_workshop_floor", "garage_threshold_wet", "garage_identity_poster", "garage_shop_photos"];
   for (const mesh of root.listMeshes()) {
     for (const prim of mesh.listPrimitives()) {
       const n = (prim.getMaterial()?.getName() ?? "").replace(/^NCW_/, "").replace(/\.\d+$/, "");
@@ -551,42 +564,45 @@ for (const [tier, opts] of Object.entries(TIERS)) {
   console.log(`props-${tier}-garage.bin.gz: ${keep.length} props, ${Math.round((await stat(`${path}.gz`)).size / 1024)} KB`);
 }
 
-// The shop wall's photographs: the Garage section's own "Also in the shop"
-// pictures (src/data/life.js, from src/assets/photos), centre-cropped to
-// one aspect, PHOTO_TILES' order four across and two down, one atlas a
+// The shop wall's photographs, while the Garage section's photographs are
+// on (they are not, and then nothing is written): its own "Also in the
+// shop" pictures (src/data/life.js, from src/assets/photos), centre-cropped
+// to one aspect, PHOTO_TILES' order four across and two down, one atlas a
 // tier. They are already on the site; nothing here is a new picture.
-const atlas = layout.photo_atlas;
 const garagePhotoPaths = {};
-const PHOTO_BUDGET = { high: 0.8e6, phone: 0.25e6 };
-for (const [tier, cw, ch] of [["high", 512, 384], ["phone", 256, 192]]) {
-  const tiles = await Promise.all(atlas.tiles.map((n) => sharp(`src/assets/photos/${n}.jpg`).rotate().resize(cw, ch, { fit: "cover" }).toBuffer()));
-  const path = `${OUT}/garage-boards-${tier}.webp`;
-  await sharp({ create: { width: cw * atlas.cols, height: ch * atlas.rows, channels: 3, background: "#000" } })
-    .composite(tiles.map((input, i) => ({ input, left: (i % atlas.cols) * cw, top: Math.floor(i / atlas.cols) * ch })))
-    .webp({ quality: 80 })
-    .toFile(path);
-  garagePhotoPaths[tier] = path;
-  const bytes = (await stat(path)).size;
-  console.log(`garage-boards-${tier}.webp: ${Math.round(bytes / 1024)} KB`);
-  if (bytes > PHOTO_BUDGET[tier]) throw new Error(`garage-boards-${tier}.webp is over its ${PHOTO_BUDGET[tier] / 1e6} MB budget`);
+async function photoAtlas(atlas) {
+  const PHOTO_BUDGET = { high: 0.8e6, phone: 0.25e6 };
+  for (const [tier, cw, ch] of [["high", 512, 384], ["phone", 256, 192]]) {
+    const tiles = await Promise.all(atlas.tiles.map((n) => sharp(`src/assets/photos/${n}.jpg`).rotate().resize(cw, ch, { fit: "cover" }).toBuffer()));
+    const path = `${OUT}/garage-boards-${tier}.webp`;
+    await sharp({ create: { width: cw * atlas.cols, height: ch * atlas.rows, channels: 3, background: "#000" } })
+      .composite(tiles.map((input, i) => ({ input, left: (i % atlas.cols) * cw, top: Math.floor(i / atlas.cols) * ch })))
+      .webp({ quality: 80 })
+      .toFile(path);
+    garagePhotoPaths[tier] = path;
+    const bytes = (await stat(path)).size;
+    console.log(`garage-boards-${tier}.webp: ${Math.round(bytes / 1024)} KB`);
+    if (bytes > PHOTO_BUDGET[tier]) throw new Error(`garage-boards-${tier}.webp is over its ${PHOTO_BUDGET[tier] / 1e6} MB budget`);
+  }
 }
+if (GARAGE_PHOTOS_ENABLED) await photoAtlas(layout.photo_atlas);
+else if (layout.photo_atlas || layout.boards?.length) throw new Error("garage-layout.json has photo boards while the garage's photographs are off");
 // The manifest of the workshop's own materials (agents' contract, schema
 // version 1): for each, its runtime, its UVs and what its vertices carry,
 // its parameters, and each map slot (where it comes from, its image, colour
 // space, wrap, size and hash at each tier). The site reads the same facts
 // off the materials' glTF extras; this is what a reviewer reads, and the
 // two are checked to agree as it is written.
-const embeddedSlot = (name, slot, colorSpace) => {
+const embeddedSlot = (name, slot, colorSpace, wrap = "repeat") => {
   const at = (tier) => garageReport[tier].maps[`${name}.${slot}`];
   return {
-    source: "embedded", image: at("high").image, colorSpace, wrap: "repeat",
+    source: "embedded", image: at("high").image, colorSpace, wrap,
     size: Object.fromEntries(Object.keys(TIERS).map((t) => [t, at(t).size?.[0] ?? null])),
     sha256: Object.fromEntries(Object.keys(TIERS).map((t) => [t, at(t).sha256])),
     bytes: Object.fromEntries(Object.keys(TIERS).map((t) => [t, at(t).bytes])),
   };
 };
 const SPACE = { baseColor: "srgb", metallicRoughness: "linear", normal: "linear" };
-const boardRects = Object.fromEntries(layout.boards.map((b) => [b.id, Object.fromEntries(b.photos.map((ph) => [ph.id, ph.uv]))]));
 const materialsDoc = {
   version: 1,
   pack: GARAGE,
@@ -607,20 +623,29 @@ const materialsDoc = {
       ...extrasOf.NCW_garage_threshold_wet, uv: ["UV0"], tangents: false, vertexColor: false,
       uvMapping: "world-projected as the floor; the strip x 452 to 454.5, z -218 to -212", slots: {},
     },
-    NCW_garage_shop_photos: {
-      ...extrasOf.NCW_garage_shop_photos, uv: ["UV0"], tangents: false, vertexColor: false,
-      slots: {
-        baseColor: {
-          source: "external", url: "worldGarageBoardsUrl", colorSpace: "srgb", wrap: "clamp",
-          size: { high: 2048, phone: 1024 },
-          sha256: Object.fromEntries(await Promise.all(Object.entries(garagePhotoPaths).map(async ([t, path]) => [t, createHash("sha256").update(await readFile(path)).digest("hex").slice(0, 16)]))),
-          bytes: Object.fromEntries(await Promise.all(Object.entries(garagePhotoPaths).map(async ([t, path]) => [t, (await stat(path)).size]))),
-        },
-      },
-      meshes: layout.boards.map((b) => b.mesh),
-      rects: boardRects,
+    NCW_garage_identity_poster: {
+      ...extrasOf.NCW_garage_identity_poster, uv: ["UV0"], tangents: false, vertexColor: false,
+      uvMapping: "the whole picture once over its quad (clamp); the mesh garage_identity_poster",
+      source: layout.art.map((a) => a.source),
+      slots: { baseColor: embeddedSlot("NCW_garage_identity_poster", "baseColor", "srgb", "clamp") },
     },
+    ...(GARAGE_PHOTOS_ENABLED ? {
+      NCW_garage_shop_photos: {
+        ...extrasOf.NCW_garage_shop_photos, uv: ["UV0"], tangents: false, vertexColor: false,
+        slots: {
+          baseColor: {
+            source: "external", url: "worldGarageBoardsUrl", colorSpace: "srgb", wrap: "clamp",
+            size: { high: 2048, phone: 1024 },
+            sha256: Object.fromEntries(await Promise.all(Object.entries(garagePhotoPaths).map(async ([t, path]) => [t, createHash("sha256").update(await readFile(path)).digest("hex").slice(0, 16)]))),
+            bytes: Object.fromEntries(await Promise.all(Object.entries(garagePhotoPaths).map(async ([t, path]) => [t, (await stat(path)).size]))),
+          },
+        },
+        meshes: layout.boards.map((b) => b.mesh),
+        rects: Object.fromEntries(layout.boards.map((b) => [b.id, Object.fromEntries(b.photos.map((ph) => [ph.id, ph.uv]))])),
+      },
+    } : {}),
   },
+  photographs: GARAGE_PHOTOS_ENABLED ? "on: the boards' atlas is fetched apart (worldGarageBoardsUrl)" : "off (src/components/garage/features.js): no board, atlas or URL",
   reused: garageReport.high.reused,
   sectors: Object.keys(garageReport.high.sectors).sort(),
   budgets: Object.fromEntries(Object.keys(TIERS).map((tier) => [tier, { triangles: garageReport[tier].triangles, bytes: garageReport[tier].bytes,
@@ -684,10 +709,10 @@ export const worldPackPropsUrl = {
   high: { garage: "${base}props-high-garage.bin.gz?v=${await revision(`${propPaths["high-garage"]}.gz`)}" },
   phone: { garage: "${base}props-phone-garage.bin.gz?v=${await revision(`${propPaths["phone-garage"]}.gz`)}" },
 };
-export const worldGarageBoardsUrl = {
+${GARAGE_PHOTOS_ENABLED ? `export const worldGarageBoardsUrl = {
   high: "${base}garage-boards-high.webp?v=${await revision(garagePhotoPaths.high)}",
   phone: "${base}garage-boards-phone.webp?v=${await revision(garagePhotoPaths.phone)}",
-};
+};` : "// No worldGarageBoardsUrl: the garage's photographs are off."}
 export const worldGarageLayoutUrl = "${base}garage-layout.json?v=${await revision(`${OUT}/garage-layout.json`)}";
 export const worldPropsUrl = {
   high: "${base}props-high.bin.gz?v=${await revision(`${propPaths.high}.gz`)}",

@@ -1012,6 +1012,265 @@
    "sector": "garage_mezzanine"
   },
   {
+   "id": "north_cyan_1",
+   "kind": "tube",
+   "proto": null,
+   "faces": [
+    {
+     "at": [
+      457.5,
+      2.9,
+      -229.28
+     ],
+     "length": 1.8,
+     "width": 0.064,
+     "normal": [
+      0,
+      0,
+      1
+     ],
+     "axis": [
+      0,
+      1,
+      0
+     ],
+     "anchor": "anchor_garage_light_north_cyan_1"
+    }
+   ],
+   "aim": [
+    457.5,
+    1.0,
+    -226.5
+   ],
+   "color": "27dcf2",
+   "kelvin": null,
+   "intensity": 0.7,
+   "bay": "room",
+   "sector": "garage_apron"
+  },
+  {
+   "id": "north_cyan_2",
+   "kind": "tube",
+   "proto": null,
+   "faces": [
+    {
+     "at": [
+      462.0,
+      2.9,
+      -229.28
+     ],
+     "length": 1.8,
+     "width": 0.064,
+     "normal": [
+      0,
+      0,
+      1
+     ],
+     "axis": [
+      0,
+      1,
+      0
+     ],
+     "anchor": "anchor_garage_light_north_cyan_2"
+    }
+   ],
+   "aim": [
+    462.0,
+    1.0,
+    -226.5
+   ],
+   "color": "27dcf2",
+   "kelvin": null,
+   "intensity": 0.7,
+   "bay": "room",
+   "sector": "garage_s6"
+  },
+  {
+   "id": "north_cyan_3",
+   "kind": "tube",
+   "proto": null,
+   "faces": [
+    {
+     "at": [
+      466.5,
+      2.9,
+      -229.28
+     ],
+     "length": 1.8,
+     "width": 0.064,
+     "normal": [
+      0,
+      0,
+      1
+     ],
+     "axis": [
+      0,
+      1,
+      0
+     ],
+     "anchor": "anchor_garage_light_north_cyan_3"
+    }
+   ],
+   "aim": [
+    466.5,
+    1.0,
+    -226.5
+   ],
+   "color": "27dcf2",
+   "kelvin": null,
+   "intensity": 0.7,
+   "bay": "room",
+   "sector": "garage_s6"
+  },
+  {
+   "id": "north_cyan_4",
+   "kind": "tube",
+   "proto": null,
+   "faces": [
+    {
+     "at": [
+      471.0,
+      2.9,
+      -229.28
+     ],
+     "length": 1.8,
+     "width": 0.064,
+     "normal": [
+      0,
+      0,
+      1
+     ],
+     "axis": [
+      0,
+      1,
+      0
+     ],
+     "anchor": "anchor_garage_light_north_cyan_4"
+    }
+   ],
+   "aim": [
+    471.0,
+    1.0,
+    -226.5
+   ],
+   "color": "27dcf2",
+   "kelvin": null,
+   "intensity": 0.7,
+   "bay": "room",
+   "sector": "garage_s6"
+  },
+  {
+   "id": "south_pink_1",
+   "kind": "tube",
+   "proto": null,
+   "faces": [
+    {
+     "at": [
+      463.55,
+      2.9,
+      -200.72
+     ],
+     "length": 1.8,
+     "width": 0.064,
+     "normal": [
+      0,
+      0,
+      -1
+     ],
+     "axis": [
+      0,
+      1,
+      0
+     ],
+     "anchor": "anchor_garage_light_south_pink_1"
+    }
+   ],
+   "aim": [
+    463.55,
+    1.0,
+    -203.5
+   ],
+   "color": "ff2e88",
+   "kelvin": null,
+   "intensity": 0.7,
+   "bay": "room",
+   "sector": "garage_s4"
+  },
+  {
+   "id": "south_pink_2",
+   "kind": "tube",
+   "proto": null,
+   "faces": [
+    {
+     "at": [
+      468.85,
+      2.9,
+      -200.72
+     ],
+     "length": 1.8,
+     "width": 0.064,
+     "normal": [
+      0,
+      0,
+      -1
+     ],
+     "axis": [
+      0,
+      1,
+      0
+     ],
+     "anchor": "anchor_garage_light_south_pink_2"
+    }
+   ],
+   "aim": [
+    468.85,
+    1.0,
+    -203.5
+   ],
+   "color": "ff2e88",
+   "kelvin": null,
+   "intensity": 0.7,
+   "bay": "room",
+   "sector": "garage_s4"
+  },
+  {
+   "id": "south_pink_3",
+   "kind": "tube",
+   "proto": null,
+   "faces": [
+    {
+     "at": [
+      472.85,
+      2.9,
+      -200.72
+     ],
+     "length": 1.8,
+     "width": 0.064,
+     "normal": [
+      0,
+      0,
+      -1
+     ],
+     "axis": [
+      0,
+      1,
+      0
+     ],
+     "anchor": "anchor_garage_light_south_pink_3"
+    }
+   ],
+   "aim": [
+    472.85,
+    1.0,
+    -203.5
+   ],
+   "color": "ff2e88",
+   "kelvin": null,
+   "intensity": 0.7,
+   "bay": "room",
+   "sector": "garage_shop"
+  },
+  {
    "id": "north_cyan",
    "kind": "tube",
    "proto": null,
@@ -1019,15 +1278,15 @@
     {
      "at": [
       464.0,
-      2.99,
+      5.48,
       -229.42000000000002
      ],
      "length": 20.0,
-     "width": 0.08,
+     "width": 0.06,
      "normal": [
       0,
-      0,
-      1
+      -1,
+      0
      ],
      "axis": [
       1,
@@ -1049,33 +1308,33 @@
    "sector": "garage_s6"
   },
   {
-   "id": "south_magenta",
+   "id": "south_pink",
    "kind": "tube",
    "proto": null,
    "faces": [
     {
      "at": [
-      467.0,
-      3.09,
+      469.0,
+      5.48,
       -200.57999999999998
      ],
-     "length": 6.0,
-     "width": 0.08,
+     "length": 11.0,
+     "width": 0.06,
      "normal": [
       0,
-      0,
-      -1
+      -1,
+      0
      ],
      "axis": [
       1,
       0,
       0
      ],
-     "anchor": "anchor_garage_light_south_magenta"
+     "anchor": "anchor_garage_light_south_pink"
     }
    ],
    "aim": [
-    467.0,
+    469.0,
     0.0,
     -203.0
    ],
@@ -1096,7 +1355,7 @@
       2.39,
       -215.5
      ],
-     "length": 2.6,
+     "length": 7.2,
      "width": 0.07,
      "normal": [
       -1,
@@ -1118,7 +1377,7 @@
    ],
    "color": "ffb254",
    "kelvin": null,
-   "intensity": 0.6,
+   "intensity": 0.8,
    "bay": "shop",
    "sector": "garage_shop"
   },
@@ -1213,12 +1472,12 @@
    "faces": [
     {
      "at": [
-      0.0,
-      0.0,
-      -0.0
+      475.37,
+      3.485,
+      -215.5
      ],
-     "length": 1.43,
-     "width": 0.8,
+     "length": 2.431,
+     "width": 1.36,
      "normal": [
       -1,
       0,
@@ -1234,226 +1493,93 @@
    ]
   }
  ],
- "boards": [
+ "art": [
   {
-   "id": "bmw",
+   "id": "adam-smasher",
+   "mesh": "garage_identity_poster",
+   "material": "NCW_garage_identity_poster",
+   "source": "design/night-city-garage/textures/adam-smasher.jpg",
+   "frame": null,
    "center": [
-    475.44,
-    3.0999999999999996,
-    -220.5
+    475.428,
+    4.0,
+    -212.5
    ],
    "size": [
-    2.6,
-    1.1
+    2.0,
+    2.7
    ],
    "normal": [
     -1,
     0,
     0
    ],
-   "mesh": "garage_board_bmw",
-   "photos": [
-    {
-     "id": "bmw-carplay-retrofit",
-     "center": [
-      475.435,
-      3.13,
-      -219.665
-     ],
-     "size": [
-      0.74,
-      0.555
-     ],
-     "uv": [
-      0.0,
-      0.0,
-      0.25,
-      0.5
-     ]
-    },
-    {
-     "id": "bmw-engine-bay",
-     "center": [
-      475.435,
-      3.13,
-      -220.5
-     ],
-     "size": [
-      0.74,
-      0.555
-     ],
-     "uv": [
-      0.25,
-      0.0,
-      0.5,
-      0.5
-     ]
-    },
-    {
-     "id": "bmw-tuning-module",
-     "center": [
-      475.435,
-      3.13,
-      -221.335
-     ],
-     "size": [
-      0.74,
-      0.555
-     ],
-     "uv": [
-      0.5,
-      0.0,
-      0.75,
-      0.5
-     ]
-    }
-   ]
-  },
-  {
-   "id": "bench",
-   "center": [
-    475.44,
-    3.0999999999999996,
-    -215.5
-   ],
-   "size": [
-    2.6,
-    1.1
-   ],
-   "normal": [
-    -1,
+   "uv": [
     0,
-    0
-   ],
-   "mesh": "garage_board_bench",
-   "photos": [
-    {
-     "id": "iphone-teardown",
-     "center": [
-      475.435,
-      3.13,
-      -214.665
-     ],
-     "size": [
-      0.74,
-      0.555
-     ],
-     "uv": [
-      0.75,
-      0.0,
-      1.0,
-      0.5
-     ]
-    },
-    {
-     "id": "breadboard",
-     "center": [
-      475.435,
-      3.13,
-      -215.5
-     ],
-     "size": [
-      0.74,
-      0.555
-     ],
-     "uv": [
-      0.0,
-      0.5,
-      0.25,
-      1.0
-     ]
-    },
-    {
-     "id": "sumo-robot",
-     "center": [
-      475.435,
-      3.13,
-      -216.335
-     ],
-     "size": [
-      0.74,
-      0.555
-     ],
-     "uv": [
-      0.25,
-      0.5,
-      0.5,
-      1.0
-     ]
-    }
-   ]
-  },
-  {
-   "id": "competitions",
-   "center": [
-    475.44,
-    3.0999999999999996,
-    -210.5
-   ],
-   "size": [
-    2.6,
-    1.1
-   ],
-   "normal": [
-    -1,
     0,
-    0
-   ],
-   "mesh": "garage_board_competitions",
-   "photos": [
-    {
-     "id": "wrestling",
-     "center": [
-      475.435,
-      3.13,
-      -209.943
-     ],
-     "size": [
-      0.74,
-      0.555
-     ],
-     "uv": [
-      0.5,
-      0.5,
-      0.75,
-      1.0
-     ]
-    },
-    {
-     "id": "rubiks-cube",
-     "center": [
-      475.435,
-      3.13,
-      -211.057
-     ],
-     "size": [
-      0.74,
-      0.555
-     ],
-     "uv": [
-      0.75,
-      0.5,
-      1.0,
-      1.0
-     ]
-    }
+    1,
+    1
    ]
   }
  ],
- "photo_atlas": {
-  "tiles": [
-   "bmw-carplay-retrofit",
-   "bmw-engine-bay",
-   "bmw-tuning-module",
-   "iphone-teardown",
-   "breadboard",
-   "sumo-robot",
-   "wrestling",
-   "rubiks-cube"
+ "signature": [
+  {
+   "id": "jacket_chair",
+   "proto": "garage_jacket_chair",
+   "at": [
+    473.55,
+    0.0,
+    -216.95
+   ],
+   "yaw": -1.25,
+   "placed": false,
+   "what": "David's yellow jacket draped on its rolling chair"
+  },
+  {
+   "id": "maine_cradle",
+   "proto": "garage_maine_cradle",
+   "at": [
+    475.05,
+    0.9,
+    -215.0
+   ],
+   "yaw": -1.5708,
+   "placed": false,
+   "what": "Maine's arm cannon in its service cradle, on the bench"
+  },
+  {
+   "id": "guts_pegs",
+   "proto": "garage_guts_pegs",
+   "at": [
+    475.477,
+    2.6,
+    -218.2
+   ],
+   "yaw": -1.5708,
+   "placed": false,
+   "what": "Rebecca's Guts on its wall pegs"
+  }
+ ],
+ "workbench": {
+  "anchor": "anchor_garage_workbench",
+  "bmw_clue": "anchor_garage_bmw_clue",
+  "benches": [
+   -217.9,
+   -215.5,
+   -213.1
   ],
-  "cols": 4,
-  "rows": 2,
-  "source": "src/assets/photos/<id>.jpg"
+  "screen": {
+   "at": [
+    475.37,
+    3.485,
+    -215.5
+   ],
+   "size": [
+    2.431,
+    1.36
+   ]
+  },
+  "sign_y": 4.55
  },
  "collision": [
   {
@@ -1661,7 +1787,7 @@
     4.3,
     -200.5
    ],
-   "nav": true,
+   "nav": false,
    "camera": true
   },
   {
@@ -1905,65 +2031,17 @@
    "camera": true
   },
   {
-   "name": "shutter_motor",
-   "kind": "fixture",
-   "min": [
-    452.5,
-    1.2,
-    -218.84
-   ],
-   "max": [
-    452.95,
-    5.15,
-    -217.98
-   ],
-   "nav": false,
-   "camera": true
-  },
-  {
-   "name": "bay2_door_tracks",
-   "kind": "wall",
-   "min": [
-    452.5,
-    4.3,
-    -228.9
-   ],
-   "max": [
-    458.3,
-    5.75,
-    -222.3
-   ],
-   "nav": false,
-   "camera": true
-  },
-  {
-   "name": "bay2_door",
-   "kind": "wall",
-   "min": [
-    452.5,
-    0.0,
-    -228.9
-   ],
-   "max": [
-    452.62,
-    4.86,
-    -222.3
-   ],
-   "nav": false,
-   "camera": true
-  },
-  {
-   "name": "boards",
+   "name": "art_smasher",
    "kind": "prop",
    "min": [
     475.42,
-    2.5,
-    -221.85
+    2.55,
+    -213.6
    ],
    "max": [
     475.5,
-    3.7,
-    -209.15
+    5.45,
+    -211.4
    ],
    "nav": false,
    "camera": true
@@ -1973,13 +2051,13 @@
    "kind": "fixture",
    "min": [
     475.2,
-    3.8,
-    -216.35
+    2.5,
+    -216.792
    ],
    "max": [
     475.5,
-    4.95,
-    -214.65
+    4.266,
+    -214.208
    ],
    "nav": false,
    "camera": true
@@ -1988,62 +2066,30 @@
    "name": "sign",
    "kind": "fixture",
    "min": [
-    475.38,
-    4.3,
-    -207.95
+    475.36,
+    4.23,
+    -217.28
    ],
    "max": [
     475.5,
-    5.35,
-    -204.45
+    5.55,
+    -213.72
    ],
    "nav": false,
    "camera": true
   },
   {
-   "name": "lift_post_n",
-   "kind": "lift",
+   "name": "bench_strip",
+   "kind": "fixture",
    "min": [
-    461.74,
-    0.0,
-    -216.84
+    475.26,
+    2.34,
+    -219.2
    ],
    "max": [
-    462.26,
-    3.77,
-    -216.46
-   ],
-   "nav": true,
-   "camera": true
-  },
-  {
-   "name": "lift_post_s",
-   "kind": "lift",
-   "min": [
-    461.74,
-    0.0,
-    -213.54
-   ],
-   "max": [
-    462.26,
-    3.77,
-    -212.96
-   ],
-   "nav": true,
-   "camera": true
-  },
-  {
-   "name": "lift_beam",
-   "kind": "lift",
-   "min": [
-    461.92,
-    3.35,
-    -216.84
-   ],
-   "max": [
-    462.08,
-    3.83,
-    -213.16
+    475.5,
+    2.52,
+    -211.8
    ],
    "nav": false,
    "camera": true
@@ -2055,15 +2101,15 @@
    "proto": "garage_man_door",
    "kind": "prop",
    "at": [
-    458.01,
+    458.005,
     0.0,
     -204.525
    ],
    "yaw": 1.5708,
    "half": [
-    0.56,
-    1.12,
-    0.06
+    0.525,
+    1.1,
+    0.075
    ],
    "nav": true,
    "camera": true,
@@ -2118,7 +2164,7 @@
    ],
    "yaw": 0.0,
    "half": [
-    1.22,
+    1.36,
     0.38,
     0.06
    ],
@@ -2137,7 +2183,7 @@
    ],
    "yaw": 0.0,
    "half": [
-    1.22,
+    1.36,
     0.38,
     0.06
    ],
@@ -2156,7 +2202,7 @@
    ],
    "yaw": 0.0,
    "half": [
-    1.22,
+    1.36,
     0.38,
     0.06
    ],
@@ -2175,7 +2221,7 @@
    ],
    "yaw": 0.0,
    "half": [
-    1.22,
+    1.36,
     0.38,
     0.06
    ],
@@ -2404,8 +2450,8 @@
    "yaw": -0.6651,
    "half": [
     0.42,
-    1.1,
-    0.42
+    1.14,
+    0.51
    ],
    "nav": false,
    "camera": true,
@@ -2423,34 +2469,205 @@
    "yaw": -2.4765,
    "half": [
     0.42,
-    1.1,
-    0.42
+    1.14,
+    0.51
    ],
    "nav": false,
    "camera": true,
    "sector": "garage_s6"
   },
   {
-   "name": "prop_020_floor_jack",
-   "proto": "garage_floor_jack",
-   "kind": "prop",
+   "name": "prop_020_lift2",
+   "proto": "garage_lift2",
+   "kind": "lift",
    "at": [
-    465.9,
+    462.0,
     0.0,
-    -212.75
+    -213.37
    ],
-   "yaw": 1.9478,
+   "yaw": 1.5708,
    "half": [
-    0.2,
-    0.15,
-    0.62
+    0.21,
+    0.011,
+    0.25
    ],
    "nav": true,
    "camera": true,
    "sector": "garage_s4"
   },
   {
-   "name": "prop_021_jack_stand",
+   "name": "prop_021_lift2",
+   "proto": "garage_lift2",
+   "kind": "lift",
+   "at": [
+    462.0,
+    0.0,
+    -216.63
+   ],
+   "yaw": 1.5708,
+   "half": [
+    0.21,
+    0.011,
+    0.25
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_s4"
+  },
+  {
+   "name": "prop_022_lift2",
+   "proto": "garage_lift2",
+   "kind": "lift",
+   "at": [
+    462.0,
+    0.0,
+    -213.38
+   ],
+   "yaw": 1.5708,
+   "half": [
+    0.16,
+    1.881,
+    0.153
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_s4"
+  },
+  {
+   "name": "prop_023_lift2",
+   "proto": "garage_lift2",
+   "kind": "lift",
+   "at": [
+    462.0,
+    0.0,
+    -216.62
+   ],
+   "yaw": 1.5708,
+   "half": [
+    0.16,
+    1.881,
+    0.153
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_s4"
+  },
+  {
+   "name": "prop_024_lift2",
+   "proto": "garage_lift2",
+   "kind": "lift",
+   "at": [
+    462.03,
+    1.02,
+    -213.09
+   ],
+   "yaw": 1.5708,
+   "half": [
+    0.13,
+    0.405,
+    0.16
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_s4"
+  },
+  {
+   "name": "prop_025_lift2",
+   "proto": "garage_lift2",
+   "kind": "lift",
+   "at": [
+    462.0,
+    3.34,
+    -215.0
+   ],
+   "yaw": 1.5708,
+   "half": [
+    1.86,
+    0.241,
+    0.1
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_s4"
+  },
+  {
+   "name": "prop_026_lift2_carriage",
+   "proto": "garage_lift2_carriage",
+   "kind": "lift",
+   "at": [
+    462.0,
+    0.012,
+    -213.6
+   ],
+   "yaw": 1.5708,
+   "half": [
+    0.2,
+    0.394,
+    0.2
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_s4"
+  },
+  {
+   "name": "prop_027_lift2_carriage",
+   "proto": "garage_lift2_carriage",
+   "kind": "lift",
+   "at": [
+    462.0,
+    0.012,
+    -216.4
+   ],
+   "yaw": 1.5708,
+   "half": [
+    0.2,
+    0.394,
+    0.2
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_s4"
+  },
+  {
+   "name": "prop_028_floor_jack",
+   "proto": "garage_floor_jack",
+   "kind": "prop",
+   "at": [
+    465.974,
+    0.0,
+    -212.779
+   ],
+   "yaw": 1.9478,
+   "half": [
+    0.21,
+    0.08,
+    0.41
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_s4"
+  },
+  {
+   "name": "prop_029_floor_jack",
+   "proto": "garage_floor_jack",
+   "kind": "prop",
+   "at": [
+    465.268,
+    0.14,
+    -212.5
+   ],
+   "yaw": 1.9478,
+   "half": [
+    0.075,
+    0.4,
+    0.4
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_s4"
+  },
+  {
+   "name": "prop_030_jack_stand",
    "proto": "garage_jack_stand",
    "kind": "prop",
    "at": [
@@ -2469,7 +2686,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_022_jack_stand",
+   "name": "prop_031_jack_stand",
    "proto": "garage_jack_stand",
    "kind": "prop",
    "at": [
@@ -2488,7 +2705,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_023_creeper",
+   "name": "prop_032_creeper",
    "proto": "garage_creeper",
    "kind": "prop",
    "at": [
@@ -2507,7 +2724,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_024_oil_drain",
+   "name": "prop_033_oil_drain",
    "proto": "garage_oil_drain",
    "kind": "prop",
    "at": [
@@ -2518,7 +2735,26 @@
    "yaw": 0.4,
    "half": [
     0.3,
-    0.8,
+    0.81,
+    0.51
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_s4"
+  },
+  {
+   "name": "prop_034_drip_tray",
+   "proto": "garage_drip_tray",
+   "kind": "prop",
+   "at": [
+    464.9,
+    0.004,
+    -214.1
+   ],
+   "yaw": 1.6708,
+   "half": [
+    0.42,
+    0.03,
     0.32
    ],
    "nav": true,
@@ -2526,7 +2762,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_025_wheel_chock",
+   "name": "prop_035_wheel_chock",
    "proto": "garage_wheel_chock",
    "kind": "prop",
    "at": [
@@ -2545,7 +2781,7 @@
    "sector": "garage_s6"
   },
   {
-   "name": "prop_026_wheel_chock",
+   "name": "prop_036_wheel_chock",
    "proto": "garage_wheel_chock",
    "kind": "prop",
    "at": [
@@ -2564,26 +2800,368 @@
    "sector": "garage_s6"
   },
   {
-   "name": "prop_027_tune_cart",
+   "name": "prop_037_tune_cart",
    "proto": "garage_tune_cart",
    "kind": "prop",
    "at": [
     461.8,
     0.0,
-    -223.75
+    -223.778
    ],
    "yaw": 0.0,
    "half": [
-    0.4,
-    0.55,
-    0.25
+    0.375,
+    0.54,
+    0.247
    ],
    "nav": true,
    "camera": true,
    "sector": "garage_s6"
   },
   {
-   "name": "prop_028_tool_cab",
+   "name": "prop_038_shutter_w",
+   "proto": "garage_shutter_w",
+   "kind": "prop",
+   "at": [
+    452.125,
+    0.0,
+    -217.97
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.04,
+    2.3,
+    0.075
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_039_shutter_w",
+   "proto": "garage_shutter_w",
+   "kind": "prop",
+   "at": [
+    452.125,
+    0.0,
+    -212.03
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.04,
+    2.3,
+    0.075
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_040_shutter_w",
+   "proto": "garage_shutter_w",
+   "kind": "prop",
+   "at": [
+    452.612,
+    4.6,
+    -215.0
+   ],
+   "yaw": -1.5708,
+   "half": [
+    3.2,
+    0.3,
+    0.012
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_041_shutter_w",
+   "proto": "garage_shutter_w",
+   "kind": "prop",
+   "at": [
+    452.76,
+    4.72,
+    -211.595
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.405,
+    0.18,
+    0.16
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_042_shutter_w",
+   "proto": "garage_shutter_w",
+   "kind": "prop",
+   "at": [
+    452.548,
+    1.25,
+    -211.7
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.08,
+    0.175,
+    0.049
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_043_door_w_frame",
+   "proto": "garage_door_w_frame",
+   "kind": "prop",
+   "at": [
+    452.58,
+    0.0,
+    -228.685
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.031,
+    2.24,
+    0.03
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_044_door_w_frame",
+   "proto": "garage_door_w_frame",
+   "kind": "prop",
+   "at": [
+    455.09,
+    4.45,
+    -228.685
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.031,
+    0.515,
+    2.54
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_045_door_w_frame",
+   "proto": "garage_door_w_frame",
+   "kind": "prop",
+   "at": [
+    452.58,
+    0.0,
+    -222.515
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.031,
+    2.24,
+    0.03
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_046_door_w_frame",
+   "proto": "garage_door_w_frame",
+   "kind": "prop",
+   "at": [
+    455.09,
+    4.45,
+    -222.515
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.031,
+    0.515,
+    2.54
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_047_door_w_frame",
+   "proto": "garage_door_w_frame",
+   "kind": "prop",
+   "at": [
+    452.655,
+    4.7,
+    -225.6
+   ],
+   "yaw": -1.5708,
+   "half": [
+    3.1,
+    0.17,
+    0.095
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_048_door_w_frame",
+   "proto": "garage_door_w_frame",
+   "kind": "prop",
+   "at": [
+    455.47,
+    4.86,
+    -225.6
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.2,
+    0.31,
+    2.8
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_049_door_w_frame",
+   "proto": "garage_door_w_frame",
+   "kind": "prop",
+   "at": [
+    452.576,
+    1.35,
+    -222.26
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.04,
+    0.06,
+    0.026
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_050_door_w_closed",
+   "proto": "garage_door_w_closed",
+   "kind": "prop",
+   "at": [
+    452.552,
+    -0.03,
+    -225.6
+   ],
+   "yaw": -1.5708,
+   "half": [
+    3.085,
+    0.413,
+    0.033
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_051_door_w_closed",
+   "proto": "garage_door_w_closed",
+   "kind": "prop",
+   "at": [
+    452.552,
+    0.737,
+    -225.6
+   ],
+   "yaw": -1.5708,
+   "half": [
+    3.085,
+    0.413,
+    0.033
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_052_door_w_closed",
+   "proto": "garage_door_w_closed",
+   "kind": "prop",
+   "at": [
+    452.552,
+    1.503,
+    -225.6
+   ],
+   "yaw": -1.5708,
+   "half": [
+    3.085,
+    0.413,
+    0.033
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_053_door_w_closed",
+   "proto": "garage_door_w_closed",
+   "kind": "prop",
+   "at": [
+    452.552,
+    2.27,
+    -225.6
+   ],
+   "yaw": -1.5708,
+   "half": [
+    3.085,
+    0.413,
+    0.033
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_054_door_w_closed",
+   "proto": "garage_door_w_closed",
+   "kind": "prop",
+   "at": [
+    452.552,
+    3.037,
+    -225.6
+   ],
+   "yaw": -1.5708,
+   "half": [
+    3.085,
+    0.413,
+    0.033
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_055_door_w_closed",
+   "proto": "garage_door_w_closed",
+   "kind": "prop",
+   "at": [
+    452.562,
+    3.803,
+    -225.6
+   ],
+   "yaw": -1.5708,
+   "half": [
+    3.085,
+    0.412,
+    0.042
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_apron"
+  },
+  {
+   "name": "prop_056_tool_cab",
    "proto": "garage_tool_cab",
    "kind": "prop",
    "at": [
@@ -2593,7 +3171,7 @@
    ],
    "yaw": 3.1416,
    "half": [
-    0.56,
+    0.58,
     0.5,
     0.25
    ],
@@ -2602,7 +3180,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_029_tool_top",
+   "name": "prop_057_tool_top",
    "proto": "garage_tool_top",
    "kind": "prop",
    "at": [
@@ -2612,8 +3190,8 @@
    ],
    "yaw": 3.1416,
    "half": [
-    0.56,
-    0.27,
+    0.58,
+    0.28,
     0.24
    ],
    "nav": true,
@@ -2621,7 +3199,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_030_tool_cab",
+   "name": "prop_058_tool_cab",
    "proto": "garage_tool_cab",
    "kind": "prop",
    "at": [
@@ -2631,7 +3209,7 @@
    ],
    "yaw": 3.1416,
    "half": [
-    0.56,
+    0.58,
     0.5,
     0.25
    ],
@@ -2640,7 +3218,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_031_tool_cab",
+   "name": "prop_059_tool_cab",
    "proto": "garage_tool_cab",
    "kind": "prop",
    "at": [
@@ -2650,7 +3228,7 @@
    ],
    "yaw": 3.1416,
    "half": [
-    0.56,
+    0.58,
     0.5,
     0.25
    ],
@@ -2659,7 +3237,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_032_tool_top",
+   "name": "prop_060_tool_top",
    "proto": "garage_tool_top",
    "kind": "prop",
    "at": [
@@ -2669,8 +3247,8 @@
    ],
    "yaw": 3.1416,
    "half": [
-    0.56,
-    0.27,
+    0.58,
+    0.28,
     0.24
    ],
    "nav": true,
@@ -2678,7 +3256,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_033_tool_cab",
+   "name": "prop_061_tool_cab",
    "proto": "garage_tool_cab",
    "kind": "prop",
    "at": [
@@ -2688,7 +3266,7 @@
    ],
    "yaw": 3.1416,
    "half": [
-    0.56,
+    0.58,
     0.5,
     0.25
    ],
@@ -2697,7 +3275,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_034_tool_cart",
+   "name": "prop_062_tool_cart",
    "proto": "garage_tool_cart",
    "kind": "prop",
    "at": [
@@ -2708,15 +3286,15 @@
    "yaw": 3.3916,
    "half": [
     0.4,
-    0.5,
-    0.25
+    0.53,
+    0.28
    ],
    "nav": true,
    "camera": true,
    "sector": "garage_s4"
   },
   {
-   "name": "prop_035_welder",
+   "name": "prop_063_welder",
    "proto": "garage_welder",
    "kind": "prop",
    "at": [
@@ -2726,7 +3304,7 @@
    ],
    "yaw": 2.9416,
    "half": [
-    0.32,
+    0.38,
     0.65,
     0.45
    ],
@@ -2735,7 +3313,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_036_hose_reel",
+   "name": "prop_064_hose_reel",
    "proto": "garage_hose_reel",
    "kind": "prop",
    "at": [
@@ -2747,14 +3325,14 @@
    "half": [
     0.2,
     1.2,
-    0.25
+    0.43
    ],
    "nav": true,
    "camera": true,
    "sector": "garage_s4"
   },
   {
-   "name": "prop_037_compressor",
+   "name": "prop_065_compressor",
    "proto": "garage_compressor",
    "kind": "prop",
    "at": [
@@ -2764,16 +3342,16 @@
    ],
    "yaw": 3.6416,
    "half": [
-    0.35,
-    0.98,
-    0.32
+    0.51,
+    0.99,
+    0.51
    ],
    "nav": true,
    "camera": true,
    "sector": "garage_shop"
   },
   {
-   "name": "prop_038_extinguisher",
+   "name": "prop_066_extinguisher",
    "proto": "garage_extinguisher",
    "kind": "prop",
    "at": [
@@ -2784,15 +3362,15 @@
    "yaw": 3.1416,
    "half": [
     0.12,
-    0.85,
-    0.12
+    0.94,
+    0.18
    ],
    "nav": true,
    "camera": true,
    "sector": "garage_shop"
   },
   {
-   "name": "prop_039_shelving",
+   "name": "prop_067_shelving",
    "proto": "garage_shelving",
    "kind": "prop",
    "at": [
@@ -2802,7 +3380,7 @@
    ],
    "yaw": -1.5708,
    "half": [
-    0.864,
+    0.883,
     1.0,
     0.294
    ],
@@ -2811,7 +3389,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_040_shelving",
+   "name": "prop_068_shelving",
    "proto": "garage_shelving",
    "kind": "prop",
    "at": [
@@ -2821,7 +3399,7 @@
    ],
    "yaw": -1.5708,
    "half": [
-    0.864,
+    0.883,
     1.0,
     0.294
    ],
@@ -2830,7 +3408,45 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_041_bench",
+   "name": "prop_069_bench",
+   "proto": "garage_bench",
+   "kind": "prop",
+   "at": [
+    475.1,
+    0.0,
+    -217.9
+   ],
+   "yaw": -1.5708,
+   "half": [
+    1.2,
+    0.56,
+    0.5
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_070_pegboard",
+   "proto": "garage_pegboard",
+   "kind": "prop",
+   "at": [
+    475.477,
+    0.0,
+    -217.9
+   ],
+   "yaw": -1.5708,
+   "half": [
+    1.25,
+    1.15,
+    0.14
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_071_bench",
    "proto": "garage_bench",
    "kind": "prop",
    "at": [
@@ -2841,15 +3457,15 @@
    "yaw": -1.5708,
    "half": [
     1.2,
-    0.46,
-    0.38
+    0.56,
+    0.5
    ],
    "nav": true,
    "camera": true,
    "sector": "garage_shop"
   },
   {
-   "name": "prop_042_pegboard",
+   "name": "prop_072_pegboard",
    "proto": "garage_pegboard",
    "kind": "prop",
    "at": [
@@ -2861,20 +3477,58 @@
    "half": [
     1.25,
     1.15,
-    0.06
+    0.14
    ],
    "nav": true,
    "camera": true,
    "sector": "garage_shop"
   },
   {
-   "name": "prop_043_",
+   "name": "prop_073_bench",
+   "proto": "garage_bench",
+   "kind": "prop",
+   "at": [
+    475.1,
+    0.0,
+    -213.1
+   ],
+   "yaw": -1.5708,
+   "half": [
+    1.2,
+    0.56,
+    0.5
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_074_pegboard",
+   "proto": "garage_pegboard",
+   "kind": "prop",
+   "at": [
+    475.477,
+    0.0,
+    -213.1
+   ],
+   "yaw": -1.5708,
+   "half": [
+    1.25,
+    1.15,
+    0.14
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_075_",
    "proto": "drum",
    "kind": "prop",
    "at": [
     475.1,
     0.0,
-    -212.75
+    -208.45
    ],
    "yaw": -1.5708,
    "half": [
@@ -2887,37 +3541,37 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_044_parts_washer",
+   "name": "prop_076_parts_washer",
    "proto": "garage_parts_washer",
    "kind": "prop",
    "at": [
     475.1,
     0.88,
-    -212.75
+    -208.45
    ],
    "yaw": -1.5708,
    "half": [
     0.46,
     0.45,
-    0.3
+    0.34
    ],
    "nav": true,
    "camera": true,
    "sector": "garage_shop"
   },
   {
-   "name": "prop_045_parts_table",
+   "name": "prop_077_parts_table",
    "proto": "garage_parts_table",
    "kind": "prop",
    "at": [
     473.4,
     0.0,
-    -206.6
+    -206.0
    ],
    "yaw": -1.5708,
    "half": [
     0.76,
-    0.5,
+    0.56,
     0.38
    ],
    "nav": true,
@@ -2925,36 +3579,36 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_046_monitor",
+   "name": "prop_078_monitor",
    "proto": "garage_monitor",
    "kind": "fixture",
    "at": [
     475.477,
-    3.9,
+    2.55,
     -215.5
    ],
    "yaw": -1.5708,
    "half": [
-    0.76,
-    0.48,
-    0.07
+    1.292,
+    0.833,
+    0.119
    ],
    "nav": false,
    "camera": true,
    "sector": "garage_shop"
   },
   {
-   "name": "prop_047_tool_cab",
+   "name": "prop_079_tool_cab",
    "proto": "garage_tool_cab",
    "kind": "prop",
    "at": [
     475.23,
     0.0,
-    -221.06
+    -219.7
    ],
    "yaw": -1.5708,
    "half": [
-    0.56,
+    0.58,
     0.5,
     0.25
    ],
@@ -2963,18 +3617,18 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_048_tool_top",
+   "name": "prop_080_tool_top",
    "proto": "garage_tool_top",
    "kind": "prop",
    "at": [
     475.23,
     0.99,
-    -221.06
+    -219.7
    ],
    "yaw": -1.5708,
    "half": [
-    0.56,
-    0.27,
+    0.58,
+    0.28,
     0.24
    ],
    "nav": true,
@@ -2982,17 +3636,17 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_049_tool_cab",
+   "name": "prop_081_tool_cab",
    "proto": "garage_tool_cab",
    "kind": "prop",
    "at": [
     475.23,
     0.0,
-    -219.94
+    -220.82
    ],
    "yaw": -1.5708,
    "half": [
-    0.56,
+    0.58,
     0.5,
     0.25
    ],
@@ -3001,18 +3655,18 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_050_tool_top",
+   "name": "prop_082_tool_top",
    "proto": "garage_tool_top",
    "kind": "prop",
    "at": [
     475.23,
     0.99,
-    -219.94
+    -220.82
    ],
    "yaw": -1.5708,
    "half": [
-    0.56,
-    0.27,
+    0.58,
+    0.28,
     0.24
    ],
    "nav": true,
@@ -3020,26 +3674,159 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_051_balancer",
+   "name": "prop_083_tool_cab",
+   "proto": "garage_tool_cab",
+   "kind": "prop",
+   "at": [
+    475.23,
+    0.0,
+    -211.3
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.58,
+    0.5,
+    0.25
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_084_tool_top",
+   "proto": "garage_tool_top",
+   "kind": "prop",
+   "at": [
+    475.23,
+    0.99,
+    -211.3
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.58,
+    0.28,
+    0.24
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_085_tool_cab",
+   "proto": "garage_tool_cab",
+   "kind": "prop",
+   "at": [
+    475.23,
+    0.0,
+    -210.18
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.58,
+    0.5,
+    0.25
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_086_tool_top",
+   "proto": "garage_tool_top",
+   "kind": "prop",
+   "at": [
+    475.23,
+    0.99,
+    -210.18
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.58,
+    0.28,
+    0.24
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_087_balancer",
    "proto": "garage_balancer",
    "kind": "prop",
    "at": [
-    475.0,
+    475.015,
     0.0,
     -223.4
    ],
    "yaw": -1.5708,
    "half": [
-    0.45,
-    0.7,
-    0.4
+    0.31,
+    0.5,
+    0.275
    ],
    "nav": true,
    "camera": true,
    "sector": "garage_shop"
   },
   {
-   "name": "prop_052_tyre_changer",
+   "name": "prop_088_balancer",
+   "proto": "garage_balancer",
+   "kind": "prop",
+   "at": [
+    475.0,
+    0.73,
+    -222.92
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.18,
+    0.09,
+    0.09
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_089_balancer",
+   "proto": "garage_balancer",
+   "kind": "prop",
+   "at": [
+    475.265,
+    1.0,
+    -222.78
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.3,
+    0.15,
+    0.145
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_090_balancer",
+   "proto": "garage_balancer",
+   "kind": "prop",
+   "at": [
+    475.2,
+    1.0,
+    -223.4
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.22,
+    0.26,
+    0.04
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_091_tyre_changer",
    "proto": "garage_tyre_changer",
    "kind": "prop",
    "at": [
@@ -3049,16 +3836,92 @@
    ],
    "yaw": -1.3708,
    "half": [
+    0.41,
     0.45,
-    0.95,
-    0.5
+    0.43
    ],
    "nav": true,
    "camera": true,
    "sector": "garage_shop"
   },
   {
-   "name": "prop_053_tyre_rack",
+   "name": "prop_092_tyre_changer",
+   "proto": "garage_tyre_changer",
+   "kind": "prop",
+   "at": [
+    475.361,
+    0.0,
+    -225.393
+   ],
+   "yaw": -1.3708,
+   "half": [
+    0.09,
+    0.975,
+    0.13
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_093_tyre_changer",
+   "proto": "garage_tyre_changer",
+   "kind": "prop",
+   "at": [
+    475.101,
+    1.04,
+    -225.341
+   ],
+   "yaw": -1.3708,
+   "half": [
+    0.07,
+    0.455,
+    0.255
+   ],
+   "nav": false,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_094_tyre_changer",
+   "proto": "garage_tyre_changer",
+   "kind": "prop",
+   "at": [
+    475.124,
+    0.22,
+    -224.723
+   ],
+   "yaw": -1.3708,
+   "half": [
+    0.21,
+    0.19,
+    0.325
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_095_tyre_changer",
+   "proto": "garage_tyre_changer",
+   "kind": "prop",
+   "at": [
+    474.42,
+    0.0,
+    -225.203
+   ],
+   "yaw": -1.3708,
+   "half": [
+    0.25,
+    0.03,
+    0.07
+   ],
+   "nav": true,
+   "camera": true,
+   "sector": "garage_shop"
+  },
+  {
+   "name": "prop_096_tyre_rack",
    "proto": "garage_tyre_rack",
    "kind": "prop",
    "at": [
@@ -3077,7 +3940,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_054_tyre",
+   "name": "prop_097_tyre",
    "proto": "garage_tyre",
    "kind": "prop",
    "at": [
@@ -3096,7 +3959,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_055_tyre",
+   "name": "prop_098_tyre",
    "proto": "garage_tyre",
    "kind": "prop",
    "at": [
@@ -3115,7 +3978,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_056_wheel",
+   "name": "prop_099_wheel",
    "proto": "garage_wheel",
    "kind": "prop",
    "at": [
@@ -3134,7 +3997,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_057_tyre",
+   "name": "prop_100_tyre",
    "proto": "garage_tyre",
    "kind": "prop",
    "at": [
@@ -3153,7 +4016,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_058_tyre",
+   "name": "prop_101_tyre",
    "proto": "garage_tyre",
    "kind": "prop",
    "at": [
@@ -3172,7 +4035,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_059_tyre",
+   "name": "prop_102_tyre",
    "proto": "garage_tyre",
    "kind": "prop",
    "at": [
@@ -3191,7 +4054,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_060_wheel",
+   "name": "prop_103_wheel",
    "proto": "garage_wheel",
    "kind": "prop",
    "at": [
@@ -3210,7 +4073,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_061_tyre",
+   "name": "prop_104_tyre",
    "proto": "garage_tyre",
    "kind": "prop",
    "at": [
@@ -3229,7 +4092,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_062_tyre",
+   "name": "prop_105_tyre",
    "proto": "garage_tyre",
    "kind": "prop",
    "at": [
@@ -3248,7 +4111,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_063_tyre",
+   "name": "prop_106_tyre",
    "proto": "garage_tyre",
    "kind": "prop",
    "at": [
@@ -3267,7 +4130,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_064_tyre",
+   "name": "prop_107_tyre",
    "proto": "garage_tyre",
    "kind": "prop",
    "at": [
@@ -3286,7 +4149,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_065_tyre",
+   "name": "prop_108_tyre",
    "proto": "garage_tyre",
    "kind": "prop",
    "at": [
@@ -3305,7 +4168,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_066_tyre_stack",
+   "name": "prop_109_tyre_stack",
    "proto": "garage_tyre_stack",
    "kind": "prop",
    "at": [
@@ -3315,27 +4178,27 @@
    ],
    "yaw": 0.3,
    "half": [
-    0.33,
-    0.51,
-    0.33
+    0.35,
+    0.52,
+    0.35
    ],
    "nav": true,
    "camera": true,
    "sector": "garage_shop"
   },
   {
-   "name": "prop_067_neon_wrench",
+   "name": "prop_110_neon_wrench",
    "proto": "garage_neon_wrench",
    "kind": "fixture",
    "at": [
     475.477,
     2.45,
-    -206.2
+    -207.0
    ],
    "yaw": -1.5708,
    "half": [
-    0.4,
-    0.4,
+    0.45,
+    0.45,
     0.04
    ],
    "nav": false,
@@ -3343,45 +4206,45 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_068_first_aid",
+   "name": "prop_111_first_aid",
    "proto": "garage_first_aid",
    "kind": "prop",
    "at": [
     475.477,
     0.0,
-    -207.6
+    -209.2
    ],
    "yaw": -1.5708,
    "half": [
     0.18,
-    0.8,
-    0.07
+    0.88,
+    0.13
    ],
    "nav": true,
    "camera": true,
    "sector": "garage_shop"
   },
   {
-   "name": "prop_069_shop_sign",
+   "name": "prop_112_shop_sign",
    "proto": "garage_shop_sign",
    "kind": "fixture",
    "at": [
     475.477,
-    4.35,
-    -206.2
+    4.55,
+    -215.5
    ],
    "yaw": -1.5708,
    "half": [
     1.75,
     0.5,
-    0.08
+    0.12
    ],
    "nav": false,
    "camera": true,
    "sector": "garage_shop"
   },
   {
-   "name": "prop_070_cable_tray",
+   "name": "prop_113_cable_tray",
    "proto": "garage_cable_tray",
    "kind": "fixture",
    "at": [
@@ -3400,7 +4263,7 @@
    "sector": "garage_apron"
   },
   {
-   "name": "prop_071_cable_tray",
+   "name": "prop_114_cable_tray",
    "proto": "garage_cable_tray",
    "kind": "fixture",
    "at": [
@@ -3419,7 +4282,7 @@
    "sector": "garage_apron"
   },
   {
-   "name": "prop_072_cable_tray",
+   "name": "prop_115_cable_tray",
    "proto": "garage_cable_tray",
    "kind": "fixture",
    "at": [
@@ -3438,7 +4301,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_073_cable_tray",
+   "name": "prop_116_cable_tray",
    "proto": "garage_cable_tray",
    "kind": "fixture",
    "at": [
@@ -3457,7 +4320,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_074_cable_tray",
+   "name": "prop_117_cable_tray",
    "proto": "garage_cable_tray",
    "kind": "fixture",
    "at": [
@@ -3476,7 +4339,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_075_cable_tray",
+   "name": "prop_118_cable_tray",
    "proto": "garage_cable_tray",
    "kind": "fixture",
    "at": [
@@ -3495,7 +4358,7 @@
    "sector": "garage_s4"
   },
   {
-   "name": "prop_076_cable_tray",
+   "name": "prop_119_cable_tray",
    "proto": "garage_cable_tray",
    "kind": "fixture",
    "at": [
@@ -3514,17 +4377,17 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_077_conduit",
+   "name": "prop_120_conduit",
    "proto": "garage_conduit",
    "kind": "fixture",
    "at": [
     475.477,
-    3.3,
+    6.0,
     -224.5
    ],
    "yaw": -1.5708,
    "half": [
-    1.5,
+    1.53,
     0.03,
     0.04
    ],
@@ -3533,17 +4396,17 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_078_conduit",
+   "name": "prop_121_conduit",
    "proto": "garage_conduit",
    "kind": "fixture",
    "at": [
     475.477,
-    3.3,
+    6.0,
     -221.5
    ],
    "yaw": -1.5708,
    "half": [
-    1.5,
+    1.53,
     0.03,
     0.04
    ],
@@ -3552,17 +4415,17 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_079_conduit",
+   "name": "prop_122_conduit",
    "proto": "garage_conduit",
    "kind": "fixture",
    "at": [
     475.477,
-    3.3,
+    6.0,
     -218.5
    ],
    "yaw": -1.5708,
    "half": [
-    1.5,
+    1.53,
     0.03,
     0.04
    ],
@@ -3571,17 +4434,17 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_080_conduit",
+   "name": "prop_123_conduit",
    "proto": "garage_conduit",
    "kind": "fixture",
    "at": [
     475.477,
-    3.3,
+    6.0,
     -215.5
    ],
    "yaw": -1.5708,
    "half": [
-    1.5,
+    1.53,
     0.03,
     0.04
    ],
@@ -3590,18 +4453,18 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_081_conduit_drop",
-   "proto": "garage_conduit_drop",
+   "name": "prop_124_conduit",
+   "proto": "garage_conduit",
    "kind": "fixture",
    "at": [
     475.477,
-    0.0,
-    -213.9
+    6.0,
+    -212.5
    ],
    "yaw": -1.5708,
    "half": [
-    0.06,
-    1.5,
+    1.53,
+    0.03,
     0.04
    ],
    "nav": false,
@@ -3609,26 +4472,7 @@
    "sector": "garage_shop"
   },
   {
-   "name": "prop_082_conduit_drop",
-   "proto": "garage_conduit_drop",
-   "kind": "fixture",
-   "at": [
-    475.477,
-    0.0,
-    -217.3
-   ],
-   "yaw": -1.5708,
-   "half": [
-    0.06,
-    1.5,
-    0.04
-   ],
-   "nav": false,
-   "camera": true,
-   "sector": "garage_shop"
-  },
-  {
-   "name": "prop_083_extinguisher",
+   "name": "prop_125_extinguisher",
    "proto": "garage_extinguisher",
    "kind": "prop",
    "at": [
@@ -3639,15 +4483,15 @@
    "yaw": 1.5708,
    "half": [
     0.12,
-    0.85,
-    0.12
+    0.94,
+    0.18
    ],
    "nav": true,
    "camera": true,
    "sector": "garage_apron"
   },
   {
-   "name": "prop_084_poster_wide",
+   "name": "prop_126_poster_wide",
    "proto": "garage_poster_wide",
    "kind": "prop",
    "at": [
@@ -3666,7 +4510,7 @@
    "sector": "garage_apron"
   },
   {
-   "name": "prop_085_poster_tall",
+   "name": "prop_127_poster_tall",
    "proto": "garage_poster_tall",
    "kind": "prop",
    "at": [
@@ -3685,26 +4529,26 @@
    "sector": "garage_apron"
   },
   {
-   "name": "prop_086_poster_lit",
+   "name": "prop_128_poster_lit",
    "proto": "garage_poster_lit",
    "kind": "prop",
    "at": [
-    475.477,
+    452.523,
     1.1,
-    -208.9
+    -226.4
    ],
-   "yaw": -1.5708,
+   "yaw": 1.5708,
    "half": [
-    0.5,
+    0.54,
     0.75,
-    0.05
+    0.11
    ],
    "nav": false,
    "camera": true,
-   "sector": "garage_shop"
+   "sector": "garage_apron"
   },
   {
-   "name": "prop_087_couch",
+   "name": "prop_129_couch",
    "proto": "garage_couch",
    "kind": "prop",
    "at": [
@@ -3715,7 +4559,7 @@
    "yaw": 1.5708,
    "half": [
     1.06,
-    0.45,
+    0.5,
     0.46
    ],
    "nav": false,
@@ -3723,7 +4567,7 @@
    "sector": "garage_mezzanine"
   },
   {
-   "name": "prop_088_side_table",
+   "name": "prop_130_side_table",
    "proto": "garage_side_table",
    "kind": "prop",
    "at": [
@@ -3742,7 +4586,7 @@
    "sector": "garage_mezzanine"
   },
   {
-   "name": "prop_089_fridge",
+   "name": "prop_131_fridge",
    "proto": "garage_fridge",
    "kind": "prop",
    "at": [
@@ -3754,14 +4598,14 @@
    "half": [
     0.3,
     0.73,
-    0.32
+    0.34
    ],
    "nav": false,
    "camera": true,
    "sector": "garage_mezzanine"
   },
   {
-   "name": "prop_090_coffee",
+   "name": "prop_132_coffee",
    "proto": "garage_coffee",
    "kind": "prop",
    "at": [
@@ -3773,14 +4617,14 @@
    "half": [
     0.42,
     0.75,
-    0.27
+    0.28
    ],
    "nav": false,
    "camera": true,
    "sector": "garage_mezzanine"
   },
   {
-   "name": "prop_091_neon_open",
+   "name": "prop_133_neon_open",
    "proto": "garage_neon_open",
    "kind": "fixture",
    "at": [
@@ -3791,7 +4635,7 @@
    "yaw": -1.5708,
    "half": [
     0.45,
-    0.25,
+    0.33,
     0.04
    ],
    "nav": false,
@@ -4039,28 +4883,28 @@
    "wide": {
     "position": [
      468.5,
-     2.2,
-     -214.5
+     2.6,
+     -215.0
     ],
     "target": [
      475.1,
-     2.2,
-     -215.0
+     2.55,
+     -215.2
     ],
     "fov": 58
    },
    "portrait": {
     "position": [
-     469.0,
-     2.5,
-     -220.5
+     468.5,
+     2.1,
+     -215.9
     ],
     "target": [
      475.1,
-     2.6,
-     -220.5
+     2.1,
+     -215.9
     ],
-    "fov": 64
+    "fov": 70
    },
    "anchor": "cam_garage_shop",
    "p": 1.0
@@ -4531,16 +5375,16 @@
      -222.8
     ],
     [
-     469.0,
-     2.5,
-     -214.5
+     468.6,
+     2.7,
+     -218.9
     ]
    ],
    "portrait": {
     "02": [
-     469.0,
-     2.5,
-     -219.0
+     468.6,
+     2.4,
+     -219.4
     ]
    },
    "gaze": [
@@ -4549,11 +5393,27 @@
      "at": "s6_bay"
     },
     {
-     "u": 0.5,
+     "u": 0.35,
      "at": [
-      473.5,
-      1.2,
-      -219.0
+      475.0,
+      1.3,
+      -220.4
+     ]
+    },
+    {
+     "u": 0.65,
+     "at": [
+      474.6,
+      2.7,
+      -218.2
+     ]
+    },
+    {
+     "u": 0.85,
+     "at": [
+      473.6,
+      1.3,
+      -216.9
      ]
     },
     {
@@ -4907,9 +5767,9 @@
    ],
    "yaw": 1.5708,
    "half": [
-    0.56,
-    1.12,
-    0.06
+    0.53,
+    1.24,
+    0.22
    ],
    "sector": "garage_mezzanine"
   },
@@ -4952,7 +5812,7 @@
    ],
    "yaw": 0.0,
    "half": [
-    1.22,
+    1.36,
     0.38,
     0.06
    ],
@@ -4967,7 +5827,7 @@
    ],
    "yaw": 0.0,
    "half": [
-    1.22,
+    1.36,
     0.38,
     0.06
    ],
@@ -4982,7 +5842,7 @@
    ],
    "yaw": 0.0,
    "half": [
-    1.22,
+    1.36,
     0.38,
     0.06
    ],
@@ -4997,7 +5857,7 @@
    ],
    "yaw": 0.0,
    "half": [
-    1.22,
+    1.36,
     0.38,
     0.06
    ],
@@ -5178,8 +6038,8 @@
    "yaw": -0.6651,
    "half": [
     0.42,
-    1.1,
-    0.42
+    1.14,
+    0.51
    ],
    "sector": "garage_s4"
   },
@@ -5193,8 +6053,8 @@
    "yaw": -2.4765,
    "half": [
     0.42,
-    1.1,
-    0.42
+    1.14,
+    0.51
    ],
    "sector": "garage_s6"
   },
@@ -5207,14 +6067,14 @@
    ],
    "yaw": 1.5708,
    "half": [
-    1.8,
-    1.88,
+    2.12,
+    1.92,
     0.3
    ],
    "sector": "garage_s4"
   },
   {
-   "proto": "garage_lift2_arms",
+   "proto": "garage_lift2_carriage",
    "at": [
     462.0,
     0.0,
@@ -5223,8 +6083,188 @@
    "yaw": 1.5708,
    "half": [
     1.6,
-    0.42,
-    1.12
+    0.4,
+    0.2
+   ],
+   "sector": "garage_s4"
+  },
+  {
+   "proto": "garage_lift2_arm",
+   "at": [
+    462.13,
+    0.0,
+    -213.74
+   ],
+   "yaw": 2.2119,
+   "half": [
+    0.08,
+    0.06,
+    0.66
+   ],
+   "sector": "garage_s4"
+  },
+  {
+   "proto": "garage_lift2_arm_ext",
+   "at": [
+    462.8,
+    0.0,
+    -214.24
+   ],
+   "yaw": 2.2119,
+   "half": [
+    0.06,
+    0.05,
+    0.66
+   ],
+   "sector": "garage_s4"
+  },
+  {
+   "proto": "garage_lift2_pad",
+   "at": [
+    462.8,
+    0.141,
+    -214.24
+   ],
+   "yaw": 1.5708,
+   "half": [
+    0.08,
+    0.06,
+    0.08
+   ],
+   "sector": "garage_s4"
+  },
+  {
+   "proto": "garage_lift2_arm",
+   "at": [
+    462.13,
+    0.0,
+    -216.26
+   ],
+   "yaw": 0.9297,
+   "half": [
+    0.08,
+    0.06,
+    0.66
+   ],
+   "sector": "garage_s4"
+  },
+  {
+   "proto": "garage_lift2_arm_ext",
+   "at": [
+    462.8,
+    0.0,
+    -215.76
+   ],
+   "yaw": 0.9297,
+   "half": [
+    0.06,
+    0.05,
+    0.66
+   ],
+   "sector": "garage_s4"
+  },
+  {
+   "proto": "garage_lift2_pad",
+   "at": [
+    462.8,
+    0.141,
+    -215.76
+   ],
+   "yaw": 1.5708,
+   "half": [
+    0.08,
+    0.06,
+    0.08
+   ],
+   "sector": "garage_s4"
+  },
+  {
+   "proto": "garage_lift2_arm",
+   "at": [
+    461.87,
+    0.0,
+    -213.74
+   ],
+   "yaw": 4.1054,
+   "half": [
+    0.08,
+    0.06,
+    0.66
+   ],
+   "sector": "garage_s4"
+  },
+  {
+   "proto": "garage_lift2_arm_ext",
+   "at": [
+    461.15,
+    0.0,
+    -214.24
+   ],
+   "yaw": 4.1054,
+   "half": [
+    0.06,
+    0.05,
+    0.66
+   ],
+   "sector": "garage_s4"
+  },
+  {
+   "proto": "garage_lift2_pad",
+   "at": [
+    461.15,
+    0.16,
+    -214.24
+   ],
+   "yaw": 1.5708,
+   "half": [
+    0.08,
+    0.06,
+    0.08
+   ],
+   "sector": "garage_s4"
+  },
+  {
+   "proto": "garage_lift2_arm",
+   "at": [
+    461.87,
+    0.0,
+    -216.26
+   ],
+   "yaw": -0.9638,
+   "half": [
+    0.08,
+    0.06,
+    0.66
+   ],
+   "sector": "garage_s4"
+  },
+  {
+   "proto": "garage_lift2_arm_ext",
+   "at": [
+    461.15,
+    0.0,
+    -215.76
+   ],
+   "yaw": -0.9638,
+   "half": [
+    0.06,
+    0.05,
+    0.66
+   ],
+   "sector": "garage_s4"
+  },
+  {
+   "proto": "garage_lift2_pad",
+   "at": [
+    461.15,
+    0.16,
+    -215.76
+   ],
+   "yaw": 1.5708,
+   "half": [
+    0.08,
+    0.06,
+    0.08
    ],
    "sector": "garage_s4"
   },
@@ -5237,9 +6277,9 @@
    ],
    "yaw": 1.9478,
    "half": [
-    0.2,
-    0.15,
-    0.62
+    0.21,
+    0.47,
+    1.08
    ],
    "sector": "garage_s4"
   },
@@ -5298,8 +6338,8 @@
    "yaw": 0.4,
    "half": [
     0.3,
-    0.8,
-    0.32
+    0.81,
+    0.51
    ],
    "sector": "garage_s4"
   },
@@ -5307,14 +6347,14 @@
    "proto": "garage_stain_a",
    "at": [
     463.4,
-    0.0,
+    0.003,
     -215.1
    ],
    "yaw": 0.3,
    "half": [
-    0.6,
+    0.71,
     0.01,
-    0.6
+    1.01
    ],
    "sector": "garage_s4"
   },
@@ -5322,14 +6362,14 @@
    "proto": "garage_stain_b",
    "at": [
     466.1,
-    0.0,
+    0.003,
     -217.0
    ],
    "yaw": 1.2,
    "half": [
-    0.35,
+    0.45,
     0.01,
-    0.35
+    0.47
    ],
    "sector": "garage_s4"
   },
@@ -5337,7 +6377,7 @@
    "proto": "garage_bay_lines",
    "at": [
     462.0,
-    0.0,
+    0.003,
     -215.0
    ],
    "yaw": 1.5708,
@@ -5352,7 +6392,7 @@
    "proto": "garage_drip_tray",
    "at": [
     464.9,
-    0.0,
+    0.004,
     -214.1
    ],
    "yaw": 1.6708,
@@ -5367,14 +6407,14 @@
    "proto": "garage_tyre_marks",
    "at": [
     456.2,
-    0.0,
+    0.003,
     -215.0
    ],
    "yaw": 1.5708,
    "half": [
     1.6,
     0.01,
-    1.2
+    1.94
    ],
    "sector": "garage_apron"
   },
@@ -5382,7 +6422,7 @@
    "proto": "garage_bay_01",
    "at": [
     457.3,
-    0.0,
+    0.003,
     -215.0
    ],
    "yaw": -1.5708,
@@ -5397,7 +6437,7 @@
    "proto": "garage_bay_02",
    "at": [
     457.3,
-    0.0,
+    0.003,
     -222.0
    ],
    "yaw": -1.5708,
@@ -5412,7 +6452,7 @@
    "proto": "garage_bay_lines",
    "at": [
     462.0,
-    0.0,
+    0.003,
     -222.0
    ],
    "yaw": 1.5708,
@@ -5427,12 +6467,12 @@
    "proto": "garage_service_pad",
    "at": [
     462.0,
-    0.0,
+    -0.004,
     -222.0
    ],
    "yaw": 1.5708,
    "half": [
-    1.1,
+    1.13,
     0.01,
     1.05
    ],
@@ -5479,7 +6519,7 @@
    "half": [
     0.4,
     0.55,
-    0.25
+    1.31
    ],
    "sector": "garage_s6"
   },
@@ -5487,7 +6527,7 @@
    "proto": "garage_stain_c",
    "at": [
     464.6,
-    0.0,
+    0.003,
     -222.3
    ],
    "yaw": 0.1,
@@ -5502,7 +6542,7 @@
    "proto": "garage_floor_drain",
    "at": [
     469.6,
-    0.0,
+    -0.001,
     -218.5
    ],
    "yaw": 0.0,
@@ -5517,7 +6557,7 @@
    "proto": "garage_trench_drain",
    "at": [
     454.65,
-    0.0,
+    -0.001,
     -215.0
    ],
    "yaw": 1.5708,
@@ -5537,8 +6577,8 @@
    ],
    "yaw": -1.5708,
    "half": [
-    3.6,
-    0.3,
+    3.82,
+    2.6,
     0.46
    ],
    "sector": "garage_apron"
@@ -5552,9 +6592,9 @@
    ],
    "yaw": -1.5708,
    "half": [
-    3.12,
-    0.3,
-    0.06
+    3.4,
+    2.74,
+    5.72
    ],
    "sector": "garage_apron"
   },
@@ -5567,9 +6607,9 @@
    ],
    "yaw": -1.5708,
    "half": [
-    3.0,
-    2.3,
-    0.03
+    3.09,
+    2.5,
+    0.654
    ],
    "sector": "garage_apron"
   },
@@ -5582,7 +6622,7 @@
    ],
    "yaw": 3.1416,
    "half": [
-    0.56,
+    0.58,
     0.5,
     0.25
    ],
@@ -5597,8 +6637,8 @@
    ],
    "yaw": 3.1416,
    "half": [
-    0.56,
-    0.27,
+    0.58,
+    0.28,
     0.24
    ],
    "sector": "garage_s4"
@@ -5612,7 +6652,7 @@
    ],
    "yaw": 3.1416,
    "half": [
-    0.56,
+    0.58,
     0.5,
     0.25
    ],
@@ -5627,7 +6667,7 @@
    ],
    "yaw": 3.1416,
    "half": [
-    0.56,
+    0.58,
     0.5,
     0.25
    ],
@@ -5642,8 +6682,8 @@
    ],
    "yaw": 3.1416,
    "half": [
-    0.56,
-    0.27,
+    0.58,
+    0.28,
     0.24
    ],
    "sector": "garage_s4"
@@ -5657,7 +6697,7 @@
    ],
    "yaw": 3.1416,
    "half": [
-    0.56,
+    0.58,
     0.5,
     0.25
    ],
@@ -5673,8 +6713,8 @@
    "yaw": 3.3916,
    "half": [
     0.4,
-    0.5,
-    0.25
+    0.53,
+    0.28
    ],
    "sector": "garage_s4"
   },
@@ -5687,7 +6727,7 @@
    ],
    "yaw": 2.9416,
    "half": [
-    0.32,
+    0.38,
     0.65,
     0.45
    ],
@@ -5704,7 +6744,7 @@
    "half": [
     0.2,
     1.2,
-    0.25
+    0.43
    ],
    "sector": "garage_s4"
   },
@@ -5717,9 +6757,9 @@
    ],
    "yaw": 3.6416,
    "half": [
-    0.35,
-    0.98,
-    0.32
+    0.51,
+    0.99,
+    0.51
    ],
    "sector": "garage_shop"
   },
@@ -5733,8 +6773,8 @@
    "yaw": 3.1416,
    "half": [
     0.12,
-    0.85,
-    0.12
+    0.94,
+    0.18
    ],
    "sector": "garage_shop"
   },
@@ -5747,7 +6787,7 @@
    ],
    "yaw": -1.5708,
    "half": [
-    0.864,
+    0.883,
     1.0,
     0.294
    ],
@@ -5762,9 +6802,39 @@
    ],
    "yaw": -1.5708,
    "half": [
-    0.864,
+    0.883,
     1.0,
     0.294
+   ],
+   "sector": "garage_shop"
+  },
+  {
+   "proto": "garage_bench",
+   "at": [
+    475.1,
+    0.0,
+    -217.9
+   ],
+   "yaw": -1.5708,
+   "half": [
+    1.2,
+    0.56,
+    0.5
+   ],
+   "sector": "garage_shop"
+  },
+  {
+   "proto": "garage_pegboard",
+   "at": [
+    475.477,
+    0.0,
+    -217.9
+   ],
+   "yaw": -1.5708,
+   "half": [
+    1.25,
+    1.15,
+    0.14
    ],
    "sector": "garage_shop"
   },
@@ -5778,8 +6848,8 @@
    "yaw": -1.5708,
    "half": [
     1.2,
-    0.46,
-    0.38
+    0.56,
+    0.5
    ],
    "sector": "garage_shop"
   },
@@ -5794,7 +6864,37 @@
    "half": [
     1.25,
     1.15,
-    0.06
+    0.14
+   ],
+   "sector": "garage_shop"
+  },
+  {
+   "proto": "garage_bench",
+   "at": [
+    475.1,
+    0.0,
+    -213.1
+   ],
+   "yaw": -1.5708,
+   "half": [
+    1.2,
+    0.56,
+    0.5
+   ],
+   "sector": "garage_shop"
+  },
+  {
+   "proto": "garage_pegboard",
+   "at": [
+    475.477,
+    0.0,
+    -213.1
+   ],
+   "yaw": -1.5708,
+   "half": [
+    1.25,
+    1.15,
+    0.14
    ],
    "sector": "garage_shop"
   },
@@ -5803,7 +6903,7 @@
    "at": [
     475.1,
     0.0,
-    -212.75
+    -208.45
    ],
    "yaw": -1.5708,
    "half": [
@@ -5818,13 +6918,13 @@
    "at": [
     475.1,
     0.88,
-    -212.75
+    -208.45
    ],
    "yaw": -1.5708,
    "half": [
     0.46,
     0.45,
-    0.3
+    0.34
    ],
    "sector": "garage_shop"
   },
@@ -5833,12 +6933,12 @@
    "at": [
     473.4,
     0.0,
-    -206.6
+    -206.0
    ],
    "yaw": -1.5708,
    "half": [
     0.76,
-    0.5,
+    0.56,
     0.38
    ],
    "sector": "garage_shop"
@@ -5847,14 +6947,14 @@
    "proto": "garage_monitor",
    "at": [
     475.477,
-    3.9,
+    2.55,
     -215.5
    ],
    "yaw": -1.5708,
    "half": [
-    0.76,
-    0.48,
-    0.07
+    1.292,
+    0.833,
+    0.119
    ],
    "sector": "garage_shop"
   },
@@ -5863,11 +6963,11 @@
    "at": [
     475.23,
     0.0,
-    -221.06
+    -219.7
    ],
    "yaw": -1.5708,
    "half": [
-    0.56,
+    0.58,
     0.5,
     0.25
    ],
@@ -5878,12 +6978,12 @@
    "at": [
     475.23,
     0.99,
-    -221.06
+    -219.7
    ],
    "yaw": -1.5708,
    "half": [
-    0.56,
-    0.27,
+    0.58,
+    0.28,
     0.24
    ],
    "sector": "garage_shop"
@@ -5893,11 +6993,11 @@
    "at": [
     475.23,
     0.0,
-    -219.94
+    -220.82
    ],
    "yaw": -1.5708,
    "half": [
-    0.56,
+    0.58,
     0.5,
     0.25
    ],
@@ -5908,12 +7008,72 @@
    "at": [
     475.23,
     0.99,
-    -219.94
+    -220.82
    ],
    "yaw": -1.5708,
    "half": [
-    0.56,
-    0.27,
+    0.58,
+    0.28,
+    0.24
+   ],
+   "sector": "garage_shop"
+  },
+  {
+   "proto": "garage_tool_cab",
+   "at": [
+    475.23,
+    0.0,
+    -211.3
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.58,
+    0.5,
+    0.25
+   ],
+   "sector": "garage_shop"
+  },
+  {
+   "proto": "garage_tool_top",
+   "at": [
+    475.23,
+    0.99,
+    -211.3
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.58,
+    0.28,
+    0.24
+   ],
+   "sector": "garage_shop"
+  },
+  {
+   "proto": "garage_tool_cab",
+   "at": [
+    475.23,
+    0.0,
+    -210.18
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.58,
+    0.5,
+    0.25
+   ],
+   "sector": "garage_shop"
+  },
+  {
+   "proto": "garage_tool_top",
+   "at": [
+    475.23,
+    0.99,
+    -210.18
+   ],
+   "yaw": -1.5708,
+   "half": [
+    0.58,
+    0.28,
     0.24
    ],
    "sector": "garage_shop"
@@ -5927,9 +7087,9 @@
    ],
    "yaw": -1.5708,
    "half": [
-    0.45,
-    0.7,
-    0.4
+    0.92,
+    0.76,
+    0.41
    ],
    "sector": "garage_shop"
   },
@@ -5942,9 +7102,9 @@
    ],
    "yaw": -1.3708,
    "half": [
-    0.45,
-    0.95,
-    0.5
+    0.81,
+    0.98,
+    0.61
    ],
    "sector": "garage_shop"
   },
@@ -6152,9 +7312,9 @@
    ],
    "yaw": 0.3,
    "half": [
-    0.33,
-    0.51,
-    0.33
+    0.35,
+    0.52,
+    0.35
    ],
    "sector": "garage_shop"
   },
@@ -6163,12 +7323,12 @@
    "at": [
     475.477,
     2.45,
-    -206.2
+    -207.0
    ],
    "yaw": -1.5708,
    "half": [
-    0.4,
-    0.4,
+    0.45,
+    0.45,
     0.04
    ],
    "sector": "garage_shop"
@@ -6178,13 +7338,13 @@
    "at": [
     475.477,
     0.0,
-    -207.6
+    -209.2
    ],
    "yaw": -1.5708,
    "half": [
     0.18,
-    0.8,
-    0.07
+    0.88,
+    0.13
    ],
    "sector": "garage_shop"
   },
@@ -6192,14 +7352,14 @@
    "proto": "garage_shop_sign",
    "at": [
     475.477,
-    4.35,
-    -206.2
+    4.55,
+    -215.5
    ],
    "yaw": -1.5708,
    "half": [
     1.75,
     0.5,
-    0.08
+    0.12
    ],
    "sector": "garage_shop"
   },
@@ -6312,12 +7472,12 @@
    "proto": "garage_conduit",
    "at": [
     475.477,
-    3.3,
+    6.0,
     -224.5
    ],
    "yaw": -1.5708,
    "half": [
-    1.5,
+    1.53,
     0.03,
     0.04
    ],
@@ -6327,12 +7487,12 @@
    "proto": "garage_conduit",
    "at": [
     475.477,
-    3.3,
+    6.0,
     -221.5
    ],
    "yaw": -1.5708,
    "half": [
-    1.5,
+    1.53,
     0.03,
     0.04
    ],
@@ -6342,12 +7502,12 @@
    "proto": "garage_conduit",
    "at": [
     475.477,
-    3.3,
+    6.0,
     -218.5
    ],
    "yaw": -1.5708,
    "half": [
-    1.5,
+    1.53,
     0.03,
     0.04
    ],
@@ -6357,43 +7517,28 @@
    "proto": "garage_conduit",
    "at": [
     475.477,
-    3.3,
+    6.0,
     -215.5
    ],
    "yaw": -1.5708,
    "half": [
-    1.5,
+    1.53,
     0.03,
     0.04
    ],
    "sector": "garage_shop"
   },
   {
-   "proto": "garage_conduit_drop",
+   "proto": "garage_conduit",
    "at": [
     475.477,
-    0.0,
-    -213.9
+    6.0,
+    -212.5
    ],
    "yaw": -1.5708,
    "half": [
-    0.06,
-    1.5,
-    0.04
-   ],
-   "sector": "garage_shop"
-  },
-  {
-   "proto": "garage_conduit_drop",
-   "at": [
-    475.477,
-    0.0,
-    -217.3
-   ],
-   "yaw": -1.5708,
-   "half": [
-    0.06,
-    1.5,
+    1.53,
+    0.03,
     0.04
    ],
    "sector": "garage_shop"
@@ -6408,8 +7553,8 @@
    "yaw": 1.5708,
    "half": [
     0.12,
-    0.85,
-    0.12
+    0.94,
+    0.18
    ],
    "sector": "garage_apron"
   },
@@ -6446,17 +7591,17 @@
   {
    "proto": "garage_poster_lit",
    "at": [
-    475.477,
+    452.523,
     1.1,
-    -208.9
+    -226.4
    ],
-   "yaw": -1.5708,
+   "yaw": 1.5708,
    "half": [
-    0.5,
+    0.54,
     0.75,
-    0.05
+    0.11
    ],
-   "sector": "garage_shop"
+   "sector": "garage_apron"
   },
   {
    "proto": "garage_couch",
@@ -6468,7 +7613,7 @@
    "yaw": 1.5708,
    "half": [
     1.06,
-    0.45,
+    0.5,
     0.46
    ],
    "sector": "garage_mezzanine"
@@ -6499,7 +7644,7 @@
    "half": [
     0.3,
     0.73,
-    0.32
+    0.34
    ],
    "sector": "garage_mezzanine"
   },
@@ -6514,7 +7659,7 @@
    "half": [
     0.42,
     0.75,
-    0.27
+    0.28
    ],
    "sector": "garage_mezzanine"
   },
@@ -6528,7 +7673,7 @@
    "yaw": -1.5708,
    "half": [
     0.45,
-    0.25,
+    0.33,
     0.04
    ],
    "sector": "garage_mezzanine"
@@ -6549,22 +7694,52 @@
    {
     "name": "garage_lift2",
     "box": [
-     1.8,
-     1.88,
+     2.12,
+     1.92,
      0.3
     ],
     "detail": false,
     "reach": null
    },
    {
-    "name": "garage_lift2_arms",
+    "name": "garage_lift2_carriage",
     "box": [
      1.6,
-     0.42,
-     1.12
+     0.4,
+     0.2
     ],
     "detail": false,
     "reach": null
+   },
+   {
+    "name": "garage_lift2_arm",
+    "box": [
+     0.08,
+     0.06,
+     0.66
+    ],
+    "detail": false,
+    "reach": 260
+   },
+   {
+    "name": "garage_lift2_arm_ext",
+    "box": [
+     0.06,
+     0.05,
+     0.66
+    ],
+    "detail": false,
+    "reach": 260
+   },
+   {
+    "name": "garage_lift2_pad",
+    "box": [
+     0.08,
+     0.06,
+     0.08
+    ],
+    "detail": false,
+    "reach": 200
    },
    {
     "name": "garage_jack_stand",
@@ -6579,9 +7754,9 @@
    {
     "name": "garage_floor_jack",
     "box": [
-     0.2,
-     0.15,
-     0.62
+     0.21,
+     0.47,
+     1.08
     ],
     "detail": false,
     "reach": 200
@@ -6609,9 +7784,9 @@
    {
     "name": "garage_door_w_frame",
     "box": [
-     3.12,
-     0.3,
-     0.06
+     3.4,
+     2.7399999999999998,
+     5.72
     ],
     "detail": false,
     "reach": null
@@ -6619,9 +7794,9 @@
    {
     "name": "garage_door_w_closed",
     "box": [
-     3.0,
-     2.3,
-     0.03
+     3.09,
+     2.4999999999999996,
+     0.6537904335386753
     ],
     "detail": false,
     "reach": null
@@ -6629,9 +7804,9 @@
    {
     "name": "garage_man_door",
     "box": [
-     0.56,
-     1.12,
-     0.06
+     0.53,
+     1.24,
+     0.22
     ],
     "detail": false,
     "reach": null
@@ -6639,8 +7814,8 @@
    {
     "name": "garage_shutter_w",
     "box": [
-     3.6,
-     0.3,
+     3.82,
+     2.6,
      0.46
     ],
     "detail": false,
@@ -6649,7 +7824,7 @@
    {
     "name": "garage_service_pad",
     "box": [
-     1.1,
+     1.13,
      0.01,
      1.05
     ],
@@ -6669,7 +7844,7 @@
    {
     "name": "garage_tool_cab",
     "box": [
-     0.56,
+     0.58,
      0.5,
      0.25
     ],
@@ -6679,8 +7854,8 @@
    {
     "name": "garage_tool_top",
     "box": [
-     0.56,
-     0.27,
+     0.58,
+     0.28,
      0.24
     ],
     "detail": false,
@@ -6690,8 +7865,8 @@
     "name": "garage_tool_cart",
     "box": [
      0.4,
-     0.5,
-     0.25
+     0.53,
+     0.28
     ],
     "detail": false,
     "reach": 260
@@ -6700,8 +7875,8 @@
     "name": "garage_bench",
     "box": [
      1.2,
-     0.46,
-     0.38
+     0.56,
+     0.5
     ],
     "detail": false,
     "reach": null
@@ -6711,7 +7886,7 @@
     "box": [
      1.25,
      1.15,
-     0.06
+     0.14
     ],
     "detail": false,
     "reach": 200
@@ -6739,9 +7914,9 @@
    {
     "name": "garage_tyre_stack",
     "box": [
-     0.33,
-     0.51,
-     0.33
+     0.35,
+     0.52,
+     0.35
     ],
     "detail": false,
     "reach": 220
@@ -6759,9 +7934,9 @@
    {
     "name": "garage_tyre_changer",
     "box": [
-     0.45,
-     0.95,
-     0.5
+     0.81,
+     0.98,
+     0.61
     ],
     "detail": false,
     "reach": null
@@ -6769,9 +7944,9 @@
    {
     "name": "garage_balancer",
     "box": [
-     0.45,
-     0.7,
-     0.4
+     0.92,
+     0.76,
+     0.41
     ],
     "detail": false,
     "reach": null
@@ -6779,9 +7954,9 @@
    {
     "name": "garage_compressor",
     "box": [
-     0.35,
-     0.98,
-     0.32
+     0.51,
+     0.99,
+     0.51
     ],
     "detail": false,
     "reach": null
@@ -6791,7 +7966,7 @@
     "box": [
      0.2,
      1.2,
-     0.25
+     0.43
     ],
     "detail": false,
     "reach": 220
@@ -6800,8 +7975,8 @@
     "name": "garage_oil_drain",
     "box": [
      0.3,
-     0.8,
-     0.32
+     0.81,
+     0.51
     ],
     "detail": false,
     "reach": 220
@@ -6811,7 +7986,7 @@
     "box": [
      0.46,
      0.45,
-     0.3
+     0.34
     ],
     "detail": false,
     "reach": 220
@@ -6819,8 +7994,8 @@
    {
     "name": "garage_shelving",
     "box": [
-     0.91,
-     1.0,
+     0.93,
+     1,
      0.31
     ],
     "detail": false,
@@ -6839,18 +8014,8 @@
    {
     "name": "garage_conduit",
     "box": [
-     1.5,
+     1.53,
      0.03,
-     0.04
-    ],
-    "detail": true,
-    "reach": 200
-   },
-   {
-    "name": "garage_conduit_drop",
-    "box": [
-     0.06,
-     1.5,
      0.04
     ],
     "detail": true,
@@ -6859,7 +8024,7 @@
    {
     "name": "garage_led_batten",
     "box": [
-     1.22,
+     1.36,
      0.38,
      0.06
     ],
@@ -6881,7 +8046,7 @@
     "box": [
      0.4,
      0.55,
-     0.25
+     1.31
     ],
     "detail": false,
     "reach": null
@@ -6890,7 +8055,7 @@
     "name": "garage_parts_table",
     "box": [
      0.76,
-     0.5,
+     0.56,
      0.38
     ],
     "detail": false,
@@ -6910,8 +8075,8 @@
     "name": "garage_work_light",
     "box": [
      0.42,
-     1.1,
-     0.42
+     1.14,
+     0.51
     ],
     "detail": false,
     "reach": 300
@@ -6919,7 +8084,7 @@
    {
     "name": "garage_welder",
     "box": [
-     0.32,
+     0.38,
      0.65,
      0.45
     ],
@@ -6940,7 +8105,7 @@
     "name": "garage_couch",
     "box": [
      1.06,
-     0.45,
+     0.5,
      0.46
     ],
     "detail": false,
@@ -6951,7 +8116,7 @@
     "box": [
      0.3,
      0.73,
-     0.32
+     0.34
     ],
     "detail": false,
     "reach": null
@@ -6971,7 +8136,7 @@
     "box": [
      0.42,
      0.75,
-     0.27
+     0.28
     ],
     "detail": false,
     "reach": 260
@@ -6980,8 +8145,8 @@
     "name": "garage_extinguisher",
     "box": [
      0.12,
-     0.85,
-     0.12
+     0.94,
+     0.18
     ],
     "detail": true,
     "reach": 200
@@ -6990,8 +8155,8 @@
     "name": "garage_first_aid",
     "box": [
      0.18,
-     0.8,
-     0.07
+     0.88,
+     0.13
     ],
     "detail": true,
     "reach": 200
@@ -7019,9 +8184,9 @@
    {
     "name": "garage_stain_a",
     "box": [
-     0.6,
+     0.71,
      0.01,
-     0.6
+     1.01
     ],
     "detail": true,
     "reach": 160
@@ -7029,9 +8194,9 @@
    {
     "name": "garage_stain_b",
     "box": [
-     0.35,
+     0.45,
      0.01,
-     0.35
+     0.47
     ],
     "detail": true,
     "reach": 140
@@ -7051,7 +8216,7 @@
     "box": [
      1.6,
      0.01,
-     1.2
+     1.94
     ],
     "detail": true,
     "reach": 160
@@ -7081,7 +8246,7 @@
     "box": [
      1.75,
      0.5,
-     0.08
+     0.12
     ],
     "detail": false,
     "reach": 900
@@ -7090,7 +8255,7 @@
     "name": "garage_neon_open",
     "box": [
      0.45,
-     0.25,
+     0.33,
      0.04
     ],
     "detail": false,
@@ -7099,8 +8264,8 @@
    {
     "name": "garage_neon_wrench",
     "box": [
-     0.4,
-     0.4,
+     0.45,
+     0.45,
      0.04
     ],
     "detail": false,
@@ -7129,9 +8294,9 @@
    {
     "name": "garage_poster_lit",
     "box": [
-     0.5,
+     0.54,
      0.75,
-     0.05
+     0.11
     ],
     "detail": false,
     "reach": 400
@@ -7140,7 +8305,7 @@
     "name": "garage_monitor",
     "box": [
      0.76,
-     0.48,
+     0.49,
      0.07
     ],
     "detail": false,
@@ -7159,19 +8324,29 @@
    {
     "name": "garage_lift2__near",
     "box": [
-     1.8,
-     1.88,
+     2.12,
+     1.92,
      0.3
     ],
     "detail": true,
     "reach": 42.0
    },
    {
-    "name": "garage_lift2_arms__near",
+    "name": "garage_lift2_arm__near",
     "box": [
-     1.6,
-     0.42,
-     1.12
+     0.08,
+     0.06,
+     0.66
+    ],
+    "detail": true,
+    "reach": 42.0
+   },
+   {
+    "name": "garage_lift2_pad__near",
+    "box": [
+     0.08,
+     0.06,
+     0.08
     ],
     "detail": true,
     "reach": 42.0
@@ -7179,9 +8354,9 @@
    {
     "name": "garage_floor_jack__near",
     "box": [
-     0.2,
-     0.15,
-     0.62
+     0.21,
+     0.47,
+     1.08
     ],
     "detail": true,
     "reach": 42.0
@@ -7199,9 +8374,9 @@
    {
     "name": "garage_door_w_frame__near",
     "box": [
-     3.12,
-     0.3,
-     0.06
+     3.4,
+     2.7399999999999998,
+     5.72
     ],
     "detail": true,
     "reach": 42.0
@@ -7209,9 +8384,9 @@
    {
     "name": "garage_door_w_closed__near",
     "box": [
-     3.0,
-     2.3,
-     0.03
+     3.09,
+     2.4999999999999996,
+     0.6537904335386753
     ],
     "detail": true,
     "reach": 42.0
@@ -7219,9 +8394,9 @@
    {
     "name": "garage_man_door__near",
     "box": [
-     0.56,
-     1.12,
-     0.06
+     0.53,
+     1.24,
+     0.22
     ],
     "detail": true,
     "reach": 42.0
@@ -7229,8 +8404,8 @@
    {
     "name": "garage_shutter_w__near",
     "box": [
-     3.6,
-     0.3,
+     3.82,
+     2.6,
      0.46
     ],
     "detail": true,
@@ -7239,7 +8414,7 @@
    {
     "name": "garage_service_pad__near",
     "box": [
-     1.1,
+     1.13,
      0.01,
      1.05
     ],
@@ -7249,7 +8424,7 @@
    {
     "name": "garage_tool_cab__near",
     "box": [
-     0.56,
+     0.58,
      0.5,
      0.25
     ],
@@ -7259,8 +8434,8 @@
    {
     "name": "garage_tool_top__near",
     "box": [
-     0.56,
-     0.27,
+     0.58,
+     0.28,
      0.24
     ],
     "detail": true,
@@ -7270,8 +8445,8 @@
     "name": "garage_tool_cart__near",
     "box": [
      0.4,
-     0.5,
-     0.25
+     0.53,
+     0.28
     ],
     "detail": true,
     "reach": 42.0
@@ -7280,8 +8455,8 @@
     "name": "garage_bench__near",
     "box": [
      1.2,
-     0.46,
-     0.38
+     0.56,
+     0.5
     ],
     "detail": true,
     "reach": 42.0
@@ -7291,7 +8466,7 @@
     "box": [
      1.25,
      1.15,
-     0.06
+     0.14
     ],
     "detail": true,
     "reach": 42.0
@@ -7319,9 +8494,9 @@
    {
     "name": "garage_tyre_changer__near",
     "box": [
-     0.45,
-     0.95,
-     0.5
+     0.81,
+     0.98,
+     0.61
     ],
     "detail": true,
     "reach": 42.0
@@ -7329,9 +8504,9 @@
    {
     "name": "garage_balancer__near",
     "box": [
-     0.45,
-     0.7,
-     0.4
+     0.92,
+     0.76,
+     0.41
     ],
     "detail": true,
     "reach": 42.0
@@ -7339,9 +8514,9 @@
    {
     "name": "garage_compressor__near",
     "box": [
-     0.35,
-     0.98,
-     0.32
+     0.51,
+     0.99,
+     0.51
     ],
     "detail": true,
     "reach": 42.0
@@ -7350,8 +8525,8 @@
     "name": "garage_oil_drain__near",
     "box": [
      0.3,
-     0.8,
-     0.32
+     0.81,
+     0.51
     ],
     "detail": true,
     "reach": 42.0
@@ -7361,7 +8536,7 @@
     "box": [
      0.46,
      0.45,
-     0.3
+     0.34
     ],
     "detail": true,
     "reach": 42.0
@@ -7369,8 +8544,8 @@
    {
     "name": "garage_shelving__near",
     "box": [
-     0.91,
-     1.0,
+     0.93,
+     1,
      0.31
     ],
     "detail": true,
@@ -7389,18 +8564,8 @@
    {
     "name": "garage_conduit__near",
     "box": [
-     1.5,
+     1.53,
      0.03,
-     0.04
-    ],
-    "detail": true,
-    "reach": 42.0
-   },
-   {
-    "name": "garage_conduit_drop__near",
-    "box": [
-     0.06,
-     1.5,
      0.04
     ],
     "detail": true,
@@ -7409,7 +8574,7 @@
    {
     "name": "garage_led_batten__near",
     "box": [
-     1.22,
+     1.36,
      0.38,
      0.06
     ],
@@ -7431,7 +8596,7 @@
     "box": [
      0.4,
      0.55,
-     0.25
+     1.31
     ],
     "detail": true,
     "reach": 42.0
@@ -7440,7 +8605,7 @@
     "name": "garage_parts_table__near",
     "box": [
      0.76,
-     0.5,
+     0.56,
      0.38
     ],
     "detail": true,
@@ -7460,8 +8625,8 @@
     "name": "garage_work_light__near",
     "box": [
      0.42,
-     1.1,
-     0.42
+     1.14,
+     0.51
     ],
     "detail": true,
     "reach": 42.0
@@ -7469,7 +8634,7 @@
    {
     "name": "garage_welder__near",
     "box": [
-     0.32,
+     0.38,
      0.65,
      0.45
     ],
@@ -7480,7 +8645,7 @@
     "name": "garage_couch__near",
     "box": [
      1.06,
-     0.45,
+     0.5,
      0.46
     ],
     "detail": true,
@@ -7491,7 +8656,7 @@
     "box": [
      0.3,
      0.73,
-     0.32
+     0.34
     ],
     "detail": true,
     "reach": 42.0
@@ -7511,7 +8676,7 @@
     "box": [
      0.42,
      0.75,
-     0.27
+     0.28
     ],
     "detail": true,
     "reach": 42.0
@@ -7520,8 +8685,8 @@
     "name": "garage_extinguisher__near",
     "box": [
      0.12,
-     0.85,
-     0.12
+     0.94,
+     0.18
     ],
     "detail": true,
     "reach": 42.0
@@ -7549,9 +8714,9 @@
    {
     "name": "garage_stain_a__near",
     "box": [
-     0.6,
+     0.71,
      0.01,
-     0.6
+     1.01
     ],
     "detail": true,
     "reach": 42.0
@@ -7559,9 +8724,9 @@
    {
     "name": "garage_stain_b__near",
     "box": [
-     0.35,
+     0.45,
      0.01,
-     0.35
+     0.47
     ],
     "detail": true,
     "reach": 42.0
@@ -7571,7 +8736,7 @@
     "box": [
      1.75,
      0.5,
-     0.08
+     0.12
     ],
     "detail": true,
     "reach": 42.0
@@ -7580,7 +8745,7 @@
     "name": "garage_neon_open__near",
     "box": [
      0.45,
-     0.25,
+     0.33,
      0.04
     ],
     "detail": true,
@@ -7609,9 +8774,9 @@
    {
     "name": "garage_poster_lit__near",
     "box": [
-     0.5,
+     0.54,
      0.75,
-     0.05
+     0.11
     ],
     "detail": true,
     "reach": 42.0
@@ -7620,7 +8785,7 @@
     "name": "garage_monitor__near",
     "box": [
      0.76,
-     0.48,
+     0.49,
      0.07
     ],
     "detail": true,
@@ -7636,7 +8801,7 @@
   ],
   "instances": [
    [
-    9,
+    12,
     458.01,
     0.0,
     -204.53,
@@ -7646,7 +8811,7 @@
     4
    ],
    [
-    36,
+    38,
     463.0,
     5.45,
     -215.0,
@@ -7656,7 +8821,7 @@
     1
    ],
    [
-    36,
+    38,
     463.0,
     5.45,
     -222.0,
@@ -7666,7 +8831,7 @@
     2
    ],
    [
-    32,
+    34,
     461.2,
     5.55,
     -212.0,
@@ -7676,7 +8841,7 @@
     1
    ],
    [
-    32,
+    34,
     463.6,
     5.55,
     -212.0,
@@ -7686,7 +8851,7 @@
     1
    ],
    [
-    32,
+    34,
     461.2,
     5.55,
     -225.0,
@@ -7696,7 +8861,7 @@
     2
    ],
    [
-    32,
+    34,
     463.6,
     5.55,
     -225.0,
@@ -7706,7 +8871,7 @@
     2
    ],
    [
-    33,
+    35,
     455.6,
     5.8,
     -225.0,
@@ -7716,7 +8881,7 @@
     0
    ],
    [
-    33,
+    35,
     455.6,
     5.8,
     -212.0,
@@ -7726,7 +8891,7 @@
     0
    ],
    [
-    33,
+    35,
     469.6,
     5.8,
     -222.0,
@@ -7736,7 +8901,7 @@
     2
    ],
    [
-    33,
+    35,
     469.6,
     5.8,
     -215.0,
@@ -7746,7 +8911,7 @@
     1
    ],
    [
-    33,
+    35,
     473.4,
     5.8,
     -222.0,
@@ -7756,7 +8921,7 @@
     3
    ],
    [
-    33,
+    35,
     473.4,
     5.8,
     -218.5,
@@ -7766,7 +8931,7 @@
     3
    ],
    [
-    33,
+    35,
     473.4,
     5.8,
     -215.0,
@@ -7776,7 +8941,7 @@
     3
    ],
    [
-    33,
+    35,
     473.4,
     5.8,
     -212.0,
@@ -7786,7 +8951,7 @@
     3
    ],
    [
-    33,
+    35,
     473.4,
     5.8,
     -208.5,
@@ -7796,7 +8961,7 @@
     3
    ],
    [
-    33,
+    35,
     454.8,
     5.3,
     -205.8,
@@ -7806,7 +8971,7 @@
     4
    ],
    [
-    33,
+    35,
     454.8,
     5.3,
     -202.6,
@@ -7816,7 +8981,7 @@
     4
    ],
    [
-    37,
+    39,
     465.3,
     0.0,
     -217.55,
@@ -7826,7 +8991,7 @@
     1
    ],
    [
-    37,
+    39,
     465.3,
     0.0,
     -219.45,
@@ -7856,7 +9021,127 @@
     1
    ],
    [
+    3,
+    462.13,
+    0.0,
+    -213.74,
+    2.2119,
+    1.0,
+    1.0,
+    1
+   ],
+   [
     4,
+    462.8,
+    0.0,
+    -214.24,
+    2.2119,
+    1.0,
+    1.0,
+    1
+   ],
+   [
+    5,
+    462.8,
+    0.14,
+    -214.24,
+    1.5708,
+    1.0,
+    1.0,
+    1
+   ],
+   [
+    3,
+    462.13,
+    0.0,
+    -216.26,
+    0.9297,
+    1.0,
+    1.0,
+    1
+   ],
+   [
+    4,
+    462.8,
+    0.0,
+    -215.76,
+    0.9297,
+    1.0,
+    1.0,
+    1
+   ],
+   [
+    5,
+    462.8,
+    0.14,
+    -215.76,
+    1.5708,
+    1.0,
+    1.0,
+    1
+   ],
+   [
+    3,
+    461.87,
+    0.0,
+    -213.74,
+    4.1054,
+    1.0,
+    1.0,
+    1
+   ],
+   [
+    4,
+    461.15,
+    0.0,
+    -214.24,
+    4.1054,
+    1.0,
+    1.0,
+    1
+   ],
+   [
+    5,
+    461.15,
+    0.16,
+    -214.24,
+    1.5708,
+    1.0,
+    1.0,
+    1
+   ],
+   [
+    3,
+    461.87,
+    0.0,
+    -216.26,
+    -0.9638,
+    1.0,
+    1.0,
+    1
+   ],
+   [
+    4,
+    461.15,
+    0.0,
+    -215.76,
+    -0.9638,
+    1.0,
+    1.0,
+    1
+   ],
+   [
+    5,
+    461.15,
+    0.16,
+    -215.76,
+    1.5708,
+    1.0,
+    1.0,
+    1
+   ],
+   [
+    7,
     465.9,
     0.0,
     -212.75,
@@ -7866,7 +9151,7 @@
     1
    ],
    [
-    3,
+    6,
     465.0,
     0.0,
     -212.55,
@@ -7876,7 +9161,7 @@
     1
    ],
    [
-    3,
+    6,
     465.35,
     0.0,
     -212.25,
@@ -7886,7 +9171,7 @@
     1
    ],
    [
-    5,
+    8,
     462.6,
     0.0,
     -213.05,
@@ -7896,7 +9181,7 @@
     1
    ],
    [
-    26,
+    29,
     466.2,
     0.0,
     -217.3,
@@ -7906,7 +9191,7 @@
     1
    ],
    [
-    48,
+    50,
     463.4,
     0.0,
     -215.1,
@@ -7916,7 +9201,7 @@
     1
    ],
    [
-    49,
+    51,
     466.1,
     0.0,
     -217.0,
@@ -7926,7 +9211,7 @@
     1
    ],
    [
-    12,
+    15,
     462.0,
     0.0,
     -215.0,
@@ -7936,7 +9221,7 @@
     1
    ],
    [
-    39,
+    41,
     464.9,
     0.0,
     -214.1,
@@ -7946,7 +9231,7 @@
     1
    ],
    [
-    51,
+    53,
     456.2,
     0.0,
     -215.0,
@@ -7956,7 +9241,7 @@
     0
    ],
    [
-    52,
+    54,
     457.3,
     0.0,
     -215.0,
@@ -7966,7 +9251,7 @@
     0
    ],
    [
-    53,
+    55,
     457.3,
     0.0,
     -222.0,
@@ -7976,7 +9261,7 @@
     0
    ],
    [
-    12,
+    15,
     462.0,
     0.0,
     -222.0,
@@ -7986,9 +9271,9 @@
     2
    ],
    [
-    11,
+    14,
     462.0,
-    0.0,
+    -0.0,
     -222.0,
     1.5708,
     1.0,
@@ -7996,7 +9281,7 @@
     2
    ],
    [
-    6,
+    9,
     460.12,
     0.0,
     -222.82,
@@ -8006,7 +9291,7 @@
     2
    ],
    [
-    6,
+    9,
     460.12,
     0.0,
     -221.18,
@@ -8016,7 +9301,7 @@
     2
    ],
    [
-    34,
+    36,
     461.8,
     0.0,
     -223.75,
@@ -8026,7 +9311,7 @@
     2
    ],
    [
-    50,
+    52,
     464.6,
     0.0,
     -222.3,
@@ -8036,9 +9321,9 @@
     2
    ],
    [
-    46,
+    48,
     469.6,
-    0.0,
+    -0.0,
     -218.5,
     0.0,
     1.0,
@@ -8046,9 +9331,9 @@
     2
    ],
    [
-    47,
+    49,
     454.65,
-    0.0,
+    -0.0,
     -215.0,
     1.5708,
     1.0,
@@ -8056,7 +9341,7 @@
     0
    ],
    [
-    10,
+    13,
     452.5,
     0.0,
     -215.0,
@@ -8066,7 +9351,7 @@
     0
    ],
    [
-    7,
+    10,
     452.55,
     0.0,
     -225.6,
@@ -8076,7 +9361,7 @@
     0
    ],
    [
-    8,
+    11,
     452.55,
     0.0,
     -225.6,
@@ -8086,7 +9371,7 @@
     0
    ],
    [
-    13,
+    16,
     464.6,
     0.0,
     -200.77,
@@ -8096,7 +9381,7 @@
     1
    ],
    [
-    14,
+    17,
     464.6,
     0.99,
     -200.77,
@@ -8106,7 +9391,7 @@
     1
    ],
    [
-    13,
+    16,
     465.75,
     0.0,
     -200.77,
@@ -8116,7 +9401,7 @@
     1
    ],
    [
-    13,
+    16,
     466.9,
     0.0,
     -200.77,
@@ -8126,7 +9411,7 @@
     1
    ],
    [
-    14,
+    17,
     466.9,
     0.99,
     -200.77,
@@ -8136,7 +9421,7 @@
     1
    ],
    [
-    13,
+    16,
     468.05,
     0.0,
     -200.77,
@@ -8146,7 +9431,7 @@
     1
    ],
    [
-    15,
+    18,
     469.25,
     0.0,
     -201.1,
@@ -8156,7 +9441,7 @@
     1
    ],
    [
-    38,
+    40,
     470.3,
     0.0,
     -201.05,
@@ -8166,7 +9451,7 @@
     1
    ],
    [
-    25,
+    28,
     471.3,
     0.0,
     -200.52,
@@ -8176,7 +9461,7 @@
     1
    ],
    [
-    24,
+    27,
     474.6,
     0.0,
     -200.95,
@@ -8186,7 +9471,7 @@
     3
    ],
    [
-    44,
+    46,
     472.1,
     0.0,
     -200.52,
@@ -8196,7 +9481,7 @@
     3
    ],
    [
-    28,
+    31,
     475.17,
     0.0,
     -202.0,
@@ -8206,7 +9491,7 @@
     3
    ],
    [
-    28,
+    31,
     475.17,
     0.0,
     -203.9,
@@ -8216,7 +9501,27 @@
     3
    ],
    [
-    16,
+    19,
+    475.1,
+    0.0,
+    -217.9,
+    -1.5708,
+    1.0,
+    1.0,
+    3
+   ],
+   [
+    20,
+    475.48,
+    0.0,
+    -217.9,
+    -1.5708,
+    1.0,
+    1.0,
+    3
+   ],
+   [
+    19,
     475.1,
     0.0,
     -215.5,
@@ -8226,10 +9531,30 @@
     3
    ],
    [
-    17,
+    20,
     475.48,
     0.0,
     -215.5,
+    -1.5708,
+    1.0,
+    1.0,
+    3
+   ],
+   [
+    19,
+    475.1,
+    0.0,
+    -213.1,
+    -1.5708,
+    1.0,
+    1.0,
+    3
+   ],
+   [
+    20,
+    475.48,
+    0.0,
+    -213.1,
     -1.5708,
     1.0,
     1.0,
@@ -8239,84 +9564,124 @@
     0,
     475.1,
     0.0,
-    -212.75,
+    -208.45,
     -1.5708,
     1.0,
     1.0,
     3
    ],
    [
-    27,
+    30,
     475.1,
     0.88,
-    -212.75,
+    -208.45,
     -1.5708,
     1.0,
     1.0,
     3
    ],
    [
-    35,
+    37,
     473.4,
     0.0,
-    -206.6,
+    -206.0,
     -1.5708,
     1.0,
     1.0,
     3
    ],
    [
-    60,
+    62,
     475.48,
-    3.9,
+    2.55,
     -215.5,
     -1.5708,
-    1.0,
-    1.0,
+    1.7,
+    1.7,
     3
    ],
    [
-    13,
+    16,
     475.23,
     0.0,
-    -221.06,
+    -219.7,
     -1.5708,
     1.0,
     1.0,
     3
    ],
    [
-    14,
+    17,
     475.23,
     0.99,
-    -221.06,
+    -219.7,
     -1.5708,
     1.0,
     1.0,
     3
    ],
    [
-    13,
+    16,
     475.23,
     0.0,
-    -219.94,
+    -220.82,
     -1.5708,
     1.0,
     1.0,
     3
    ],
    [
-    14,
+    17,
     475.23,
     0.99,
-    -219.94,
+    -220.82,
     -1.5708,
     1.0,
     1.0,
     3
    ],
    [
-    23,
+    16,
+    475.23,
+    0.0,
+    -211.3,
+    -1.5708,
+    1.0,
+    1.0,
+    3
+   ],
+   [
+    17,
+    475.23,
+    0.99,
+    -211.3,
+    -1.5708,
+    1.0,
+    1.0,
+    3
+   ],
+   [
+    16,
+    475.23,
+    0.0,
+    -210.18,
+    -1.5708,
+    1.0,
+    1.0,
+    3
+   ],
+   [
+    17,
+    475.23,
+    0.99,
+    -210.18,
+    -1.5708,
+    1.0,
+    1.0,
+    3
+   ],
+   [
+    26,
     475.0,
     0.0,
     -223.4,
@@ -8326,7 +9691,7 @@
     3
    ],
    [
-    22,
+    25,
     474.9,
     0.0,
     -225.3,
@@ -8336,7 +9701,7 @@
     3
    ],
    [
-    21,
+    24,
     472.8,
     0.0,
     -227.8,
@@ -8346,7 +9711,7 @@
     3
    ],
    [
-    18,
+    21,
     471.79,
     0.23,
     -227.8,
@@ -8356,7 +9721,7 @@
     3
    ],
    [
-    18,
+    21,
     472.08,
     0.23,
     -227.8,
@@ -8366,7 +9731,7 @@
     3
    ],
    [
-    19,
+    22,
     472.37,
     0.23,
     -227.8,
@@ -8376,7 +9741,7 @@
     3
    ],
    [
-    18,
+    21,
     472.65,
     0.23,
     -227.8,
@@ -8386,7 +9751,7 @@
     3
    ],
    [
-    18,
+    21,
     472.94,
     0.23,
     -227.8,
@@ -8396,7 +9761,7 @@
     3
    ],
    [
-    18,
+    21,
     473.53,
     0.23,
     -227.8,
@@ -8406,7 +9771,7 @@
     3
    ],
    [
-    19,
+    22,
     472.05,
     1.13,
     -227.8,
@@ -8416,7 +9781,7 @@
     3
    ],
    [
-    18,
+    21,
     472.38,
     1.13,
     -227.8,
@@ -8426,7 +9791,7 @@
     3
    ],
    [
-    18,
+    21,
     472.64,
     1.13,
     -227.8,
@@ -8436,7 +9801,7 @@
     3
    ],
    [
-    18,
+    21,
     472.95,
     1.13,
     -227.8,
@@ -8446,7 +9811,7 @@
     3
    ],
    [
-    18,
+    21,
     473.51,
     1.13,
     -227.8,
@@ -8456,7 +9821,7 @@
     3
    ],
    [
-    18,
+    21,
     473.79,
     1.13,
     -227.8,
@@ -8466,7 +9831,7 @@
     3
    ],
    [
-    20,
+    23,
     474.7,
     0.0,
     -228.75,
@@ -8476,37 +9841,37 @@
     3
    ],
    [
-    56,
+    58,
     475.48,
     2.45,
-    -206.2,
+    -207.0,
     -1.5708,
     1.0,
     1.0,
     3
    ],
    [
-    45,
+    47,
     475.48,
     0.0,
-    -207.6,
+    -209.2,
     -1.5708,
     1.0,
     1.0,
     3
    ],
    [
-    54,
+    56,
     475.48,
-    4.35,
-    -206.2,
+    4.55,
+    -215.5,
     -1.5708,
     1.0,
     1.0,
     3
    ],
    [
-    29,
+    32,
     455.5,
     5.65,
     -218.5,
@@ -8516,7 +9881,7 @@
     0
    ],
    [
-    29,
+    32,
     458.5,
     5.65,
     -218.5,
@@ -8526,7 +9891,7 @@
     0
    ],
    [
-    29,
+    32,
     461.5,
     5.65,
     -218.5,
@@ -8536,7 +9901,7 @@
     1
    ],
    [
-    29,
+    32,
     464.5,
     5.65,
     -218.5,
@@ -8546,7 +9911,7 @@
     1
    ],
    [
-    29,
+    32,
     467.5,
     5.65,
     -218.5,
@@ -8556,7 +9921,7 @@
     1
    ],
    [
-    29,
+    32,
     470.5,
     5.65,
     -218.5,
@@ -8566,7 +9931,7 @@
     1
    ],
    [
-    29,
+    32,
     473.5,
     5.65,
     -218.5,
@@ -8576,9 +9941,9 @@
     3
    ],
    [
-    30,
+    33,
     475.48,
-    3.3,
+    6.0,
     -224.5,
     -1.5708,
     1.0,
@@ -8586,9 +9951,9 @@
     3
    ],
    [
-    30,
+    33,
     475.48,
-    3.3,
+    6.0,
     -221.5,
     -1.5708,
     1.0,
@@ -8596,9 +9961,9 @@
     3
    ],
    [
-    30,
+    33,
     475.48,
-    3.3,
+    6.0,
     -218.5,
     -1.5708,
     1.0,
@@ -8606,9 +9971,9 @@
     3
    ],
    [
-    30,
+    33,
     475.48,
-    3.3,
+    6.0,
     -215.5,
     -1.5708,
     1.0,
@@ -8616,27 +9981,17 @@
     3
    ],
    [
-    31,
+    33,
     475.48,
-    0.0,
-    -213.9,
+    6.0,
+    -212.5,
     -1.5708,
     1.0,
     1.0,
     3
    ],
    [
-    31,
-    475.48,
-    0.0,
-    -217.3,
-    -1.5708,
-    1.0,
-    1.0,
-    3
-   ],
-   [
-    44,
+    46,
     452.52,
     0.0,
     -218.6,
@@ -8646,7 +10001,7 @@
     0
    ],
    [
-    58,
+    60,
     452.52,
     1.6,
     -210.0,
@@ -8656,7 +10011,7 @@
     0
    ],
    [
-    57,
+    59,
     452.52,
     1.5,
     -220.2,
@@ -8666,17 +10021,17 @@
     0
    ],
    [
-    59,
-    475.48,
+    61,
+    452.52,
     1.1,
-    -208.9,
-    -1.5708,
+    -226.4,
+    1.5708,
     1.0,
     1.0,
-    3
+    0
    ],
    [
-    40,
+    42,
     453.0,
     3.2,
     -204.5,
@@ -8686,7 +10041,7 @@
     4
    ],
    [
-    42,
+    44,
     452.95,
     3.2,
     -206.6,
@@ -8696,7 +10051,7 @@
     4
    ],
    [
-    41,
+    43,
     453.2,
     3.2,
     -200.85,
@@ -8706,7 +10061,7 @@
     4
    ],
    [
-    43,
+    45,
     454.1,
     3.2,
     -200.8,
@@ -8716,7 +10071,7 @@
     4
    ],
    [
-    55,
+    57,
     452.56,
     5.25,
     -203.2,

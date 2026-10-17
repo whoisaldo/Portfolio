@@ -65,15 +65,21 @@ for z in (DOOR_Z0 - 1.1, DOOR_Z1 + 1.1):
 # going back up the page.
 named_quad("garage_door", "door_panel", GX0 + 0.12, DOOR_H / 2, (DOOR_Z0 + DOOR_Z1) / 2,
            DOOR_Z1 - DOOR_Z0 + 0.1, DOOR_H, -math.pi / 2, double=True)
-# High on the shop wall over the bench's photo board, the monitor the
-# garage's own room has, facing the door: the site plays the intro's moon on
-# it. Its screen is the kit's monitor's (ncw/garage/lounge.py,
-# MONITOR_SCREEN: where in the bezel, how big), whose bezel the workshop
-# hangs round it; the screen is the street's, so the moon is there first.
+# High on the shop wall over the middle bench, the monitor the garage's own
+# room has, facing the door: the site plays the intro's moon on it. Its
+# screen is the kit's monitor's (ncw/garage/lounge.py, MONITOR_SCREEN: where
+# in the bezel, how big), whose bezel the workshop hangs round it; the
+# screen is the street's, so the moon is there first.
 from ncw.garage.lounge import MONITOR_SCREEN  # noqa: E402
-SCREEN_FOOT, SCREEN_Z = 3.9, -215.5
+# The bezel is set at SCREEN_SCALE, so the screen is the old garage room's
+# own (2.43 m by 1.36), over the working centre of the shop wall, its bezel
+# clear of the bench's amber strip (to y 2.5).
+SCREEN_FOOT, SCREEN_Z, SCREEN_SCALE = 2.55, -215.5, 1.7
 (_sx, _sy, _sz), _sw, _sh = MONITOR_SCREEN
-named_quad("garage_screen", "screen", GX1 - 0.5 - 0.023 - _sz - 0.002, SCREEN_FOOT + _sy, SCREEN_Z + _sx, _sw, _sh, -math.pi / 2)
+# Its centre and size, world metres (its mesh is written in world space).
+SCREEN_AT = (GX1 - 0.5 - 0.023 - _sz * SCREEN_SCALE - 0.002, SCREEN_FOOT + _sy * SCREEN_SCALE, SCREEN_Z + _sx * SCREEN_SCALE)
+SCREEN_WH = (_sw * SCREEN_SCALE, _sh * SCREEN_SCALE)
+named_quad("garage_screen", "screen", *SCREEN_AT, *SCREEN_WH, -math.pi / 2, props={"assetKind": "identity-art"})
 empty("anchor_garage_bay", BAY, yaw=math.pi / 2)
 # Under the roof it does not rain: the site's rain skips this box.
 empty("anchor_shelter_garage", (GX0, 0.0, GZ0), props={"size": [GX1 - GX0, GH - 0.3, GZ1 - GZ0]})
