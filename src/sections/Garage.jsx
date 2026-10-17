@@ -81,7 +81,7 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
         goStation(request.station);
       }
       if (request.modId && !select(request)) return;
-      if (!request.modId) setActiveCar(request.carId);
+      if (!request.modId && !request.station) setActiveCar(request.carId);
       if (request.focus && cinematic) setPartsOpen(true);
       setApplied(request);
     };
@@ -92,11 +92,14 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
   useLayoutEffect(() => {
     if (!applied) return;
     const key = applied.modId ? `part:${applied.carId}:${applied.modId}` : applied.station ? `station:${applied.station}` : `car:${applied.carId}`;
-    const target = [...root.current.querySelectorAll("[data-garage-anchor]")].find((el) => el.dataset.garageAnchor === key && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden");
+    const visible = (el) => el && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden";
+    const anchored = (value) => [...root.current.querySelectorAll("[data-garage-anchor]")].find((el) => el.dataset.garageAnchor === value && visible(el));
+    const card = applied.modId && selection?.carId === applied.carId && selection?.modId === applied.modId ? root.current.querySelector(".gw-card-title") : null;
+    const target = anchored(key) ?? (!applied.modId && !applied.station ? anchored(`station:${applied.carId}`) : visible(card) ? card : null);
     if (!target) return;
     if (applied.focus) target.focus({ preventScroll: true });
     ackGarageRequest(applied.id);
-  }, [applied, cinematic, partsOpen]);
+  }, [applied, cinematic, partsOpen, selection]);
   const common = {
     selection, activeCar, availability, reason, reduced, fallback, still, showPrices: SHOW_PRICES, credits,
     onSelect: select, onCar: setActiveCar, onRetry, contactHref: "#contact", request: applied,

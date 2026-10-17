@@ -24,6 +24,9 @@ import About from "../sections/About";
 import Stack from "../sections/Stack";
 import Contact from "../sections/Contact";
 import Glitch from "../components/ui/Glitch";
+// Register retained legacy requests with the synchronous shell, before
+// the lazy section or console has been requested. This imports no car data.
+import "../lib/garage";
 import { jumpToY, scrollToSection } from "../lib/scroll";
 import { useEnv } from "../lib/env";
 import { hasGpuAcceleration } from "../lib/gpu";
