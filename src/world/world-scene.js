@@ -56,13 +56,13 @@ import { getEnv } from "../lib/env.js";
 import { getLevels } from "../lib/ambient.js";
 import { DROP, HANDOFF, REVEAL } from "../lib/cues.js";
 import { boards as BOARDS, towers as TOWERS, SHOTS, GARAGE_STATIONS, GARAGE_TIMELINE } from "../data/world.js";
-import { findMod } from "../components/garage/cars.js";
 import { garageScrollFor } from "./scroll-stage.js";
 import { scrollToY } from "../lib/scroll.js";
 import { fetchUnpacked } from "./fetched.js";
 import * as worldAssets from "../data/world-assets.js";
 import { GARAGE_PHOTOS_ENABLED } from "../components/garage/features.js";
 const carRuntime = Object.values(import.meta.glob("./garage-cars.js"))[0];
+const garageData = () => import("../components/garage/cars.js");
 
 // (load: the S4's model is in; see preloadWorld.)
 let carLanded = false;
@@ -249,6 +249,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // section is in its cinematic layout (stage.garageVisit), or held at the
   // station its photographs show (stage.garageHold).
   let visit = null;
+  let findMod = () => null;
   // The garage's own cars, parked and rigged (src/world/garage-cars.js),
   // once the room is in: { pick(raycaster) -> { carId, point } | null,
   // flash(carId) -> Vector3 | null, ... }. Null until then.
@@ -1724,7 +1725,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       const boardsUrl = GARAGE_PHOTOS_ENABLED ? Reflect.get(worldAssets, "worldGarageBoardsUrl")?.[tier] : null;
       const atlasLoad = boardsUrl && !boardTexture ? new THREE.TextureLoader().loadAsync(boardsUrl).then((texture) => (boardTexture = texture)) : Promise.resolve(boardTexture);
       garageRoom = (async () => {
-        const [packScene, placements, atlas, runtime] = await Promise.all([fetching, placementLoad, atlasLoad, carRuntime()]);
+        const [packScene, placements, atlas, runtime, registry] = await Promise.all([fetching, placementLoad, atlasLoad, carRuntime(), garageData()]);
+        findMod = registry.findMod;
         if (!streamed) await afterStreaming;
         if (disposed || !city) return false;
         await idle();
