@@ -365,20 +365,22 @@ if PHOTOS_ENABLED:
 # The floor: the satin concrete everywhere a car or a walker goes, the wet
 # threshold in from the door, the S6's service pad, and the bays' marks.
 # The parts room under the mezzanine is shut and has no floor of its own.
-# The finish lies 4 mm up, just over the floor the street sees before the
-# pack (districts/garage.py, at 2 mm), so the cars' tyres (on y 0) meet it;
-# the kit's marks are set on it (MARKS_Y), and the S6's flush service pad
-# in a recess cut for it, its top level with the finish.
+# The finish lies 1 mm up, 2 mm over the floor the street sees before the
+# pack (districts/garage.py, at -1 mm), the cars' tyres (on y 0) on it.
+# The kit draws its floor pieces for a floor at y 0 (bay lines and labels
+# 4 mm up, tyre marks 3, stains 2 to 3, the drains' sumps 2), and the props
+# bin keeps a prop's height to 2 cm only (y * 50 in an int16), so they
+# all stand at y 0 (MARKS_Y), over this finish; the S6's service pad lies
+# on it, in a cut the size of its foot.
 # ---------------------------------------------------------------------------
-FLOOR_Y, WET_Y, MARK_Y = 0.004, 0.005, 0.008
-# Where a mark drawn at the kit's floor (its paint 2 to 4 mm up) is set.
-MARKS_Y = FLOOR_Y - 0.001
+FLOOR_Y, WET_Y, MARK_Y = 0.001, 0.002, 0.008
+MARKS_Y = 0.0
 THRESHOLD_X = GX0 + 2.5
-# The service pad's recess: the kit's pad (garage_service_pad, 2.26 by 2.1 m,
-# 8 mm thick), turned with the car, under the S6.
+# The service pad's foot: the kit's pad (garage_service_pad, 2.26 by 2.1 m,
+# 6 mm high), turned with the car, under the S6.
 PAD_HALF = (1.05, 1.13)
 PAD_RECESS = (S6_BAY[0] - PAD_HALF[0], S6_BAY[0] + PAD_HALF[0], S6_BAY[2] - PAD_HALF[1], S6_BAY[2] + PAD_HALF[1])
-PAD_Y = FLOOR_Y - 0.008 + 0.0005
+PAD_Y = 0.0
 
 
 def floor_rect(mat, x0, x1, z0, z1, y, scale, holes=()):
@@ -843,7 +845,7 @@ BOARDS_OUT, PHOTO_ATLAS = photo_boards() if PHOTOS_ENABLED else ([], None)
 SIGNATURE = [
     ("jacket_chair", "garage_jacket_chair", (473.55, 0.0, -216.95), -1.25, "David's yellow jacket draped on its rolling chair"),
     ("maine_cradle", "garage_maine_cradle", (X1 - 0.45, 0.9, BENCH_Z + 0.5), -math.pi / 2, "Maine's arm cannon in its service cradle, on the bench"),
-    ("guts_pegs", "garage_guts_pegs", (X1 - PROUD - 0.003, 2.6, BENCH_Z - 2.7), -math.pi / 2, "Rebecca's Guts on its wall pegs"),
+    ("guts_pegs", "garage_guts_pegs", (X1 - PROUD - 0.003, 2.6, BENCH_Z - 2.35), -math.pi / 2, "Rebecca's Guts on its wall pegs"),
 ]
 SIGNATURE_OUT = []
 for sid, proto, (sx, sy_, sz), syaw, what in SIGNATURE:
@@ -890,16 +892,19 @@ NP.place("garage_bay_01", 457.3, MARKS_Y, -215.0, -math.pi / 2, district=APRON)
 # door, its OBD lead to the port under the dash (the kit's TUNE_PLUG).
 NP.place("garage_bay_02", 457.3, MARKS_Y, -222.0, -math.pi / 2, district=APRON)
 NP.place("garage_bay_lines", S6_BAY[0], MARKS_Y, S6_BAY[2], math.pi / 2, district=S6)
-# The pad in its recess (PAD_RECESS), its top level with the finish.
+# The pad on the floor over its cut (PAD_RECESS).
 NP.place("garage_service_pad", S6_BAY[0], PAD_Y, S6_BAY[2], math.pi / 2, district=S6)
 for z in (-222.82, -221.18):
     NP.place("garage_wheel_chock", S6_BAY[0] - 1.456 - 0.42, 0.0, z, math.pi / 2, district=S6)
 TUNE_AT = (461.8, -222.45 - GB.TUNE_PLUG[2])
 NP.place("garage_tune_cart", TUNE_AT[0], 0.0, TUNE_AT[1], 0.0, district=S6)
 NP.place("garage_stain_c", 464.6, MARKS_Y, -222.3, 0.1, district=S6)
-# The drains' grates level with the finish (their bodies under it): they
-# are high-tier detail (the kit's), so the floor is not cut for them.
-DRAIN_Y = FLOOR_Y - 0.006 + 0.0008
+# The drains stand at y 0 as the kit draws them, their dark sumps (2 mm)
+# just over the finish and the grates' bars over those, so the dark
+# between the bars reads; no floor cut, which would show the core's
+# placeholder under them. They are high-tier detail (the kit's): a phone's
+# floor goes on unbroken where they are left out.
+DRAIN_Y = MARKS_Y
 NP.place("garage_floor_drain", 469.6, DRAIN_Y, -218.5, 0.0, district=S6)
 NP.place("garage_trench_drain", THRESHOLD_X + 0.15, DRAIN_Y, (DOOR_Z0 + DOOR_Z1) / 2, math.pi / 2, sxz=1.95, district=APRON)
 # The city's shutter keeps its curtain (garage_door, which the site rolls
