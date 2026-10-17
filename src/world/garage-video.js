@@ -47,7 +47,9 @@ export function createGarageVideoTexture(video, bind) {
   };
   refresh(video.getVideoPlaybackQuality?.().totalVideoFrames ?? null, video.currentTime);
   if (hasCallback) callback = video.requestVideoFrameCallback(decoded);
-  else video.addEventListener?.("seeked", seeked);
+  // During a paused seek the decoded callback can precede media readiness.
+  // Its notification may be skipped above; the completed seek supplies it.
+  video.addEventListener?.("seeked", seeked);
   return {
     update,
     dispose() {

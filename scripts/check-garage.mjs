@@ -79,10 +79,13 @@ check("the provisional S6 stays on the development test path until review", () =
 // ---- the timeline -------------------------------------------------------------
 check("monitor textures follow decoded frames and dispose their callbacks", () => {
   let callback, requests = 0, cancelled = 0, disposed = 0;
+  const listeners = new Map();
   const video = { readyState: 2, videoWidth: 1280, videoHeight: 720, currentTime: 0,
     getVideoPlaybackQuality: () => ({ totalVideoFrames: 1 }),
     requestVideoFrameCallback(fn) { callback = fn; return ++requests; },
     cancelVideoFrameCallback(id) { cancelled = id; },
+    addEventListener: (name, fn) => listeners.set(name, fn),
+    removeEventListener: (name) => listeners.delete(name),
   };
   const textures = [];
   const monitor = videoModule.createGarageVideoTexture(video, (texture) => {
@@ -106,9 +109,18 @@ check("monitor textures follow decoded frames and dispose their callbacks", () =
   callback(2, { presentedFrames: 3, mediaTime: 2 / 24 });
   assert.equal(textures.length, 2, "a source-size change gets a fresh allocation");
   assert.equal(disposed, 1);
+  const resized = textures.at(-1), version = resized.version;
+  video.readyState = 1;
+  callback(3, { presentedFrames: 4, mediaTime: 3 });
+  assert.equal(resized.version, version, "a callback during seek does not upload unavailable media");
+  video.readyState = 2;
+  video.currentTime = 3;
+  listeners.get("seeked")();
+  assert.equal(resized.version, version + 1, "a completed seek supplies the picture skipped during decoding");
   monitor.dispose();
   assert.equal(disposed, 2);
   assert.equal(cancelled, requests);
+  assert.equal(listeners.size, 0);
   const before = requests;
   callback(3, { presentedFrames: 4, mediaTime: 3 / 24 });
   assert.equal(requests, before, "a stale decoded callback cannot rearm after disposal");
