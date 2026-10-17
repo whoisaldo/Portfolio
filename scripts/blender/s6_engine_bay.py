@@ -386,25 +386,25 @@ for sign, c in TURBO.items():
     tube('wastegate_rod', [c + Vector((sign * .1, -.035, .0)), c + Vector((sign * .1, .05, .0))], .004, steel, engine, sides=5)
     lathe('turbo_turbine_housing', [(.014, .03), (.014, .045), (.03, .062), (.07, .064), (.09, .05), (.09, .0)], iron, engine, 16, 'Y').location = c
     # The black coupler forward from the outlet onto its throttle adapter.
-    top = Vector((sign * .062, -.14, -.128))
-    path = smooth_path([neck[1], c + Vector((-sign * .052, -.07, .078)), (sign * .062, -.08, -.08), top], 5)
+    top = Vector((sign * .062, -.122, -.098))
+    path = smooth_path([neck[1], c + Vector((-sign * .052, -.07, .078)), (sign * .062, -.085, -.068), top], 5)
     tube('charge_pipe_silicone', path, .04, silicone, engine, sides=18)
     clamp(path[2], path[3], .04)
     clamp(path[-3], path[-1], .04)
-    # The black adapter under the clamp, upright between the coupler and the
-    # passage: a socket for the coupler, a raised ear each side with its
-    # bolt, and a body whose face slopes forward and down to the passage
-    # with a rib down its middle.
+    # The adapter under the clamp, standing upright between the coupler and
+    # the passage as in Ali's photo: a socket for the coupler on its top, and
+    # a tall face, wide at the top with a bolted shoulder at each corner,
+    # narrowing to a stem on the passage, a rib down its middle.
     x = sign * .062
-    cylinder('throttle_adapter_socket', (x, -.14, -.152), .046, .024, adapter, engine, 16)
-    box('throttle_adapter_ears', (x, -.14, -.138), (.165, .04, .03), adapter, engine, .008)
-    for dx in [-.068, .068]:
-        cylinder('throttle_bolt', (x + dx, -.14, -.123), .009, .008, steel, engine, 6)
-    vs = [(x + a * w, y, z) for y, z, w in [(-.115, -.128, .058), (-.182, -.128, .058), (-.218, -.19, .04), (-.13, -.205, .04)] for a in (-1, 1)]
+    cylinder('throttle_adapter_socket', (x, -.135, -.118), .045, .02, adapter, engine, 16)
+    vs = [(x + a * w, y, z) for y, z, w in [(-.105, -.1, .054), (-.165, -.1, .054), (-.207, -.2, .03), (-.13, -.2, .03)] for a in (-1, 1)]
     mesh('throttle_adapter', vs, [(0, 2, 4, 6), (1, 7, 5, 3), (0, 1, 3, 2), (2, 3, 5, 4), (4, 5, 7, 6), (6, 7, 1, 0)], adapter, engine)
-    rib = box('throttle_adapter_rib', (0, 0, 0), (.016, .012, .072), adapter, engine, .003)
-    rib.location = (x, -.203, -.16)
-    rib.rotation_euler = (-.5, 0, 0)
+    for dx in [-.042, .042]:
+        box('throttle_adapter_shoulder', (x + dx, -.163, -.116), (.026, .014, .03), adapter, engine, .004)
+        cylinder('throttle_bolt', (x + dx, -.178, -.114), .0085, .008, steel, engine, 6, 'Y')
+    rib = box('throttle_adapter_rib', (0, 0, 0), (.016, .012, .085), adapter, engine, .003)
+    rib.location = (x, -.19, -.153)
+    rib.rotation_euler = (-.38, 0, 0)
     # The high-pressure fuel pump on the front of each bank: a big round
     # silver cap tilted up toward the hood on a champagne cast body with its
     # bolted ears, brass fittings and the lines leaving them.
@@ -462,9 +462,9 @@ for obj, (v0, v1) in zip(parts[-2:], [(.5, 1.), (0., .5)]):
 # front; the black transverse passage above the cooler, flanged at each end
 # into the recirculation valves, a fitting at its centre; the throttle
 # module on the car's left.
-box('throttle_casting', (0, -.16, -.19), (.31, .09, .08), dull_cast, engine, .016)
-box('throttle_casting_boss', (0, -.15, -.142), (.05, .06, .02), dull_cast, engine, .008)
-for x, y, z in [(-.015, -.135, -.132), (.015, -.135, -.132), (-.14, -.13, -.15), (.14, -.13, -.15), (-.14, -.19, -.15), (.14, -.19, -.15)]:
+box('throttle_casting', (0, -.15, -.215), (.31, .09, .08), dull_cast, engine, .016)
+box('throttle_casting_boss', (0, -.12, -.13), (.03, .05, .05), dull_cast, engine, .006)
+for x, y, z in [(0, -.125, -.102), (-.14, -.13, -.175), (.14, -.13, -.175), (-.14, -.19, -.175), (.14, -.19, -.175)]:
     cylinder('throttle_casting_bolt', (x, y, z), .007, .007, steel, engine, 6)
 for sign in [-1, 1]:
     tube('transverse_passage', [(sign * .215, -.215, -.18), (sign * .03, -.215, -.18)], .027, black, engine, sides=14)
@@ -480,23 +480,29 @@ tube('breather_hose', smooth_path([(-.4, -.13, -.17), (-.27, -.18, -.11), (-.13,
 
 # ---- The intake: airbox, ducts, bellows and aluminium pipes ----
 
-# One airbox at the car's right front. A low trunk runs back from it under
-# the ducts to the fork against the inner wing, where a single moulding
-# splits into the two smooth ducts: broad, flattened and pointed where they
-# leave the fork, spreading diagonally and tapering round into ribbed
-# bellows, then aluminium pipes turning into the compressors (the rear one
-# into the right turbo, the front one under the couplers into the left).
+# One airbox at the car's right front. The main duct rises from it, curves
+# back along the inner wing and runs in to the front bellows; the second
+# duct leaves it at a shallow angle, its outboard end a flattened tongue
+# that merges into the main duct, so a long pointed division runs between
+# the two back toward the bellows. Both taper round into ribbed bellows, then
+# aluminium pipes turn into the compressors (the rear one into the right
+# turbo, the front one under the couplers into the left).
 box('airbox', (-.5, -.4, -.22), (.26, .24, .17), plastic, engine, .05)
 box('airbox_lid_seam', (-.5, -.4, -.18), (.275, .255, .012), plastic, engine, .006)
 routes = {
-    -1: [(-.645, .075, -.112), (-.6, .1, -.1), (-.53, .125, -.088), (-.47, .132, -.085), (-.3, .12, -.097), (-.22, .07, -.11), (-.14, .0, -.12), (-.105, .02, -.12), (-.105, .045, -.115)],
-    1: [(-.645, .05, -.122), (-.6, .03, -.124), (-.53, .008, -.125), (-.47, .0, -.125), (-.3, -.022, -.147), (-.15, -.035, -.18), (.03, -.035, -.2), (.09, -.02, -.165), (.105, .01, -.125), (.105, .045, -.115)],
+    -1: [(-.62, -.035, -.128), (-.628, .045, -.116), (-.603, .104, -.1), (-.55, .13, -.09), (-.47, .132, -.085), (-.3, .12, -.097), (-.22, .07, -.11), (-.14, .0, -.12), (-.105, .02, -.12), (-.105, .045, -.115)],
+    1: [(-.565, -.285, -.19), (-.6, -.2, -.17), (-.624, -.1, -.148), (-.612, -.035, -.135), (-.55, -.008, -.129), (-.47, .0, -.125), (-.3, -.022, -.147), (-.15, -.035, -.18), (.03, -.035, -.2), (.09, -.02, -.165), (.105, .01, -.125), (.105, .045, -.115)],
 }
 for sign, points in routes.items():
-    fork = 4
-    branch = resample_path(smooth_path(points[:fork], 6), 12)
-    widths = [lerp(.082, .056, (i / 11) ** .8) for i in range(12)]
-    heights = [lerp(.036, .056, (i / 11) ** .8) for i in range(12)]
+    fork = 5 if sign < 0 else 6
+    branch = resample_path(smooth_path(points[:fork], 5), 12 if sign < 0 else 16)
+    n = len(branch)
+    if sign < 0:   # the tongue: flattening and sinking into the main duct at its outboard end
+        widths = [lerp(.064, .056, (i / (n - 1)) ** .7) for i in range(n)]
+        heights = [lerp(.022, .056, (i / (n - 1)) ** .7) for i in range(n)]
+    else:          # the main duct: broad and flattened round its bend
+        widths = [lerp(.07, .056, (i / (n - 1)) ** 1.5) for i in range(n)]
+        heights = [lerp(.045, .056, (i / (n - 1)) ** 1.5) for i in range(n)]
     clear_wheel_well(duct('intake_tract', branch, widths, heights, plastic, 16))
     boot = resample_path([points[fork - 1], points[fork]], 23)
     ribbed('intake_boot_corrugated', boot, .054, .01, 11, plastic)
@@ -506,8 +512,6 @@ for sign, points in routes.items():
         clamp(at, toward, radius)
     p = pipe[3]
     box('intake_pipe_label', tuple(p + Vector((0, 0, .043))), (.045, .035, .002), paper, engine, 0)
-trunk = resample_path(smooth_path([(-.635, .065, -.135), (-.57, .0, -.2), (-.54, -.12, -.235), (-.52, -.27, -.2)], 4), 10)
-clear_wheel_well(duct('intake_tract', trunk, [.07, .066, .06, .056, .054, .054, .054, .054, .054, .054], [.04] * 10, plastic, 14))
 
 # ---- The left bank and the car's left ----
 
