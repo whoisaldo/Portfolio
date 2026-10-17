@@ -2228,8 +2228,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         collision: garageCollision,
         get fixtures() { return [...city.anchors].filter(([name]) => name.startsWith("anchor_garage_light_")).map(([name, row]) => ({ name, ...row, ...row.extras })); },
         registerPin(key, element) { if (element) pinElements.set(key, element); else pinElements.delete(key); },
-        saveState: () => ({ ...manual, hood: { ...manual.hood } }),
-        restoreState(saved) { if (saved) { manual = { ...saved, hood: { ...saved.hood } }; clearHoodMotion(); selectGaragePart(manual.selection, { cut: true, preserveState: true }); } },
+        saveState: () => ({ ...manual, hood: { ...manual.hood }, inspection: inspectionTarget }),
+        restoreState(saved) { if (saved) {
+          manual = { selection: saved.selection ?? null, hood: { ...saved.hood }, lowering: saved.lowering ?? null };
+          clearHoodMotion();
+          selectGaragePart(manual.selection, { cut: true, preserveState: true });
+          if (saved.inspection != null) requestInspection(saved.inspection, { cut: true });
+        } },
         select: selectGaragePart,
         setHood(id, value) { if (id in manual.hood) {
           commandHood(id, value);

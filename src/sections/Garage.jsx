@@ -43,7 +43,10 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     if (next && !cars[next.carId]?.mods.some((mod) => mod.id === next.modId)) return false;
     setSelection(next);
     setGarageView({ selection: next });
-    if (savedOverrides.current) savedOverrides.current.selection = next;
+    if (savedOverrides.current) {
+      savedOverrides.current.selection = next;
+      delete savedOverrides.current.inspection;
+    }
     if (next) {
       setActiveCar(next.carId);
       setGarageView({ textStation: stationOf(next) });
