@@ -180,7 +180,7 @@ class Baked extends THREE.Mesh {
       const { set, src } = part;
       const g = src.geometry;
       at.set(part, new Int32Array(set.n));
-      for (const run of set.runs) for (let j = run.start; j < run.end; j++) items.push({ ci: run.ci, set, g, j, part });
+      for (const run of set.runs) for (let j = run.start; j < run.end; j++) items.push({ ci: run.ci, sector: run.sector, set, g, j, part });
       verts += set.n * g.attributes.position.count;
       indices += set.n * g.index.count;
     }
@@ -192,25 +192,29 @@ class Baked extends THREE.Mesh {
     const ci = [];
     const reach = [];
     const start = [];
-    const count = [];
+    const count = [], bounds = [], sectors = [];
+    const placed = new THREE.Box3();
+    let previousPart = null;
     let v = 0;
     let i = 0;
     let since = 0;
-    for (const { ci: cell, set, g, j, part } of items) {
+    for (const { ci: cell, sector, set, g, j, part } of items) {
       if (since > 8192) {
         since = 0;
         yield;
       }
-      if (ci[ci.length - 1] !== cell || reach[reach.length - 1] !== set.reach) {
+      if (ci[ci.length - 1] !== cell || reach[reach.length - 1] !== set.reach || previousPart !== part) {
         ci.push(cell);
         reach.push(set.reach);
         start.push(i);
         count.push(0);
+        bounds.push(new THREE.Box3()); sectors.push(sector); previousPart = part;
       }
       // The instance's matrix (a frame: no projective row), written out by
       // hand: the same sums as Matrix4 and Matrix3 make, without the calls.
       const e = set.matrices;
       const o = j * 16;
+      bounds[bounds.length - 1].union(placed.copy(g.boundingBox).applyMatrix4(_m.fromArray(e, o)).expandByScalar(1));
       const m0 = e[o], m1 = e[o + 1], m2 = e[o + 2];
       const m4 = e[o + 4], m5 = e[o + 5], m6 = e[o + 6];
       const m8 = e[o + 8], m9 = e[o + 9], m10 = e[o + 10];
@@ -260,7 +264,7 @@ class Baked extends THREE.Mesh {
     const geometry = new THREE.BufferGeometry();
     for (const name of names) geometry.setAttribute(name, new THREE.BufferAttribute(out[name], sizes[name]));
     geometry.setIndex(new THREE.BufferAttribute(index, 1));
-    const cells = { ci: Int32Array.from(ci), reach: Float32Array.from(reach), start: Int32Array.from(start), count: Int32Array.from(count) };
+    const cells = { ci: Int32Array.from(ci), reach: Float32Array.from(reach), start: Int32Array.from(start), count: Int32Array.from(count), bounds, sectors };
     return {
       geometry,
       apply: () => {
@@ -279,18 +283,18 @@ class Baked extends THREE.Mesh {
 
   /** The cells in sight and in reach, as an instanced part has them: those
    *  that follow one another in the index go as one run. */
-  show(cellVis, cellDist) {
+  show(cellVis, cellDist, visibleBox = null) {
     // (load: one a streamed district brought, not yet written, draws nothing.)
     if (!this.geometry.index) {
       this.visible = false;
       return;
     }
-    const { ci, reach, start, count } = this.cells;
+    const { ci, reach, start, count, bounds, sectors } = this.cells;
     const bytes = this.geometry.index.array.BYTES_PER_ELEMENT;
     let n = 0;
     let joined = false;
     for (let r = 0; r < ci.length; r++) {
-      if (!cellVis[ci[r]] || cellDist[ci[r]] > reach[r]) {
+      if (!cellVis[ci[r]] || cellDist[ci[r]] > reach[r] || bounds?.[r] && (!_frustum.intersectsBox(bounds[r]) || visibleBox && !visibleBox(bounds[r], sectors[r]))) {
         joined = false;
       } else if (!MULTI_DRAW) {
         n++;
@@ -442,6 +446,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const mine = [];
     // Sort by cell, and note each cell's run.
     const prototypeBounds = new THREE.Box3();
+    const billboard = [...meshes, ...(parts.get(k.name + NEAR) ?? [])].some((src) => src.material.name.replace(/^NCW_/, "") === "halo");
     for (const src of [...meshes, ...(parts.get(k.name + NEAR) ?? [])]) {
       if (!src.geometry.boundingBox) src.geometry.computeBoundingBox();
       prototypeBounds.union(src.geometry.boundingBox);
@@ -466,7 +471,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       const z = data[i * 8 + 3] / 20;
       const top = y + (data[i * 8 + 5] / 100) * k.box[1] * 2 + r;
       if (!run || run.cell !== cell) {
-        run = { cell, ci: cellIndex(cell), sector: placementSectors[i], box: new THREE.Box3(), start: j, end: j };
+        run = { cell, ci: cellIndex(cell), sector: placementSectors[i], frustumSafe: !billboard, box: new THREE.Box3(), start: j, end: j };
         runs.push(run);
       }
       run.end = j + 1;
@@ -674,7 +679,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   // if that set of cells changed since last time.
   let cellVis = new Uint8Array(cellList.length);
   let cellDist = new Float32Array(cellList.length);
-  const runVisible = (run, reach) => cellVis[run.ci] && cellDist[run.ci] <= reach && (!visibleBox || visibleBox(run.box, run.sector));
+  const runVisible = (run, reach) => cellVis[run.ci] && cellDist[run.ci] <= reach && (run.frustumSafe === false || _frustum.intersectsBox(run.box)) && (!visibleBox || visibleBox(run.box, run.sector));
   let frames = 0;
   let stale = false;
   let lastCamera = null;
@@ -790,7 +795,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
           mesh._multiDrawCounts.set(saved.counts.subarray(0, saved.count));
         }
       } else {
-        mesh.show(cellVis, cellDist);
+        mesh.show(cellVis, cellDist, visibleBox);
         if (prepared) prepared.baked.set(mesh, rememberBaked(mesh, saved));
       }
     }

@@ -31,7 +31,7 @@ import { createBoards } from "./boards.js";
 import { createFloods } from "./floods.js";
 import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
-import { createGarage, createGarageVisibility, garageCellSector, garageLights } from "./garage.js";
+import { createGarage, createGarageVisibility, garageBatchSector, garageCellSector, garageLights } from "./garage.js";
 import { GARAGE_PHOTOS_ENABLED } from "../components/garage/features.js";
 import { createGarageMaterials } from "./garage-materials.js";
 import { appendMeshesSteps, asOneRun, attributeKey, mergeMeshes, mergeMeshesSteps, joinSteps, createCells, cutSteps, Tiled, toFloat } from "./merge.js";
@@ -545,16 +545,15 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     root.updateMatrixWorld(true);
     const groups = new Map();
     for (const mesh of meshes) {
-      // (The garage's room is cut into rooms of its own, visibility sectors
-      // the camera's portals choose between, so a piece of it never joins
-      // a batch of the city's or of another room's.)
-      const sector = mesh.userData.visibilitySector ?? "";
+      // The open room shares opaque material draws. Exterior faces never
+      // join those draws; blended faces keep their authored sector/order.
+      const sector = garageBatchSector(mesh.material, mesh.userData.visibilitySector);
       const key = `${mesh.material.uuid}|${attributeKey(mesh.geometry)}|${mesh.layers.mask}|${mesh.renderOrder}|${sector}|${mesh.userData.assetKind ?? ""}`;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(mesh);
+      if (!groups.has(key)) groups.set(key, { list: [], sector });
+      groups.get(key).list.push(mesh);
     }
     const made = [];
-    for (const [key, list] of groups) {
+    for (const [key, { list, sector }] of groups) {
       yield;
       const prev = merged.get(key);
       if (prev?.mesh.runs) {
@@ -601,9 +600,10 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       mesh.renderOrder = list[0].renderOrder;
       mesh.matrixAutoUpdate = false;
       if (list[0].userData.assetKind) mesh.userData.assetKind = list[0].userData.assetKind;
-      // Which room it is, kept once the meshes it was made of are gone.
-      if (list[0].userData.visibilitySector) {
-        mesh.userData.sector = list[0].userData.visibilitySector;
+      // Keep every authored owner while the open room shares its draw.
+      mesh.userData.visibilitySectors = [...new Set(list.map((part) => part.userData.visibilitySector).filter(Boolean))];
+      if (sector) {
+        mesh.userData.sector = sector;
         mesh.name = `kit_${material.name}_${mesh.userData.sector}`;
       }
       if (occluder && OCCLUDES.has(material.name) && !mesh.layers.isEnabled(REFLECT_LAYER)) {
@@ -628,6 +628,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
             prev.whole.dispose();
           }
           prev.mesh.setRuns(append.runs);
+          prev.mesh.userData.visibilitySectors = [...new Set([...(prev.mesh.userData.visibilitySectors ?? []), ...list.map((part) => part.userData.visibilitySector).filter(Boolean)])];
           twin?.setRuns(append.runs);
           merged.set(key, { whole: append.geometry, mesh: prev.mesh, vertices: append.vertices, indices: append.indices });
           for (const part of list) part.removeFromParent();

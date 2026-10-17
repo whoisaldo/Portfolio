@@ -987,6 +987,55 @@ check("ordinary exterior meshes keep independent portal visibility across passes
   outside.geometry.dispose(); outside.material.dispose();
 });
 
+check("opaque workshop sectors share material ownership without merging street or blended faces", () => {
+  const opaque = { transparent: false }, blended = { transparent: true };
+  for (const sector of ["garage_apron", "garage_s4", "garage_s6", "garage_shop", "garage_mezzanine"]) {
+    assert.equal(garage.garageBatchSector(opaque, sector), "garage_room");
+    assert.equal(garage.garageBatchSector(blended, sector), sector);
+  }
+  assert.equal(garage.garageBatchSector(opaque, "exterior"), "exterior");
+  assert.equal(garage.garageBatchSector(opaque, "garage_shell"), "garage_shell");
+});
+
+check("material runs sharing one world cell keep independent bounds for two cameras in one render frame", () => {
+  const cells = mergeModule.createCells(12), material = new three.ShaderMaterial();
+  cells.partition = garage.garageCellSector; cells.visibleBox = () => true;
+  const make = (x) => {
+    const geometry = new three.BufferGeometry();
+    geometry.setAttribute("position", new three.Float32BufferAttribute([x, -.2, -215.2, x, .2, -215.2, x, 0, -214.8], 3)); geometry.setIndex([0, 1, 2]); geometry.computeBoundingBox();
+    const steps = mergeModule.cutSteps(geometry, cells); let result; do { result = steps.next(); } while (!result.done);
+    return new mergeModule.Tiled(geometry, material, cells, result.value);
+  };
+  const front = make(460), rear = make(466);
+  assert.equal(cells.list.length, 1, "both materials occupy the same shared grid cell");
+  const renderer = { info: { render: { frame: 10 } } };
+  const main = new three.PerspectiveCamera(50, 1.6, .1, 100); main.position.set(463, 0, -215); main.lookAt(460, 0, -215); main.updateMatrixWorld();
+  const reflected = new three.PerspectiveCamera(50, 1.6, .1, 100); reflected.position.set(463, -1, -215); reflected.lookAt(466, 0, -215); reflected.updateMatrixWorld();
+  const count = (mesh, camera) => { mesh.onBeforeRender(renderer, {}, camera); return Array.from(mesh._multiDrawCounts.subarray(0, mesh._multiDrawCount)).reduce((a, b) => a + b, 0); };
+  assert.equal(count(front, main), 3); assert.equal(count(rear, main), 0);
+  assert.equal(count(rear, reflected), 3); assert.equal(count(front, reflected), 0);
+  assert.equal(count(front, main), 3, "returning to the direct camera restores its own visibility");
+  front.geometry.dispose(); rear.geometry.dispose(); material.dispose();
+});
+
+check("static prop parts sharing a grid cell do not submit a part behind the actual camera", () => {
+  const material = new three.ShaderMaterial({ uniforms: { uSpill: { value: null } } }); material.name = "trim";
+  const geometry = new three.BoxGeometry(.2, .2, .2);
+  const a = new three.Mesh(geometry, material), b = new three.Mesh(geometry, material); a.userData.proto = "front_test"; b.userData.proto = "rear_test";
+  const header = { protos: [{ name: "front_test", box: [.1, .1, .1] }, { name: "rear_test", box: [.1, .1, .1] }], count: 2 };
+  let json = JSON.stringify(header); while ((4 + Buffer.byteLength(json)) % 4) json += " ";
+  const buffer = new ArrayBuffer(4 + Buffer.byteLength(json) + 32); new DataView(buffer).setUint32(0, Buffer.byteLength(json), true); new Uint8Array(buffer, 4, Buffer.byteLength(json)).set(Buffer.from(json));
+  new Int16Array(buffer, 4 + Buffer.byteLength(json)).set([0, 9200, 0, -4300, 0, 100, 1000, 0, 1, 9320, 0, -4300, 0, 100, 1000, 0]);
+  const system = propsModule.createProps([a, b], buffer);
+  const camera = new three.PerspectiveCamera(50, 1.6, .1, 100); camera.position.set(463, 0, -215); camera.lookAt(460, 0, -215); system.update(camera);
+  assert.equal(system.stats().front_test, "1/1"); assert.equal(system.stats().rear_test, "0/1");
+  const mesh = system.group.children.find((m) => m.isBaked);
+  assert.equal(Array.from(mesh._multiDrawCounts.subarray(0, mesh._multiDrawCount)).reduce((a, b) => a + b, 0), geometry.index.count);
+  camera.position.set(463, -1, -215); camera.lookAt(466, 0, -215); system.update(camera);
+  assert.equal(system.stats().front_test, "0/1"); assert.equal(system.stats().rear_test, "1/1");
+  system.dispose(); geometry.dispose(); material.dispose();
+});
+
 check("room procedural parts share draws while preserving each original local frame", () => {
   const geometry = new three.BoxGeometry(.4, .6, .2);
   geometry.setAttribute("color", new three.Float32BufferAttribute(new Float32Array(geometry.attributes.position.count * 4).fill(.5), 4));
