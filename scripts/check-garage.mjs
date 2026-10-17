@@ -169,6 +169,14 @@ for (const [tier, anchors] of Object.entries(anchorSets)) {
         a.position.copy(b.position);
       }
     });
+    check(`${tag} car controls follow the shown car`, () => {
+      assert.equal(visit.activeCarAt(.2), "s4");
+      assert.equal(visit.activeCarAt(.4), "s4");
+      assert.equal(visit.activeCarAt(.515), "s6");
+      assert.equal(visit.activeCarAt(.6), "s6");
+      assert.equal(visit.activeCarAt(.8), "s6");
+      assert.equal(visit.activeCarAt(1), null);
+    });
     check(`${tag} holds`, () => {
       let start = 0;
       for (const s of GARAGE_TIMELINE) {

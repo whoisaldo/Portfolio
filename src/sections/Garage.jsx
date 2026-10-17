@@ -79,6 +79,7 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
       if (state.type === "pin-hidden") return;
       setWorldState(state);
       if (state.station) setStation(state.station);
+      if (state.activeCar) setActiveCar(state.activeCar);
       if (state.selection !== undefined) {
         setSelection(state.selection);
         if (state.selection) setActiveCar(state.selection.carId);

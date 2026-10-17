@@ -1531,7 +1531,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     garageCars.setInside(null);
     garageCars.update(tape ? 0 : dt);
     const endpoint = (v) => v <= 0 ? 0 : v >= 1 ? 1 : "moving";
-    const signature = `${state.station}|${endpoint(state.hood.s4)}|${endpoint(state.hood.s6)}|${endpoint(state.lowering)}`;
+    const signature = `${state.station}|${state.activeCar}|${endpoint(state.hood.s4)}|${endpoint(state.hood.s6)}|${endpoint(state.lowering)}`;
     if (signature !== lastGarageSignature) { lastGarageSignature = signature; publishGarage(); }
     if (!visiting() || directed || flight || garageAvailable !== "ready") { markers?.hideAll(pinElements); return; }
     const view = { width, height, left: aspect < 1 ? 12 : 32, right: width - (aspect < 1 ? 12 : 32), top: aspect < 1 ? 104 : 96, bottom: Math.min(height, aspect < 1 ? 540 : height - 216) };
@@ -1723,7 +1723,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const p = clamp(inside.on ? inside.p : stage.garageProgress ?? 0, 0, 1);
     const tour = visit?.stateAt(p, reduced) ?? { hood: { s4: 0, s6: 0 }, lowering: 0 };
     const overrides = stage.view === "cinema" ? { selection: null, hood: { s4: null, s6: null }, lowering: null } : manual;
-    return { availability: garageAvailable, reason: garageReason, visiting: Boolean(visiting()), p, station: manual.selection && stage.view !== "cinema" ? findMod(manual.selection.carId, manual.selection.modId)?.station : visit?.stationAt(p), selection: manual.selection, status: inspectionLabel,
+    return { availability: garageAvailable, reason: garageReason, visiting: Boolean(visiting()), p, station: manual.selection && stage.view !== "cinema" ? findMod(manual.selection.carId, manual.selection.modId)?.station : visit?.stationAt(p), selection: manual.selection, activeCar: overrides.selection?.carId ?? (typeof inspectionTarget === "string" && /^(s4|s6)/.test(inspectionTarget) ? inspectionTarget.slice(0, 2) : visit?.activeCarAt(p)), status: inspectionLabel,
       hood: { s4: overrides.hood.s4 == null ? tour.hood.s4 : hoodMotion.s4?.value ?? overrides.hood.s4, s6: overrides.hood.s6 == null ? tour.hood.s6 : hoodMotion.s6?.value ?? overrides.hood.s6 }, lowering: overrides.lowering ?? tour.lowering,
       override: { selection: overrides.selection, hoodS4: overrides.hood.s4, hoodS6: overrides.hood.s6, lowering: overrides.lowering } };
 

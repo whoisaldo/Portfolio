@@ -749,6 +749,11 @@ export function createGarageVisit(anchors) {
     sample,
     stateAt,
     stationAt,
+    activeCarAt: (p) => {
+      const s = stretchAt(clamp(p, 0, 1));
+      const key = s.hold ?? (p < (s.start + s.to) / 2 ? s.from : s.into);
+      return key.startsWith("s4") ? "s4" : key.startsWith("s6") ? "s6" : null;
+    },
     entry,
     exit,
     pose: (key, aspect, out = makePose()) => {
