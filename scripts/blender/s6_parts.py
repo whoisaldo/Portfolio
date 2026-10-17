@@ -8,10 +8,11 @@ sit at provisional positions taken from the 2013 US S6 dimensions and Ali's
 photos, so the set reads as the car's front, rear and corners in place.
 
 What each part copies: the pre-facelift LED headlamps with the DRL band that
-runs up the outer edge and steps along the bottom (Ali's front photo); the
-pre-facelift two-piece tail lamps with the lower light guide that turns up at
-the outer end (his night photo); his gloss black RS-style honeycomb grille
-with black rings, a camera dot and the outlined "quattro" low in the frame,
+returns diagonally at the grille end, waves along the bottom and runs up the
+outer edge (Ali's front photo); the two-piece tail lamps with the lit graphic
+traced off his night photo, a double guide sweeping up inboard and parting
+into a Y at the outer end, pale regions under it; his gloss black RS-style
+honeycomb grille with black rings, a camera dot and the outlined "quattro" low in the frame,
 no S6 badge; the S6 lower intakes with dark blades and round sensor housings
 (not fog lamps); aluminium-look mirror caps; the black S6 badge and black
 rings on his boot lid, V8T on the front fenders (Audi's placement; his photos
@@ -130,6 +131,146 @@ def ribbon(name, outer, inner, yfun, mat, parent, direction, depth=0., back=None
     return facing(obj, direction)
 
 
+def closed_spline(points, steps=4):
+    """Catmull-Rom round a closed loop of (x, z) points, so an outline is drawn by its turns."""
+    pts = [Vector(p) for p in points]
+    n = len(pts)
+    out = []
+    for i in range(n):
+        a, b, c, d = pts[i - 1], pts[i], pts[(i + 1) % n], pts[(i + 2) % n]
+        for j in range(steps):
+            t = j / steps
+            q = .5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t)
+            out.append((q.x, q.y))
+    return out
+
+
+def rounded(corners, segments=4):
+    """A closed (x, z) outline through (x, z, radius) corners, each filleted to its radius."""
+    out = []
+    n = len(corners)
+    for i, (x, z, r) in enumerate(corners):
+        p = Vector((x, z))
+        a = (Vector(corners[i - 1][:2]) - p).normalized()
+        b = (Vector(corners[(i + 1) % n][:2]) - p).normalized()
+        if r <= 0 or a.dot(b) < -.9999:
+            out.append((x, z))
+            continue
+        half = math.acos(max(-1, min(1, a.dot(b)))) / 2
+        c = p + (a + b).normalized() * (r / math.sin(half))
+        s, e = p + a * (r / math.tan(half)) - c, p + b * (r / math.tan(half)) - c
+        a0 = math.atan2(s.y, s.x)
+        sweep = (math.atan2(e.y, e.x) - a0 + math.pi) % (2 * math.pi) - math.pi
+        for k in range(segments + 1):
+            t = a0 + sweep * k / segments
+            out.append((c.x + r * math.cos(t), c.y + r * math.sin(t)))
+    return out
+
+
+def clip(poly, axis, value, keep_above):
+    """Sutherland-Hodgman: the part of a closed polygon on one side of x or z = value."""
+    k = 0 if axis == 'x' else 1
+    side = lambda p: (p[k] - value) * (1 if keep_above else -1) >= 0
+    out = []
+    for i in range(len(poly)):
+        a, b = poly[i - 1], poly[i]
+        if side(b) != side(a):
+            t = (value - a[k]) / (b[k] - a[k])
+            out.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
+        if side(b):
+            out.append(b)
+    return out
+
+
+def from_unit(points, x0, x1, z0, z1, sign=1):
+    """Map (u, v) traced off a photo (u inboard 0 to outboard 1, v top 0 to bottom 1) into the car frame."""
+    return [(sign * (x0 + (x1 - x0) * u), z0 + (z1 - z0) * v) for u, v in points]
+
+
+def parallel(path, d):
+    """A polyline beside path at distance d, to its left in (x, z)."""
+    out = []
+    for i, p in enumerate(path):
+        a, b = Vector(path[max(i - 1, 0)]), Vector(path[min(i + 1, len(path) - 1)])
+        t = (b - a).normalized()
+        out.append((p[0] - t.y * d, p[1] + t.x * d))
+    return out
+
+
+def ngon(name, outline, yfun, mat, parent, direction):
+    """One flat face over an outline; Blender triangulates concave ones correctly."""
+    obj = mesh(name, [(x, yfun(x, z), z) for x, z in outline], [tuple(range(len(outline)))], mat, parent)
+    return facing(obj, direction)
+
+
+def rolled_frame(name, outline, yfun, profile, mat, parent):
+    """A frame with a rounded section: (inset, setback) rings swept round a CCW outline."""
+    n = len(outline)
+    vs = []
+    for d, back in profile:
+        ring = offset(outline, d) if d else outline
+        vs.extend((x, yfun(x, z) + back, z) for x, z in ring)
+    fs = [(k * n + i, k * n + (i + 1) % n, (k + 1) * n + (i + 1) % n, (k + 1) * n + i)
+          for k in range(len(profile) - 1) for i in range(n)]
+    obj = mesh(name, vs, fs, mat, parent, True)
+    obj.data.set_sharp_from_angle(angle=math.radians(50))
+    return facing(obj, (0, -1, 0))
+
+
+def strip(name, path, yfun, width, thick, setback, mat, parent, toward=-1, widths=None):
+    """A flat band along an (x, z) path lying in a surface: its face toward -Y (front) or +Y (rear)."""
+    n = len(path)
+    vs = []
+    for i, (x, z) in enumerate(path):
+        a, b = Vector(path[max(i - 1, 0)]), Vector(path[min(i + 1, n - 1)])
+        t = (b - a).normalized()
+        w = (widths[i] if widths else width) / 2
+        for side in (1, -1):
+            px, pz = x - t.y * w * side, z + t.x * w * side
+            y = yfun(px, pz) - toward * setback
+            vs += [(px, y, pz), (px, y - toward * thick, pz)]
+    fs = []
+    for i in range(n - 1):
+        a, b = i * 4, i * 4 + 4
+        fs += [(a, a + 2, b + 2, b), (a + 1, b + 1, b + 3, a + 3), (a, b, b + 1, a + 1), (a + 2, a + 3, b + 3, b + 2)]
+    fs += [(0, 1, 3, 2), ((n - 1) * 4, (n - 1) * 4 + 2, (n - 1) * 4 + 3, (n - 1) * 4 + 1)]
+    obj = mesh(name, vs, fs, mat, parent)
+    if obj.data.polygons[0].normal.y * toward < 0:
+        obj.data.flip_normals()
+    return obj
+
+
+def honeycomb(name, region, yfun, pitch, flat, height, rib, depth, mat, parent, front=0., keep=None, margin=0.):
+    """Flat-topped elongated hexagons (long horizontal edges, pointed ends) in a tight
+    tiling: the next column sits half a pitch across and half a cell up. Cells whose
+    outline lies inside region (grown by margin) are kept; ribs are rib wide, the
+    openings depth deep."""
+    w = pitch - flat
+    hexagon = [(-w / 2, 0), (-flat / 2, -height / 2), (flat / 2, -height / 2), (w / 2, 0), (flat / 2, height / 2), (-flat / 2, height / 2)]
+    opening = offset(hexagon, rib / 2)
+    grown = offset(region, -margin) if margin else region
+    xs, zs = [p[0] for p in region], [p[1] for p in region]
+    vs, fs = [], []
+    k = 0
+    z = min(zs)
+    while z < max(zs) + height:
+        # The lattice is symmetric about the centreline, so mirrored parts match.
+        x = math.floor(min(xs) / pitch) * pitch - pitch + (pitch / 2) * (k % 2)
+        while x < max(xs) + pitch:
+            if all(inside(x + dx, z + dz, grown) for dx, dz in hexagon) and (keep is None or keep(x, z)):
+                base = len(vs)
+                for ring, back in ((hexagon, 0), (opening, 0), (opening, depth)):
+                    vs.extend((x + dx, yfun(x + dx, z + dz) + front + back, z + dz) for dx, dz in ring)
+                for i in range(6):
+                    j = (i + 1) % 6
+                    fs.append((base + i, base + j, base + 6 + j, base + 6 + i))
+                    fs.append((base + 6 + i, base + 6 + j, base + 12 + j, base + 12 + i))
+            x += pitch
+        z += height / 2
+        k += 1
+    return facing(mesh(name, vs, fs, mat, parent), (0, -1, 0))
+
+
 def socket(name, parts, origin=None):
     """Gather built parts under a socket empty at origin (default: their bounding-box centre)."""
     objs = [o for o in parts if o]
@@ -217,192 +358,250 @@ lens_clear = glass('S6_headlamp_lens', 'f4f6f8', .06, .02)
 lens_red = glass('S6_taillamp_lens', '5c040a', .42, .03)
 amber_lens = glass('S6_indicator_lens', 'f0f0ee', .35)
 drl = emitter('S6_DRL_LED', 'eef4ff', 20, 'e8ecf2', .2)
-low_beam = emitter('S6_low_beam_LED', 'f4f7ff', 1.2, 'cfd3d8', .15)
-tail_guide = emitter('S6_tail_light_guide', 'ff2a14', 14, '9a0c0c')
-tail_led = emitter('S6_tail_LED_row', 'ff2a1c', .6, '7a0a0a')
-reverse_strip = material('S6_reverse_strip', 'd8d6d2', 0, .25)
-reflector = material('S6_tail_reflector', '3a0306', .3, .32)
-hexes = pattern('S6_intake_mesh', 32, lambda x, y: (
-    (.004, .004, .005, 1) if ((x + (8 if (y // 8) % 2 else 0)) % 16 < 13 and y % 8 < 6) else (.05, .05, .055, 1)))
-intake_mesh = textured(material('S6_intake_honeycomb', '1a1b1c', 0, .55), hexes)
-TILED.add(intake_mesh)
+# The LED low-beam modules are dark recessed optics with a small lens each;
+# in Ali's daylight photo only the DRL band is lit, so lit they glow faintly.
+low_beam = emitter('S6_low_beam_LED', 'f4f7ff', .3, '1e2124', .12)
+tail_guide = emitter('S6_tail_light_guide', 'ff2a14', 40, '9a0c0c')
+# Lit, the red lens glows dimly round the guides, and the pale regions under
+# the bar glow warm (night photo); what those regions are is not established.
+reflector = emitter('S6_tail_lens_glow', 'ff1a10', .35, '3a0306', .32)
+pale_region = emitter('S6_tail_pale_region', 'ffb27a', 1.2, 'd8d2ca', .25)
+quattro_edge = material('S6_quattro_outline', '9a9ea2', .6, .35)
+sensor_face = material('S6_sensor_face', '1a1c1f', .3, .2, .6)
 
 
 # ---- 1. headlights: pre-facelift C7 LED ----
 
+# Traced off Ali's daylight photo, both lamps agreeing, as (u, v): u from the
+# inboard tip (0) to the outer edge (1), v from the top (0) to the bottom (1).
+HEAD_X, HEAD_Z = (.405, .872), (.805, .64)
+HEAD_LENS = [(0, .52), (.1, .45), (.3, .34), (.5, .23), (.7, .13), (.85, .05), (.92, .015), (.97, .07), (1, .3), (1, .55),
+             (.98, .75), (.94, .87), (.85, .915), (.75, .915), (.6, .94), (.42, .985), (.25, 1), (.19, .95), (.12, .82), (.05, .64)]
+# The DRL band: the diagonal return down from the grille end to its lowest
+# point, then the wave along the bottom (low and flat, a slope up through the
+# middle, flat and high again outboard), the outer corner, up the outer edge.
+HEAD_DRL = [(.035, .56), (.09, .67), (.15, .79), (.2, .875), (.25, .9), (.32, .895), (.4, .88), (.5, .85), (.6, .815),
+            (.68, .795), (.8, .79), (.87, .78), (.92, .745), (.94, .66), (.945, .52), (.935, .36), (.92, .2), (.895, .07)]
+
+
 def headlight(sign):
     tag = 'l' if sign > 0 else 'r'
-    # Front view, outward x and height, from the inboard tip round the top.
-    shape = [(.405, .712), (.44, .742), (.55, .765), (.68, .788), (.80, .804), (.845, .801),
-             (.866, .776), (.872, .73), (.866, .684), (.848, .652), (.80, .642), (.72, .640),
-             (.655, .646), (.628, .662), (.595, .676), (.53, .682), (.46, .69), (.42, .698)]
-    shape = ccw(mirrored(shape, sign))
+    unit = lambda pts: from_unit(pts, *HEAD_X, *HEAD_Z, sign)
+    shape = ccw(closed_spline(unit(HEAD_LENS), 3))
     wrap = [(.40, -2.365), (.55, -2.345), (.70, -2.29), (.80, -2.22), (.86, -2.15), (.875, -2.10)]
     yf = lambda x, z: interp(wrap, abs(x)) + (z - .72) * .35
-    parts = [surface('headlamp_lens_' + tag, shape, yf, lens_clear, PARTS_ROOT, (0, -1, 0), 2, .012)]
+    parts = [surface('headlamp_lens_' + tag, shape, yf, lens_clear, PARTS_ROOT, (0, -1, 0), 3, .007)]
     parts.append(ribbon('headlamp_bezel_' + tag, shape, offset(shape, .008), lambda x, z: yf(x, z) + .004,
                         gloss_black, PARTS_ROOT, (0, -1, 0), .05, .01))
-    back = lambda x, z: yf(x, z) + .055
-    parts.append(surface('headlamp_housing_' + tag, offset(shape, .008), back, dark_chrome, PARTS_ROOT, (0, -1, 0), 1))
-    # The DRL light guide: up the outer edge, along the bottom, a step up at
-    # about forty percent of the way in, then on to the inboard tip.
-    path = [(.852, .79), (.858, .74), (.85, .69), (.825, .662), (.74, .657), (.665, .662),
-            (.635, .678), (.60, .692), (.52, .698), (.45, .706), (.425, .716)]
-    pts = [(sign * x, yf(sign * x, z) + .018, z) for x, z in path]
-    parts.append(tube('DRL_light_guide_' + tag, smooth_path(pts, 4), .0042, drl, PARTS_ROOT, sides=6))
-    parts.append(tube('DRL_reflector_channel_' + tag, smooth_path([(x, y + .006, z - .004) for x, y, z in pts], 4),
-                      .0065, satin_black, PARTS_ROOT, sides=6))
-    # Five LED low-beam modules in a row, three smaller cups above them outboard.
+    parts.append(surface('headlamp_housing_' + tag, offset(shape, .008), lambda x, z: yf(x, z) + .055, dark_chrome, PARTS_ROOT, (0, -1, 0), 1))
+    # The DRL: a flat light guide 11 mm wide in a reflector channel twice that.
+    band = [tuple(p) for p in smooth_path(unit(HEAD_DRL), 4)]
+    parts.append(strip('DRL_light_guide_' + tag, band, yf, .011, .004, .016, drl, PARTS_ROOT))
+    parts.append(strip('DRL_reflector_channel_' + tag, band, yf, .024, .006, .021, dark_chrome, PARTS_ROOT))
+    # Five recessed LED low-beam optics in a row between the top edge and the
+    # band, three smaller ones stacked inside the outer edge, a chrome brow over
+    # the row. Each optic is a dished reflector with a small lens in it.
+    v_top = lambda u: interp(HEAD_LENS[:6], u)
+    v_band = lambda u: interp(HEAD_DRL[4:13], u)
+
+    def optic(name, u, v, w, h):
+        (x, z), = unit([(u, v)])
+        corners = lambda a, b, r: ccw(rounded([(x - a, z - b, r), (x + a, z - b, r), (x + a, z + b, r), (x - a, z + b, r)], 3))
+        parts.append(surface('LED_optic_%s_%s' % (name, tag), corners(w / 2, h / 2, .007), lambda px, pz: yf(px, pz) + .026,
+                             dark_chrome, PARTS_ROOT, (0, -1, 0), 2, -.012, .006))
+        parts.append(surface('LED_lens_%s_%s' % (name, tag), corners(w * .3, h * .14, .002), lambda px, pz: yf(px, pz) + .031,
+                             low_beam, PARTS_ROOT, (0, -1, 0), 0))
     for i in range(5):
-        x, z = .50 + i * .05, .728 + i * .006
-        x *= sign
-        y = yf(x, z) + .03
-        parts.append(box('LED_module_%d_%s' % (i, tag), (x, y, z), (.036, .03, .03), dark_chrome, PARTS_ROOT, .006))
-        parts.append(cylinder('LED_emitter_%d_%s' % (i, tag), (x, y - .016, z), .011, -.004, low_beam, PARTS_ROOT, 12, 'Y'))
-    for i in range(3):
-        x, z = sign * (.79 - i * .012), .705 + i * .028
-        parts.append(box('LED_cup_%d_%s' % (i, tag), (x, yf(x, z) + .03, z), (.03, .026, .02), dark_chrome, PARTS_ROOT, .005))
+        u = .22 + i * .1
+        optic('module_%d' % i, u, v_top(u) + .52 * (v_band(u) - v_top(u)), .04, .032)
+    for i, (u, v) in enumerate([(.84, .22), (.82, .4), (.80, .58)]):
+        optic('cup_%d' % i, u, v, .026, .022)
+    brow = [tuple(p) for p in smooth_path(unit([(u, v_top(u) + .07) for u in (.12, .3, .5, .65, .78)]), 3)]
+    parts.append(strip('headlamp_brow_' + tag, brow, yf, .004, .003, .02, chrome, PARTS_ROOT))
     return socket('headlight_' + tag, parts)
 
 
-# ---- 2. taillights: pre-facelift, split at the boot seam ----
+# ---- 2. taillights: split at the boot seam ----
+
+# Traced off Ali's night photo (the S6, image left; the vehicle-right lamp is
+# the sharper one), (u, v) as for the headlamp, u from the inboard end.
+TAIL_X, TAIL_Z, TAIL_SEAM = (.356, .838), (.992, .846), .55
+TAIL_LENS = [(0, .25), (.14, .13), (.39, .07), (.64, .03), (.85, 0), (.93, .03), (.99, .18), (1, .44), (.99, .76), (.95, .97),
+             (.8, 1), (.55, .95), (.31, .91), (.07, .87), (.03, .74), (0, .44)]
+# The lit graphic: a double light guide that sweeps up at the inboard end of
+# the boot-lid piece, runs across the seam, and at the outer end of the fender
+# piece parts into a Y, the upper line up the outer edge, the lower one down.
+TAIL_INNER = [(.03, .30), (.07, .45), (.11, .57), (.16, .635), (.25, .645), (.4, .645), (.546, .645)]
+TAIL_UPPER = [(.556, .612), (.7, .612), (.8, .61), (.85, .585), (.872, .5), (.88, .33), (.885, .12)]
+TAIL_LOWER = [(.556, .678), (.7, .678), (.8, .68), (.85, .705), (.872, .78), (.885, .87), (.893, .95)]
+# Pale regions under the bar, one in each piece.
+TAIL_PALE = [(.33, .53, .72, .88), (.58, .84, .73, .92)]
+
 
 def taillight(sign):
     tag = 'l' if sign > 0 else 'r'
+    unit = lambda pts: from_unit(pts, *TAIL_X, *TAIL_Z, sign)
     wrap = [(.34, 2.445), (.50, 2.437), (.62, 2.415), (.74, 2.375), (.80, 2.33), (.84, 2.27)]
     yf = lambda x, z: interp(wrap, abs(x)) - (z - .92) * .3
-    outer = ccw(mirrored([(.612, .99), (.75, .992), (.80, .987), (.83, .97), (.838, .93), (.826, .88),
-                          (.80, .848), (.70, .846), (.612, .862)], sign))
-    inner = ccw(mirrored([(.356, .972), (.37, .99), (.603, .99), (.603, .866), (.47, .89), (.39, .908), (.36, .93)], sign))
+    shape = closed_spline(unit(TAIL_LENS), 3)
+    seam = sign * (TAIL_X[0] + (TAIL_X[1] - TAIL_X[0]) * TAIL_SEAM)
+    pieces = [('inner', ccw(clip(shape, 'x', seam - .003 * sign, sign < 0))),
+              ('outer', ccw(clip(shape, 'x', seam + .003 * sign, sign > 0)))]
     parts = []
-    for piece, shape in [('outer', outer), ('inner', inner)]:
-        parts.append(surface('taillamp_lens_%s_%s' % (piece, tag), shape, yf, lens_red, PARTS_ROOT, (0, 1, 0), 2, .006))
-        parts.append(ribbon('taillamp_bezel_%s_%s' % (piece, tag), shape, offset(shape, .006), lambda x, z: yf(x, z) - .003,
+    for piece, outline in pieces:
+        parts.append(surface('taillamp_lens_%s_%s' % (piece, tag), outline, yf, lens_red, PARTS_ROOT, (0, 1, 0), 2, .006))
+        parts.append(ribbon('taillamp_bezel_%s_%s' % (piece, tag), outline, offset(outline, .006), lambda x, z: yf(x, z) - .003,
                             gloss_black, PARTS_ROOT, (0, 1, 0), .04, .008))
-        parts.append(surface('taillamp_reflector_%s_%s' % (piece, tag), offset(shape, .006), lambda x, z: yf(x, z) - .03,
+        parts.append(surface('taillamp_reflector_%s_%s' % (piece, tag), offset(outline, .006), lambda x, z: yf(x, z) - .03,
                              reflector, PARTS_ROOT, (0, 1, 0), 1))
-    y = lambda x, z, d: yf(x, z) - d
-    # LED row under the top edge, the pale reverse strip, and the light guide
-    # that runs along the bottom of both pieces and turns up at the outer end.
-    row = [(.38, .978), (.60, .978), (.76, .978), (.81, .968)]
-    parts.append(tube('tail_LED_row_' + tag, smooth_path([(sign * x, y(sign * x, z, .012), z) for x, z in row], 3), .0035, tail_led, PARTS_ROOT, sides=5))
-    for piece, (a, b) in [('outer', (.625, .78)), ('inner', (.40, .59))]:
-        parts.append(box('reverse_strip_%s_%s' % (piece, tag), (sign * (a + b) / 2, y(sign * (a + b) / 2, .95, .016), .95),
-                         (b - a, .006, .014), reverse_strip, PARTS_ROOT, .002))
-    guide = [(.385, .92), (.50, .918), (.60, .912), (.70, .906), (.775, .904), (.805, .915), (.818, .94), (.812, .962)]
-    parts.append(tube('tail_light_guide_' + tag, smooth_path([(sign * x, y(sign * x, z, .012), z) for x, z in guide], 4), .0075, tail_guide, PARTS_ROOT, sides=6))
+    lines = [('inner_a', TAIL_INNER, .0048), ('inner_b', TAIL_INNER, -.0048), ('outer_upper', TAIL_UPPER, 0), ('outer_lower', TAIL_LOWER, 0)]
+    for name, trace, d in lines:
+        path = [tuple(p) for p in smooth_path(unit(trace), 4)]
+        if d:
+            path = parallel(path, d * sign)
+        parts.append(strip('tail_light_guide_%s_%s' % (name, tag), path, yf, .0095, .004, .012, tail_guide, PARTS_ROOT, 1))
+    for i, (u0, u1, v0, v1) in enumerate(TAIL_PALE):
+        (x0, z0), (x1, z1) = unit([(u0, v0), (u1, v1)])
+        box_ = ccw(rounded([(x0, z0, .004), (x1, z0, .004), (x1, z1, .004), (x0, z1, .004)], 2))
+        parts.append(surface('tail_pale_region_%s_%s' % (('inner', 'outer')[i], tag), box_, lambda x, z: yf(x, z) - .02,
+                             pale_region, PARTS_ROOT, (0, 1, 0), 0))
     return socket('taillight_' + tag, parts)
 
 
 # ---- 3. the RS-style honeycomb grille ----
 
-GRILLE_OUTLINE = [(0, .792), (.33, .792), (.385, .784), (.418, .758), (.426, .72), (.412, .58), (.394, .44),
-                  (.378, .352), (.36, .322), (.325, .309), (0, .307)]
+# Right half of the frame's outline off Ali's photo, (x, z, corner radius):
+# rounded top shoulders, sides that taper in and bend a little more under the
+# mesh, big lower corners.
+GRILLE_CORNERS = [(0, .792, 0), (.423, .792, .05), (.392, .477, .15), (.352, .322, .06), (0, .322, 0)]
+# Audi's outlined quattro as on Ali's grille: each glyph's outline in x-heights,
+# (x, z, corner radius), and where the glyph starts along the word.
+_T = [(0, 1, 0), (.21, 1, 0), (.21, 1.17, 0), (.53, 1.17, 0), (.53, 1, 0), (1.37, 1, 0), (1.37, .74, 0), (.53, .74, 0), (.53, .29, .05),
+      (1.45, .29, 0), (1.45, .47, 0), (1.76, .47, 0), (1.76, 0, .25), (.21, 0, .3), (.21, .74, 0), (0, .74, 0)]
+QUATTRO = [
+    (0, [[(1.89, 0, 0), (0, 0, .3), (0, 1, .3), (2.56, 1, .22), (2.56, -.35, 0), (2.26, -.35, 0), (2.26, .73, .05), (.3, .73, .05), (.3, .27, .05), (1.89, .27, 0)]]),
+    (2.97, [[(0, 1, 0), (0, 0, .22), (2.57, 0, .3), (2.57, 1, 0), (2.27, 1, 0), (2.27, .27, .06), (.3, .27, .06), (.3, 1, 0)]]),
+    (5.92, [[(1.89, 0, 0), (0, 0, .3), (0, 1, .3), (2.54, 1, .22), (2.54, -.08, 0), (2.24, -.08, 0), (2.24, .73, .05), (.3, .73, .05), (.3, .27, .05), (1.89, .27, 0)]]),
+    (8.92, [_T]),
+    (11.03, [_T]),
+    (13.21, [[(0, 0, 0), (0, 1, .3), (1.95, 1, .3), (1.95, .32, 0), (1.63, .32, 0), (1.63, .66, .05), (.3, .66, .05), (.3, 0, 0)]]),
+    (15.59, [[(0, 0, .42), (2.5, 0, .42), (2.5, 1, .42), (0, 1, .42)], [(.32, .27, .12), (2.18, .27, .12), (2.18, .73, .12), (.32, .73, .12)]]),
+]
+QUATTRO_LENGTH = 18.16
+
+
+def quattro_script(baseline, yfun, height=.0275, proud=.0016, line=.0014):
+    """The word as shallow letters seated on the panel: black faces, walls down to
+    the panel, and a thin pale outline round every edge of each face."""
+    vs, fs, mats = [], [], []
+
+    def add(face, mat):
+        fs.append(face)
+        mats.append(mat)
+
+    def put(ring, back):
+        base = len(vs)
+        vs.extend((x, yfun(x, z) - back, z) for x, z in ring)
+        return base
+    for start, contours in QUATTRO:
+        rings = [ccw([((start + x - QUATTRO_LENGTH / 2) * height, baseline + z * height) for x, z in rounded(c, 3)]) for c in contours]
+        n = len(rings[0])
+        for k, ring in enumerate(rings):
+            # Walls from the panel up to the face, and the outline: a strip just
+            # inside the outer contour, just outside a hole. A hole's faces wind
+            # the other way round so they all face out of the letter.
+            flip = (lambda f: f) if k == 0 else (lambda f: tuple(reversed(f)))
+            b0, b1 = put(ring, 0), put(ring, proud)
+            e0, e1 = put(ring, proud + .0002), put(offset(ring, line if k == 0 else -line), proud + .0002)
+            for i in range(len(ring)):
+                j = (i + 1) % len(ring)
+                add(flip((b0 + i, b0 + j, b1 + j, b1 + i)), 0)
+                add(flip((e0 + i, e0 + j, e1 + j, e1 + i)), 1)
+        face_outer = put(offset(rings[0], line), proud)
+        if len(rings) == 1:
+            add(tuple(range(face_outer, face_outer + n)), 0)
+        else:
+            face_inner = put(offset(rings[1], -line), proud)
+            for i in range(n):
+                j = (i + 1) % n
+                add((face_outer + i, face_outer + j, face_inner + j, face_inner + i), 0)
+    obj = mesh('grille_quattro_script', vs, fs, gloss_black, PARTS_ROOT)
+    obj.data.materials.append(quattro_edge)
+    for p, m in zip(obj.data.polygons, mats):
+        p.material_index = m
+    return obj
 
 
 def grille():
-    half = GRILLE_OUTLINE
-    shape = ccw([(x, z) for x, z in half] + [(-x, z) for x, z in reversed(half[1:-1])])
+    full = GRILLE_CORNERS + [(-x, z, r) for x, z, r in reversed(GRILLE_CORNERS[1:-1])]
+    shape = ccw(rounded(full, 5))
     yf = lambda x, z: FRONT + .012 + .3 * x * x + (z - .55) * .26
-    inner = offset(shape, .03)
-    parts = [ribbon('grille_frame', shape, inner, yf, gloss_black, PARTS_ROOT, (0, -1, 0), .045, .012)]
-    parts.append(surface('grille_backing', inner, lambda x, z: yf(x, z) + .06, matte_black, PARTS_ROOT, (0, -1, 0), 1))
+    # The frame's section rolls from the bumper over a rounded lip into the opening.
+    frame = [(0, .03), (.002, .009), (.006, .002), (.012, 0), (.018, .001), (.022, .006), (.025, .018), (.026, .045)]
+    parts = [rolled_frame('grille_frame', shape, yf, frame, gloss_black, PARTS_ROOT)]
+    inner = offset(shape, .026)
+    parts.append(ngon('grille_backing', inner, lambda x, z: yf(x, z) + .06, matte_black, PARTS_ROOT, (0, -1, 0)))
     # The quattro panel is the frame's lower band; a rib divides it from the mesh.
-    band_top = .432
-    band = ccw([(x, z) for x, z in inner if z < band_top] + [(-.36, band_top), (.36, band_top)])
-    parts.append(surface('grille_quattro_panel', band, lambda x, z: yf(x, z) + .014, gloss_black, PARTS_ROOT, (0, -1, 0), 1))
-    parts.append(box('grille_divider_rib', (0, yf(0, band_top) + .004, band_top + .003), (.76, .016, .009), gloss_black, PARTS_ROOT, .003))
-    # The rings sit on a black capsule; the mesh stops around it.
-    plate_r, plate_x = .062, .1
-    in_plate = lambda x, z: math.hypot(max(0, abs(x) - plate_x), z - .682) < plate_r + .022
-    capsule = [(plate_x + plate_r * math.cos(t * math.pi / 10 - math.pi / 2), .682 + plate_r * math.sin(t * math.pi / 10 - math.pi / 2)) for t in range(11)]
-    capsule += [(-x, z) for x, z in reversed(capsule)]
-    parts.append(surface('grille_ring_plate', ccw(capsule), lambda x, z: yf(x, z) + .024, gloss_black, PARTS_ROOT, (0, -1, 0), 1, 0, .02))
-    # Elongated hexagons, wider than tall, alternate rows offset half a cell.
-    w, h, rib, deep = .056, .034, .0021, .016
-    hexagon = [(0, h / 2), (-w / 2, h / 4), (-w / 2, -h / 4), (0, -h / 2), (w / 2, -h / 4), (w / 2, h / 4)]
-    ix, iz = (w / 2 - rib) / (w / 2), (h / 2 - rib * 1.4) / (h / 2)
-    vs, fs = [], []
-    row = 0
-    z = band_top + .016
-    while z < .79:
-        x0 = (w / 2) * (row % 2)
-        k = -12
-        while k <= 12:
-            cx = x0 + k * w
-            if inside(cx, z, inner) and not in_plate(cx, z):
-                base = len(vs)
-                for dx, dz in hexagon:
-                    px, pz = cx + dx, z + dz
-                    vs.append((px, yf(px, pz) + .02, pz))
-                for dx, dz in hexagon:
-                    px, pz = cx + dx * ix, z + dz * iz
-                    vs.append((px, yf(px, pz) + .02, pz))
-                for dx, dz in hexagon:
-                    px, pz = cx + dx * ix, z + dz * iz
-                    vs.append((px, yf(px, pz) + .02 + deep, pz))
-                for i in range(6):
-                    j = (i + 1) % 6
-                    fs.append((base + i, base + j, base + 6 + j, base + 6 + i))
-                    fs.append((base + 6 + i, base + 6 + j, base + 12 + j, base + 12 + i))
-            k += 1
-        z += .75 * h
-        row += 1
-    mesh_obj = mesh('grille_honeycomb', vs, fs, gloss_black, PARTS_ROOT)
-    parts.append(facing(mesh_obj, (0, -1, 0)))
-    # Behind the rings the mesh is cut; a plain black plate carries them.
+    band_top = .445
+    band = ccw(clip(inner, 'z', band_top, False))
+    parts.append(ngon('grille_quattro_panel', band, lambda x, z: yf(x, z) + .014, gloss_black, PARTS_ROOT, (0, -1, 0)))
+    half = max(x for x, z in band) + .004
+    rib = [(-half + 2 * half * i / 12, band_top + .003) for i in range(13)]
+    parts.append(strip('grille_divider_rib', rib, yf, .008, .012, .006, gloss_black, PARTS_ROOT))
+    # Elongated hexagons: 95 mm across a row, 29 mm tall, the next column half
+    # a pitch over and half a cell up. The mesh runs on behind the rings.
+    region = ccw(clip(inner, 'z', band_top + .008, True))
+    parts.append(honeycomb('grille_honeycomb', region, yf, .095, .035, .029, .003, .018, gloss_black, PARTS_ROOT, .02, margin=.012))
     for i in range(4):
         cx = (i - 1.5) * .0637
-        y0 = yf(cx, .682) + (.006 if i % 2 else .002)
-        ring = [(cx + .047 * math.sin(t * 2 * math.pi / 40), y0, .682 + .047 * math.cos(t * 2 * math.pi / 40)) for t in range(40)]
+        y0 = yf(cx, .692) + (.006 if i % 2 else .002)
+        ring = [(cx + .047 * math.sin(t * 2 * math.pi / 40), y0, .692 + .047 * math.cos(t * 2 * math.pi / 40)) for t in range(40)]
         parts.append(tube('grille_ring_%d' % i, ring, .0058, gloss_black, PARTS_ROOT, True, 8))
     parts.append(cylinder('grille_camera', (0, yf(0, .609) + .004, .609), .0065, .02, satin_black, PARTS_ROOT, 12, 'Y'))
     parts.append(cylinder('grille_camera_lens', (0, yf(0, .609) + .001, .609), .004, .004, glass('S6_camera_lens', '202428', .9, .02), PARTS_ROOT, 12, 'Y'))
-    # quattro: dark letters whose chamfered edges catch the light, as an outline.
-    q = text('grille_quattro_script', 'quattro', (0, yf(0, .372) + .0085, .372), .064, gloss_black, PARTS_ROOT, (math.pi / 2 - .26, 0, 0), .0012, spacing=1.3)
-    q.scale = (1.8, 1, 1)
-    q.data.materials.append(material('S6_quattro_outline_edge', '7a7e82', .3, .45))
-    bm = bmesh.new()
-    bm.from_mesh(q.data)
-    front = [f for f in bm.faces if f.normal.z > .7]
-    rim = bmesh.ops.inset_region(bm, faces=front, thickness=.0024, depth=-.0004, use_even_offset=True)['faces']
-    for f in bm.faces:
-        f.material_index = 1 if f in rim or abs(f.normal.z) < .7 else 0
-    bm.to_mesh(q.data)
-    bm.free()
-    parts.append(q)
+    parts.append(quattro_script(.376, lambda x, z: yf(x, z) + .014))
     return socket('RS_honeycomb_grille', parts)
 
 
 # ---- 4. the S6 lower intakes ----
 
+# Traced off Ali's front photo, (u, v) as for the lamps: a rounded opening,
+# tall at the outer end round the sensor, tapering in to the grille.
+INTAKE_X, INTAKE_Z = (.445, .866), (.432, .236)
+INTAKE = [(0, .46), (.15, .4), (.4, .28), (.66, .15), (.85, .05), (.97, 0), (.99, .13), (1, .37), (.98, .6), (.94, .76),
+          (.79, .88), (.53, .96), (.34, 1), (.19, .99), (.14, .93), (.1, .81), (.05, .63)]
+INTAKE_SENSOR = (.78, .48)
+# The blade leaves the sensor bezel low on its inboard side and sweeps down
+# and in to a point just outside the opening, 20 mm thinning to a point (m).
+INTAKE_BLADE = [(.71, .63), (.6, .65), (.45, .685), (.3, .72), (.15, .765), (.06, .80), (.01, .83)]
+INTAKE_BLADE_T = [.02, .017, .014, .011, .008, .005, .001]
+
+
 def intake(sign):
     tag = 'l' if sign > 0 else 'r'
-    shape = ccw(mirrored([(.445, .37), (.47, .395), (.60, .414), (.75, .428), (.83, .432), (.858, .418), (.866, .36),
-                          (.852, .282), (.822, .246), (.70, .236), (.55, .246), (.47, .27), (.445, .31)], sign))
+    unit = lambda pts: from_unit(pts, *INTAKE_X, *INTAKE_Z, sign)
+    shape = ccw(closed_spline(unit(INTAKE), 3))
     wrap = [(.44, -2.40), (.60, -2.385), (.75, -2.35), (.80, -2.32), (.87, -2.25)]
     yf = lambda x, z: interp(wrap, abs(x))
-    parts = [ribbon('intake_surround_' + tag, shape, offset(shape, .012), yf, gloss_black, PARTS_ROOT, (0, -1, 0), .04, .025)]
-    parts.append(surface('intake_mesh_' + tag, offset(shape, .012), lambda x, z: yf(x, z) + .045, intake_mesh, PARTS_ROOT, (0, -1, 0), 1))
-    sx, sz = sign * .772, .335
-    sy = yf(sx, sz) + .032
-    parts.append(lathe('sensor_housing_' + tag, [(0, .044), (-.004, .046), (-.012, .043), (-.014, .036), (-.008, .03), (.02, .03)], satin_black, PARTS_ROOT, 24, 'Y'))
-    parts[-1].location = (sx, sy, sz)
-    parts.append(lathe('sensor_face_' + tag, [(-.008, 0), (-.0095, .02), (-.008, .031)], gloss_black, PARTS_ROOT, 24, 'Y'))
-    parts[-1].location = (sx, sy, sz)
-    # One blade from under the sensor inward, falling and thinning to a point.
-    stations = [(.83, .302, .02), (.76, .297, .018), (.66, .291, .014), (.56, .286, .009), (.47, .29, .002)]
-    vs = []
-    for x, z, t in stations:
-        x *= sign
-        y = yf(x, z) - .002
-        vs += [(x, y, z + t / 2), (x, y, z - t / 2), (x, y + .03, z + t / 2), (x, y + .03, z - t / 2)]
-    fs = []
-    for i in range(len(stations) - 1):
-        a, b = i * 4, i * 4 + 4
-        fs += [(a, b, b + 1, a + 1), (a, a + 2, b + 2, b), (a + 1, b + 1, b + 3, a + 3)]
-    fs.append((0, 1, 3, 2))
-    parts.append(facing(bevel(mesh('intake_blade_' + tag, vs, fs, gloss_black, PARTS_ROOT, True), .002, 1), (0, -1, 0)))
+    surround = [(0, .02), (.002, .005), (.005, 0), (.009, .001), (.012, .007), (.013, .03)]
+    parts = [rolled_frame('intake_surround_' + tag, shape, yf, surround, gloss_black, PARTS_ROOT)]
+    opening = offset(shape, .013)
+    parts.append(ngon('intake_backing_' + tag, opening, lambda x, z: yf(x, z) + .05, matte_black, PARTS_ROOT, (0, -1, 0)))
+    (sx, sz), = unit([INTAKE_SENSOR])
+    clear = lambda x, z: math.hypot(x - sx, z - sz) > .056
+    parts.append(honeycomb('intake_honeycomb_' + tag, opening, yf, .056, .021, .018, .0025, .012, satin_black, PARTS_ROOT, .022,
+                           keep=clear, margin=.008))
+    # The round sensor housing (not a fog lamp, never lit): a thick bezel and a domed dark face.
+    sy = yf(sx, sz) + .01
+    for name, profile, mat in [('sensor_bezel_', [(.02, .05), (-.002, .052), (-.010, .049), (-.014, .044), (-.013, .039), (-.008, .036), (.004, .0355)], gloss_black),
+                               ('sensor_face_', [(.004, .036), (-.001, .03), (-.006, .021), (-.009, .011), (-.010, 0)], sensor_face)]:
+        part = lathe(name + tag, profile, mat, PARTS_ROOT, 32, 'Y')
+        part.location = (sx, sy, sz)
+        parts.append(part)
+    path = [tuple(p) for p in smooth_path(unit(INTAKE_BLADE), 3)]
+    widths = [interp(list(enumerate(INTAKE_BLADE_T)), i / 3) for i in range(len(path))]
+    blade = strip('intake_blade_' + tag, path, yf, 0, .035, -.01, gloss_black, PARTS_ROOT, widths=widths)
+    parts.append(bevel(blade, .0015, 1))
     return socket('lower_intake_' + tag, parts)
 
 

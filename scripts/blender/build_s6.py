@@ -251,8 +251,9 @@ def join(objects, name=None):
 
 # ---- end of the kit ----
 
-# 255/40 R19 on the standard 19-inch five-parallel-S-spoke wheel, 8.5 J.
-# The wheel is provisional: none of Ali's photos shows a wheel face.
+# 255/40 R19 on the standard 19-inch five-parallel-S-spoke wheel (Audi's US
+# 2013 wheel chart, design E), 8.5 J. The wheel is provisional: none of Ali's
+# photos shows a wheel face; a photo of his wheel replaces it.
 RIM_R = 19 * .0254 / 2
 WHEEL_R = RIM_R + .255 * .40
 WHEELBASE = 2.912
@@ -269,26 +270,35 @@ def build_wheel(code, side, pivot, mats):
     lathe('rim_barrel_' + code + side, signed([(-half, RIM_R + .01), (-half, RIM_R - .006), (half - .02, RIM_R - .006), (half, RIM_R - .002), (half + .012, RIM_R + .01), (half + .016, RIM_R + .004), (half + .012, RIM_R - .014), (half - .01, RIM_R - .02)]), mats['wheel'], wheel, 72)
     lathe('hub_' + code + side, signed([(half - .03, 0), (half - .03, .07), (half - .004, .072), (half + .004, .064), (half + .004, 0)]), mats['wheel'], wheel, 40)
     face = half + .006
+    # Audi's chart E: five pairs of arms, ten in all ("S" is the design line,
+    # not a curve). Each arm is a nearly radial blade, narrow at the hub and
+    # broadening into a filleted shoulder at the rim; the two arms of a pair
+    # keep about 26 degrees apart along their whole length (a narrow gap, not a
+    # shared stem), mirror each other and bow apart a little mid-span. The face
+    # is crowned along each arm, rolled back at its edges, and dished toward the
+    # rim. Stations: (radius, half width, face depth).
+    stations = [(.062, .009, face + .004), (.085, .0105, face + .005), (.11, .0125, face + .004), (.14, .015, face + .002),
+                (.17, .019, face - .002), (.20, .023, face - .007), (.222, .028, face - .012), (.233, .036, face - .015),
+                (RIM_R - .004, .048, face - .017)]
+    # Across an arm: rolled edge, shoulder, crown, shoulder, rolled edge, then the back.
+    section = [(-1, -.006), (-.55, -.001), (0, .0015), (.55, -.001), (1, -.006), (1, -.03), (-1, -.03)]
+    m = len(section)
     for k in range(5):
-        base = k * 2 * math.pi / 5
-        for arm in [-1, 1]:
-            # Each pair leaves the hub close together and bows apart into
-            # the rim in a shallow S, as on Audi's 2013 US wheel chart (E).
-            stations = [(.064, .026, .022, face), (.11, .07, .018, face + .005), (.165, .14, .016, face + .003), (.205, .2, .015, face - .006), (RIM_R - .006, .245, .014, face - .017)]
+        for arm in (-1, 1):
             vs = []
-            for r, offset, width, axial in stations:
-                t = base + arm * offset + .05 * math.sin((r - .066) / (RIM_R - .074) * math.pi)
-                for depth in [axial, axial - .032]:
-                    for edge in [-1, 1]:
-                        vs.append((sign * depth, math.sin(t) * r + math.cos(t) * width * edge, math.cos(t) * r - math.sin(t) * width * edge))
-            fs = [(0, 2, 3, 1), (16, 17, 19, 18)]
-            for j in range(4):
-                a, b = j * 4, j * 4 + 4
-                fs.extend([(a, b, b + 1, a + 1), (a + 2, a + 3, b + 3, b + 2), (a, a + 2, b + 2, b), (a + 1, b + 1, b + 3, a + 3)])
-            if sign < 0:
-                fs = [tuple(reversed(f)) for f in fs]
-            bevel(mesh('S_spoke', vs, fs, mats['wheel'], wheel), .003, 1)
-    lathe('centre_cap_' + code + side, signed([(face + .004, 0), (face + .004, .052), (face + .008, .054), (face + .011, .05), (face + .012, 0)]), mats['wheel_dark'], wheel, 36)
+            for r, w, axial in stations:
+                s_ = (r - .062) / (RIM_R - .066)
+                t = k * 2 * math.pi / 5 + arm * (.227 + .012 * math.sin(math.pi * s_))
+                for across, dz in section:
+                    d, lat = axial + dz, across * w
+                    vs.append((sign * d, math.sin(t) * r + math.cos(t) * lat, math.cos(t) * r - math.sin(t) * lat))
+            fs = [(i * m + j, i * m + (j + 1) % m, (i + 1) * m + (j + 1) % m, (i + 1) * m + j) for i in range(len(stations) - 1) for j in range(m)]
+            spoke = mesh('S_spoke', vs, fs, mats['wheel'], wheel, True)
+            # The crown's front quad faces out of the wheel (+X on the left).
+            if spoke.data.polygons[2].normal.x * sign < 0:
+                spoke.data.flip_normals()
+            spoke.data.set_sharp_from_angle(angle=math.radians(40))
+    lathe('centre_cap_' + code + side, signed([(face + .004, 0), (face + .004, .052), (face + .008, .054), (face + .011, .05), (face + .012, 0)]), mats['wheel'], wheel, 36)
     for j in range(5):
         t = j * 2 * math.pi / 5 + math.pi / 5
         cylinder('wheel_bolt', (sign * (face - .004), math.sin(t) * .062, math.cos(t) * .062), .009, sign * .012, mats['steel'], wheel, 6, 'X')
