@@ -1,6 +1,6 @@
 {
- "note": "the garage's prototypes (scripts/blender/ncw/garage): triangles drawn always, triangles drawn near by only (<name>__near, never on a phone), the kit materials each wears, its footprint (half sizes), whether a phone drops it",
- "total_triangles": 31983,
+ "note": "the garage's prototypes (scripts/blender/ncw/garage): triangles drawn always, triangles drawn near by only (<name>__near, never on a phone), the kit materials each wears, its box (half sizes x, y, z, base at y 0: the whole extent, what the site culls by), its bounds (the geometry's min and max in its own frame), its solids (x0, x1, y0, y1, z0, z1 boxes in its own frame: what stands in the way; [] nothing; null the box), whether a phone drops it. assemblies: each preview tile's assembly at the origin, yaw 0, its min and max. fit: the lifts against Ali's S4.",
+ "total_triangles": 31803,
  "protos": {
   "garage_lift2": {
    "triangles": 750,
@@ -10,71 +10,293 @@
     "trim"
    ],
    "box": [
-    1.8,
-    1.88,
+    2.12,
+    1.92,
     0.3
+   ],
+   "bounds": {
+    "min": [
+     -2.12,
+     0.0,
+     -0.25
+    ],
+    "max": [
+     1.84,
+     3.819,
+     0.28
+    ]
+   },
+   "solids": [
+    [
+     -1.84,
+     -1.42,
+     0.0,
+     0.022,
+     -0.25,
+     0.25
+    ],
+    [
+     1.42,
+     1.84,
+     0.0,
+     0.022,
+     -0.25,
+     0.25
+    ],
+    [
+     -1.78,
+     -1.46,
+     0.0,
+     3.762,
+     -0.153,
+     0.153
+    ],
+    [
+     1.46,
+     1.78,
+     0.0,
+     3.762,
+     -0.153,
+     0.153
+    ],
+    [
+     -2.04,
+     -1.78,
+     1.02,
+     1.83,
+     -0.13,
+     0.19
+    ],
+    [
+     -1.86,
+     1.86,
+     3.34,
+     3.822,
+     -0.1,
+     0.1
+    ]
    ],
    "detail": false,
    "reach": null,
    "about": "A two-post overhead lift: each post a pressed C channel open toward the bay, its hydraulic cylinder and chrome rod inside with the chain sheave at its top, the lock ladder up its back; a base plate, hazard bands at the foot; across the top the beam with its padded shut-off bar, the equaliser cables and the hydraulic line; the power unit (motor, pump, reservoir, the up button and the lowering lever) on the left post."
   },
-  "garage_lift2_arms": {
-   "triangles": 548,
-   "near_triangles": 200,
+  "garage_lift2_carriage": {
+   "triangles": 164,
+   "near_triangles": 0,
    "materials": [
     "trim"
    ],
    "box": [
     1.6,
-    0.42,
-    1.12
+    0.4,
+    0.2
+   ],
+   "bounds": {
+    "min": [
+     -1.6,
+     0.012,
+     -0.2
+    ],
+    "max": [
+     1.6,
+     0.8,
+     0.2
+    ]
+   },
+   "solids": [
+    [
+     -1.6,
+     -1.2,
+     0.012,
+     0.8,
+     -0.2,
+     0.2
+    ],
+    [
+     1.2,
+     1.6,
+     0.012,
+     0.8,
+     -0.2,
+     0.2
+    ]
    ],
    "detail": false,
    "reach": null,
-   "about": "The two carriages that ride the posts and the four arms on them, swung in under a car's jacking points (LIFT2_PADS): each arm two telescoping stages of yellow box section, its pivot pin and the toothed restraint gear over it, and a round pad on a screw at its end. Placed on the lift's spot, up LIFT2_RISE when raised."
+   "about": "The two carriages that ride the posts (lowered, on their stops at the base plates): a slide in each post's mouth, the yellow lock bar over it, and the two pin brackets the arms turn on (LIFT2_PIVOT)."
   },
-  "garage_lift2_arms_out": {
-   "triangles": 548,
-   "near_triangles": 200,
+  "garage_lift2_arm": {
+   "triangles": 88,
+   "near_triangles": 166,
+   "materials": [
+    "hazard",
+    "trim"
+   ],
+   "box": [
+    0.08,
+    0.06,
+    0.66
+   ],
+   "bounds": {
+    "min": [
+     -0.061,
+     0.02,
+     -0.06
+    ],
+    "max": [
+     0.061,
+     0.115,
+     0.625
+    ]
+   },
+   "solids": [],
+   "detail": false,
+   "reach": 260,
+   "about": "An arm's outer stage, turning on its pin at the origin and running out along +z: yellow box section 120 mm wide and 55 mm deep, 20 mm off the floor (it lies under a car), the pin through its boss, the toothed restraint gear over it, a hazard band at its mouth."
+  },
+  "garage_lift2_arm_ext": {
+   "triangles": 80,
+   "near_triangles": 0,
    "materials": [
     "trim"
    ],
    "box": [
-    1.6,
-    0.42,
-    1.3
+    0.06,
+    0.05,
+    0.66
    ],
+   "bounds": {
+    "min": [
+     -0.05,
+     0.02,
+     -0.64
+    ],
+    "max": [
+     0.05,
+     0.09,
+     0.05
+    ]
+   },
+   "solids": [],
    "detail": false,
-   "reach": null,
-   "about": "The carriages with the arms swung out along the drive line, front ones forward and rear ones back, as they are left for a car to drive in between the posts."
+   "reach": 260,
+   "about": "An arm's inner stage, its pad socket at the origin (where the pad's screw goes in) and the rest running back along -z into the outer stage: placed out along the arm as far as its pad must reach."
+  },
+  "garage_lift2_pad": {
+   "triangles": 90,
+   "near_triangles": 40,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.08,
+    0.06,
+    0.08
+   ],
+   "bounds": {
+    "min": [
+     -0.075,
+     -0.11,
+     -0.075
+    ],
+    "max": [
+     0.075,
+     0.002,
+     0.075
+    ]
+   },
+   "solids": [],
+   "detail": false,
+   "reach": 200,
+   "about": "A screw pad, its origin the top of its rubber: the rubber disc in its steel cup and the threaded stem under it, which winds out of the arm's socket (LIFT2_PAD_RANGE) to meet a sill."
   },
   "garage_scissor_down": {
    "triangles": 352,
-   "near_triangles": 352,
+   "near_triangles": 632,
    "materials": [
     "hazard",
     "trim"
    ],
    "box": [
     1.1,
-    0.06,
-    1.42
+    0.07,
+    2.63
+   ],
+   "bounds": {
+    "min": [
+     -1.08,
+     0.0,
+     -2.622
+    ],
+    "max": [
+     1.086,
+     0.126,
+     2.622
+    ]
+   },
+   "solids": [
+    [
+     -1.08,
+     -0.52,
+     0.0,
+     0.12,
+     -2.2,
+     2.2
+    ],
+    [
+     0.52,
+     1.08,
+     0.0,
+     0.12,
+     -2.2,
+     2.2
+    ]
    ],
    "detail": false,
    "reach": null,
-   "about": "The drive-on scissor lift down: its runways 0.12 m up, the legs folded flat inside them, the ramps down to the floor."
+   "about": "The drive-on scissor lift down: its 4.4 m runways 0.12 m up, the legs folded flat inside them, the ramps down to the floor."
   },
   "garage_scissor_up": {
-   "triangles": 480,
-   "near_triangles": 352,
+   "triangles": 608,
+   "near_triangles": 632,
    "materials": [
     "hazard",
     "trim"
    ],
    "box": [
     1.1,
-    0.6,
-    1.1
+    0.84,
+    2.56
+   ],
+   "bounds": {
+    "min": [
+     -1.08,
+     0.0,
+     -2.557
+    ],
+    "max": [
+     1.086,
+     1.661,
+     2.557
+    ]
+   },
+   "solids": [
+    [
+     -1.08,
+     -0.52,
+     0.0,
+     1.59,
+     -2.31,
+     2.31
+    ],
+    [
+     0.52,
+     1.08,
+     0.0,
+     1.59,
+     -2.31,
+     2.31
+    ]
    ],
    "detail": false,
    "reach": null,
@@ -87,10 +309,23 @@
     "trim"
    ],
    "box": [
-    0.25,
-    0.55,
-    0.2
+    0.27,
+    0.61,
+    0.25
    ],
+   "bounds": {
+    "min": [
+     -0.23,
+     0.0,
+     -0.185
+    ],
+    "max": [
+     0.262,
+     1.22,
+     0.245
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 200,
    "about": "The scissor's power unit on castors: a cabinet, the motor on top, the control box with its buttons, the hoses coiled on their hook."
@@ -106,6 +341,19 @@
     0.26,
     0.16
    ],
+   "bounds": {
+    "min": [
+     -0.161,
+     -0.009,
+     -0.161
+    ],
+    "max": [
+     0.163,
+     0.51,
+     0.161
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 160,
    "about": "A three-tonne jack stand: four legs splayed from a square foot to the sleeve, the toothed column in it with its saddle, the ratchet lever."
@@ -117,9 +365,39 @@
     "trim"
    ],
    "box": [
-    0.2,
-    0.15,
-    0.62
+    0.21,
+    0.47,
+    1.08
+   ],
+   "bounds": {
+    "min": [
+     -0.206,
+     0.0,
+     -1.076
+    ],
+    "max": [
+     0.206,
+     0.934,
+     0.49
+    ]
+   },
+   "solids": [
+    [
+     -0.21,
+     0.21,
+     0.0,
+     0.16,
+     -0.33,
+     0.49
+    ],
+    [
+     -0.075,
+     0.075,
+     0.14,
+     0.94,
+     -1.08,
+     -0.28
+    ]
    ],
    "detail": false,
    "reach": 200,
@@ -136,6 +414,19 @@
     0.1,
     0.52
    ],
+   "bounds": {
+    "min": [
+     -0.232,
+     0.0,
+     -0.512
+    ],
+    "max": [
+     0.232,
+     0.18,
+     0.472
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 200,
    "about": "A mechanic's creeper: a padded board on a tube frame with its headrest, on six castors."
@@ -151,6 +442,19 @@
     0.06,
     0.13
    ],
+   "bounds": {
+    "min": [
+     -0.075,
+     0.0,
+     -0.13
+    ],
+    "max": [
+     0.075,
+     0.11,
+     0.13
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 120,
    "about": "A rubber wheel chock: a wedge, its face to the tyre (+z), a grip rib across its slope."
@@ -163,9 +467,79 @@
     "trim"
    ],
    "box": [
-    1.62,
-    0.3,
-    0.06
+    1.9,
+    1.94,
+    4.12
+   ],
+   "bounds": {
+    "min": [
+     -1.616,
+     0.0,
+     -4.12
+    ],
+    "max": [
+     1.88,
+     3.88,
+     0.0
+    ]
+   },
+   "solids": [
+    [
+     -1.616,
+     -1.554,
+     0.0,
+     2.88,
+     -0.06,
+     0.0
+    ],
+    [
+     -1.616,
+     -1.554,
+     2.85,
+     3.88,
+     -3.48,
+     0.0
+    ],
+    [
+     1.554,
+     1.616,
+     0.0,
+     2.88,
+     -0.06,
+     0.0
+    ],
+    [
+     1.554,
+     1.616,
+     2.85,
+     3.88,
+     -3.48,
+     0.0
+    ],
+    [
+     -1.6,
+     1.6,
+     3.1,
+     3.44,
+     -0.2,
+     -0.01
+    ],
+    [
+     -0.2,
+     0.2,
+     3.26,
+     3.88,
+     -4.12,
+     -0.12
+    ],
+    [
+     1.8,
+     1.88,
+     1.35,
+     1.47,
+     -0.053,
+     0.0
+    ]
    ],
    "detail": false,
    "reach": null,
@@ -180,9 +554,55 @@
     "trim"
    ],
    "box": [
-    1.5,
-    1.5,
-    0.03
+    1.59,
+    1.7,
+    0.6537904335386753
+   ],
+   "bounds": {
+    "min": [
+     -1.585,
+     -0.002,
+     -0.649
+    ],
+    "max": [
+     1.585,
+     3.355,
+     0.042
+    ]
+   },
+   "solids": [
+    [
+     -1.585,
+     1.585,
+     -0.03,
+     0.78,
+     -0.035,
+     0.03
+    ],
+    [
+     -1.585,
+     1.585,
+     0.72,
+     1.53,
+     -0.035,
+     0.03
+    ],
+    [
+     -1.585,
+     1.585,
+     1.47,
+     2.28,
+     -0.035,
+     0.03
+    ],
+    [
+     -1.585,
+     1.585,
+     2.22,
+     3.028,
+     -0.054,
+     0.03
+    ]
    ],
    "detail": false,
    "reach": null,
@@ -197,9 +617,55 @@
     "trim"
    ],
    "box": [
-    1.5,
-    1.5,
-    0.5
+    1.59,
+    1.7,
+    1.9690973958179394
+   ],
+   "bounds": {
+    "min": [
+     -1.585,
+     1.429,
+     -1.964
+    ],
+    "max": [
+     1.585,
+     3.369,
+     0.042
+    ]
+   },
+   "solids": [
+    [
+     -1.585,
+     1.585,
+     1.401,
+     2.211,
+     -0.035,
+     0.03
+    ],
+    [
+     -1.585,
+     1.585,
+     2.151,
+     2.961,
+     -0.038,
+     0.03
+    ],
+    [
+     -1.585,
+     1.585,
+     2.901,
+     3.29,
+     -0.619,
+     0.027
+    ],
+    [
+     -1.585,
+     1.585,
+     3.23,
+     3.29,
+     -1.369,
+     -0.554
+    ]
    ],
    "detail": false,
    "reach": null,
@@ -214,9 +680,55 @@
     "trim"
    ],
    "box": [
-    1.5,
-    0.1,
-    0.5
+    1.59,
+    1.7,
+    3.718097395817939
+   ],
+   "bounds": {
+    "min": [
+     -1.585,
+     3.122,
+     -3.713
+    ],
+    "max": [
+     1.585,
+     3.369,
+     -0.106
+    ]
+   },
+   "solids": [
+    [
+     -1.585,
+     1.585,
+     3.12,
+     3.29,
+     -0.868,
+     -0.082
+    ],
+    [
+     -1.585,
+     1.585,
+     3.23,
+     3.29,
+     -1.618,
+     -0.803
+    ],
+    [
+     -1.585,
+     1.585,
+     3.23,
+     3.29,
+     -2.368,
+     -1.553
+    ],
+    [
+     -1.585,
+     1.585,
+     3.23,
+     3.29,
+     -3.118,
+     -2.303
+    ]
    ],
    "detail": false,
    "reach": null,
@@ -230,9 +742,79 @@
     "trim"
    ],
    "box": [
-    3.12,
-    0.3,
-    0.06
+    3.4,
+    2.7399999999999998,
+    5.72
+   ],
+   "bounds": {
+    "min": [
+     -3.116,
+     0.0,
+     -5.72
+    ],
+    "max": [
+     3.38,
+     5.48,
+     0.0
+    ]
+   },
+   "solids": [
+    [
+     -3.116,
+     -3.054,
+     0.0,
+     4.48,
+     -0.06,
+     0.0
+    ],
+    [
+     -3.116,
+     -3.054,
+     4.45,
+     5.48,
+     -5.08,
+     0.0
+    ],
+    [
+     3.054,
+     3.116,
+     0.0,
+     4.48,
+     -0.06,
+     0.0
+    ],
+    [
+     3.054,
+     3.116,
+     4.45,
+     5.48,
+     -5.08,
+     0.0
+    ],
+    [
+     -3.1,
+     3.1,
+     4.7,
+     5.04,
+     -0.2,
+     -0.01
+    ],
+    [
+     -0.2,
+     0.2,
+     4.86,
+     5.48,
+     -5.72,
+     -0.12
+    ],
+    [
+     3.3,
+     3.38,
+     1.35,
+     1.47,
+     -0.053,
+     0.0
+    ]
    ],
    "detail": false,
    "reach": null,
@@ -247,9 +829,71 @@
     "trim"
    ],
    "box": [
-    3.0,
-    2.3,
-    0.03
+    3.09,
+    2.4999999999999996,
+    0.6537904335386753
+   ],
+   "bounds": {
+    "min": [
+     -3.085,
+     -0.002,
+     -0.649
+    ],
+    "max": [
+     3.085,
+     4.955,
+     0.042
+    ]
+   },
+   "solids": [
+    [
+     -3.085,
+     3.085,
+     -0.03,
+     0.797,
+     -0.035,
+     0.03
+    ],
+    [
+     -3.085,
+     3.085,
+     0.737,
+     1.563,
+     -0.035,
+     0.03
+    ],
+    [
+     -3.085,
+     3.085,
+     1.503,
+     2.33,
+     -0.035,
+     0.03
+    ],
+    [
+     -3.085,
+     3.085,
+     2.27,
+     3.097,
+     -0.035,
+     0.03
+    ],
+    [
+     -3.085,
+     3.085,
+     3.037,
+     3.863,
+     -0.035,
+     0.03
+    ],
+    [
+     -3.085,
+     3.085,
+     3.803,
+     4.628,
+     -0.054,
+     0.03
+    ]
    ],
    "detail": false,
    "reach": null,
@@ -264,9 +908,71 @@
     "trim"
    ],
    "box": [
-    3.0,
-    2.3,
-    0.5
+    3.09,
+    2.4999999999999996,
+    2.6890973958179396
+   ],
+   "bounds": {
+    "min": [
+     -3.085,
+     2.149,
+     -2.684
+    ],
+    "max": [
+     3.085,
+     4.969,
+     0.042
+    ]
+   },
+   "solids": [
+    [
+     -3.085,
+     3.085,
+     2.121,
+     2.948,
+     -0.035,
+     0.03
+    ],
+    [
+     -3.085,
+     3.085,
+     2.888,
+     3.714,
+     -0.035,
+     0.03
+    ],
+    [
+     -3.085,
+     3.085,
+     3.654,
+     4.481,
+     -0.035,
+     0.03
+    ],
+    [
+     -3.085,
+     3.085,
+     4.421,
+     4.89,
+     -0.556,
+     0.03
+    ],
+    [
+     -3.085,
+     3.085,
+     4.83,
+     4.89,
+     -1.322,
+     -0.491
+    ],
+    [
+     -3.085,
+     3.085,
+     4.83,
+     4.89,
+     -2.089,
+     -1.257
+    ]
    ],
    "detail": false,
    "reach": null,
@@ -281,9 +987,71 @@
     "trim"
    ],
    "box": [
-    3.0,
-    0.1,
-    0.5
+    3.09,
+    2.4999999999999996,
+    5.318097395817938
+   ],
+   "bounds": {
+    "min": [
+     -3.085,
+     4.722,
+     -5.313
+    ],
+    "max": [
+     3.085,
+     4.969,
+     -0.106
+    ]
+   },
+   "solids": [
+    [
+     -3.085,
+     3.085,
+     4.72,
+     4.89,
+     -0.885,
+     -0.082
+    ],
+    [
+     -3.085,
+     3.085,
+     4.83,
+     4.89,
+     -1.651,
+     -0.82
+    ],
+    [
+     -3.085,
+     3.085,
+     4.83,
+     4.89,
+     -2.418,
+     -1.586
+    ],
+    [
+     -3.085,
+     3.085,
+     4.83,
+     4.89,
+     -3.185,
+     -2.353
+    ],
+    [
+     -3.085,
+     3.085,
+     4.83,
+     4.89,
+     -3.951,
+     -3.12
+    ],
+    [
+     -3.085,
+     3.085,
+     4.83,
+     4.89,
+     -4.718,
+     -3.886
+    ]
    ],
    "detail": false,
    "reach": null,
@@ -299,9 +1067,31 @@
     "trim"
    ],
    "box": [
-    0.56,
-    1.12,
-    0.06
+    0.53,
+    1.24,
+    0.22
+   ],
+   "bounds": {
+    "min": [
+     -0.525,
+     0.0,
+     -0.212
+    ],
+    "max": [
+     0.525,
+     2.47,
+     0.076
+    ]
+   },
+   "solids": [
+    [
+     -0.525,
+     0.525,
+     0.0,
+     2.2,
+     -0.08,
+     0.071
+    ]
    ],
    "detail": false,
    "reach": null,
@@ -315,9 +1105,63 @@
     "trim"
    ],
    "box": [
-    3.6,
-    0.3,
+    3.82,
+    2.6,
     0.46
+   ],
+   "bounds": {
+    "min": [
+     -3.2,
+     0.0,
+     -0.42
+    ],
+    "max": [
+     3.81,
+     5.2,
+     0.45
+    ]
+   },
+   "solids": [
+    [
+     -3.01,
+     -2.93,
+     0.0,
+     4.6,
+     0.3,
+     0.45
+    ],
+    [
+     2.93,
+     3.01,
+     0.0,
+     4.6,
+     0.3,
+     0.45
+    ],
+    [
+     -3.2,
+     3.2,
+     4.6,
+     5.2,
+     -0.124,
+     -0.1
+    ],
+    [
+     3.0,
+     3.81,
+     4.72,
+     5.08,
+     -0.42,
+     -0.1
+    ],
+    [
+     3.22,
+     3.38,
+     1.25,
+     1.6,
+     -0.097,
+     0.0
+    ]
    ],
    "detail": false,
    "reach": null,
@@ -331,10 +1175,23 @@
     "trim"
    ],
    "box": [
-    1.1,
+    1.13,
     0.01,
     1.05
    ],
+   "bounds": {
+    "min": [
+     -1.13,
+     0.0,
+     -1.05
+    ],
+    "max": [
+     1.13,
+     0.008,
+     1.05
+    ]
+   },
+   "solids": [],
    "detail": false,
    "reach": 220,
    "about": "A flush in-ground lift's pad: its two runway plates level with the floor (an in-ground scissor, down) in their steel frames, a hinged access hatch between them, hazard chevrons on the plates' ends and the wheel stops' marks."
@@ -350,6 +1207,19 @@
     0.01,
     3.05
    ],
+   "bounds": {
+    "min": [
+     -1.75,
+     0.004,
+     -3.05
+    ],
+    "max": [
+     1.75,
+     0.004,
+     3.05
+    ]
+   },
+   "solids": [],
    "detail": false,
    "reach": 260,
    "about": "A bay painted out in yellow, 3.5 by 6.1 m: its outline in 60 mm lines broken at the corners, a centre tick at each end, a wheel stop bar across the front."
@@ -361,10 +1231,23 @@
     "trim"
    ],
    "box": [
-    0.56,
+    0.58,
     0.5,
     0.25
    ],
+   "bounds": {
+    "min": [
+     -0.54,
+     0.0,
+     -0.235
+    ],
+    "max": [
+     0.573,
+     0.99,
+     0.239
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": null,
    "about": "A 42-inch rolling tool cabinet in red: seven drawers with full-width pulls, chipped and scuffed at the edges, a rubber mat on top, a side handle and a lock, on four castors."
@@ -376,10 +1259,23 @@
     "trim"
    ],
    "box": [
-    0.56,
-    0.27,
+    0.58,
+    0.28,
     0.24
    ],
+   "bounds": {
+    "min": [
+     -0.571,
+     0.0,
+     -0.235
+    ],
+    "max": [
+     0.571,
+     0.55,
+     0.239
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 260,
    "about": "The top box that stands on the roll cabinet (at TOP_ON_CAB): six drawers under a lid that lifts on gas struts, a carry handle each side."
@@ -392,9 +1288,22 @@
    ],
    "box": [
     0.4,
-    0.5,
-    0.25
+    0.53,
+    0.28
    ],
+   "bounds": {
+    "min": [
+     -0.375,
+     0.0,
+     -0.274
+    ],
+    "max": [
+     0.375,
+     1.06,
+     0.22
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 260,
    "about": "A red three-tray utility cart with a few things on its top tray: a socket tray, a spray can, a rag."
@@ -408,9 +1317,22 @@
    ],
    "box": [
     1.2,
-    0.46,
-    0.38
+    0.56,
+    0.5
    ],
+   "bounds": {
+    "min": [
+     -1.2,
+     0.0,
+     -0.375
+    ],
+    "max": [
+     1.2,
+     1.12,
+     0.5
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": null,
    "about": "A 2.4 m workbench: a butcher-block top on a steel frame, a drawer unit, a lower shelf, a bench vise bolted at the left front corner, and on it a battery, a parts tray and a carton."
@@ -424,8 +1346,21 @@
    "box": [
     1.25,
     1.15,
-    0.06
+    0.14
    ],
+   "bounds": {
+    "min": [
+     -1.24,
+     0.94,
+     0.0
+    ],
+    "max": [
+     1.24,
+     2.28,
+     0.14
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 200,
    "about": "A pegboard wall over a bench (from 1.0 to 2.25 m up), its tools hung on it and each one's outline painted behind it in yellow, as a shop that knows when a spanner has walked: ten combination spanners in a row, screwdrivers, a hammer, pliers, a torque wrench, a rail of sockets, a tape; along its foot a shelf of spray cans."
@@ -438,10 +1373,23 @@
     "trim"
    ],
    "box": [
-    0.86,
+    0.87,
     0.06,
-    0.05
+    0.21
    ],
+   "bounds": {
+    "min": [
+     -0.869,
+     -0.903,
+     -0.025
+    ],
+    "max": [
+     0.869,
+     0.051,
+     0.205
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 200,
    "about": "An under-hood work light: a telescoping bar 1.7 m across, a rubber hook at each end to hang it from a hood's edges, the LED strip along its underside (cool white) and its cord. Its origin is the hooks' grip: set it at the open hood's underside."
@@ -455,9 +1403,22 @@
    ],
    "box": [
     0.05,
-    0.25,
+    0.28,
     0.05
    ],
+   "bounds": {
+    "min": [
+     -0.035,
+     0.05,
+     -0.04
+    ],
+    "max": [
+     0.044,
+     0.544,
+     0.034
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 160,
    "about": "A hand lamp on its own, hung from its hook (at 0.5 m: set it at a hook's height less 0.5)."
@@ -471,9 +1432,22 @@
    ],
    "box": [
     0.2,
-    1.2,
-    0.22
+    1.24,
+    0.34
    ],
+   "bounds": {
+    "min": [
+     -0.13,
+     0.87,
+     0.0
+    ],
+    "max": [
+     0.13,
+     2.465,
+     0.335
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 220,
    "about": "A cord reel on the wall at 2.3 m, its drum wound with yellow cord, the cord down to a warm hand lamp hanging at 1.3 m."
@@ -489,6 +1463,19 @@
     0.33,
     0.33
    ],
+   "bounds": {
+    "min": [
+     -0.133,
+     -0.001,
+     -0.331
+    ],
+    "max": [
+     0.133,
+     0.661,
+     0.331
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 220,
    "about": "A tyre standing on its tread, its axle along x."
@@ -504,6 +1491,19 @@
     0.33,
     0.33
    ],
+   "bounds": {
+    "min": [
+     -0.133,
+     -0.001,
+     -0.331
+    ],
+    "max": [
+     0.133,
+     0.661,
+     0.331
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 220,
    "about": "A wheel on its tyre, standing, its face toward +x: silver five split spokes."
@@ -515,10 +1515,23 @@
     "trim"
    ],
    "box": [
-    0.33,
-    0.51,
-    0.33
+    0.35,
+    0.52,
+    0.35
    ],
+   "bounds": {
+    "min": [
+     -0.337,
+     -0.006,
+     -0.345
+    ],
+    "max": [
+     0.342,
+     1.026,
+     0.35
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 220,
    "about": "Four tyres lying flat in a stack, each a little off the last."
@@ -534,6 +1547,19 @@
     1.0,
     0.25
    ],
+   "bounds": {
+    "min": [
+     -1.22,
+     0.0,
+     -0.24
+    ],
+    "max": [
+     1.22,
+     2.0,
+     0.24
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": null,
    "about": "A two-tier tyre rack, 2.4 m long and 2 m high: three ladder frames of square tube, two rails a tier that the tyres stand in. Its tyres are placed by place_tyre_rack."
@@ -545,9 +1571,63 @@
     "trim"
    ],
    "box": [
-    0.45,
-    0.95,
-    0.5
+    0.81,
+    0.98,
+    0.61
+   ],
+   "bounds": {
+    "min": [
+     -0.608,
+     0.0,
+     -0.604
+    ],
+    "max": [
+     0.809,
+     1.95,
+     0.56
+    ]
+   },
+   "solids": [
+    [
+     -0.41,
+     0.41,
+     0.0,
+     0.9,
+     -0.43,
+     0.43
+    ],
+    [
+     -0.09,
+     0.09,
+     0.0,
+     1.95,
+     -0.6,
+     -0.34
+    ],
+    [
+     -0.07,
+     0.07,
+     1.04,
+     1.95,
+     -0.46,
+     0.05
+    ],
+    [
+     0.4,
+     0.82,
+     0.22,
+     0.6,
+     -0.43,
+     0.22
+    ],
+    [
+     -0.25,
+     0.25,
+     0.0,
+     0.06,
+     0.42,
+     0.56
+    ]
    ],
    "detail": false,
    "reach": null,
@@ -561,9 +1641,55 @@
     "trim"
    ],
    "box": [
-    0.45,
-    0.7,
-    0.4
+    0.92,
+    0.76,
+    0.41
+   ],
+   "bounds": {
+    "min": [
+     -0.31,
+     0.0,
+     -0.401
+    ],
+    "max": [
+     0.92,
+     1.52,
+     0.26
+    ]
+   },
+   "solids": [
+    [
+     -0.31,
+     0.31,
+     0.0,
+     1.0,
+     -0.29,
+     0.26
+    ],
+    [
+     0.3,
+     0.66,
+     0.73,
+     0.91,
+     -0.09,
+     0.09
+    ],
+    [
+     0.32,
+     0.92,
+     1.0,
+     1.3,
+     -0.41,
+     -0.12
+    ],
+    [
+     -0.22,
+     0.22,
+     1.0,
+     1.52,
+     -0.24,
+     -0.16
+    ]
    ],
    "detail": false,
    "reach": null,
@@ -577,10 +1703,23 @@
     "worn"
    ],
    "box": [
-    0.35,
-    0.98,
-    0.32
+    0.51,
+    0.99,
+    0.51
    ],
+   "bounds": {
+    "min": [
+     -0.34,
+     -0.003,
+     -0.305
+    ],
+    "max": [
+     0.509,
+     1.98,
+     0.509
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": null,
    "about": "An upright 300-litre compressor: the tank in worn paint on three feet, a plate on its dome with the motor, the twin-cylinder pump and its fins, the belt guard, the pressure switch and gauges, the copper discharge line, the drain cock at the foot."
@@ -594,8 +1733,21 @@
    "box": [
     0.2,
     1.2,
-    0.25
+    0.43
    ],
+   "bounds": {
+    "min": [
+     -0.16,
+     1.3,
+     0.0
+    ],
+    "max": [
+     0.16,
+     2.4,
+     0.43
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 220,
    "about": "An air hose reel on the wall at 2.2 m: bracket, drum wound with red hose, the guide arm, the hose down to its coupler and stop ball."
@@ -608,9 +1760,22 @@
    ],
    "box": [
     0.3,
-    0.8,
-    0.32
+    0.81,
+    0.51
    ],
+   "bounds": {
+    "min": [
+     -0.26,
+     0.0,
+     -0.434
+    ],
+    "max": [
+     0.26,
+     1.62,
+     0.509
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 220,
    "about": "A mobile oil drain: its tank on castors, the telescoping standpipe up to a wide funnel at 1.6 m (for a car on a lift), its screen, the push handle, the drain hose; old oil black in the funnel."
@@ -622,10 +1787,23 @@
     "trim"
    ],
    "box": [
-    0.12,
+    0.16,
     0.25,
-    0.12
+    0.27
    ],
+   "bounds": {
+    "min": [
+     -0.05,
+     0.0,
+     -0.172
+    ],
+    "max": [
+     0.16,
+     0.22,
+     0.267
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 160,
    "about": "A rotary hand pump screwed into a drum's bung: its body, spout and crank (set it on the city's `drum` at DRUM_TOP, over the bung, with place_drum_pump)."
@@ -639,8 +1817,21 @@
    "box": [
     0.46,
     0.45,
-    0.3
+    0.34
    ],
+   "bounds": {
+    "min": [
+     -0.46,
+     0.0,
+     -0.334
+    ],
+    "max": [
+     0.46,
+     0.813,
+     0.28
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 220,
    "about": "A parts washer's sink, set on a drum of solvent (place_parts_washer): a red tub with its lid propped open at the back, the flex nozzle over it, a brush, the drain screen, solvent dark in the bottom."
@@ -653,10 +1844,23 @@
     "trim"
    ],
    "box": [
-    0.91,
-    1.0,
+    0.93,
+    1,
     0.31
    ],
+   "bounds": {
+    "min": [
+     -0.9,
+     0.0,
+     -0.3
+    ],
+    "max": [
+     0.923,
+     2.0,
+     0.302
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": null,
    "about": "Steel shelving, 1.8 by 0.6 m and 2 m high: four angle posts, five shelves, and on them parts in their cartons, plastic bins, bottles of oil and coolant, a coil of hose."
@@ -672,6 +1876,19 @@
     0.35,
     0.22
    ],
+   "bounds": {
+    "min": [
+     -1.5,
+     -0.04,
+     -0.22
+    ],
+    "max": [
+     1.5,
+     0.6,
+     0.22
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 240,
    "about": "A 3 m length of ladder cable tray hung TRAY_DROP under a ceiling on two trapeze hangers, its cables laid in it. Its origin is the tray's underside; lengths butt end to end along x."
@@ -683,10 +1900,23 @@
     "trim"
    ],
    "box": [
-    1.5,
+    1.53,
     0.03,
     0.04
    ],
+   "bounds": {
+    "min": [
+     -1.525,
+     -0.03,
+     0.0
+    ],
+    "max": [
+     1.525,
+     0.03,
+     0.036
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 200,
    "about": "A 3 m run of steel conduit along a wall (its back on z 0), with its couplings and its straps: lengths butt end to end along x, at the height it is placed at (its centre line at y 0)."
@@ -698,10 +1928,23 @@
     "trim"
    ],
    "box": [
-    0.06,
+    0.32,
     1.5,
-    0.04
+    0.09
    ],
+   "bounds": {
+    "min": [
+     -0.055,
+     0.0,
+     0.0
+    ],
+    "max": [
+     0.32,
+     3.0,
+     0.084
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 200,
    "about": "Conduit down a wall from 3 m to a switched outlet box at 1.2 m, a power strip plugged in under it."
@@ -715,8 +1958,21 @@
    "box": [
     0.08,
     0.08,
-    0.04
+    0.06
    ],
+   "bounds": {
+    "min": [
+     -0.075,
+     -0.075,
+     0.0
+    ],
+    "max": [
+     0.075,
+     0.075,
+     0.054
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 160,
    "about": "A steel junction box where runs of conduit meet (centred at y 0)."
@@ -729,10 +1985,23 @@
     "tube"
    ],
    "box": [
-    1.22,
+    1.36,
     0.38,
     0.06
    ],
+   "bounds": {
+    "min": [
+     -1.2,
+     0.0,
+     -0.055
+    ],
+    "max": [
+     1.354,
+     0.7,
+     0.055
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 600,
    "about": "A 2.4 m LED batten, its diffuser in the garage's tube (struck on as the room's are, src/world/garage.js): an aluminium body hung on two wires LED_DROP under the ceiling. Its origin is the diffuser's face."
@@ -749,6 +2018,19 @@
     0.25,
     0.14
    ],
+   "bounds": {
+    "min": [
+     -0.62,
+     0.0,
+     -0.13
+    ],
+    "max": [
+     0.62,
+     0.48,
+     0.13
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 500,
    "about": "A twin-tube shop light, 1.2 m: its white reflector over two bare tubes (the garage's tube material), hung on two chains FLUORO_DROP under the ceiling. Its origin is the tubes' underside."
@@ -763,7 +2045,29 @@
    "box": [
     0.4,
     0.55,
-    0.25
+    1.31
+   ],
+   "bounds": {
+    "min": [
+     -0.375,
+     0.0,
+     -0.274
+    ],
+    "max": [
+     0.375,
+     1.076,
+     1.309
+    ]
+   },
+   "solids": [
+    [
+     -0.375,
+     0.375,
+     0.0,
+     1.08,
+     -0.275,
+     0.22
+    ]
    ],
    "detail": false,
    "reach": null,
@@ -778,9 +2082,22 @@
    ],
    "box": [
     0.76,
-    0.5,
+    0.56,
     0.38
    ],
+   "bounds": {
+    "min": [
+     -0.75,
+     0.0,
+     -0.375
+    ],
+    "max": [
+     0.75,
+     1.117,
+     0.375
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": null,
    "about": "A steel parts table, 1.5 by 0.75 m: a brake disc and its caliper, a turbocharger, a coilover, a box of spark plugs and a rag laid out."
@@ -797,6 +2114,19 @@
     0.45,
     0.22
    ],
+   "bounds": {
+    "min": [
+     -2.27,
+     -0.004,
+     -0.202
+    ],
+    "max": [
+     2.27,
+     0.801,
+     0.202
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 700,
    "about": "A broad linear task light over a bay: a 4.5 m by 0.35 m luminous face (TASK_FACE) in the garage's tube, in an aluminium body with its end caps and driver box, hung on three pairs of rods TASK_DROP under the ceiling or a truss. Its origin is the face's middle."
@@ -810,9 +2140,22 @@
    ],
    "box": [
     0.42,
-    1.1,
-    0.42
+    1.14,
+    0.51
    ],
+   "bounds": {
+    "min": [
+     -0.386,
+     -0.006,
+     -0.504
+    ],
+    "max": [
+     0.386,
+     2.264,
+     0.439
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 300,
    "about": "A work light on a tripod stand: three splayed legs, a telescoping mast to 2.1 m, a yoke and an LED flood head looking toward +z and 35 degrees down (WORK_LIGHT_FACE), its cord down the mast to the floor. Set it at a car's nose, looking at the open bay."
@@ -825,10 +2168,23 @@
     "trim"
    ],
    "box": [
-    0.32,
+    0.38,
     0.65,
     0.45
    ],
+   "bounds": {
+    "min": [
+     -0.3,
+     0.0,
+     -0.44
+    ],
+    "max": [
+     0.371,
+     1.3,
+     0.33
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 260,
    "about": "A MIG welder on its cart: the machine with its panel and knobs, the gas bottle chained at the back with its regulator, the torch lead and the earth clamp coiled on their hooks."
@@ -844,6 +2200,19 @@
     0.03,
     0.32
    ],
+   "bounds": {
+    "min": [
+     -0.42,
+     0.0,
+     -0.32
+    ],
+    "max": [
+     0.42,
+     0.051,
+     0.32
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 140,
    "about": "A low drip tray slid under a car, dark with old oil."
@@ -856,9 +2225,22 @@
    ],
    "box": [
     1.06,
-    0.45,
+    0.5,
     0.46
    ],
+   "bounds": {
+    "min": [
+     -1.02,
+     0.0,
+     -0.44
+    ],
+    "max": [
+     1.02,
+     1.0,
+     0.43
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": null,
    "about": "A worn two-seat couch in oxblood vinyl: its base, two seat cushions sagged in the middle, two back cushions leaning, the arms, short legs; one cushion split and taped, a seam open on an arm."
@@ -873,8 +2255,21 @@
    "box": [
     0.3,
     0.73,
-    0.32
+    0.34
    ],
+   "bounds": {
+    "min": [
+     -0.3,
+     0.0,
+     -0.32
+    ],
+    "max": [
+     0.3,
+     1.45,
+     0.34
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": null,
    "about": "An old shop fridge, 1.45 m: off-white, grubby round its handle, its freezer door over the main one, a grille at its foot, stickers, a small green light."
@@ -891,6 +2286,19 @@
     0.3,
     0.32
    ],
+   "bounds": {
+    "min": [
+     -0.32,
+     0.0,
+     -0.32
+    ],
+    "max": [
+     0.32,
+     0.602,
+     0.32
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 220,
    "about": "A low table, its top marked with rings, and on it three cans, an ashtray, a pizza box and a magazine."
@@ -905,8 +2313,21 @@
    "box": [
     0.42,
     0.75,
-    0.27
+    0.28
    ],
+   "bounds": {
+    "min": [
+     -0.41,
+     0.0,
+     -0.26
+    ],
+    "max": [
+     0.41,
+     1.28,
+     0.275
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 260,
    "about": "The coffee: a low cabinet, a filter machine on it with its carafe on the hot plate and its red light, three mugs, a stack of paper cups, a jar of sugar."
@@ -919,9 +2340,22 @@
    ],
    "box": [
     0.12,
-    0.85,
-    0.12
+    0.94,
+    0.18
    ],
+   "bounds": {
+    "min": [
+     -0.1,
+     1.0,
+     0.0
+    ],
+    "max": [
+     0.101,
+     1.88,
+     0.18
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 200,
    "about": "A 6 kg extinguisher on its wall bracket at 1 m, its hose clipped down its side, and the red plate over it with FIRE on it."
@@ -934,9 +2368,22 @@
    ],
    "box": [
     0.18,
-    0.8,
-    0.07
+    0.88,
+    0.13
    ],
+   "bounds": {
+    "min": [
+     -0.18,
+     1.45,
+     0.0
+    ],
+    "max": [
+     0.18,
+     1.75,
+     0.13
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 200,
    "about": "A first aid box on the wall at 1.45 m: white, a green cross, its catch."
@@ -952,6 +2399,19 @@
     0.01,
     0.2
    ],
+   "bounds": {
+    "min": [
+     -0.2,
+     0.0,
+     -0.2
+    ],
+    "max": [
+     0.2,
+     0.006,
+     0.2
+    ]
+   },
+   "solids": [],
    "detail": true,
    "reach": 120,
    "about": "A square floor drain, 0.36 m: its frame, the dark sump, the grate's bars."
@@ -967,6 +2427,19 @@
     0.01,
     0.1
    ],
+   "bounds": {
+    "min": [
+     -1.5,
+     0.0,
+     -0.095
+    ],
+    "max": [
+     1.5,
+     0.006,
+     0.095
+    ]
+   },
+   "solids": [],
    "detail": true,
    "reach": 160,
    "about": "A 3 m trench drain across a bay's mouth: its edge angles, the dark channel and the grate's slots (near by)."
@@ -978,10 +2451,23 @@
     "trim"
    ],
    "box": [
-    0.6,
+    0.71,
     0.01,
-    0.6
+    1.01
    ],
+   "bounds": {
+    "min": [
+     -0.613,
+     0.002,
+     -0.879
+    ],
+    "max": [
+     0.701,
+     0.003,
+     1.002
+    ]
+   },
+   "solids": [],
    "detail": true,
    "reach": 160,
    "about": "An old oil stain where an engine has stood, a metre across, drips round it (a pool, not a decal: see the module's note)."
@@ -993,10 +2479,23 @@
     "trim"
    ],
    "box": [
-    0.35,
+    0.45,
     0.01,
-    0.35
+    0.47
    ],
+   "bounds": {
+    "min": [
+     -0.379,
+     0.002,
+     -0.284
+    ],
+    "max": [
+     0.443,
+     0.003,
+     0.47
+    ]
+   },
+   "solids": [],
    "detail": true,
    "reach": 140,
    "about": "A smaller oil stain, half a metre, a few drops."
@@ -1012,6 +2511,19 @@
     0.01,
     0.2
    ],
+   "bounds": {
+    "min": [
+     -0.52,
+     0.003,
+     -0.11
+    ],
+    "max": [
+     0.518,
+     0.003,
+     0.087
+    ]
+   },
+   "solids": [],
    "detail": true,
    "reach": 140,
    "about": "A smear of oil dragged out along x, as a drain pan leaves it."
@@ -1025,8 +2537,21 @@
    "box": [
     1.6,
     0.01,
-    1.2
+    1.94
    ],
+   "bounds": {
+    "min": [
+     -0.852,
+     0.003,
+     -1.2
+    ],
+    "max": [
+     0.439,
+     0.003,
+     1.935
+    ]
+   },
+   "solids": [],
    "detail": true,
    "reach": 160,
    "about": "Two arcs of tyre rubber where a car has been turned in toward +z, broken where the tread lifted."
@@ -1042,6 +2567,19 @@
     0.01,
     0.45
    ],
+   "bounds": {
+    "min": [
+     -0.849,
+     0.004,
+     -0.245
+    ],
+    "max": [
+     0.807,
+     0.004,
+     0.246
+    ]
+   },
+   "solids": [],
    "detail": false,
    "reach": 200,
    "about": "BAY 01 stencilled on the floor in yellow, reading from +z."
@@ -1057,6 +2595,19 @@
     0.01,
     0.45
    ],
+   "bounds": {
+    "min": [
+     -0.849,
+     0.004,
+     -0.244
+    ],
+    "max": [
+     0.855,
+     0.004,
+     0.246
+    ]
+   },
+   "solids": [],
    "detail": false,
    "reach": 200,
    "about": "BAY 02 stencilled on the floor in yellow, reading from +z."
@@ -1072,6 +2623,19 @@
     0.03,
     0.15
    ],
+   "bounds": {
+    "min": [
+     -0.6,
+     0.0,
+     -0.15
+    ],
+    "max": [
+     0.6,
+     0.045,
+     0.15
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 140,
    "about": "A cable protector across a walkway, 1.2 m, in black with its yellow lid."
@@ -1086,8 +2650,21 @@
    "box": [
     1.75,
     0.5,
-    0.08
+    0.12
    ],
+   "bounds": {
+    "min": [
+     -1.72,
+     -0.3,
+     0.0
+    ],
+    "max": [
+     1.72,
+     0.97,
+     0.12
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 900,
    "about": "The shop's own sign: AFTERLIFE AUTO in neon tube (cyan over pink, the garage's two colours) on a black backer 3.4 m wide, a spanner in tube at its left, the transformer box under it, the standoffs and the tube's dark returns near by. Its back is on the wall (z 0), its foot at y 0: set it at the height it hangs."
@@ -1102,9 +2679,22 @@
    ],
    "box": [
     0.45,
-    0.25,
+    0.33,
     0.04
    ],
+   "bounds": {
+    "min": [
+     -0.42,
+     0.0,
+     0.006
+    ],
+    "max": [
+     0.42,
+     0.65,
+     0.022
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 500,
    "about": "OPEN in red neon in a rounded border, on clear acrylic hung on two chains: for a window or the wall by the door (its foot at y 0)."
@@ -1117,10 +2707,23 @@
     "trim"
    ],
    "box": [
-    0.4,
-    0.4,
+    0.45,
+    0.45,
     0.04
    ],
+   "bounds": {
+    "min": [
+     -0.446,
+     0.0,
+     0.0
+    ],
+    "max": [
+     0.446,
+     0.885,
+     0.03
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 500,
    "about": "Two spanners crossed in tube, cyan and pink, on a black panel: the shop's mark for a wall (its foot at y 0, back on the wall)."
@@ -1137,6 +2740,19 @@
     0.46,
     0.02
    ],
+   "bounds": {
+    "min": [
+     -0.32,
+     -0.02,
+     0.0
+    ],
+    "max": [
+     0.32,
+     0.92,
+     0.021
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 260,
    "about": "A framed poster, 0.6 by 0.9 m (its foot at y 0, back on the wall)."
@@ -1153,6 +2769,19 @@
     0.42,
     0.02
    ],
+   "bounds": {
+    "min": [
+     -0.62,
+     -0.02,
+     0.0
+    ],
+    "max": [
+     0.62,
+     0.82,
+     0.021
+    ]
+   },
+   "solids": null,
    "detail": true,
    "reach": 260,
    "about": "A framed poster, 1.2 by 0.8 m (its foot at y 0, back on the wall)."
@@ -1165,10 +2794,23 @@
     "trim"
    ],
    "box": [
-    0.5,
+    0.54,
     0.75,
-    0.05
+    0.11
    ],
+   "bounds": {
+    "min": [
+     -0.49,
+     -0.9,
+     0.0
+    ],
+    "max": [
+     0.534,
+     1.44,
+     0.101
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 400,
    "about": "A lightbox advert, 0.9 by 1.4 m, its lead down the wall (its foot at y 0, back on the wall)."
@@ -1182,12 +2824,967 @@
    ],
    "box": [
     0.76,
-    0.48,
+    0.49,
     0.07
    ],
+   "bounds": {
+    "min": [
+     -0.735,
+     0.0,
+     0.0
+    ],
+    "max": [
+     0.735,
+     0.98,
+     0.062
+    ]
+   },
+   "solids": null,
    "detail": false,
    "reach": 600,
    "about": "A 65-inch monitor's bezel on its wall arm, its screen left for the layout's garage_screen (MONITOR_SCREEN); a cable down the wall."
+  }
+ },
+ "assemblies": {
+  "lift2_down": {
+   "label": "Two-post lift, arms down",
+   "min": [
+    -2.12,
+    0.0,
+    -0.925
+   ],
+   "max": [
+    1.84,
+    3.819,
+    0.875
+   ]
+  },
+  "lift2_up": {
+   "label": "Two-post lift, raised",
+   "min": [
+    -2.12,
+    0.0,
+    -0.925
+   ],
+   "max": [
+    1.84,
+    3.819,
+    0.875
+   ]
+  },
+  "lift2_out": {
+   "label": "Two-post lift, arms out",
+   "min": [
+    -2.12,
+    0.0,
+    -1.195
+   ],
+   "max": [
+    1.84,
+    3.819,
+    1.195
+   ]
+  },
+  "scissor_down": {
+   "label": "Scissor lift down, power unit",
+   "min": [
+    -1.835,
+    0.0,
+    -2.622
+   ],
+   "max": [
+    1.086,
+    1.22,
+    2.622
+   ]
+  },
+  "scissor_up": {
+   "label": "Scissor lift up, power unit",
+   "min": [
+    -1.835,
+    0.0,
+    -2.557
+   ],
+   "max": [
+    1.086,
+    1.661,
+    2.557
+   ]
+  },
+  "jack_stands": {
+   "label": "Jack stands (pair)",
+   "min": [
+    -0.161,
+    -0.009,
+    -0.161
+   ],
+   "max": [
+    0.655,
+    0.51,
+    0.305
+   ]
+  },
+  "floor_jack": {
+   "label": "Floor jack",
+   "min": [
+    -0.206,
+    0.0,
+    -1.076
+   ],
+   "max": [
+    0.206,
+    0.934,
+    0.49
+   ]
+  },
+  "creeper": {
+   "label": "Creeper",
+   "min": [
+    -0.232,
+    0.0,
+    -0.512
+   ],
+   "max": [
+    0.232,
+    0.18,
+    0.472
+   ]
+  },
+  "chocks": {
+   "label": "Wheel chocks",
+   "min": [
+    -0.075,
+    0.0,
+    -0.13
+   ],
+   "max": [
+    0.399,
+    0.11,
+    0.192
+   ]
+  },
+  "service_pad": {
+   "label": "Flush service pad (S6 bay)",
+   "min": [
+    -1.13,
+    0.0,
+    -1.05
+   ],
+   "max": [
+    1.13,
+    0.008,
+    1.05
+   ]
+  },
+  "bay_lines": {
+   "label": "Bay lines",
+   "min": [
+    -1.75,
+    0.004,
+    -3.05
+   ],
+   "max": [
+    1.75,
+    0.004,
+    3.05
+   ]
+  },
+  "door_s_closed": {
+   "label": "Roll-up door 3 x 3 m, closed",
+   "min": [
+    -1.616,
+    -0.002,
+    -4.12
+   ],
+   "max": [
+    1.88,
+    3.88,
+    0.042
+   ]
+  },
+  "door_s_half": {
+   "label": "Roll-up door 3 x 3 m, half",
+   "min": [
+    -1.616,
+    0.0,
+    -4.12
+   ],
+   "max": [
+    1.88,
+    3.88,
+    0.042
+   ]
+  },
+  "door_s_open": {
+   "label": "Roll-up door 3 x 3 m, open",
+   "min": [
+    -1.616,
+    0.0,
+    -4.12
+   ],
+   "max": [
+    1.88,
+    3.88,
+    -0.0
+   ]
+  },
+  "door_w_closed": {
+   "label": "Roll-up door 6 x 4.6 m, closed",
+   "min": [
+    -3.116,
+    -0.002,
+    -5.72
+   ],
+   "max": [
+    3.38,
+    5.48,
+    0.042
+   ]
+  },
+  "door_w_half": {
+   "label": "Roll-up door 6 x 4.6 m, half",
+   "min": [
+    -3.116,
+    0.0,
+    -5.72
+   ],
+   "max": [
+    3.38,
+    5.48,
+    0.042
+   ]
+  },
+  "door_w_open": {
+   "label": "Roll-up door 6 x 4.6 m, open",
+   "min": [
+    -3.116,
+    0.0,
+    -5.72
+   ],
+   "max": [
+    3.38,
+    5.48,
+    -0.0
+   ]
+  },
+  "door_w_street": {
+   "label": "Roll-up door 6 x 4.6 m, from the street",
+   "min": [
+    -3.116,
+    -0.002,
+    -5.72
+   ],
+   "max": [
+    3.38,
+    5.48,
+    0.042
+   ]
+  },
+  "man_door": {
+   "label": "Man door, outside",
+   "min": [
+    -0.525,
+    0.0,
+    -0.212
+   ],
+   "max": [
+    0.525,
+    2.47,
+    0.076
+   ]
+  },
+  "man_door_in": {
+   "label": "Man door, inside",
+   "min": [
+    -0.525,
+    0.0,
+    -0.212
+   ],
+   "max": [
+    0.525,
+    2.47,
+    0.076
+   ]
+  },
+  "shutter_w": {
+   "label": "The city shutter's fittings, inside",
+   "min": [
+    -3.2,
+    0.0,
+    -0.42
+   ],
+   "max": [
+    3.81,
+    5.2,
+    0.45
+   ]
+  },
+  "tool_cab": {
+   "label": "Roll cab and top box",
+   "min": [
+    -0.571,
+    0.0,
+    -0.235
+   ],
+   "max": [
+    0.573,
+    1.54,
+    0.239
+   ]
+  },
+  "tool_cart": {
+   "label": "Utility cart",
+   "min": [
+    -0.375,
+    0.0,
+    -0.274
+   ],
+   "max": [
+    0.375,
+    1.06,
+    0.22
+   ]
+  },
+  "bench": {
+   "label": "Workbench and vise",
+   "min": [
+    -1.2,
+    0.0,
+    -0.375
+   ],
+   "max": [
+    1.2,
+    1.12,
+    0.5
+   ]
+  },
+  "pegboard": {
+   "label": "Pegboard and tools",
+   "min": [
+    -1.24,
+    0.94,
+    -0.0
+   ],
+   "max": [
+    1.24,
+    2.28,
+    0.14
+   ]
+  },
+  "hood_light": {
+   "label": "Under-hood light",
+   "min": [
+    -0.869,
+    0.297,
+    -0.025
+   ],
+   "max": [
+    0.869,
+    1.251,
+    0.205
+   ]
+  },
+  "hand_lamp": {
+   "label": "Hand lamp",
+   "min": [
+    -0.035,
+    0.05,
+    -0.04
+   ],
+   "max": [
+    0.044,
+    0.544,
+    0.034
+   ]
+  },
+  "lamp_reel": {
+   "label": "Lamp on a reel",
+   "min": [
+    -0.13,
+    0.87,
+    -0.0
+   ],
+   "max": [
+    0.13,
+    2.465,
+    0.335
+   ]
+  },
+  "tune_cart": {
+   "label": "Tune cart, laptop, OBD lead",
+   "min": [
+    -0.375,
+    0.0,
+    -0.274
+   ],
+   "max": [
+    0.375,
+    1.076,
+    1.309
+   ]
+  },
+  "parts_table": {
+   "label": "Parts table",
+   "min": [
+    -0.75,
+    0.0,
+    -0.375
+   ],
+   "max": [
+    0.75,
+    1.117,
+    0.375
+   ]
+  },
+  "welder": {
+   "label": "MIG welder on its cart",
+   "min": [
+    -0.3,
+    0.0,
+    -0.44
+   ],
+   "max": [
+    0.371,
+    1.3,
+    0.33
+   ]
+  },
+  "drip_tray": {
+   "label": "Drip tray",
+   "min": [
+    -0.42,
+    0.0,
+    -0.32
+   ],
+   "max": [
+    0.42,
+    0.051,
+    0.32
+   ]
+  },
+  "tyre": {
+   "label": "Tyre",
+   "min": [
+    -0.133,
+    -0.001,
+    -0.331
+   ],
+   "max": [
+    0.133,
+    0.661,
+    0.331
+   ]
+  },
+  "wheel": {
+   "label": "Wheel and tyre",
+   "min": [
+    -0.133,
+    -0.001,
+    -0.331
+   ],
+   "max": [
+    0.133,
+    0.661,
+    0.331
+   ]
+  },
+  "tyre_stack": {
+   "label": "Tyre stack",
+   "min": [
+    -0.337,
+    -0.006,
+    -0.345
+   ],
+   "max": [
+    0.342,
+    1.026,
+    0.35
+   ]
+  },
+  "tyre_rack": {
+   "label": "Tyre rack, filled",
+   "min": [
+    -1.22,
+    0.0,
+    -0.335
+   ],
+   "max": [
+    1.22,
+    2.0,
+    0.335
+   ]
+  },
+  "tyre_changer": {
+   "label": "Tyre changer",
+   "min": [
+    -0.608,
+    0.0,
+    -0.604
+   ],
+   "max": [
+    0.809,
+    1.95,
+    0.56
+   ]
+  },
+  "balancer": {
+   "label": "Wheel balancer",
+   "min": [
+    -0.31,
+    0.0,
+    -0.401
+   ],
+   "max": [
+    0.92,
+    1.52,
+    0.26
+   ]
+  },
+  "compressor": {
+   "label": "Air compressor",
+   "min": [
+    -0.34,
+    -0.003,
+    -0.305
+   ],
+   "max": [
+    0.509,
+    1.98,
+    0.509
+   ]
+  },
+  "hose_reel": {
+   "label": "Air hose reel",
+   "min": [
+    -0.16,
+    1.3,
+    -0.0
+   ],
+   "max": [
+    0.16,
+    2.4,
+    0.43
+   ]
+  },
+  "oil_drain": {
+   "label": "Oil drain",
+   "min": [
+    -0.26,
+    0.0,
+    -0.434
+   ],
+   "max": [
+    0.26,
+    1.62,
+    0.509
+   ]
+  },
+  "drum_pump": {
+   "label": "Drum (the city's) and pump",
+   "min": [
+    -0.297,
+    0.0,
+    -0.297
+   ],
+   "max": [
+    0.31,
+    1.09,
+    0.327
+   ]
+  },
+  "parts_washer": {
+   "label": "Parts washer on a drum",
+   "min": [
+    -0.46,
+    0.0,
+    -0.334
+   ],
+   "max": [
+    0.46,
+    1.693,
+    0.297
+   ]
+  },
+  "shelving": {
+   "label": "Shelving and parts",
+   "min": [
+    -0.9,
+    0.0,
+    -0.3
+   ],
+   "max": [
+    0.923,
+    2.0,
+    0.302
+   ]
+  },
+  "cable_tray": {
+   "label": "Cable tray",
+   "min": [
+    -1.5,
+    2.36,
+    -0.22
+   ],
+   "max": [
+    1.5,
+    3.0,
+    0.22
+   ]
+  },
+  "conduit": {
+   "label": "Conduit, drop, junction box",
+   "min": [
+    -1.575,
+    0.0,
+    -0.0
+   ],
+   "max": [
+    1.525,
+    3.075,
+    0.084
+   ]
+  },
+  "led_batten": {
+   "label": "LED batten",
+   "min": [
+    -1.2,
+    2.2,
+    -0.055
+   ],
+   "max": [
+    1.354,
+    2.9,
+    0.055
+   ]
+  },
+  "fluoro": {
+   "label": "Twin-tube shop light",
+   "min": [
+    -0.62,
+    2.2,
+    -0.13
+   ],
+   "max": [
+    0.62,
+    2.68,
+    0.13
+   ]
+  },
+  "task_light": {
+   "label": "Task light 4.5 x 0.35 m",
+   "min": [
+    -2.27,
+    2.396,
+    -0.202
+   ],
+   "max": [
+    2.27,
+    3.201,
+    0.202
+   ]
+  },
+  "work_light": {
+   "label": "Work light on a stand",
+   "min": [
+    -0.386,
+    -0.006,
+    -0.504
+   ],
+   "max": [
+    0.386,
+    2.264,
+    0.439
+   ]
+  },
+  "couch": {
+   "label": "Couch",
+   "min": [
+    -1.02,
+    0.0,
+    -0.44
+   ],
+   "max": [
+    1.02,
+    1.0,
+    0.43
+   ]
+  },
+  "fridge": {
+   "label": "Fridge",
+   "min": [
+    -0.3,
+    0.0,
+    -0.32
+   ],
+   "max": [
+    0.3,
+    1.45,
+    0.34
+   ]
+  },
+  "side_table": {
+   "label": "Side table",
+   "min": [
+    -0.32,
+    0.0,
+    -0.32
+   ],
+   "max": [
+    0.32,
+    0.602,
+    0.32
+   ]
+  },
+  "coffee": {
+   "label": "Coffee station",
+   "min": [
+    -0.41,
+    0.0,
+    -0.26
+   ],
+   "max": [
+    0.41,
+    1.28,
+    0.275
+   ]
+  },
+  "extinguisher": {
+   "label": "Extinguisher",
+   "min": [
+    -0.1,
+    1.0,
+    -0.0
+   ],
+   "max": [
+    0.101,
+    1.88,
+    0.18
+   ]
+  },
+  "first_aid": {
+   "label": "First aid box",
+   "min": [
+    -0.18,
+    1.45,
+    -0.0
+   ],
+   "max": [
+    0.18,
+    1.75,
+    0.13
+   ]
+  },
+  "drains": {
+   "label": "Floor drain, trench drain",
+   "min": [
+    -1.5,
+    0.0,
+    -0.2
+   ],
+   "max": [
+    1.5,
+    0.006,
+    0.695
+   ]
+  },
+  "stains": {
+   "label": "Oil stains, tyre marks",
+   "min": [
+    -1.106,
+    0.002,
+    -2.6
+   ],
+   "max": [
+    1.643,
+    0.003,
+    1.202
+   ]
+  },
+  "bay_numbers": {
+   "label": "Bay numbers, cable ramp",
+   "min": [
+    -0.849,
+    0.0,
+    -1.444
+   ],
+   "max": [
+    0.855,
+    0.045,
+    1.15
+   ]
+  },
+  "shop_sign": {
+   "label": "Shop sign",
+   "min": [
+    -1.72,
+    -0.3,
+    -0.0
+   ],
+   "max": [
+    1.72,
+    0.97,
+    0.12
+   ]
+  },
+  "neon_open": {
+   "label": "Neon OPEN",
+   "min": [
+    -0.42,
+    0.0,
+    0.006
+   ],
+   "max": [
+    0.42,
+    0.65,
+    0.022
+   ]
+  },
+  "neon_wrench": {
+   "label": "Neon spanners",
+   "min": [
+    -0.446,
+    0.0,
+    -0.0
+   ],
+   "max": [
+    0.446,
+    0.885,
+    0.03
+   ]
+  },
+  "posters": {
+   "label": "Posters, lightbox",
+   "min": [
+    -1.49,
+    -1.1,
+    -0.0
+   ],
+   "max": [
+    1.72,
+    1.24,
+    0.101
+   ]
+  },
+  "monitor": {
+   "label": "Monitor bezel",
+   "min": [
+    -0.735,
+    0.0,
+    -0.0
+   ],
+   "max": [
+    0.735,
+    0.98,
+    0.062
+   ]
+  }
+ },
+ "fit": {
+  "car": "public/models/ali-s4.glb",
+  "lift2_pads": [
+   {
+    "pad": [
+     -0.76,
+     0.8,
+     0.141
+    ],
+    "reach": 0.836,
+    "turn_deg": 36.7,
+    "gap_min_mm": 0.7,
+    "gap_max_mm": 5.0,
+    "misses": 0,
+    "arm_clear_min_mm": 27.8
+   },
+   {
+    "pad": [
+     0.76,
+     0.8,
+     0.141
+    ],
+    "reach": 0.836,
+    "turn_deg": -36.7,
+    "gap_min_mm": 0.4,
+    "gap_max_mm": 4.4,
+    "misses": 0,
+    "arm_clear_min_mm": 27.5
+   },
+   {
+    "pad": [
+     -0.76,
+     -0.85,
+     0.16
+    ],
+    "reach": 0.877,
+    "turn_deg": 145.2,
+    "gap_min_mm": 2.1,
+    "gap_max_mm": 9.4,
+    "misses": 0,
+    "arm_clear_min_mm": 46.8
+   },
+   {
+    "pad": [
+     0.76,
+     -0.85,
+     0.16
+    ],
+    "reach": 0.877,
+    "turn_deg": -145.2,
+    "gap_min_mm": 0.0,
+    "gap_max_mm": 9.5,
+    "misses": 0,
+    "arm_clear_min_mm": 44.8
+   }
+  ],
+  "tyres_on_floor": [
+   {
+    "x": [
+     -0.894,
+     -0.68
+    ],
+    "z": [
+     -1.501,
+     -1.333
+    ]
+   },
+   {
+    "x": [
+     -0.894,
+     -0.68
+    ],
+    "z": [
+     1.311,
+     1.479
+    ]
+   },
+   {
+    "x": [
+     0.68,
+     0.894
+    ],
+    "z": [
+     -1.501,
+     -1.333
+    ]
+   },
+   {
+    "x": [
+     0.68,
+     0.894
+    ],
+    "z": [
+     1.311,
+     1.479
+    ]
+   }
+  ],
+  "scissor": {
+   "runway_half_length": 2.2,
+   "runway_x": [
+    0.52,
+    1.08
+   ],
+   "tyres_on_runways": true,
+   "runway_past_tyres_m": 0.699
   }
  }
 }
