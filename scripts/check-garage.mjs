@@ -21,6 +21,7 @@
 // stand-in passes this check but is never evidence of a framing.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 import { createServer } from "vite";
 import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
@@ -589,6 +590,55 @@ check("resting garage preparation uploads once per frame without drawing", () =>
   assert.equal(callbacks.size, 0);
   stale(); pump.wake();
   assert.deepEqual(completed, [1, 2, 3, 4], "disposal cancels pending and stale callbacks");
+});
+
+check("resting frames draw effective manual car state and layout once", () => {
+  // Exercise the runtime's actual frame gate with a stable camera. The
+  // renderer records the effective hood state only when a frame is drawn.
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf('  let drawnKey = "";');
+  const to = source.indexOf("  const resume = () =>", from);
+  assert.ok(from >= 0 && to > from);
+  const state = { availability: "ready", hood: { s4: 0, s6: 0 }, lowering: 0, selection: null };
+  const tour = { hood: { s4: 0, s6: 0 }, lowering: 0 };
+  const drawn = [];
+  const context = {
+    camera: { position: { x: 1, y: 2, z: 3 }, quaternion: { x: 0, y: 0, z: 0, w: 1 }, fov: 60 },
+    width: 1440, height: 900, packsIn: [], stage: { paused: false, mode: "page", garageProgress: .2, garageCut: 0 },
+    visit: { stateAt: () => tour }, garageState: () => state, pinLayout: { side: { height: 100 } },
+    disposed: false, city: {}, raf: 0, last: 0, timeIndex: 0, times: new Float32Array(64), reduced: true,
+    adapt: { sampling: false }, asks: [], requestAnimationFrame: () => 1, clamp: (v, a, b) => Math.min(b, Math.max(a, v)),
+    sample() {}, step() {}, draw: () => drawn.push({ ...state.hood }),
+    soundscape: { update() {} }, motion: { vel: { length: () => 0 } }, getEnv: () => ({ wet: 0 }), shelterBox: null, traffic: null,
+  };
+  const frame = runInNewContext(`${source.slice(from, to)}\nframe;`, context);
+  frame(16); frame(32);
+  assert.equal(drawn.length, 1, "a settled camera does not keep drawing");
+  state.hood.s4 = 1;
+  frame(48);
+  assert.equal(drawn.length, 2, "a manual hood change reaches the renderer");
+  assert.equal(drawn.at(-1).s4, 1);
+  frame(64);
+  assert.equal(drawn.length, 2);
+  state.hood.s4 = 0;
+  frame(80);
+  assert.equal(drawn.length, 3);
+  assert.equal(drawn.at(-1).s4, 0);
+  context.pinLayout.side.height = 200;
+  frame(96); frame(112);
+  assert.equal(drawn.length, 4, "a changed panel layout reprojects the pins once");
+  state.selection = { carId: "s4", modId: "intake" };
+  frame(128); frame(144);
+  assert.equal(drawn.length, 5, "selection changes draw without an ambient loop");
+  state.availability = "loading";
+  frame(160);
+  state.availability = "ready";
+  frame(176); frame(192);
+  assert.equal(drawn.length, 7, "late readiness draws the finished room once");
+  context.reduced = false;
+  context.garageState = () => { throw new Error("normal frames do not read the resting key"); };
+  frame(208); frame(224);
+  assert.equal(drawn.length, 9, "normal frames retain their existing draw schedule");
 });
 
 check("portal visibility keeps real openings for main and reflected cameras", () => {

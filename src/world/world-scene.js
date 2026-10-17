@@ -1173,8 +1173,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const stillKey = () => {
     const p = camera.position;
     const q = camera.quaternion;
-    const state = visit ? visit.stateAt(clamp(stage.garageProgress ?? 0, 0, 1), true) : null;
-    return `${[p.x, p.y, p.z, q.x, q.y, q.z, q.w, camera.fov].map((v) => v.toFixed(4)).join(",")}|${width}x${height}|${packsIn.length}|${stage.garageCut}|${state ? `${state.hood.s4}${state.hood.s6}${state.lowering}` : ""}`;
+    // A manual hood, selection, late room or panel layout can change a
+    // still view without moving its camera. Read the effective state so
+    // the physical car and pins follow the controls before drawing rests.
+    const state = visit ? garageState() : null;
+    const garageKey = state ? JSON.stringify([state.availability, state.hood.s4, state.hood.s6, state.lowering, state.selection, pinLayout]) : "";
+    return `${[p.x, p.y, p.z, q.x, q.y, q.z, q.w, camera.fov].map((v) => v.toFixed(4)).join(",")}|${width}x${height}|${packsIn.length}|${stage.garageCut}|${garageKey}`;
   };
 
   const frame = (now) => {
@@ -1643,10 +1647,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       if (!missingModel && mod.pose === "bay" && !options?.preserveState) commandHood(selection.carId, 1);
       if (!missingModel && mod.pose === "stance" && !options?.preserveState) manual.lowering = 0;
       const leavingCabin = inspectionCursor?.snapshot().node?.endsWith("_cabin");
-      inspectionLabel = mod.pose === "cabin" ? `${selection.carId.toUpperCase()} cabin view. Camera cut.` : `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} ${mod.pose} view.`;
+      inspectionLabel = mod.pose === "cabin" ? `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} cabin view. Camera cut.` : `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} ${mod.pose} view.`;
       if (missingModel) inspectionLabel = `${mod.name ?? mod.title ?? mod.id} selected. The S6 model is being built; its bay is empty.`;
       if (leavingCabin && mod.pose !== "cabin") inspectionLabel += " Exterior camera cut.";
-      if (!requestInspection(key, options)) inspectionLabel = `${selection.carId.toUpperCase()} ${mod.pose} view is unavailable. The part details remain available.`;
+      if (!requestInspection(key, options)) inspectionLabel = `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} ${mod.pose} view is unavailable. The part details remain available.`;
     } else {
       inspectionTarget = null;
       if (garageDeparture) garageDeparture.target = null;
