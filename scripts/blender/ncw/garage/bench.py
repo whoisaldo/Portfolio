@@ -19,7 +19,7 @@ from ncw.props import BOXED, DRUM, LABEL, carton, lathe, proto, spun, worn
 from ncw.garage.shapes import (
     ALU, BLACK_PAINT, BLUE, CABLE, CHROME, GRIME, GUN, GUN_DARK, HOSE_RED, HOSE_YELLOW, OFFWHITE, ORANGE, RED, RED_DARK,
     RUBBER, STEEL_MID, WHITE_PAINT, WOOD, WOOD_DARK, YELLOW, GREEN,
-    beam, cable, disc, frame_of, hung, lin, obox, place_in, revolve, shade,
+    beam, cable, disc, frame_of, hung, lin, obox, place_in, revolve, shade, solid,
 )
 
 # The city's oil drum (props.py `drum`) is 0.88 m to the top of its lid.
@@ -62,7 +62,7 @@ def _drawers(k, x0, x1, y0, y1, z, heights, body, seed):
     _scuffs(k, x0, x1, y0, y1, z + 0.0085, seed)
 
 
-@proto("garage_tool_cab", box=(0.56, 0.5, 0.25))
+@proto("garage_tool_cab", box=(0.58, 0.5, 0.25))
 def _tool_cab(k):
     """A 42-inch rolling tool cabinet in red: seven drawers with full-width
     pulls, chipped and scuffed at the edges, a rubber mat on top, a side
@@ -79,7 +79,7 @@ def _tool_cab(k):
     _castors(k, (-0.47, 0.47), (-0.17, 0.17), 0.12, r=0.055)
 
 
-@proto("garage_tool_top", box=(0.56, 0.27, 0.24), reach=260)
+@proto("garage_tool_top", box=(0.58, 0.28, 0.24), reach=260)
 def _tool_top(k):
     """The top box that stands on the roll cabinet (at TOP_ON_CAB): six
     drawers under a lid that lifts on gas struts, a carry handle each
@@ -109,7 +109,7 @@ def _cart(k, col, top=0.86):
     _castors(k, (-0.33, 0.33), (-0.17, 0.17), 0.1, r=0.05)
 
 
-@proto("garage_tool_cart", box=(0.4, 0.5, 0.25), reach=260)
+@proto("garage_tool_cart", box=(0.4, 0.53, 0.28), reach=260)
 def _tool_cart(k):
     """A red three-tray utility cart with a few things on its top tray: a
     socket tray, a spray can, a rag."""
@@ -122,7 +122,7 @@ def _tool_cart(k):
     quad(t, (0.05, 0.835, 0.15), (0.3, 0.835, 0.12), (0.28, 0.835, -0.05), (0.06, 0.835, -0.02), col=lin("8a8478"))
 
 
-@proto("garage_bench", box=(1.2, 0.46, 0.38))
+@proto("garage_bench", box=(1.2, 0.56, 0.5))
 def _bench(k):
     """A 2.4 m workbench: a butcher-block top on a steel frame, a drawer
     unit, a lower shelf, a bench vise bolted at the left front corner, and
@@ -174,7 +174,7 @@ def _hanging(t, x, y_top, length, width, thick, col, z=0.045):
     box(t, x - width / 2, x + width / 2, y_top - length, y_top, z - thick, z + thick, col=col)
 
 
-@proto("garage_pegboard", box=(1.25, 1.15, 0.06), reach=200)
+@proto("garage_pegboard", box=(1.25, 1.15, 0.14), reach=200)
 def _pegboard(k):
     """A pegboard wall over a bench (from 1.0 to 2.25 m up), its tools
     hung on it and each one's outline painted behind it in yellow, as a
@@ -233,7 +233,7 @@ def _pegboard(k):
         lathe(n, x, 0.08, ((y0 - 0.04, 0.032), (y0 + 0.14, 0.032), (y0 + 0.16, 0.02), (y0 + 0.18, 0.012)), segs=8, col=col)
 
 
-@proto("garage_hood_light", box=(0.86, 0.06, 0.05), reach=200)
+@proto("garage_hood_light", box=(0.87, 0.06, 0.21), reach=200)
 def _hood_light(k):
     """An under-hood work light: a telescoping bar 1.7 m across, a rubber
     hook at each end to hang it from a hood's edges, the LED strip along its
@@ -244,7 +244,8 @@ def _hood_light(k):
     for s in (-1, 1):
         pipe(t, (s * 0.6, -0.04, 0.0), (s * 0.82, -0.04, 0.0), 0.012, segs=6, col=ALU)
         cable(t, ((s * 0.82, -0.04, 0.0), (s * 0.86, -0.02, 0.0), (s * 0.86, 0.025, 0.0), (s * 0.83, 0.04, 0.0), (s * 0.8, 0.02, 0.0)), 0.011, col=RUBBER, segs=5)
-    quad(k("glow"), (-0.58, -0.061, 0.018), (0.58, -0.061, 0.018), (0.58, -0.061, -0.018), (-0.58, -0.061, -0.018), col=(0.75, 0.85, 1.0, 1))
+    # The strip looks down (-y) at the engine: the site draws its front only.
+    quad(k("glow"), (-0.58, -0.061, 0.018), (-0.58, -0.061, -0.018), (0.58, -0.061, -0.018), (0.58, -0.061, 0.018), col=(0.75, 0.85, 1.0, 1))
     cable(t, hung((0.6, -0.04, 0.0), (0.75, -0.9, 0.2), 0.12, n=8), 0.006, col=CABLE)
 
 
@@ -263,14 +264,14 @@ def _hand_lamp(k, c, glow=(1.0, 0.55, 0.18, 1)):
     cylinder(t, x, z, y - 0.45, y - 0.42, 0.034, segs=8, col=RUBBER)
 
 
-@proto("garage_hand_lamp", box=(0.05, 0.25, 0.05), reach=160, detail=True)
+@proto("garage_hand_lamp", box=(0.05, 0.28, 0.05), reach=160, detail=True)
 def _hand_lamp_proto(k):
     """A hand lamp on its own, hung from its hook (at 0.5 m: set it at a
     hook's height less 0.5)."""
     _hand_lamp(k, (0.0, 0.5, 0.0))
 
 
-@proto("garage_lamp_reel", box=(0.2, 1.2, 0.22), reach=220)
+@proto("garage_lamp_reel", box=(0.2, 1.24, 0.34), reach=220)
 def _lamp_reel(k):
     """A cord reel on the wall at 2.3 m, its drum wound with yellow cord,
     the cord down to a warm hand lamp hanging at 1.3 m."""
@@ -345,7 +346,7 @@ def _wheel_proto(k):
     _rim(k, (0.0, TYRE_R, 0.0))
 
 
-@proto("garage_tyre_stack", box=(0.33, 0.51, 0.33), reach=220)
+@proto("garage_tyre_stack", box=(0.35, 0.52, 0.35), reach=220)
 def _tyre_stack(k):
     """Four tyres lying flat in a stack, each a little off the last."""
     for i, (dx, dz) in enumerate(((0.0, 0.0), (0.02, -0.015), (-0.015, 0.01), (0.012, 0.02))):
@@ -390,7 +391,7 @@ def place_tyre_rack(x, z, yaw=0.0, fill=0.85, seed=1, y=0.0, district=None):
             place_in(at, yaw, "garage_wheel" if r.random() < 0.3 else "garage_tyre", ox, cy, 0, turn=r.uniform(-0.05, 0.05), district=district)
 
 
-@proto("garage_tyre_changer", box=(0.45, 0.95, 0.5))
+@proto("garage_tyre_changer", box=(0.81, 0.98, 0.61))
 def _tyre_changer(k):
     """A tyre changer: its cabinet with the turntable and four clamping
     jaws on top, the column at the back with the swing arm and the hex
@@ -423,7 +424,14 @@ def _tyre_changer(k):
     cable(t, ((-0.4, 0.6, -0.3), (-0.55, 0.3, -0.3), (-0.6, 0.05, -0.1), (-0.5, 0.02, 0.3)), 0.008, col=CABLE)
 
 
-@proto("garage_balancer", box=(0.45, 0.7, 0.4))
+# The cabinet and turntable, the column and its swing arm (to the mount
+# head at 1.04 m), the bead breaker out at the side, the pedals.
+solid("garage_tyre_changer",
+      (-0.41, 0.41, 0.0, 0.9, -0.43, 0.43), (-0.09, 0.09, 0.0, 1.95, -0.6, -0.34), (-0.07, 0.07, 1.04, 1.95, -0.46, 0.05),
+      (0.4, 0.82, 0.22, 0.6, -0.43, 0.22), (-0.25, 0.25, 0.0, 0.06, 0.42, 0.56))
+
+
+@proto("garage_balancer", box=(0.92, 0.76, 0.41))
 def _balancer(k):
     """A wheel balancer: its body with the weight tray on top, the shaft
     out of its right side with flange, cone and quick nut, the wheel guard
@@ -455,10 +463,17 @@ def _balancer(k):
         quad(k("glow", 1), (-0.17 + i * 0.22, 1.42, -0.158), (-0.05 + i * 0.22, 1.42, -0.158), (-0.05 + i * 0.22, 1.47, -0.158), (-0.17 + i * 0.22, 1.47, -0.158), col=col)
 
 
+# The body, the shaft out of its right side, the raised guard over the
+# wheel's place and the display on its stalk.
+solid("garage_balancer",
+      (-0.31, 0.31, 0.0, 1.0, -0.29, 0.26), (0.3, 0.66, 0.73, 0.91, -0.09, 0.09), (0.32, 0.92, 1.0, 1.3, -0.41, -0.12),
+      (-0.22, 0.22, 1.0, 1.52, -0.24, -0.16))
+
+
 # ---------------------------------------------------------------------------
 # Air and oil.
 # ---------------------------------------------------------------------------
-@proto("garage_compressor", box=(0.35, 0.98, 0.32))
+@proto("garage_compressor", box=(0.51, 0.99, 0.51))
 def _compressor(k):
     """An upright 300-litre compressor: the tank in worn paint on three
     feet, a plate on its dome with the motor, the twin-cylinder pump and
@@ -487,7 +502,7 @@ def _compressor(k):
     cable(t, ((0.3, 1.2, 0.0), (0.45, 1.0, 0.1), (0.5, 0.4, 0.3), (0.4, 0.02, 0.5)), 0.01, col=HOSE_RED)
 
 
-@proto("garage_hose_reel", box=(0.2, 1.2, 0.25), reach=220)
+@proto("garage_hose_reel", box=(0.2, 1.2, 0.43), reach=220)
 def _hose_reel(k):
     """An air hose reel on the wall at 2.2 m: bracket, drum wound with red
     hose, the guide arm, the hose down to its coupler and stop ball."""
@@ -504,7 +519,7 @@ def _hose_reel(k):
     cylinder(t, 0.0, 0.4, 1.3, 1.38, 0.012, segs=6, col=CHROME)
 
 
-@proto("garage_oil_drain", box=(0.3, 0.8, 0.32), reach=220)
+@proto("garage_oil_drain", box=(0.3, 0.81, 0.51), reach=220)
 def _oil_drain(k):
     """A mobile oil drain: its tank on castors, the telescoping standpipe
     up to a wide funnel at 1.6 m (for a car on a lift), its screen, the
@@ -528,7 +543,7 @@ def _oil_drain(k):
     cable(t, ((0.0, 0.2, 0.31), (0.05, 0.1, 0.4), (0.2, 0.03, 0.5)), 0.012, col=BLACK_PAINT)
 
 
-@proto("garage_drum_pump", box=(0.12, 0.25, 0.12), reach=160, detail=True)
+@proto("garage_drum_pump", box=(0.16, 0.25, 0.27), reach=160, detail=True)
 def _drum_pump(k):
     """A rotary hand pump screwed into a drum's bung: its body, spout and
     crank (set it on the city's `drum` at DRUM_TOP, over the bung, with
@@ -550,7 +565,7 @@ def place_drum_pump(x, z, yaw=0.0, y=0.0, district=None):
     place_in(at, yaw, "garage_drum_pump", 0.15, DRUM_TOP - 0.01, 0.06, district=district)
 
 
-@proto("garage_parts_washer", box=(0.46, 0.45, 0.3), reach=220)
+@proto("garage_parts_washer", box=(0.46, 0.45, 0.34), reach=220)
 def _parts_washer(k):
     """A parts washer's sink, set on a drum of solvent (place_parts_washer):
     a red tub with its lid propped open at the back, the flex nozzle over
@@ -582,7 +597,7 @@ def place_parts_washer(x, z, yaw=0.0, y=0.0, district=None):
 # ---------------------------------------------------------------------------
 # Shelving and the runs of cable and conduit.
 # ---------------------------------------------------------------------------
-@proto("garage_shelving", box=(0.91, 1.0, 0.31))
+@proto("garage_shelving", box=(0.93, 1, 0.31))
 def _shelving(k):
     """Steel shelving, 1.8 by 0.6 m and 2 m high: four angle posts, five
     shelves, and on them parts in their cartons, plastic bins, bottles of
@@ -648,7 +663,7 @@ def _cable_tray(k):
         pipe(t, (-1.5, 0.015 + r, z), (1.5, 0.015 + r, z), r, segs=5, col=col)
 
 
-@proto("garage_conduit", box=(1.5, 0.03, 0.04), reach=200, detail=True)
+@proto("garage_conduit", box=(1.53, 0.03, 0.04), reach=200, detail=True)
 def _conduit(k):
     """A 3 m run of steel conduit along a wall (its back on z 0), with its
     couplings and its straps: lengths butt end to end along x, at the
@@ -662,7 +677,7 @@ def _conduit(k):
         box(n, x - 0.012, x + 0.012, -0.013, 0.013, 0.004, 0.036, col=STEEL_MID)
 
 
-@proto("garage_conduit_drop", box=(0.06, 1.5, 0.04), reach=200, detail=True)
+@proto("garage_conduit_drop", box=(0.32, 1.5, 0.09), reach=200, detail=True)
 def _conduit_drop(k):
     """Conduit down a wall from 3 m to a switched outlet box at 1.2 m, a
     power strip plugged in under it."""
@@ -676,7 +691,7 @@ def _conduit_drop(k):
     box(t, 0.0, 0.32, 0.0, 0.04, 0.02, 0.08, col=BLACK_PAINT)
 
 
-@proto("garage_junction_box", box=(0.08, 0.08, 0.04), reach=160, detail=True)
+@proto("garage_junction_box", box=(0.08, 0.08, 0.06), reach=160, detail=True)
 def _junction_box(k):
     """A steel junction box where runs of conduit meet (centred at y 0)."""
     t, n = k("trim"), k("trim", 1)
@@ -690,7 +705,7 @@ LED_DROP = 0.7
 FLUORO_DROP = 0.45
 
 
-@proto("garage_led_batten", box=(1.22, 0.38, 0.06), reach=600)
+@proto("garage_led_batten", box=(1.36, 0.38, 0.06), reach=600)
 def _led_batten(k):
     """A 2.4 m LED batten, its diffuser in the garage's tube (struck on as
     the room's are, src/world/garage.js): an aluminium body hung on two
@@ -743,7 +758,7 @@ def tune_lead(k, a, b, sag=0.3):
     obox(k("trim"), tuple(Vector(b) - d * 0.02), tuple(d.cross(Vector((0, 1, 0))).normalized()), (0, 1, 0), 0.024, 0.012, 0.02, col=BLACK_PAINT)
 
 
-@proto("garage_tune_cart", box=(0.4, 0.55, 0.25))
+@proto("garage_tune_cart", box=(0.4, 0.55, 1.31))
 def _tune_cart(k):
     """The tune station: a black utility cart, a laptop open on it running
     a tuning tool (a header, a map grid, three traces), the vehicle
@@ -793,7 +808,11 @@ def _tune_cart(k):
     lathe(t, -0.27, -0.12, ((top, 0.03), (top + 0.1, 0.038)), segs=8, col=WHITE_PAINT)
 
 
-@proto("garage_parts_table", box=(0.76, 0.5, 0.38))
+# The cart and what is on it; the OBD lead hangs in the air to TUNE_PLUG.
+solid("garage_tune_cart", (-0.375, 0.375, 0.0, 1.08, -0.275, 0.22))
+
+
+@proto("garage_parts_table", box=(0.76, 0.56, 0.38))
 def _parts_table(k):
     """A steel parts table, 1.5 by 0.75 m: a brake disc and its caliper, a
     turbocharger, a coilover, a box of spark plugs and a rag laid out."""
@@ -861,7 +880,7 @@ def _task_light(k):
 WORK_LIGHT_FACE = {"centre": (0.0, 2.1, 0.11), "size": (0.32, 0.2), "tilt_down_deg": 35.0}
 
 
-@proto("garage_work_light", box=(0.42, 1.1, 0.42), reach=300)
+@proto("garage_work_light", box=(0.42, 1.14, 0.51), reach=300)
 def _work_light(k):
     """A work light on a tripod stand: three splayed legs, a telescoping
     mast to 2.1 m, a yoke and an LED flood head looking toward +z and 35
@@ -898,7 +917,7 @@ def _work_light(k):
 # ---------------------------------------------------------------------------
 # The welder on its cart, and a drip tray.
 # ---------------------------------------------------------------------------
-@proto("garage_welder", box=(0.32, 0.65, 0.45), reach=260)
+@proto("garage_welder", box=(0.38, 0.65, 0.45), reach=260)
 def _welder(k):
     """A MIG welder on its cart: the machine with its panel and knobs, the
     gas bottle chained at the back with its regulator, the torch lead and

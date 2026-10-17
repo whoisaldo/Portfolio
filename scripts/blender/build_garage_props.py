@@ -93,19 +93,42 @@ for (key, mat_name, _), b in kit.batches.items():
     s["near_triangles" if name.endswith(NP.NEAR) else "triangles"] += tris
     s["materials"].add(mat_name)
 
+# What each prototype's geometry (near parts too) spans in its own frame,
+# and whether its `box` holds it: symmetric about the origin across, its
+# base at y 0. A few hang from their origin (HUNG) and go below it.
+HUNG = {"garage_hood_light", "garage_lift2_pad", "garage_cable_tray", "garage_conduit", "garage_junction_box",
+        "garage_poster_tall", "garage_poster_wide", "garage_poster_lit", "garage_shop_sign"}
+bounds = {}
+for mesh_list in meshes.values():
+    for m in mesh_list:
+        base = m.name[len("GP_proto_"):]
+        base = next(n for n in sorted(WANT, key=len, reverse=True) if base.startswith(n + "_"))
+        lo, hi = bounds.setdefault(base, ([1e9] * 3, [-1e9] * 3))
+        for v in m.vertices:
+            # Blender (x, y, z) is the kit's (x, -z, y).
+            for i, c in enumerate((v.co.x, v.co.z, -v.co.y)):
+                lo[i], hi[i] = min(lo[i], c), max(hi[i], c)
+bad = []
+for name, (lo, hi) in bounds.items():
+    hx, hy, hz = NP.PROTOS[name]["box"]
+    over = [max(-lo[0], hi[0]) - hx, hi[1] - 2 * hy, max(-lo[2], hi[2]) - hz, (0.0 if name in HUNG else -lo[1] - 0.005)]
+    if name != "drum" and max(over) > 0.005:
+        bad.append(f"{name}: spans x {lo[0]:.3f}..{hi[0]:.3f} y {lo[1]:.3f}..{hi[1]:.3f} z {lo[2]:.3f}..{hi[2]:.3f}, box {hx}, {hy}, {hz}")
+if bad:
+    raise SystemExit("prototype boxes that do not hold their geometry:\n  " + "\n  ".join(bad))
+
 report = {}
 for name in WANT:
     p = NP.PROTOS[name]
     s = stats.get(name, {"triangles": 0, "near_triangles": 0, "materials": set()})
     fn = p["build"]
+    lo, hi = bounds.get(name, ([0.0] * 3, [0.0] * 3))
     report[name] = {"triangles": s["triangles"], "near_triangles": s["near_triangles"], "materials": sorted(s["materials"]),
-                    "box": list(p["box"]), "detail": p["detail"], "reach": p["reach"],
+                    "box": list(p["box"]), "bounds": {"min": [round(v, 3) for v in lo], "max": [round(v, 3) for v in hi]},
+                    "solids": [[round(v, 3) for v in b] for b in p["solids"]] if "solids" in p else None,
+                    "detail": p["detail"], "reach": p["reach"],
                     "about": " ".join((fn.__doc__ or "").split())}
 total = sum(r["triangles"] + r["near_triangles"] for n, r in report.items() if n != "drum")
-(OUT / "garage-props.json").write_text(json.dumps({
-    "note": "the garage's prototypes (scripts/blender/ncw/garage): triangles drawn always, triangles drawn near by only "
-            "(<name>__near, never on a phone), the kit materials each wears, its footprint (half sizes), whether a phone drops it",
-    "total_triangles": total, "protos": {n: r for n, r in report.items() if n != "drum"}}, indent=1))
 
 # ---------------------------------------------------------------------------
 # The preview's own scene, its materials wired to the vertex colours.
@@ -136,9 +159,31 @@ def wire(mat_name, emit=False, base=None):
         nt.links.new(attr.outputs["Color"], bsdf.inputs["Base Color"])
 
 
+def front_only(mat_name):
+    """The site draws the kit's materials front faces only (three.js's
+    FrontSide): so does the preview, a face seen from behind letting the
+    light through as if it were not there."""
+    mat = kit.MATS.get(mat_name)
+    if mat is None:
+        return
+    nt = mat.node_tree
+    out = next(n for n in nt.nodes if n.type == "OUTPUT_MATERIAL")
+    link = next(lk for lk in nt.links if lk.to_node == out and lk.to_socket.name == "Surface")
+    shader = link.from_socket
+    geo = nt.nodes.new("ShaderNodeNewGeometry")
+    clear = nt.nodes.new("ShaderNodeBsdfTransparent")
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    nt.links.new(geo.outputs["Backfacing"], mix.inputs["Fac"])
+    nt.links.new(shader, mix.inputs[1])
+    nt.links.new(clear.outputs["BSDF"], mix.inputs[2])
+    nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])
+
+
 wire("trim")
 wire("glow", emit=True)
 wire("tube", emit=True)
+for _m in ("trim", "glow", "tube", "hazard"):
+    front_only(_m)
 wire("worn", base=(0.05, 0.07, 0.12))
 wire("print", base=(0.32, 0.24, 0.15))
 face = kit.MATS["face"]
@@ -150,17 +195,106 @@ kit.principled(face).inputs["Emission Color"].default_value = (0.35, 0.4, 0.6, 1
 # ---------------------------------------------------------------------------
 
 
-def one(name, *more, y=0.0):
+def one(name, *more, y=0.0, z=0.0):
     """One prototype (and any more beside it), `y` up off the floor: what
     hangs from a ceiling or a hood is shown hanging."""
     def f():
-        NP.place(name, 0, y, 0, 0, district="garage")
+        NP.place(name, 0, y, z, 0, district="garage")
         for m, mx, my, mz, myaw in more:
             NP.place(m, mx, my, mz, myaw, district="garage")
     return f
 
 
+# ---------------------------------------------------------------------------
+# Ali's S4 (public/models/ali-s4.glb), for the tiles that prove the lifts
+# fit it: one mesh in its own frame (its origin on the floor between its
+# axles, front +z), and one with the opening hood left off.
+# ---------------------------------------------------------------------------
+S4 = ROOT / "public/models/ali-s4.glb"
+# Nodes the GLB carries outside its scene, which the site never draws.
+S4_UNUSED = {"Cube", "MCP_Setup_Test_Cube"}
+
+
+def s4_meshes():
+    import bmesh
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=str(S4))
+    new = [o for o in bpy.data.objects if o not in before]
+
+    def in_hood(o):
+        while o is not None:
+            if o.name.startswith("opening_hood"):
+                return True
+            o = o.parent
+        return False
+    out = []
+    for label, keep in (("GP_S4", lambda o: True), ("GP_S4_hood_open", lambda o: not in_hood(o))):
+        bm, mats = bmesh.new(), []
+        for o in new:
+            if o.type != "MESH" or o.name.split(".")[0] in S4_UNUSED or not keep(o):
+                continue
+            me = o.data.copy()
+            me.transform(o.matrix_world)
+            for poly in me.polygons:
+                poly.material_index += len(mats)
+            mats.extend(me.materials)
+            bm.from_mesh(me)
+            bpy.data.meshes.remove(me)
+        mesh = bpy.data.meshes.new(label)
+        bm.to_mesh(mesh)
+        bm.free()
+        for m in mats:
+            mesh.materials.append(m)
+        out.append(mesh)
+    for o in new:
+        bpy.data.objects.remove(o)
+    return out
+
+
+S4_MESH, S4_OPEN = s4_meshes()
+
+
+def s4(y=0.0, mesh=None):
+    """The S4 standing at the origin, `y` up (on a raised lift)."""
+    o = bpy.data.objects.new("GP_S4", mesh or S4_MESH)
+    o.location = kit.P(0, y, 0)
+    return [o]
+
+
+def with_s4(build, y=0.0, mesh=None):
+    def f():
+        build()
+        return s4(y, mesh)
+    return f
+
+
 TILES = [
+    ("Fit (Ali's S4)", [
+        ("s4_lift2_down", "S4 on the two-post lift, down", with_s4(lambda: shop.place_lift2(0, 0, district="garage")), {"az": 35, "el": 12}),
+        ("s4_pad_front", "S4's front supports on the pads", with_s4(lambda: shop.place_lift2(0, 0, district="garage")),
+         {"eye": (2.3, 0.12, 1.25), "look": (0.0, 0.12, 0.8), "lens": 32}),
+        ("s4_pad_rear", "S4's rear supports on the pads", with_s4(lambda: shop.place_lift2(0, 0, district="garage")),
+         {"eye": (2.3, 0.13, -1.3), "look": (0.0, 0.13, -0.85), "lens": 32}),
+        ("s4_lift2_under", "S4 on the lift, from under the floor", with_s4(lambda: shop.place_lift2(0, 0, district="garage")),
+         {"az": 25, "el": -35, "under": True, "focus": ((-1.9, 0.0, -1.6), (1.9, 0.4, 1.6))}),
+        ("s4_lift2_up", "S4 on the two-post lift, raised", with_s4(lambda: shop.place_lift2(0, 0, raised=True, district="garage"), y=shop.LIFT2_RISE),
+         {"az": 35, "el": 8}),
+        ("s4_scissor_down", "S4 on the scissor lift, down", with_s4(lambda: shop.place_scissor(0, 0, district="garage"), y=shop.SCISSOR_TOP["down"]),
+         {"az": 70, "el": 10}),
+        ("s4_scissor_up", "S4 on the scissor lift, up", with_s4(lambda: shop.place_scissor(0, 0, raised=True, district="garage"), y=shop.SCISSOR_TOP["up"]),
+         {"az": 70, "el": 6}),
+        ("s4_hood_light", "Under-hood light, from the S4's engine", with_s4(one("garage_hood_light", y=1.25, z=1.45), mesh=S4_OPEN),
+         {"eye": (0.55, 0.86, 2.0), "look": (-0.1, 1.05, 1.3), "lens": 18}),
+    ]),
+    ("Collision (published solids)", [
+        ("lift2_solids", "Two-post lift's solids, S4 pads", lambda: shop.place_lift2(0, 0, district="garage"), {"az": 20, "el": 18, "solids": True}),
+        ("shutter_solids", "City shutter fittings' solids", one("garage_shutter_w"), {"az": -150, "solids": True}),
+        ("door_w_open_solids", "Roll-up door 6 m open, solids", lambda: shop.place_door(0, 0, size="w", pose="open", district="garage"),
+         {"az": -145, "solids": True}),
+        ("tyre_machines_solids", "Tyre changer, balancer: solids", one("garage_tyre_changer", ("garage_balancer", 2.0, 0, 0, 0)),
+         {"solids": True}),
+        ("tune_cart_solids", "Tune cart's solid (the lead is air)", one("garage_tune_cart"), {"az": 60, "solids": True}),
+    ]),
     ("Lifts and jacks", [
         ("lift2_down", "Two-post lift, arms down", lambda: shop.place_lift2(0, 0, district="garage"), {}),
         ("lift2_up", "Two-post lift, raised", lambda: shop.place_lift2(0, 0, raised=True, district="garage"), {}),
@@ -241,6 +375,32 @@ TILES = [
     ]),
 ]
 
+# Each tile's assembly (the lift and its arms, a door and its frame), set
+# down at the origin with yaw 0: what it spans, in the kit's frame.
+assemblies = {}
+SOLID_MAT = bpy.data.materials.new("GP_solid")
+SOLID_MAT.use_nodes = True
+_sb = kit.principled(SOLID_MAT)
+_sb.inputs["Base Color"].default_value = (0.9, 0.08, 0.05, 1)
+_sb.inputs["Emission Color"].default_value = (0.9, 0.08, 0.05, 1)
+_sb.inputs["Emission Strength"].default_value = 0.6
+_sb.inputs["Alpha"].default_value = 0.28
+
+
+def solid_obj(name, x, y, z, yaw, sy, sxz):
+    """An instance's solids (what collision.json gets from ncw/garage's
+    published solids) as translucent red boxes."""
+    verts, faces = [], []
+    for (x0, y0, z0), (x1, y1, z1) in G.shapes.world_solids(name, x, y, z, yaw, sy, sxz):
+        b = len(verts)
+        verts += [kit.P(xx, yy, zz) for yy in (y0, y1) for zz in (z0, z1) for xx in (x0, x1)]
+        faces += [(b + i for i in f) for f in ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3))]
+    mesh = bpy.data.meshes.new(f"GP_solids_{name}")
+    mesh.from_pydata(verts, [], [tuple(f) for f in faces])
+    mesh.materials.append(SOLID_MAT)
+    return bpy.data.objects.new(f"GP_solids_{name}", mesh)
+
+
 coll_root = bpy.data.collections.new("GP_props")
 scene.collection.children.link(coll_root)
 placed = []
@@ -262,6 +422,7 @@ def close_line():
             o.location.y += d
         p["lo"].y += d
         p["hi"].y += d
+        p["dy"] += d
     line_starts.append(line[0])
     row_z = max(p["hi"].y for p in line) + 1.5
     line = []
@@ -272,7 +433,7 @@ for category, tiles in TILES:
     x = 0.0
     for tile_name, label, build, opts in tiles:
         NP.INSTANCES.clear()
-        build()
+        extra = build() or []
         insts = list(NP.INSTANCES)
         coll = bpy.data.collections.new("GP_" + tile_name)
         coll_root.children.link(coll)
@@ -291,6 +452,18 @@ for category, tiles in TILES:
                 w = o.matrix_basis @ v.co
                 lo = Vector(map(min, lo, w))
                 hi = Vector(map(max, hi, w))
+        if opts.get("solids"):
+            extra = extra + [solid_obj(n, ix, iy, iz, yaw, sy, sxz) for n, ix, iy, iz, yaw, sy, sxz, _ in insts]
+        if not extra:
+            assemblies[tile_name] = {"label": label, "min": [round(lo.x, 3), round(lo.z, 3), round(-hi.y, 3)],
+                                     "max": [round(hi.x, 3), round(hi.z, 3), round(-lo.y, 3)]}
+        for o in extra:
+            coll.objects.link(o)
+            objs.append(o)
+            for v in o.data.vertices:
+                w = o.matrix_basis @ v.co
+                lo = Vector(map(min, lo, w))
+                hi = Vector(map(max, hi, w))
         size = hi - lo
         if x > 0 and x + size.x > LINE:
             close_line()
@@ -299,11 +472,62 @@ for category, tiles in TILES:
         for o in objs:
             o.location += shift
         rec = {"name": tile_name, "label": label, "category": category, "coll": coll, "lo": lo + shift, "hi": hi + shift, "opts": opts,
-               "objects": objs}
+               "objects": objs, "origin": shift.x, "dy": 0.0}
         placed.append(rec)
         line.append(rec)
         x += size.x + 1.0
 close_line()
+
+# ---------------------------------------------------------------------------
+# The fit, measured: each lift pad against the S4's underside straight over
+# it, what lies under the car along each arm, where its tyres stand.
+# ---------------------------------------------------------------------------
+def fit():
+    from mathutils.bvhtree import BVHTree
+    car = BVHTree.FromPolygons([v.co for v in S4_MESH.vertices], [list(f.vertices) for f in S4_MESH.polygons])
+
+    def above(x, y, z):
+        """How far up from the kit's (x, y, z) the car's underside is."""
+        hit = car.ray_cast(Vector(kit.P(x, y, z)), Vector((0, 0, 1)), 3.0)
+        return hit[3] if hit[0] is not None else None
+    pads = []
+    for px, pz, top in shop.LIFT2_PADS_S4:
+        ring = [(px, pz)] + [(px + r * math.cos(a * math.tau / 8), pz + r * math.sin(a * math.tau / 8)) for r in (0.04, 0.072) for a in range(8)]
+        gaps = [above(x, top, z) for x, z in ring]
+        (vx, vz), turn, reach, _ = shop.lift2_arm((px, pz, top))
+        # Along the arm, from the pin to the pad: the car's underside over
+        # the arm's top (pin and gear included).
+        under = [above(vx + (px - vx) * f, shop.LIFT2_ARM_TOP + 0.04, vz + (pz - vz) * f) for f in [i / 20 for i in range(21)]]
+        pads.append({"pad": [px, pz, top], "reach": round(reach, 3), "turn_deg": round(math.degrees(turn), 1),
+                     "gap_min_mm": round(min(g for g in gaps if g is not None) * 1000, 1),
+                     "gap_max_mm": round(max(g for g in gaps if g is not None) * 1000, 1), "misses": sum(g is None for g in gaps),
+                     "arm_clear_min_mm": round(min(g for g in under if g is not None) * 1000, 1)})
+    # The tyres' contact: the car's points within 10 mm of the floor.
+    low = [(v.co.x, -v.co.y) for v in S4_MESH.vertices if v.co.z < 0.01]
+    tyres = []
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            q = [(x, z) for x, z in low if x * sx > 0 and z * sz > 0]
+            tyres.append({"x": [round(min(x for x, _ in q), 3), round(max(x for x, _ in q), 3)],
+                          "z": [round(min(z for _, z in q), 3), round(max(z for _, z in q), 3)]})
+    run = shop.SCISSOR_RUN / 2
+    on = all(0.52 <= abs(t["x"][0]) and abs(t["x"][1]) <= 1.08 and max(abs(v) for v in t["z"]) <= run for t in tyres)
+    return {"car": str(S4.relative_to(ROOT)), "lift2_pads": pads, "tyres_on_floor": tyres,
+            "scissor": {"runway_half_length": run, "runway_x": [0.52, 1.08], "tyres_on_runways": on,
+                        "runway_past_tyres_m": round(run - max(max(abs(v) for v in t["z"]) for t in tyres), 3)}}
+
+
+FIT = fit()
+(OUT / "garage-props.json").write_text(json.dumps({
+    "note": "the garage's prototypes (scripts/blender/ncw/garage): triangles drawn always, triangles drawn near by only "
+            "(<name>__near, never on a phone), the kit materials each wears, its box (half sizes x, y, z, base at y 0: the "
+            "whole extent, what the site culls by), its bounds (the geometry's min and max in its own frame), its solids "
+            "(x0, x1, y0, y1, z0, z1 boxes in its own frame: what stands in the way; [] nothing; null the box), whether a "
+            "phone drops it. assemblies: each preview tile's assembly at the origin, yaw 0, its min and max. fit: the lifts "
+            "against Ali's S4.",
+    "total_triangles": total, "protos": {n: r for n, r in report.items() if n != "drum"},
+    "assemblies": assemblies, "fit": FIT}, indent=1))
+
 
 # ---------------------------------------------------------------------------
 # The scale figure, at each row's start, and the room: a floor, a wall.
@@ -396,10 +620,11 @@ scene.collection.objects.link(cam)
 scene.camera = cam
 
 
-def frame(lo, hi, az=35.0, el=22.0, wall=False, aspect=4 / 3, zoom=1.0):
+def frame(lo, hi, az=35.0, el=22.0, wall=False, aspect=4 / 3, zoom=1.0, under=False):
     """Light and frame the box lo..hi (Blender coordinates): the camera at
     `az` degrees round from the front (+kit z, Blender -y) toward +x, `el`
-    up, far enough for the whole box."""
+    up, far enough for the whole box. `under`: the floor taken away and
+    the practical set below, for a look from beneath."""
     c = (lo + hi) / 2
     r = max((hi - lo).length / 2, 0.15)
     a, e = math.radians(az), math.radians(el)
@@ -419,6 +644,10 @@ def frame(lo, hi, az=35.0, el=22.0, wall=False, aspect=4 / 3, zoom=1.0):
         st.rotation_euler = (0, 0, 0)
     warm.location = Vector((c.x - s * 1.3, c.y - s * 0.9, lo.z + (hi.z - lo.z) * 0.45 + 0.2))
     warm_data.energy = 45 * s * s
+    floor_obj.hide_render = under
+    if under:
+        warm.location = Vector((c.x - s * 0.4, c.y - s * 0.5, -s * 0.8))
+        warm_data.energy = 90 * s * s
     wall_obj.hide_render = not wall
     if wall:
         # (Blender +y is the kit's -z: the prop's back, on the wall.)
@@ -456,12 +685,27 @@ if args.render:
         for q in placed:
             q["coll"].hide_render = q is not p
         o = p["opts"]
-        frame(p["lo"], p["hi"], az=o.get("az", 35.0), el=o.get("el", 22.0), wall=o.get("wall", False))
+        lo, hi = p["lo"], p["hi"]
+        if "focus" in o:
+            # A part of the tile, in the kit's frame from the tile's origin.
+            (fx0, fy0, fz0), (fx1, fy1, fz1) = o["focus"]
+            ox = p["origin"]
+            lo, hi = Vector((ox + fx0, -fz1 + p["dy"], fy0)), Vector((ox + fx1, -fz0 + p["dy"], fy1))
+        frame(lo, hi, az=o.get("az", 35.0), el=o.get("el", 22.0), wall=o.get("wall", False), under=o.get("under", False))
+        cam_data.lens = o.get("lens", 40)
+        if "eye" in o:
+            # A camera set by hand, in the kit's frame from the tile's origin.
+            eye, look = (Vector(kit.P(*v)) + Vector((p["origin"], p["dy"], 0)) for v in (o["eye"], o["look"]))
+            cam.location = eye
+            cam.rotation_euler = (look - eye).to_track_quat("-Z", "Y").to_euler()
+            cam_data.clip_start, cam_data.clip_end = 0.02, 40.0
         path = out / "tiles" / f"{i:02d}-{p['name']}.png"
         scene.render.filepath = str(path)
         bpy.ops.render.render(write_still=True, scene=scene.name)
         manifest.append({"file": path.name, "name": p["name"], "label": p["label"], "category": p["category"]})
-    if not only:
+    if only:
+        (out / "tiles-only.json").write_text(json.dumps(manifest, indent=1))
+    else:
         (out / "tiles.json").write_text(json.dumps(manifest, indent=1))
         # The overview: every row, the scale figures, from high at the front.
         for q in placed:
@@ -469,6 +713,7 @@ if args.render:
         for f in figures:
             f.hide_render = False
         wall_obj.hide_render = True
+        floor_obj.hide_render = False
         scene.render.resolution_x, scene.render.resolution_y = 1800, 1100
         lo = Vector((-1.6, min(p["lo"].y for p in placed), 0.0))
         hi = Vector((max(p["hi"].x for p in placed), max(p["hi"].y for p in placed), 3.0))
@@ -486,5 +731,11 @@ if args.render:
 for q in placed:
     q["coll"].hide_render = False
 wall_obj.hide_render = True
+floor_obj.hide_render = False
+# The S4 stays out of the saved scene (it is the site's own model, 2 MB of
+# it), and so do the solids' boxes; their tiles keep the props.
+for q in placed:
+    for o in [o for o in q["coll"].objects if o.data in (S4_MESH, S4_OPEN) or o.name.startswith("GP_solids_")]:
+        q["coll"].objects.unlink(o)
 bpy.data.libraries.write(str(OUT / "garage-props.blend"), {scene}, path_remap="RELATIVE_ALL", fake_user=True, compress=True)
-print(json.dumps({"protos": len(report) - 1, "total_triangles": total, "tiles": len(placed)}))
+print(json.dumps({"protos": len(report) - 1, "total_triangles": total, "tiles": len(placed), "fit": FIT}))
