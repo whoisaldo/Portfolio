@@ -109,8 +109,8 @@ node scripts/optimize-s4.mjs
 npm run check:s4
 ```
 
-The S6 uses the authorized CC BY 4.0 A6 base listed below. A1 owns its Blender MCP
-conversion, `build_s6.py`, `s6_engine_bay.py`, `design/audi-s6/ali-s6.blend`,
+A1 owns the S6's Blender MCP
+build, `build_s6.py`, `s6_engine_bay.py`, `design/audi-s6/ali-s6.blend`,
 `ali-s6-source.glb`, optimizer, checker and `src/data/s6.js`. Once those source
 assets exist, the export/check commands are:
 
@@ -166,7 +166,7 @@ private references or real plate text in public derivatives.
 
 No-WebGL, world-off, load failure and context loss use `GarageText` in ordinary
 document flow. It contains both cars, every grouped part, selectable text
-details, authorized prices, workbench/life text and links, credits and Contact.
+details, authorized prices, workbench/life text and links, and Contact.
 It has no dead hood/stance control or seven-screen placeholder. Once a complete
 room frame is ready, B5 automatically changes layouts, preserving station,
 selection, focus and the reader's viewport anchor within 2 CSS pixels. Readiness
@@ -218,37 +218,6 @@ clearance, keyboard controls, hidden photos/network, context recovery, reduced
 motion, braindance/roam and the budgets. /recruiters retains its source/content
 and must compare pixel-identically on production previews. The lazy Garage may
 change the common entry chunk; retain all original/new hash rows honestly.
-
-## Asset provenance
-
-`src/data/garage-credits.js` is the single list for B3's text/3D credits and B5's
-Cinema roll. It exports `garageCredits`, with stable IDs and B3's
-`title`, `author`, `href`, optional `authorHref`, `license`, nullable
-`licenseHref` and `note`. The equivalent B5 fields `url`, `authorUrl`,
-`licenseUrl` and `changes` are aliases. A null license link means that the
-repository does not establish a license; render the label as text. A local
-source-record link is not an invented upstream source or permission grant.
-
-| Asset and exact input | Evidence and credit |
-| --- | --- |
-| S6 base, planned source | [Audi A6 C7 MK4 2010-2018](https://sketchfab.com/3d-models/audi-a6-c7-mk4-2010-2018-acd23af5d41d4096833643aaa20cb6fe) by [szymonpasterczyk](https://sketchfab.com/szymonpasterczyk), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The [Sketchfab API](https://api.sketchfab.com/v3/models/acd23af5d41d4096833643aaa20cb6fe) confirms the username, title and license; the display name is Merc_TV. Keep the requested username credit. A1's final README/modification notice is pending; the current credit explicitly describes a planned conversion. |
-| S4 FBX and all eleven `design/audi-s4/source/*.png` textures | [S4 README](../design/audi-s4/README.md) identifies `2013-audi-s4.zip` containing `source/FINAL_MODEL_S4_13.zip`. No original model title, upstream author, source page or license is recorded. The FBX has an empty Author field, Maya 2024 metadata and a `Ddiaz Design` source-path fragment. That fragment does not establish authorship or rights. Keep this gap visible; do not assign the S6's license to S4. |
-| `Concrete023_1K-JPG_{Color,NormalGL,Roughness}.jpg` | [Concrete 023](https://ambientcg.com/view?id=Concrete023) by ambientCG. The original room reads Color/NormalGL; the city kit uses these inputs for concrete. |
-| `Concrete048_1K-JPG_{Color,NormalGL,Roughness}.jpg` | [Concrete 048](https://ambientcg.com/view?id=Concrete048) by ambientCG. The original floor and city's sidewalk use this family. |
-| `PaintedMetal004_1K-JPG_{Color,NormalGL,Roughness}.jpg` | [Painted Metal 004](https://ambientcg.com/view?id=PaintedMetal004) by ambientCG. The old builder reads all three for its scratched red workshop paint. The new prop kit uses existing city materials. |
-| Shared street texture family | [Asphalt 026 C](https://ambientcg.com/view?id=Asphalt026C) by ambientCG, re-encoded in `design/night-city-world/textures/` for the street visible through the doorway. |
-| `textures/moon.jpg`, 768x432 | Earliest tracked addition is `b795ab0`. The old README names Lucy/David and its use in the intro/monitor. It gives no original title, artist, source URL or license, and the image has no EXIF/XMP attribution. Do not infer a source or label it generated from the neighboring poster's description. `optimize-world.mjs` derives `public/scenes/world/moon.webp` from it. |
-| `public/scenes/garage/moon-braindance.mp4` | The old README describes a six-second muted loop of that same still. Container metadata identifies an encoder, not an author or license. No independent creator/source/license is recorded. Retain it with the still's provenance gap. |
-| `textures/adam-smasher.jpg`, 768x1152 | The [original room README](../design/night-city-garage/README.md#references), already present at `b795ab0`, calls it an original generated illustration based on official character reference. No original external image is claimed, and no separate license is recorded. The file has no EXIF/XMP credit. |
-| Jacket, arm, Guts, Smasher and David/Lucy designs | The old README cites [official Edgerunners character reference](https://www.cyberpunk.net/en/edgerunners) and [CDPR's jacket/Guts announcement](https://blog.playstation.com/?p=369114). These identify visual references, not a CC license. The old builder constructs the room's display meshes itself. Preserve the game/anime reference credit without claiming a third-party character mesh was downloaded. |
-
-All four ambientCG families use [CC0 1.0](https://docs.ambientcg.com/license/).
-The generated wall renders, B2's new derivatives and mesh exports retain the
-provenance of their inputs; export does not create a new source license. Ali's
-supplied personal photos are a separate dormant archive, not stock-photo assets.
-No additional stock asset source is established by this audit. Shared fonts,
-libraries and city artwork remain documented by their existing package/source
-records; this list does not relicense them.
 
 ## Retirement audit
 
@@ -316,24 +285,20 @@ does not establish those conditions.
 
 ## B7 verification record
 
-The documentation/credits round passed `npm run lint` and `npm run build`.
+The documentation round passed `npm run lint` and `npm run build`.
 The build reports the existing large-chunk advisory. `npm run check:world`
 exited 0 and printed `World OK` in two runs, but also logged Vite dependency-scan
 errors saying the server was being restarted or closed. Those logs are retained
 for B5; the check is not described as console-clean.
 
-The focused check imports all ten credit rows, checks both field contracts,
-compares the S6 fields against the saved primary API response, and renders them
-through B3's actual Credits component. All local documentation links resolve,
-the new files contain no em dashes, and SHA-256 comparison confirms 227 retained
-source, photo and UI files are unchanged. These checks do not establish the
-integrated credit layout or a completed S6 conversion.
+All local documentation links resolve, the new files contain no em dashes, and
+SHA-256 comparison confirms 227 retained source, photo and UI files are
+unchanged. These checks do not establish a completed S6 conversion.
 
 Cache evidence is under `~/Library/Caches/garage-revamp/review/B7/`:
 `archive-before.json`, `archive-after.json`, `legacy-references.json`,
-`sketchfab-provenance.json`, `focused-checks.json`, `credits-static.html`,
-`lint.log`, `build.log` and both `check-world` logs. The reproducible focused
+`focused-checks.json`, `lint.log`, `build.log` and both `check-world` logs. The reproducible focused
 checker is `agents/B7/verify.mjs` beside this run's notes. No visual sheet was
-produced because this round changes attribution data and documentation only.
+produced because this round changes documentation only.
 The clean replacement asset rebuild, source-path retirement and integrated
 visual/performance checks remain with the dependent owners and B8.

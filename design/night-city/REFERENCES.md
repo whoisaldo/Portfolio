@@ -41,17 +41,15 @@ Both the cinematic and portfolio use the same responsive WebP plate. The city ca
 ## Archived version: Cherry Blossom Market, Japantown
 
 The destination is a reconstruction of the street outside Cherry Blossom
-Market in Cyberpunk 2077. It is based on the references below, rather than a
-mixture of signs and landmarks from unrelated districts.
+Market in Cyberpunk 2077, from views of that location rather than a mixture
+of signs and landmarks from unrelated districts: the market's pink
+holographic trees, giant statue, lanterns and glass roof; the concrete
+portal, red English sign, mint Japanese sign, flower outline, KENDACHI
+frontage and cantilevered yellow building; the lighting, railings and depth
+of the covered market at night; the road, pavement and entrance at car
+height.
 
-- [CD Projekt Red's street photography guide](https://www.cyberpunk.net/en/news/50110/your-trip-to-night-city-best-spots-for-street-photography) identifies the market's pink holographic trees, giant statue, lanterns and glass roof.
-- [Krzysiek Burzyński's Japantown environment work](https://kosmicznykowboj.artstation.com/projects/5XlaxJ), and [part two](https://kosmicznykowboj.artstation.com/projects/bKy1Ym), establish the district's layered architecture and infrastructure. Burzyński was its subdistrict owner during production.
-- [Martin Kocisek's Japantown architecture](https://greenshadedthing.artstation.com/projects/483Pr2) provides architectural context from another original environment artist.
-- [In-game exterior view](https://steamcommunity.com/sharedfiles/filedetails/?id=2961420814) shows the concrete portal, red English sign, mint Japanese sign, flower outline, holographic tree, KENDACHI frontage and cantilevered yellow building.
-- [Night-time entrance photograph](https://x.com/cyberpunkig/status/1495379249368289283) establishes the lighting, lantern arrangement, railings and depth of the covered market.
-- [Street-level gameplay view](https://www.gamepressure.com/cyberpunk-2077/send-in-the-clowns/z1e066) establishes the road, pavement and market entrance at car height.
-
-The portal, signs, canopy, storefront lighting and trees follow these views.
+The portal, signs, canopy, storefront lighting and trees follow those views.
 Street dimensions and the camera position are estimated to accommodate the
 existing Audi drift. This is an interpretation of that location, not an
 extracted game level or a measured one-to-one reconstruction. No downloaded

@@ -23,8 +23,8 @@
 // (a focused marker going out of view), whichever came last.
 //
 // Keyboard order is the plan's: stations, car, one marker stop, Parts, hood
-// and stance, the card's own actions, then photographs and credits, then the
-// rest of the page. Escape closes the Parts list first, then the card, and
+// and stance, the card's own actions, then photographs, then the rest of the
+// page. Escape closes the Parts list first, then the card, and
 // puts focus back on whatever opened it. A control that disappears while it
 // has focus (a station change takes the stance buttons away) hands focus to
 // its nearest equivalent instead of dropping it on the page.
@@ -36,7 +36,6 @@ import Tabs from "./Tabs";
 import PartCard from "./PartCard";
 import PartList from "./PartList";
 import Markers from "./Markers";
-import Credits from "./Credits";
 import { ShopCard, ShopText } from "./Shop";
 import { GARAGE_PHOTOS_ENABLED } from "./features";
 import { CARS, STATIONS, findCar, findMod, findStation, resolveRequest } from "./cars";
@@ -67,7 +66,6 @@ export default function GarageControls({
   stations,
   showPrices,
   registerPin,
-  credits,
   onStation,
   onSelect,
   onHood,
@@ -422,8 +420,6 @@ export default function GarageControls({
                   <PartList car={c} selected={selection} onPick={(m, el) => choose(m, el, { focusCard: true })} columns={false} showPrices={showPrices} />
                 </div>
               ))}
-              {/* On a phone the credits live here, out of the picture. */}
-              <Credits credits={credits} className="gw-credits-in-list" />
             </div>
           </Panel>
         ) : mod ? (
@@ -451,9 +447,9 @@ export default function GarageControls({
         ) : null}
       </div>
 
-      {/* Photographs instead, and the credits. */}
-      <div ref={part("util")} className="gw-area-util">
-        {GARAGE_PHOTOS_ENABLED && onMode && (
+      {/* Photographs instead. */}
+      {GARAGE_PHOTOS_ENABLED && onMode && (
+        <div ref={part("util")} className="gw-area-util">
           <Panel glass size="sm" innerClassName="gw-bar">
             <button type="button" className="gw-tab" onClick={() => onMode("photos")} {...{ [CONTROL]: "use-photos", [ANCHOR]: "mode" }}>
               <Images className="w-4 h-4" aria-hidden="true" />
@@ -461,9 +457,8 @@ export default function GarageControls({
               <span className="gw-short">Photos</span>
             </button>
           </Panel>
-        )}
-        <Credits credits={credits} className="gw-credits-overlay gw-credits-in-util" />
-      </div>
+        </div>
+      )}
 
       <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">
         {said}
