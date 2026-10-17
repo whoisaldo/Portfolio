@@ -473,11 +473,18 @@ TAIL_GUIDE = (.0105, .017)   # each guide's width, and their centres apart
 TAIL_PALE = [(.33, .53, .72, .88), (.58, .84, .73, .92)]
 
 
+# Where the lamp's lens sits along the car, by half-breadth, and its lean.
+TAIL_WRAP = [(.34, 2.445), (.50, 2.437), (.62, 2.415), (.74, 2.375), (.80, 2.33), (.84, 2.27)]
+
+
+def tail_surface(x, z):
+    return interp(TAIL_WRAP, abs(x)) - (z - .92) * .3
+
+
 def taillight(sign):
     tag = 'l' if sign > 0 else 'r'
     unit = lambda pts: from_unit(pts, *TAIL_X, *TAIL_Z, sign)
-    wrap = [(.34, 2.445), (.50, 2.437), (.62, 2.415), (.74, 2.375), (.80, 2.33), (.84, 2.27)]
-    yf = lambda x, z: interp(wrap, abs(x)) - (z - .92) * .3
+    yf = lambda x, z: tail_surface(x, z)
     shape = closed_spline(unit(TAIL_LENS), 3)
     seam = sign * (TAIL_X[0] + (TAIL_X[1] - TAIL_X[0]) * TAIL_SEAM)
     pieces = [('inner', ccw(clip(shape, 'x', seam - .003 * sign, sign < 0))),

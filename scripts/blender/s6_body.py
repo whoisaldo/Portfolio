@@ -934,7 +934,6 @@ def cut_openings(shell, lid, parts):
                  ('headlight_' + t, 'headlamp_lens', .004, -1, [shell]),
                  ('taillight_' + t, 'taillamp_lens_outer', .003, 1, [shell]),
                  ('taillight_' + t, 'taillamp_lens_inner', .003, 1, [lid])]
-    jobs.append(('rear_diffuser', 'diffuser_insert', -.009, 1, [shell]))
     for name, prefix, margin, ahead, targets in jobs:
         loop = boundary_loop(part_mesh(by_base[name], prefix))
         for target in targets:
@@ -1147,16 +1146,6 @@ def build_bumper_features(parent, tree):
     made = []
     covers = []
     for sign in (1, -1):
-        d, _ = SOCKET_MOVES['lower_intake_' + ('l' if sign > 0 else 'r')]
-        top = [(x + d[0], z + d[2] + .013) for x, z in from_unit(INTAKE[:7], *INTAKE_X, *INTAKE_Z, sign)]
-        ledge = []
-        for x, z in top:
-            hit, normal = on_body(tree, x, -3, z, 'y')
-            # Stop where the nose turns into the side, as on his bumper.
-            if hit is not None and abs(normal.y) > .55:
-                ledge.append(Vector((x, hit.y - .004, z)))
-        if len(ledge) > 2:
-            made.append(tube('intake_ledge', smooth_path(ledge, 4), .0065, paint, parent, sides=8))
         covers += [('headlamp_washer_cover', sign * .775, .605, .075, .10), ('parking_sensor', sign * .83, .50, .024, .024)]
     covers.append(('tow_eye_cover', -.60, .505, .055, .07))
     lip = []
@@ -1165,9 +1154,9 @@ def build_bumper_features(parent, tree):
         hit, normal = on_body(tree, x, -3, feature_z('f', 0) - .006, 'y')
         if hit is not None and abs(normal.y) > .55:
             lip.append(Vector((x, hit.y - .003, hit.z)))
-    made.append(tube('lower_lip_edge', lip, .006, paint, parent, sides=8))
-    hit, _ = on_body(tree, 0, -3, .245, 'y')
-    made.append(rounded_box('lower_centre_slot', (0, hit.y - .002, .247), (.88, .016, .034), satin_black, parent, .008, 1))
+    made.append(tube('lower_lip_edge', lip, .0028, paint, parent, sides=6))
+    # The long dark opening along the lip under the grille (his photo).
+    made.append(decal('lower_centre_slot', tree, 0, .247, 1.08, .03, .0008, satin_black, parent, 2, 32))
     # The dark line that separates the lip from the bumper above it, across the nose.
     groove = []
     for k in range(41):
@@ -1181,7 +1170,7 @@ def build_bumper_features(parent, tree):
         made.append(decal(name + '_line', tree, x, z, w + .006, h + .006, .0005, outline, parent))
         made.append(decal(name, tree, x, z, w, h, .0016, paint, parent))
     for sign in (1, -1):
-        hit, normal = on_body(tree, sign * .74, 3, .44, 'y')
+        hit, normal = on_body(tree, sign * .74, 3, .475, 'y')
         if hit is not None:
             r = rounded_box('rear_reflector', (0, 0, 0), (.11, .006, .022), lens_red, parent, .006, 1)
             r.location = hit + normal * .002
@@ -1242,4 +1231,77 @@ def build_pillar_trims(parent):
                     vs.append((sign * (tumble_x(bb.x, bb.z, z) + .003), y, z))
             fs = [(2 * k, 2 * k + 1, 2 * k + 3, 2 * k + 2) for k in range(8)]
             made.append(facing(mesh(name, vs, fs, gloss_black, parent, True), (sign, 0, 0)))
+    return made
+
+
+def conform_taillamps(parts, tree):
+    """Lay the tail lamps on the quarters and lid as the headlamps are on the nose, so their
+    openings close to a shut line round the lamps instead of showing dark gaps."""
+    by_base = {key.split('.')[0]: root for key, root in parts.items()}
+    for name in ('taillight_l', 'taillight_r'):
+        (dx, dy, dz), _ = SOCKET_MOVES[name]
+        for obj in [o for o in by_base[name].children_recursive if o.type == 'MESH']:
+            world = obj.matrix_world
+            inv = world.inverted()
+            for v in obj.data.vertices:
+                p = world @ v.co
+                hit = tree.ray_cast(Vector((p.x, 4, p.z)), Vector((0, -1, 0)), 3)[0]
+                if hit is not None:
+                    base = tail_surface(p.x - dx, p.z - dz) + dy
+                    p.y = hit.y + (p.y - base)
+                    v.co = inv @ p
+            obj.data.update()
+
+
+# The S6 intake pocket, his front photo: from beside the grille to the corner,
+# under a level bright ledge, down to the lip; rounded corners. (x, z, radius).
+POCKET = [(.415, .445, .025), (.835, .48, .05), (.848, .305, .04), (.415, .300, .025)]
+
+
+def build_intake_pockets(shell, parent, tree):
+    """Cut a full, rounded pocket per side and line it: a recessed black backing,
+    honeycomb round the intake part, and the bright ledge along its top."""
+    made = []
+    nose_y = lambda x, z: on_body(tree, x, -3, z, 'y')[0].y
+    for sign in (1, -1):
+        outline = ccw(rounded([(sign * x, z, r) for x, z, r in POCKET], 4))
+        cut_opening(shell, [Vector((x, nose_y(x, z), z)) for x, z in outline], 0, -1)
+        made.append(surface('intake_pocket_' + ('l' if sign > 0 else 'r'), offset(outline, -.004),
+                            lambda x, z: nose_y(x, z) + .036, matte_black, parent, (0, -1, 0), 1, 0, -.036))
+        tag = 'l' if sign > 0 else 'r'
+        (dx, _, dz), _ = SOCKET_MOVES['lower_intake_' + tag]
+        part = ccw([(x + dx, z + dz) for x, z in closed_spline(from_unit(INTAKE, *INTAKE_X, *INTAKE_Z, sign), 3)])
+        made.append(honeycomb('intake_pocket_mesh_' + tag, offset(outline, .01), lambda x, z: nose_y(x, z) + .02, .056, .021, .018,
+                              .0025, .012, satin_black, parent, 0, keep=lambda x, z, part=part: not inside(x, z, part), margin=.008))
+        top = [Vector((x, nose_y(x, z) - .003, z + .005)) for x, z in outline if z > .43 and .43 < abs(x) < .82]
+        top.sort(key=lambda p: abs(p.x))
+        made.append(tube('intake_ledge', smooth_path(top, 3), .0065, paint, parent, sides=8))
+    return made
+
+
+# The early S6's diffuser opening: a bright surround that rises in a rounded
+# arch over each pair of tips and turns down at the ends (Audi's 2012 rear
+# view), filled with the diffuser's own grey. Right half (x, z), centre first.
+DIFFUSER_TOP = [(0, .385), (.40, .39), (.48, .405), (.56, .428), (.63, .437), (.70, .43), (.77, .408), (.81, .378),
+                (.828, .33), (.815, .27), (.785, .222)]
+
+
+def build_diffuser_surround(shell, parent, tree, parts):
+    rear_y = lambda x, z: tree.ray_cast(Vector((x, 4, z)), Vector((0, -1, 0)), 3)[0].y
+    half = DIFFUSER_TOP + [(.70, .16)]
+    # Centre top round the right end to the bottom, then mirrored back (open below the bumper).
+    outline = ccw(half + [(-x, z) for x, z in reversed(half)][:-1])
+    loop = [Vector((x, rear_y(x, max(z, .2)), z)) for x, z in outline]
+    cut_opening(shell, loop, 0, 1)
+    platinum_grey = bpy.data.materials['S6_diffuser_platinum_grey']
+    made = [surface('diffuser_field', offset(outline, -.004), lambda x, z: rear_y(x, max(z, .2)) - .03, platinum_grey, parent,
+                    (0, 1, 0), 1, 0, -.03)]
+    rim = [(x, z) for x, z in reversed(DIFFUSER_TOP)][:-1] + [(-x, z) for x, z in DIFFUSER_TOP]
+    rim = [Vector((x, rear_y(x, z) + .002, z)) for x, z in smooth_path(rim, 3)]
+    made.append(tube('diffuser_surround', rim, .005, aluminium, parent, sides=8))
+    # The surround replaces the part's own border, which sagged to the centre.
+    by_base = {key.split('.')[0]: root for key, root in parts.items()}
+    for obj in list(by_base['rear_diffuser'].children):
+        if obj.name.startswith('diffuser_aluminium_border'):
+            bpy.data.objects.remove(obj, do_unlink=True)
     return made

@@ -338,8 +338,10 @@ for name in ('steer_fl', 'steer_fr', 'axle_rl', 'axle_rr'):
 move_sockets(PARTS)
 
 shell, columns, sections = build_side_band(body)
-conform_headlamps(PARTS, surface_tree([shell]))
+whole_shell = surface_tree([shell])   # before any opening is cut
+conform_headlamps(PARTS, whole_shell)
 lid = build_lid(body)
+conform_taillamps(PARTS, surface_tree([shell, lid]))
 # Tinted as in his photos.
 window_glass = glass('S6_window_glass_tint', '101316', .8, .02)
 greenhouse, windows = build_greenhouse(body, window_glass, gloss_black)
@@ -347,6 +349,8 @@ build_pillar_trims(body)
 build_underbody(body, columns, sections, matte_black)
 build_wheel_wells(body, matte_black)
 cut_openings(shell, lid, PARTS)
+build_intake_pockets(shell, body, whole_shell)
+build_diffuser_surround(shell, body, whole_shell, PARTS)
 build_plate_recess(lid, body)
 build_details(body)
 painted = surface_tree([shell, lid])
