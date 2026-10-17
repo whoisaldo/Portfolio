@@ -89,9 +89,10 @@ for (const accessor of root.listAccessors()) {
   assert.ok(array && array.every(Number.isFinite), `Invalid geometry: ${accessor.getName()}`);
 }
 for (const texture of root.listTextures()) assert.ok(texture.getImage()?.byteLength, "Missing embedded texture.");
-// The cabin stays inside the closed car: above the floor, inside the door
-// cards, between the dash and the parcel shelf, under the roof. In glTF's
-// frame: x across, y up, z forward (the modelling frame's -y).
+// The cabin stays inside the closed car: above the floor pan (the body's
+// underside is at 0.157 m), inside the door skins (0.94 m out), between the
+// firewall and the boot bulkhead, under the roof. In glTF's frame: x across,
+// y up, z forward (the modelling frame's -y).
 const cabin = find("cabin");
 assert.ok(cabin, "Missing cabin.");
 let cabinVertices = 0;
@@ -103,7 +104,7 @@ for (const node of root.listNodes().filter((n) => n.getMesh() && within(n, cabin
     for (let i = 0; i < position.getCount(); i++) {
       const [x, y, z] = position.getElement(i, v);
       const p = [m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]];
-      assert.ok(p[1] >= 0.28 && p[1] <= 1.4 && Math.abs(p[0]) <= 0.86 && p[2] >= -1.9 && p[2] <= 1.0,
+      assert.ok(p[1] >= 0.16 && p[1] <= 1.45 && Math.abs(p[0]) <= 0.935 && p[2] >= -2.0 && p[2] <= 1.15,
         `${node.getName()} leaves the cabin at (${p.map((c) => c.toFixed(3)).join(", ")}).`);
       cabinVertices++;
     }

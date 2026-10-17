@@ -17,7 +17,7 @@ const PARTS = ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr", "steer_fl", "stee
 export const cars = {
   s4: { url: s4ModelUrl, name: "ali_s4", title: "Ali's 2013 Audi S4", size: [2.02, 1.38, 4.74], wheelRadius: 0.34325, wheelbase: 2.811, unavailable: null },
   s6: {
-    ...garageS6Policy(s6ModelUrl, { development: import.meta.env.DEV, search: typeof location === "undefined" ? "" : location.search }), name: "ali_s6", title: "Ali's 2013 Audi S6", size: [2.088, 1.463, 4.939], wheelRadius: 0.3433, wheelbase: 2.912,
+    ...garageS6Policy(s6ModelUrl, { development: import.meta.env.DEV, search: typeof location === "undefined" ? "" : location.search }), name: "ali_s6", title: "Ali's 2013 Audi S6", size: [2.102, 1.477, 4.933], wheelRadius: 0.3433, wheelbase: 2.912,
   },
 };
 

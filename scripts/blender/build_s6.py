@@ -331,66 +331,77 @@ car['forwardAxis'] = '+Z after glTF export'
 body = empty('body', (0, 0, 0), car)
 PARTS_ROOT = body
 exec((ROOT / 'scripts/blender/s6_parts.py').read_text())
-exec((ROOT / 'scripts/blender/s6_body.py').read_text())
+exec((ROOT / 'scripts/blender/s6_base.py').read_text())
 by_base = {key.split('.')[0]: root for key, root in PARTS.items()}
 for name in ('steer_fl', 'steer_fr', 'axle_rl', 'axle_rr'):
     by_base[name].parent = car
-move_sockets(PARTS)
 
-shell, columns, sections = build_side_band(body)
-whole_shell = surface_tree([shell])   # before any opening is cut
-conform_headlamps(PARTS, whole_shell)
-lid = build_lid(body)
-conform_taillamps(PARTS, surface_tree([shell, lid]))
-# Tinted as in his photos.
-window_glass = glass('S6_window_glass_tint', '101316', .8, .02)
-greenhouse, windows = build_greenhouse(body, window_glass, gloss_black)
-build_pillar_trims(body)
-build_underbody(body, columns, sections, matte_black)
-build_wheel_wells(body, matte_black)
-cut_openings(shell, lid, PARTS)
-build_intake_pockets(shell, body, whole_shell)
-build_diffuser_surround(shell, body, whole_shell, PARTS)
-build_plate_recess(lid, body)
-build_details(body)
-painted = surface_tree([shell, lid])
-build_bumper_features(body, painted)
-build_shut_lines(body, painted)
-# The cowl cover closes the slot between the hood's rear edge and the windscreen,
-# its rear edge tucked just under the glass's lower edge.
-base = sorted((abs(p.x), p.z) for p in greenhouse_section(GLASS_BASE_Y))
-cowl = []
-for k in range(25):
-    x = -.88 + 1.76 * k / 24
-    z_front = hood_height(x, COWL_Y) - .012 if abs(x) < .82 else table(BELT, -.95, 2) - .01
-    cowl += [(x, COWL_Y - .006, z_front), (x, GLASS_BASE_Y + .025, interp(base, abs(x)) + .004)]
-mesh('cowl_cover', cowl, [(2 * k, 2 * k + 2, 2 * k + 3, 2 * k + 1) for k in range(24)], satin_black, body, True)
+# The body is the adapted A6 C7 sedan (s6_base.py): its facelift parts go,
+# the S6's are fitted into its openings.
+BASE = split_base(load_base())
+shell = BASE['shell']
+shell.name = shell.data.name = 'body_shell'
+shell.parent = body
+lamp_guides, grille_guide = BASE.pop('guide_lamps'), BASE.pop('guide_grille')
+frame = reshape_grille_opening(shell)
+fit_grille(PARTS, shell)
+fit_intakes(PARTS, shell, body)
+# The headlamps' inner tips meet the grille frame's top corners, as on the 2013 car.
+fit_lamps(PARTS, lamp_guides, shell, body, grille_corner_x(frame, .70) + .006, frame)
+fit_diffuser(PARTS, shell, body)
+place_badges(PARTS, shell)
+rig_mirrors(BASE, PARTS, body)
+absorb_hood(shell, BASE['hood'])
+decimate(split_material(shell, body_black, 'body_black_trim', body), TRIM_RATIO)
+for guide in (lamp_guides, grille_guide):
+    bpy.data.meshes.remove(guide.data)
+for key, name in (('glass', 'window_glass'), ('plate', 'rear_plate_blank')):
+    BASE[key].name = BASE[key].data.name = name
+    BASE[key].parent = body
 for name, group in (('headlights', ('headlight_l', 'headlight_r')), ('taillights', ('taillight_l', 'taillight_r'))):
     node = empty(name, (0, 0, 0), body)
     for part in group:
         by_base[part].parent = node
 
-# The hood opens on its own hinge at the cowl; its liner rides with it.
-HINGE = Vector((0, COWL_Y - .012, interp(HOOD_CROWN_Z, COWL_Y) - .012))
+build_plenum(BASE['hood'], BASE['glass'], body)
+build_closures(body, BASE['glass'])
+
+# The hood opens on its own hinge, just ahead of its rear corners and below
+# them, so the corners dip into the plenum as it rises; its liner rides with it.
+HOOD_EDGE, HOOD_EDGE_Z, COWL_Y, cowl_z = measure_hood(BASE['hood'])
+# The bay's lock carrier sits under the hood's front edge, behind the
+# headlamps' housings, its lamp-back mouldings (54 cm out) under the liner.
+lock_y = min(v.co.y for v in BASE['hood'].data.vertices) + .17
+LOCK_AT = (lock_y, surface_tree([BASE['hood']]).ray_cast(Vector((.54, lock_y + .05, 2)), Vector((0, 0, -1)), 3)[0].z - .045)
+HINGE = Vector((0, COWL_Y - .08, cowl_z - .03))
 hinge = empty('hood_hinge', HINGE, body)
 hinge['openAngle'] = -1.10
-hood = build_hood(hinge)
+hood = BASE['hood']
 hood.name = hood.data.name = 'opening_hood'
+hood.parent = hinge
 hood.data.transform(Matrix.Translation(-HINGE))
 liner = bpy.data.objects.new('hood_acoustic_liner', hood.data.copy())
 scene.collection.objects.link(liner)
 liner.parent = hinge
 liner.data.materials.clear()
 liner.data.materials.append(material('S6_hood_acoustic_liner', '17191b', 0, .97))
+mid_y = sum(v.co.y for v in liner.data.vertices) / len(liner.data.vertices)
 for v in liner.data.vertices:
     v.co.x *= .9
-    v.co.y = (v.co.y + .62) * .88 - .62
+    v.co.y = (v.co.y - mid_y) * .9 + mid_y
     v.co.z -= .02
 liner.data.flip_normals()
 
 # The engine bay sits under the hood, its frame's z = 0 just under the hood's
-# seam; it is pitched to follow the hood, which rises about 11 cm to the cowl.
-ENGINE_AT = (0, -1.52, .91)
+# seam; it is pitched to follow the hood, which rises to the cowl. The bay
+# reads the hood's outline and the front wheel arch from these.
+hood_halfwidth = lambda y: interp(HOOD_EDGE, y)
+ARCH_Y = {'f': -WHEELBASE / 2, 'r': WHEELBASE / 2}
+ARCH_R = {'f': .386, 'r': .382}
+lerp = lambda a, b, t: a + (b - a) * t
+# This hood's rear edge bows forward to the middle, so the bay sits 3 cm
+# further forward and 1 cm lower than under the round-10 body's.
+ENGINE_AT = (0, -1.55, .90)
 exec((ROOT / 'scripts/blender/s6_engine_bay.py').read_text())
 engine.rotation_euler.x = math.radians(6.3)
 
@@ -398,8 +409,8 @@ engine.rotation_euler.x = math.radians(6.3)
 # telescoping tube and rod the loader sets between them as the hood turns.
 strut_black = material('S6_hood_strut_black', '121314', .3, .4)
 for sign, suffix in ((1, ''), (-1, '_r')):
-    base = Vector((sign * .62, -1.17, .80))
-    mount = Vector((sign * .60, -1.50, .925))
+    base = Vector((sign * .62, COWL_Y - .18, .80))
+    mount = Vector((sign * .60, COWL_Y - .51, interp(HOOD_EDGE_Z, COWL_Y - .51) + .04))
     empty('hood_strut_base' + suffix, base, body)
     empty('hood_strut_mount' + suffix, mount - HINGE, hinge)
     delta = mount - base
@@ -411,15 +422,29 @@ for sign, suffix in ((1, ''), (-1, '_r')):
         if part == 'rod':
             node.location = base + delta * .45
 
-cabin, dash = build_cabin(body)
-build_cabin_closure(body)
+# The cabin is the base's, reduced; the rsNAV head unit stands where the
+# factory MMI screen rises from the top of the dash.
+cabin = empty('cabin', (0, 0, 0), body)
+interior = BASE['cabin']
+interior.name = interior.data.name = 'cabin_interior'
+interior.parent = cabin
+decimate(interior, CABIN_RATIO)
+# The tyres' swept space: radius plus Virtual Link's 50 mm drop and 20 mm
+# clearance, the fronts 30 mm more for steering.
+clear_wheels(interior, [(-WHEELBASE / 2, WHEEL_R + .10), (WHEELBASE / 2, WHEEL_R + .07)])
+keep_behind_windscreen(interior, BASE['glass'])
+HEAD_UNIT = head_unit_spot(interior)
+unit = empty('head_unit_screen', HEAD_UNIT, cabin)
+unit.rotation_euler.x = math.radians(-8)
+box('head_unit_bezel', (0, 0, 0), (.25, .018, .15), INTERIOR['trim'], unit, .006)
+box('head_unit_display', (0, -.0095, 0), (.23, .002, .13), emitter('S6_head_unit_screen', '2a5d8c', .8, '0a0d12', .1), unit, 0)
 
 # One anchor for each of the S6's mods, where the garage pins its marker.
-for name, location in [('mod_ie_ecu_tune', (-.52, -1.12, .86)),        # engine ECU, in the plenum by the cowl
+for name, location in [('mod_ie_ecu_tune', (-.52, COWL_Y - .12, .86)),  # engine ECU, in the plenum by the cowl
                        ('mod_ie_tcu_tune', (0, -.45, .33)),             # the S tronic's controller, under the tunnel
                        ('mod_virtual_link', (0, .35, .24)),             # the air suspension the module lowers
-                       ('mod_rs_grille', tuple(by_base['RS_honeycomb_grille'].location)),
-                       ('mod_rsnav_head_unit', (0, -.73, 1.02))]:
+                       ('mod_rs_grille', tuple(centre(by_base['RS_honeycomb_grille']))),
+                       ('mod_rsnav_head_unit', tuple(HEAD_UNIT))]:
     empty(name, location, body)
 
 # Within each node, join the rigid meshes that share a material, so a part
