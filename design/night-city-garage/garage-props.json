@@ -1,6 +1,6 @@
 {
  "note": "the garage's prototypes (scripts/blender/ncw/garage): triangles drawn always, triangles drawn near by only (<name>__near, never on a phone), the kit materials each wears, its box (half sizes x, y, z, base at y 0: the whole extent, what the site culls by), its bounds (the geometry's min and max in its own frame), its solids (x0, x1, y0, y1, z0, z1 boxes in its own frame: what stands in the way; [] nothing; null the box), whether a phone drops it. assemblies: each preview tile's assembly at the origin, yaw 0, its min and max. fit: the lifts against Ali's S4.",
- "total_triangles": 38711,
+ "total_triangles": 39039,
  "protos": {
   "garage_lift2": {
    "triangles": 750,
@@ -2941,8 +2941,8 @@
    "about": "A 65-inch monitor's bezel on its wall arm, its screen left for the layout's garage_screen (MONITOR_SCREEN); a cable down the wall."
   },
   "garage_jacket_chair": {
-   "triangles": 3100,
-   "near_triangles": 486,
+   "triangles": 3452,
+   "near_triangles": 462,
    "materials": [
     "trim"
    ],
@@ -2953,14 +2953,14 @@
    ],
    "bounds": {
     "min": [
-     -0.436,
+     -0.371,
      0.0,
      -0.265
     ],
     "max": [
-     0.438,
-     1.081,
-     0.323
+     0.376,
+     1.08,
+     0.31
     ]
    },
    "solids": [
@@ -3950,53 +3950,53 @@
   "jacket_chair": {
    "label": "David's jacket on its stool",
    "min": [
-    -0.436,
+    -0.371,
     0.0,
     -0.265
    ],
    "max": [
-    0.438,
-    1.081,
-    0.323
+    0.376,
+    1.08,
+    0.31
    ]
   },
   "jacket_chair_side": {
    "label": "David's jacket, from its side",
    "min": [
-    -0.436,
+    -0.371,
     0.0,
     -0.265
    ],
    "max": [
-    0.438,
-    1.081,
-    0.323
+    0.376,
+    1.08,
+    0.31
    ]
   },
   "jacket_chair_seat": {
    "label": "David's jacket, from the bench",
    "min": [
-    -0.436,
+    -0.371,
     0.0,
     -0.265
    ],
    "max": [
-    0.438,
-    1.081,
-    0.323
+    0.376,
+    1.08,
+    0.31
    ]
   },
   "jacket_chair_phone": {
    "label": "David's jacket, phone (main only)",
    "min": [
-    -0.436,
+    -0.371,
     0.0,
     -0.265
    ],
    "max": [
-    0.438,
-    1.081,
-    0.323
+    0.376,
+    1.08,
+    0.31
    ]
   },
   "maine_cradle": {
