@@ -75,6 +75,7 @@ export function localBounds(car, into = new THREE.Box3()) {
   into.makeEmpty();
   car.traverse((o) => {
     if (!o.isMesh || !o.visible) return;
+    for (let p = o.parent; p && p !== car; p = p.parent) if (!p.visible) return;
     if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
     into.union(_box.copy(o.geometry.boundingBox).applyMatrix4(new THREE.Matrix4().multiplyMatrices(_m, o.matrixWorld)));
   });
@@ -229,7 +230,7 @@ const ERRORS = [0.001, 0.002, 0.004, 0.007, 0.012, 0.02];
  * after, error, ms, met }`: `ms` is the time spent working, not waiting,
  * and `met` whether `target` was reached (at two centimetres it stops).
  */
-export async function prepareTier(car, { target, cacheKey = null, between = () => Promise.resolve() } = {}) {
+export async function prepareTier(car, { target, errors = ERRORS, cacheKey = null, between = () => Promise.resolve() } = {}) {
   const before = triangles(car);
   if (before <= target) return { before, after: before, error: 0, ms: 0, met: true };
   const { MeshoptSimplifier } = await import("meshoptimizer/simplifier");
@@ -258,7 +259,7 @@ export async function prepareTier(car, { target, cacheKey = null, between = () =
   let ms = 0;
   let error = 0;
   let total = before;
-  for (const e of ERRORS) {
+  for (const e of errors) {
     error = e;
     for (const job of jobs) {
       const t0 = performance.now();
