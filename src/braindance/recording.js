@@ -175,7 +175,10 @@ export function createRecording(anchors, road, { garage = () => null, aspect = (
   const garageRange = { start: bar(46), end: bar(64) };
   const needsGarage = (t) => t >= garageRange.start && t < garageRange.end;
   const garageProgress = (t) => clamp((t - bar(50)) / (bar(63) - bar(50)), 0, 1);
-  const at = (name) => anchors.get(name)?.position;
+  // A failed room may never publish its outside node. The existing Contact
+  // approach is a finished exterior waypoint for continuing after a skip.
+  const at = (name) => anchors.get(name)?.position
+    ?? (name === "anchor_garage_node_outside" ? anchors.get("cam_contact_via")?.position : undefined);
   const vec = (v, out) => (typeof v === "string" ? out.copy(at(v) ?? out.set(0, 0, 0)) : out.fromArray(v));
 
   // The car at time t: where, which way, how fast.
@@ -199,13 +202,14 @@ export function createRecording(anchors, road, { garage = () => null, aspect = (
   // built once per shot.
   const curves = new Map();
   const curveOf = (shot) => {
-    if (!curves.has(shot)) {
+    const sources = shot.points.map((q) => typeof q === "string" ? at(q) : q);
+    if (!curves.has(shot) || curves.get(shot).sources.some((q, i) => q !== sources[i])) {
       const c = new THREE.CatmullRomCurve3(shot.points.map((q) => vec(q, new THREE.Vector3())), false, "centripetal");
       c.arcLengthDivisions = 400;
       c.updateArcLengths();
-      curves.set(shot, c);
+      curves.set(shot, { curve: c, sources });
     }
-    return curves.get(shot);
+    return curves.get(shot).curve;
   };
 
   const _a = new THREE.Vector3();
