@@ -135,16 +135,16 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   const overlapsDoor = (x, z, r, y) => entryClosed() && y < 4.6
     && x + r > threshold.x0 && x - r < threshold.x1 && z + r > threshold.z0 && z - r < threshold.z1;
   const withCars = (self) => Object.assign(Object.create(nav), {
-          resolve(p, r, y, bit, tol, feet) {
-            const hit = nav.resolve(p, r, y, bit, tol, feet);
-            if (overlapsDoor(p.x, p.z, r, y)) return 2;
-            if (hit === 2 || !yielding?.push(p, r, y, self)) return hit;
-            return nav.resolve(p, r, y, bit, tol, feet) && yielding.push(p, r, y, self) ? 2 : 1;
-          },
-          fits(x, z, r, y, bit, tol, feet) {
-            return !overlapsDoor(x, z, r, y) && nav.fits(x, z, r, y, bit, tol, feet) && !yielding?.overlaps(x, z, r, y);
-          },
-        });
+    resolve(p, r, y, bit, tol, feet) {
+      const hit = nav.resolve(p, r, y, bit, tol, feet);
+      if (overlapsDoor(p.x, p.z, r, y)) return 2;
+      if (hit === 2 || !yielding?.push(p, r, y, self)) return hit;
+      return nav.resolve(p, r, y, bit, tol, feet) && yielding.push(p, r, y, self) ? 2 : 1;
+    },
+    fits(x, z, r, y, bit, tol, feet) {
+      return !overlapsDoor(x, z, r, y) && nav.fits(x, z, r, y, bit, tol, feet) && !yielding?.overlaps(x, z, r, y);
+    },
+  });
   const ground = withCars(false);
 
   // ---- the player --------------------------------------------------------

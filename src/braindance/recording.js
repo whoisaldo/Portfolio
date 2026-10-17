@@ -170,7 +170,9 @@ export const SHOT_COUNT = SHOTS.length;
 export function createRecording(anchors, road, { garage = () => null, aspect = () => 1.6 } = {}) {
   // The chapter keeps its original bars. Entry and exit each take one bar;
   // the six-stop visit uses the same progress and hood/drop table as scroll.
-  const needsGarage = (t) => t >= bar(49) && t < bar(64);
+  // Start the gate before the S4 can reach the shutter, while the camera
+  // is still on the completed rooftop/street side of the recording.
+  const needsGarage = (t) => t >= bar(46) && t < bar(64);
   const garageProgress = (t) => clamp((t - bar(50)) / (bar(63) - bar(50)), 0, 1);
   const at = (name) => anchors.get(name)?.position;
   const vec = (v, out) => (typeof v === "string" ? out.copy(at(v) ?? out.set(0, 0, 0)) : out.fromArray(v));
@@ -364,9 +366,10 @@ export function createRecording(anchors, road, { garage = () => null, aspect = (
     out.carHeading = car.heading;
     out.board = boardAt(t);
     out.towers = litTowers(t);
-    out.garage.door = clamp((t - bar(47.5)) / (bar(49) - bar(47.5)), 0, 1);
-    out.garage.tubes = t >= bar(50);
-    out.garage.active = needsGarage(t);
+    const ready = garage()?.state?.availability === "ready";
+    out.garage.door = ready ? clamp((t - bar(47.5)) / (bar(49) - bar(47.5)), 0, 1) : 0;
+    out.garage.tubes = ready && t >= bar(50);
+    out.garage.active = t >= bar(49) && t < bar(64);
     out.garage.p = out.garage.active ? garageProgress(t) : null;
     const state = out.garage.active ? garage().poses.stateAt(out.garage.p) : null;
     out.garage.hood.s4 = state?.hood.s4 ?? 0;

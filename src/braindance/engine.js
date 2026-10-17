@@ -27,7 +27,7 @@ import { createAudio } from "./audio.js";
 import { bakeHeights, drawMap } from "./minimap.js";
 import { createScanner } from "./scanner.js";
 import { loadJournal, unlock } from "./journal.js";
-import { bd, on, set } from "./store.js";
+import { bd, on, set, toast } from "./store.js";
 import { createSounds } from "./sounds.js";
 import { createTag } from "./tag.js";
 import { createHolocall, preloadHolocall } from "./holocall.js";
@@ -36,6 +36,106 @@ import { fmt } from "./format.js";
 
 const DEG = Math.PI / 180;
 const _up = new THREE.Vector3();
+
+/** A downloaded room is not ready until its cars and collision are usable. */
+export function garageIsReady(garage) {
+  return garage?.state?.availability === "ready"
+    && ["at", "sample", "stateAt", "inspection"].every((key) => typeof garage.poses?.[key] === "function")
+    && Array.isArray(garage.collision?.solids)
+    && ["clearance", "sweep", "nearPlane", "cars"].every((key) => typeof garage.collision?.[key] === "function")
+    && garage.collision.cars().some((car) => car.carId === "s6" && !car.box.isEmpty());
+}
+
+/** Hold the latest requested tape time without letting an old load resume it. */
+export function createGarageGate({ getGarage, onStatus, onReady }) {
+  let pending = null;
+  let job = 0;
+  let status = "idle";
+  const request = (time, playing, retry = false) => {
+    pending = { time, playing };
+    if (status === "loading" || (status === "failed" && !retry)) return;
+    const id = ++job;
+    status = "loading";
+    onStatus(status);
+    Promise.resolve().then(async () => {
+      const garage = getGarage();
+      if (!garage?.prepare) throw new Error("The workshop is unavailable");
+      if (retry) await garage.retry();
+      else await garage.prepare({ priority: "now" });
+      if (!garageIsReady(getGarage())) throw new Error("The workshop is not complete");
+    }).then(() => {
+      if (id !== job || !pending) return;
+      const ready = pending;
+      pending = null;
+      status = "idle";
+      onStatus(status);
+      onReady(ready);
+    }, (error) => {
+      if (id !== job || !pending) return;
+      status = "failed";
+      onStatus(status, error);
+    });
+  };
+  return {
+    request,
+    get pending() { return pending; },
+    setPlaying(value) { if (pending) pending.playing = value; },
+    fail(time, playing, error) {
+      job++;
+      pending = { time, playing };
+      status = "failed";
+      onStatus(status, error);
+    },
+    cancel() {
+      job++;
+      pending = null;
+      status = "idle";
+      onStatus(status);
+    },
+  };
+}
+
+/** Check the shown pose, including lens/roll changes, along the entire move.
+ *  The shared sweep stops translation; near-plane samples stop turns and zoom. */
+export function constrainGarageCamera(collision, from, into, aspect, out) {
+  const valid = (p) => p.position.distanceToSquared(p.target) > 1e-6
+    && collision.clearance(p.position) >= 0.45 && collision.nearPlane(p, aspect) >= 0.15;
+  const mix = (t, p) => {
+    p.position.lerpVectors(from.position, into.position, t);
+    p.target.lerpVectors(from.target, into.target, t);
+    p.fov = from.fov + (into.fov - from.fov) * t;
+    p.shift = (from.shift ?? 0) + ((into.shift ?? 0) - (from.shift ?? 0)) * t;
+    p.roll = (from.roll ?? 0) + ((into.roll ?? 0) - (from.roll ?? 0)) * t;
+    return p;
+  };
+  if (!valid(from)) return false;
+  const swept = collision.sweep(from.position, into.position, 0.45);
+  const limit = swept.ok ? 1 : Math.max(0, swept.t - 1e-4);
+  const a = new THREE.Vector3().subVectors(from.target, from.position).normalize();
+  const b = new THREE.Vector3().subVectors(into.target, into.position).normalize();
+  const angle = a.angleTo(b) + Math.abs((into.roll ?? 0) - (from.roll ?? 0));
+  const steps = Math.max(1, Math.ceil(from.position.distanceTo(into.position) / 0.01), Math.ceil(angle / (0.5 * DEG)), Math.ceil(Math.abs(into.fov - from.fov)));
+  const probe = makePose();
+  let accepted = 0;
+  for (let i = 1; i <= steps; i++) {
+    const t = Math.min(limit, i / steps);
+    if (!valid(mix(t, probe))) {
+      let lo = accepted;
+      let hi = t;
+      for (let n = 0; n < 12; n++) {
+        const mid = (lo + hi) / 2;
+        if (valid(mix(mid, probe))) lo = mid;
+        else hi = mid;
+      }
+      accepted = lo;
+      break;
+    }
+    accepted = t;
+    if (t === limit) break;
+  }
+  mix(accepted, out);
+  return true;
+}
 
 export async function createBraindance(canvas, { onProgress, onFirstFrame, reduced = false } = {}) {
   // The intro's arrangement: the scene's own loop rests while this one
@@ -57,6 +157,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       firstFrame = true;
     },
     onLost: () => set({ status: "failed" }),
+    reduced,
   });
   // A braindance is a reconstruction, and the editor lights what it is
   // looking at: a soft key from over the camera's shoulder onto the car,
@@ -79,7 +180,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   onProgress?.(1);
   const parts = world.parts;
   const { city, camera } = parts;
-  const recording = createRecording(city.anchors, city.road);
+  const recording = createRecording(city.anchors, city.road, { garage: () => world.garage, aspect: () => camera.aspect });
   layers.setCamera(camera);
   // The car's coloured stage rims are tuned for the page's distances.
   parts.car?.setRims(0.3);
@@ -134,6 +235,61 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     return est + gap * 0.05;
   };
 
+  // The tape and sound wait together. This status is engine-owned because
+  // the deck stays mounted and all its existing controls must remain usable.
+  const notice = document.createElement("div");
+  notice.className = "bd-panel";
+  Object.assign(notice.style, { position: "absolute", top: "5rem", left: "50%", transform: "translateX(-50%)", zIndex: "40", maxWidth: "min(28rem, 90vw)", padding: "1rem" });
+  const message = document.createElement("p");
+  message.setAttribute("role", "status");
+  message.setAttribute("aria-live", "polite");
+  message.setAttribute("aria-atomic", "true");
+  const retry = document.createElement("button");
+  retry.type = "button";
+  retry.className = "bd-btn";
+  retry.textContent = "Retry workshop";
+  retry.style.minHeight = "44px";
+  notice.append(message, retry);
+  let returnFocus = null;
+  const gate = createGarageGate({
+    getGarage: () => world.garage,
+    onStatus(status) {
+      if (status === "idle") {
+        if (notice.contains(document.activeElement)) {
+          const control = returnFocus?.isConnected ? returnFocus : canvas.parentElement?.querySelector("button");
+          control?.focus({ preventScroll: true });
+        }
+        notice.remove();
+        return;
+      }
+      if (!notice.isConnected) {
+        returnFocus = document.activeElement;
+        canvas.parentElement?.append(notice);
+      }
+      message.textContent = status === "failed" ? "The workshop is unavailable. The recording is held at a safe frame." : "Loading the workshop. The recording is held at a safe frame.";
+      retry.hidden = status !== "failed";
+    },
+    onReady(request) {
+      clock.t = request.time;
+      playing = request.playing;
+      edit.ready = false;
+      look.yaw = look.pitch = look.yawGoal = look.pitchGoal = 0;
+      deckPlay();
+      set({ playing, ended: false });
+    },
+  });
+  retry.onclick = () => {
+    if (gate.pending) gate.request(gate.pending.time, gate.pending.playing, true);
+  };
+  const holdForGarage = (t) => {
+    if (!recording.needsGarage(t) || garageIsReady(world.garage)) return false;
+    gate.request(t, gate.pending?.playing ?? playing);
+    playing = false;
+    deckPlay();
+    set({ playing: false });
+    return true;
+  };
+
   // ---- free roam ------------------------------------------------------------
   // `roam` is the module's player once it has loaded; `roamJob` counts the
   // asks, so a second G while the first is still loading calls it off.
@@ -163,6 +319,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
 
   const pivotOf = (ch, out) => {
     const c = CHAPTERS[ch];
+    if (c.pivot === "recording") return out.copy(spec.pose.target);
     if (c.pivot === "car") return out.copy(spec.carPosition).setY(0.9);
     return out.fromArray(c.pivot);
   };
@@ -171,16 +328,24 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     pivotOf(spec.chapter, edit.pivot);
     _v.subVectors(spec.pose.position, edit.pivot);
     const lim = CHAPTERS[spec.chapter].orbit;
-    edit.radius = clamp(_v.length(), lim.radius[0], lim.radius[1]);
+    edit.radius = lim.collision ? _v.length() : clamp(_v.length(), lim.radius[0], lim.radius[1]);
     edit.yaw = Math.atan2(_v.x, _v.z);
-    edit.pitch = clamp(Math.asin(clamp(_v.y / Math.max(1e-3, _v.length()), -1, 1)), lim.pitch[0] * DEG, lim.pitch[1] * DEG);
+    const pitch = Math.asin(clamp(_v.y / Math.max(1e-3, _v.length()), -1, 1));
+    edit.pitch = lim.collision ? pitch : clamp(pitch, lim.pitch[0] * DEG, lim.pitch[1] * DEG);
+    edit.shift = spec.pose.shift;
+    edit.chapter = spec.chapter;
     edit.fov = spec.pose.fov;
+    edit.accepted = null;
     edit.ready = true;
   };
   const editPose = (out) => {
     const lim = CHAPTERS[spec.chapter].orbit;
-    edit.radius = clamp(edit.radius, lim.radius[0], lim.radius[1]);
-    edit.pitch = clamp(edit.pitch, lim.pitch[0] * DEG, lim.pitch[1] * DEG);
+    // The initial garage pose is already validated. Input is constrained
+    // below; entering the camera tool never clamps it onto another orbit.
+    if (!lim.collision) {
+      edit.radius = clamp(edit.radius, lim.radius[0], lim.radius[1]);
+      edit.pitch = clamp(edit.pitch, lim.pitch[0] * DEG, lim.pitch[1] * DEG);
+    }
     if (lim.yaw) {
       const [centre, range] = lim.yaw;
       let d = edit.yaw - centre * DEG;
@@ -195,7 +360,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     out.position.y = Math.max(0.35, out.position.y);
     out.target.copy(edit.pivot);
     out.fov = edit.fov ?? 40;
-    out.shift = 0;
+    out.shift = edit.shift ?? 0;
     return out;
   };
 
@@ -206,6 +371,8 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   let waveT = 0;
   let flowT = 0;
   let lastT = 0;
+  let garageTool = false;
+  let safeTime = 0;
   const hooks = new Set();
 
   const intervals = new Float32Array(300);
@@ -221,6 +388,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     // (the song then loops as the radio, on its own).
     const free = Boolean(roam?.on);
     let t = free ? clock.t : steer(dt);
+    if (!free && !gate.pending && holdForGarage(t)) t = clock.t;
     if (free && (audio?.time() ?? 0) >= DURATION - 0.1) audio.play(0, 1, 1);
     if (t >= DURATION && dir > 0) {
       t = DURATION;
@@ -250,7 +418,20 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     clock.t = t;
     bd.time = t;
 
-    recording.evaluate(t, spec);
+    if (!gate.pending || !recording.needsGarage(t)) recording.evaluate(t, spec);
+    if (!free && spec.garage.active && garageIsReady(world.garage)) {
+      const collision = world.garage.collision;
+      if (!(spec.pose.position.distanceToSquared(spec.pose.target) > 1e-6 && collision.clearance(spec.pose.position) >= 0.45 && collision.nearPlane(spec.pose, camera.aspect) >= 0.15)) {
+        gate.fail(t, playing, new Error("The workshop camera is obstructed"));
+        playing = false;
+        deckPlay();
+        set({ playing: false });
+        t = clock.t = bd.time = safeTime;
+        recording.evaluate(t, spec);
+        edit.ready = false;
+        edit.accepted = null;
+      } else safeTime = t;
+    } else if (!gate.pending) safeTime = t;
     if (spec.chapter !== bd.chapter) set({ chapter: spec.chapter });
 
     // The camera: the recording's, the editor's, or the photo camera's,
@@ -258,8 +439,12 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     const mode = bd.mode;
     const target = !free && (mode === "edit" || mode === "photo") ? 1 : 0;
     edit.k += (target - edit.k) * (1 - Math.exp(-dt * 5));
-    if (target && !edit.ready) enterEdit();
+    if (target && (!edit.ready || edit.chapter !== spec.chapter)) enterEdit();
     if (!target && edit.k < 1e-3) edit.ready = false;
+    const inside = !free && spec.garage.active && garageIsReady(world.garage);
+    if (inside) edit.k = target;
+    if (inside && garageTool && !target) toast("camera", "Recording camera", "Returned to the recorded workshop view.", 2000);
+    garageTool = inside && Boolean(target);
     copyPose(view, spec.pose);
     if (edit.ready && edit.k > 1e-4) {
       if (CHAPTERS[spec.chapter].pivot === "car") pivotOf(spec.chapter, edit.pivot);
@@ -316,6 +501,30 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     } else {
       layers.setFilter("off");
     }
+    if (inside) {
+      shown.roll = spec.roll;
+      // No interpolation is used on tool entry. Every subsequent proposal,
+      // including Look, zoom and photo roll, is checked after all changes.
+      const from = target && edit.accepted ? edit.accepted : spec.pose;
+      if (!constrainGarageCamera(world.garage.collision, from, shown, camera.aspect, makePoseTmp)) {
+        copyPose(shown, spec.pose);
+        shown.roll = 0;
+      } else {
+        copyPose(shown, makePoseTmp);
+        shown.roll = makePoseTmp.roll;
+      }
+      spec.roll = shown.roll;
+      if (target) {
+        edit.accepted ??= makePose();
+        copyPose(edit.accepted, shown);
+        edit.accepted.roll = shown.roll;
+        // Reject blocked input rather than accumulating an orbit behind a wall.
+        _v.subVectors(shown.position, edit.pivot);
+        edit.radius = _v.length();
+        edit.yaw = Math.atan2(_v.x, _v.z);
+        edit.pitch = Math.asin(clamp(_v.y / Math.max(1e-3, edit.radius), -1, 1));
+      } else edit.accepted = null;
+    } else edit.accepted = null;
     tag.setVisible(layers.layer === "thermal");
     if (holocall) {
       const k = clamp((t - HOLO_AT) / 1.4, 0, 1);
@@ -338,7 +547,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
 
     // The fill: from above and to the left of the camera, at the car.
     const near = 1 - clamp((shown.position.distanceTo(spec.carPosition) - 6) / 22, 0, 1);
-    fill.intensity = 1.7 * near;
+    fill.intensity = spec.garage.active ? 0 : 1.7 * near;
     fill.target.position.copy(spec.carPosition).setY(0.8);
     _v.subVectors(shown.position, spec.carPosition).setY(0).normalize();
     fill.position.copy(spec.carPosition).addScaledVector(_v, 8).add(_up.set(-_v.z * 4, 7, _v.x * 4));
@@ -436,6 +645,14 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     },
     play() {
       if (roam?.on) return;
+      if (gate.pending) {
+        gate.setPlaying(true);
+        return;
+      }
+      if (holdForGarage(clock.t)) {
+        gate.setPlaying(true);
+        return;
+      }
       if (clock.t >= DURATION - 0.05) clock.t = 0;
       unlock("jackin");
       playing = true;
@@ -445,17 +662,26 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     },
     pause() {
       if (roam?.on) return;
+      gate.setPlaying(false);
       playing = false;
       deckPlay();
       set({ playing: false });
     },
     toggle() {
-      if (playing) api.pause();
+      if (playing || gate.pending?.playing) api.pause();
       else api.play();
     },
     seek(t) {
       if (roam?.on) return;
-      clock.t = clamp(t, 0, DURATION);
+      const into = clamp(t, 0, DURATION);
+      if (holdForGarage(into)) return;
+      const resume = gate.pending?.playing ?? playing;
+      gate.cancel();
+      playing = resume;
+      edit.ready = false;
+      edit.accepted = null;
+      look.yaw = look.pitch = look.yawGoal = look.pitchGoal = 0;
+      clock.t = into;
       bd.time = clock.t;
       deckPlay();
       if (clock.t < DURATION) set({ ended: false });
@@ -465,6 +691,11 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       if (roam?.on) return;
       rate = r;
       dir = d;
+      if (gate.pending) {
+        gate.setPlaying(true);
+        set({ rate: r, direction: d });
+        return;
+      }
       if (!playing) {
         playing = true;
         set({ playing: true });
@@ -494,6 +725,8 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       else if (bd.mode === "edit" || bd.mode === "photo") {
         edit.yaw -= dx * 0.005;
         edit.pitch += dy * 0.004;
+        const lim = CHAPTERS[spec.chapter].orbit;
+        edit.pitch = clamp(edit.pitch, lim.pitch[0] * DEG, lim.pitch[1] * DEG);
         if (bd.mode === "edit" && Math.abs(dx) + Math.abs(dy) > 2) unlock("editor");
       } else {
         look.yawGoal = clamp(look.yawGoal - dx * 0.0025, -0.7, 0.7);
@@ -517,7 +750,10 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     },
     zoom(delta) {
       if (roam?.on) roam.zoom(delta);
-      else edit.radius *= Math.exp(delta * 0.001);
+      else {
+        const lim = CHAPTERS[spec.chapter].orbit;
+        edit.radius = clamp(edit.radius * Math.exp(delta * 0.001), lim.radius[0], lim.radius[1]);
+      }
     },
     get edit() {
       return edit;
@@ -604,6 +840,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
         rate = 1;
         dir = 1;
         set({ roamLoading: null, playing: false, rate: 1, direction: 1, mode: "play", open: null, ended: false, help: false, journal: false });
+        gate.cancel();
         roam.enter();
         radioOn();
         jolt = reduced ? 0 : 1;
@@ -633,6 +870,8 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     },
     dispose() {
       disposed = true;
+      gate.cancel();
+      notice.remove();
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
       hooks.clear();
@@ -643,8 +882,9 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       tag.dispose();
       holocall?.dispose();
       audio?.dispose();
-      parts.scene.remove(fill, fill.target);
+      parts.scene.remove(fill, fill.target, fillMirror);
       fill.dispose();
+      fillMirror.dispose();
       world.dispose();
       setStage({ mode: "stage" });
     },
