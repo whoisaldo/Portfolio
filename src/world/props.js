@@ -295,7 +295,7 @@ export function opaqueOrder(a, b) {
  * materials); `buffer`: the props file. Returns { group, update(camera),
  * sources (for the light bake), dispose }.
  */
-export function createProps(protoMeshes, buffer, { phone = false, reflectLayer = 0 } = {}) {
+export function createProps(protoMeshes, buffer, { phone = false, reflectLayer = 0, visibleBox = null } = {}) {
   const { protos, data, count } = parseProps(buffer);
   const attachments = [];
   const lastPosition = new THREE.Vector3(1e9, 0, 0);
@@ -544,12 +544,14 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   let cellDist = new Float32Array(cellList.length);
   let frames = 0;
   let stale = false;
+  let lastCamera = null;
   const update = (camera) => {
     camera.updateMatrixWorld();
     camera.getWorldDirection(_dir);
     const moved = camera.position.distanceToSquared(lastPosition) > 0.25 || _dir.dot(lastDirection) < 0.99985;
     frames++;
-    if (!moved && !stale && frames % 60 !== 0) return;
+    if (!moved && !stale && camera === lastCamera && frames % 60 !== 0) return;
+    lastCamera = camera;
     stale = false;
     if (cellVis.length !== cellList.length) {
       cellVis = new Uint8Array(cellList.length);
@@ -562,7 +564,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const cam = camera.position;
     for (let c = 0; c < cellList.length; c++) {
       cellDist[c] = cellList[c].distanceToPoint(cam);
-      cellVis[c] = _frustum.intersectsBox(cellList[c]) ? 1 : 0;
+      cellVis[c] = _frustum.intersectsBox(cellList[c]) && (!visibleBox || visibleBox(cellList[c])) ? 1 : 0;
     }
     for (const set of sets) {
       const reach = set.reach;
@@ -701,7 +703,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
           new Uint8Array(next, 4, encoded.length).set(encoded);
           const records = new Int16Array(next, 4 + encoded.length);
           indices.forEach((i, j) => records.set(data.subarray(i * 8, i * 8 + 8), j * 8));
-          const child = createProps(meshes, next, { phone, reflectLayer });
+          const child = createProps(meshes, next, { phone, reflectLayer, visibleBox });
           child.group.name = `props_${sector}`;
           child.group.traverse((object) => { object.userData.sector = sector; });
           children.push(child);

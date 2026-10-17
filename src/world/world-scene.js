@@ -981,6 +981,18 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // not the frame's time: the braindance holds it still while paused and
   // runs it backwards while rewinding (the rain, the traffic, the koi, every
   // flicker). Smoothing everywhere else stays on the frame's dt.
+  // Three invokes this for every scene pass, including the reflected
+  // camera and the temporary room-probe scene. Each pass builds its own
+  // instance lists and portal visibility before projectObject sees them.
+  const renderScene = renderer.render;
+  renderer.render = function (drawScene, drawCamera) {
+    if (city && (drawScene === scene || city.root.parent === drawScene)) {
+      drawCamera.updateMatrixWorld();
+      city.visibility.prepare(drawCamera);
+      city.props.update(drawCamera);
+    }
+    return renderScene.call(this, drawScene, drawCamera);
+  };
   const draw = (dt, moonView = null, flow = dt) => {
     renderer.info.reset();
     diagnostics?.begin();

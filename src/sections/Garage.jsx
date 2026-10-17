@@ -60,7 +60,7 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     setStation(id);
     setSelection(null);
     savedOverrides.current = null;
-    if (id.startsWith("s4") || id.startsWith("s6")) setActiveCar(id.slice(0, 2));
+    setActiveCar(id.startsWith("s4") || id.startsWith("s6") ? id.slice(0, 2) : null);
     setGarageView({ textStation: id });
     adapter()?.goStation(id);
   }, []);
@@ -74,13 +74,14 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     if (!cinematic) return undefined;
     const g = adapter();
     setWorldState(g?.state ?? {});
+    setActiveCar(g?.state?.activeCar ?? null);
     savedOverrides.current = g?.saveState?.() ?? savedOverrides.current;
     return g?.subscribe?.((state) => {
       savedOverrides.current = g.saveState?.() ?? savedOverrides.current;
       if (state.type === "pin-hidden") return;
       setWorldState(state);
       if (state.station) setStation(state.station);
-      if (state.activeCar) setActiveCar(state.activeCar);
+      if ("activeCar" in state) setActiveCar(state.activeCar);
       if (state.selection !== undefined) {
         setSelection(state.selection);
         if (state.selection) setActiveCar(state.selection.carId);

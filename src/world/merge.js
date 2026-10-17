@@ -342,7 +342,7 @@ function look(cells, renderer, camera) {
   if (cells.frame === frame) return frame;
   cells.frame = frame;
   _frustum.setFromProjectionMatrix(_view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-  for (const cell of cells.list) if (_frustum.intersectsBox(cell.box)) cell.seen = frame;
+  for (const cell of cells.list) if (_frustum.intersectsBox(cell.box) && (!cells.visibleBox || cells.visibleBox(cell.box))) cell.seen = frame;
   return frame;
 }
 
@@ -448,6 +448,10 @@ export class Tiled extends THREE.Mesh {
 
   onBeforeRender(renderer, scene, camera) {
     if (!MULTI_DRAW) return;
+    if (this.userData.sector && this.cells.visibleBox && !this.cells.visibleBox(this.geometry.boundingBox, this.userData.sector)) {
+      this._multiDrawCount = 0;
+      return;
+    }
     const { cell, start, count } = this.runs;
     const { list } = this.cells;
     const seen = look(this.cells, renderer, camera);

@@ -453,6 +453,23 @@ check("floor normal recovery updates sampler presence and clears stale slots", (
   registry.dispose(); source.dispose();
 });
 
+check("portal visibility keeps real openings for main and reflected cameras", () => {
+  const anchors = new Map([["anchor_garage_portal_door", { position: new Vector3(452, 2.3, -215), quaternion: new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2), extras: { width: 6, height: 4.6 } }]]);
+  const visibility = garage.createGarageVisibility(anchors);
+  const camera = new three.PerspectiveCamera(60, 1.6, .1, 2000);
+  const box = (x, y, z) => new three.Box3(new Vector3(x - .1, y - .1, z - .1), new Vector3(x + .1, y + .1, z + .1));
+  camera.position.set(462, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
+  assert.ok(visibility.test(box(440, 1, -215)), "street through the doorway");
+  assert.ok(!visibility.test(box(440, 1, -150)), "street hidden by the side wall");
+  assert.ok(visibility.test(box(467, 1, -225), "garage_s6"), "open room remains visible");
+  camera.position.y = -2; camera.updateMatrixWorld(); visibility.prepare(camera);
+  assert.ok(visibility.test(box(440, 1, -215)), "reflected aperture keeps street light");
+  camera.position.set(440, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
+  assert.ok(visibility.test(box(462, 2, -215), "garage_s4"));
+  assert.ok(!visibility.test(box(462, 2, -225), "garage_s6"), "outside cannot see through a closed wall");
+  assert.ok(visibility.test(box(440, 1, -150)), "exterior culling is unchanged outdoors");
+});
+
 check("immersive Arrival fits its sticky controls and has an inverse mapping", () => {
   const shots = [{ id: "stack", top: 1000, height: 1000 }, { id: "garage", top: 3000, height: 7000 }, { id: "contact", top: 11000, height: 1000 }];
   const [start, end] = scrollModule.holdRange(shots, 1, 1000, 11000);

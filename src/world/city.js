@@ -31,7 +31,7 @@ import { createBoards } from "./boards.js";
 import { createFloods } from "./floods.js";
 import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
-import { createGarage, garageLights } from "./garage.js";
+import { createGarage, createGarageVisibility, garageLights } from "./garage.js";
 import { GARAGE_PHOTOS_ENABLED } from "../components/garage/features.js";
 import { createGarageMaterials } from "./garage-materials.js";
 import { appendMeshesSteps, asOneRun, attributeKey, mergeMeshes, mergeMeshesSteps, joinSteps, createCells, cutSteps, Tiled, toFloat } from "./merge.js";
@@ -336,7 +336,8 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     }
   };
   dressProtos(protoMeshes);
-  const props = createProps(protoMeshes, propsBuffer, { phone: tier === "phone", reflectLayer: REFLECT_LAYER });
+  const visibility = createGarageVisibility(anchors);
+  const props = createProps(protoMeshes, propsBuffer, { phone: tier === "phone", reflectLayer: REFLECT_LAYER, visibleBox: visibility.test });
   renderer.setOpaqueSort(opaqueOrder);
   sources.push(...props.sources);
   root.add(props.group);
@@ -497,6 +498,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   // again, so a material is one draw however many packs it came in.
   const merged = new Map();
   const cells = createCells(CELL);
+  cells.visibleBox = visibility.test;
   // The wet road's mirror draws only what glows or is glazed (the reflect
   // layer), so it saw straight through every other wall to the signs
   // behind it. Each wall's merged mesh gets a twin for the mirror alone:
@@ -699,6 +701,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     root,
     anchors,
     named,
+    visibility,
     maps,
     road: path,
     boards,

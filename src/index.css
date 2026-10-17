@@ -1428,3 +1428,6 @@ html:has(body.recruiters) { background-color: #f7f6f2; }
   color: rgb(236 234 228 / 0.56);
   pointer-events: none;
 }
+
+/* The immersive section lands with its full sticky viewport in view. */
+#garage[data-garage-layout="cinematic"] { scroll-margin-top: 0; }
