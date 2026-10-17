@@ -596,8 +596,8 @@ export function createGarageVisit(anchors) {
     }
     throw new Error(`No workshop route from ${from} to ${to}.`);
   };
-  const navigator = (progress, aspect) => {
-    let location = locationAt(progress);
+  const navigator = (progress, aspect, start = locationAt(progress)) => {
+    let location = { ...start };
     let target = { ...location };
     let cutPending = false;
     const lengthOf = (edge) => pathOf(edge.id, edge.from, edge.into, aspect).length;
@@ -667,6 +667,9 @@ export function createGarageVisit(anchors) {
   const transition = (progress, aspect, cursor = null) => {
     if (cursor) {
       const saved = cursor.snapshot();
+      // A cabin cut rejoins its car's exterior before using the doorway.
+      // The inspection request can restore the cabin after the safe return.
+      if (saved.node?.endsWith("_cabin")) saved.node = saved.node.slice(0, 2);
       let returning = false;
       cursor.request("outside");
       return {
