@@ -44,6 +44,7 @@ import { fetchUnpacked } from "./fetched.js";
 import { NEON } from "./materials.js";
 import { RULES, deal } from "./prop-deal.js";
 import { createPropSurfaces } from "./prop-surfaces.js";
+import { identityBatching } from "./merge.js";
 
 const CELL = 48;
 // The most vertices a part may have in the whole city and be written out.
@@ -120,7 +121,7 @@ class Baked extends THREE.Mesh {
       this._multiDrawStarts = new Int32Array(0);
       this._multiDrawCounts = new Int32Array(0);
       this._multiDrawCount = 0;
-      this._matricesTexture = this._indirectTexture = this._colorsTexture = null;
+      identityBatching(this);
     }
   }
 
@@ -239,6 +240,7 @@ class Baked extends THREE.Mesh {
         if (MULTI_DRAW) {
           this._multiDrawStarts = new Int32Array(ci.length);
           this._multiDrawCounts = new Int32Array(ci.length);
+          identityBatching(this, ci.length);
         }
       },
     };
@@ -826,7 +828,6 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       for (const set of sets) for (const im of set.instanced) im.dispose();
       for (const mesh of baked.values()) {
         mesh.geometry.dispose();
-        mesh.dispose();
       }
       for (const geometry of owned) geometry.dispose();
       for (const material of twins.values()) material.dispose();

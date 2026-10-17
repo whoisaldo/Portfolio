@@ -32,12 +32,13 @@ let three;
 let propsModule;
 let materialModule;
 let scrollModule;
+let mergeModule;
 let inspectionModule;
 let s4Mods;
 let GLTFLoader;
 let carDecoder;
 try {
-  [world, garage, three, propsModule, materialModule, scrollModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js"), vite.ssrLoadModule("/src/world/scroll-stage.js")]);
+  [world, garage, three, propsModule, materialModule, scrollModule, mergeModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js"), vite.ssrLoadModule("/src/world/scroll-stage.js"), vite.ssrLoadModule("/src/world/merge.js")]);
   [inspectionModule, { mods: s4Mods }, { GLTFLoader }, { MeshoptDecoder: carDecoder }] = await Promise.all([vite.ssrLoadModule("/src/three/car/inspect.js"), vite.ssrLoadModule("/src/data/garage.js"), vite.ssrLoadModule("three/addons/loaders/GLTFLoader.js"), vite.ssrLoadModule("three/addons/libs/meshopt_decoder.module.js")]);
 } finally {
   await vite.close();
@@ -363,6 +364,20 @@ check("late garage prop placements", () => {
   const bad = wire({ protos: [{ name: "garage_test", box: [1, 1, 1] }], count: 1, sectorRuns: [] }, [[0, 9240, 0, -4300, 0, 100, 1000, 0]]);
   assert.throws(() => system.addPlacements([pack], bad), /sectors/);
   system.dispose();
+  const plantMaterial = new ShaderMaterial({ uniforms: { uSpill: { value: null } } });
+  plantMaterial.name = "baked_test";
+  const plant = new Mesh(new BoxGeometry(1, 1, 1), plantMaterial);
+  plant.userData.proto = "native_test";
+  const native = propsModule.createProps([plant], wire({ protos: [{ name: "native_test", box: [1, 1, 1] }], count: 1 }, [[0, 9240, 0, -4300, 0, 100, 1000, 0]]));
+  const baked = native.group.children.find((mesh) => mesh.isBaked);
+  assert.ok(baked, "small props exercise batching and geometry disposal");
+  assert.equal(baked._indirectTexture.type, three.UnsignedIntType);
+  let released = 0;
+  baked._indirectTexture.addEventListener("dispose", () => released++);
+  native.dispose();
+  assert.equal(released, 1);
+  plant.geometry.dispose();
+  plantMaterial.dispose();
   core.geometry.dispose();
   pack.geometry.dispose();
   material.dispose();
@@ -451,6 +466,37 @@ check("floor normal recovery updates sampler presence and clears stale slots", (
   assert.equal(material.uniforms.uMap.value, null);
   assert.equal(material.uniforms.uRough.value, null);
   registry.dispose(); source.dispose();
+});
+
+check("world-space batching supplies typed identity textures and releases them", () => {
+  const geometry = new three.BoxGeometry();
+  const material = new three.MeshStandardMaterial();
+  const runs = { cell: Int32Array.of(-1, -1), start: Int32Array.of(0, 3), count: Int32Array.of(3, 3) };
+  const mesh = new mergeModule.Tiled(geometry, material, mergeModule.createCells(48), runs);
+  const twin = new three.Mesh(geometry, material);
+  mergeModule.asOneRun(twin);
+  assert.equal(mesh._matricesTexture, twin._matricesTexture);
+  assert.equal(mesh._indirectTexture, twin._indirectTexture);
+  assert.equal(mesh._matricesTexture.type, three.FloatType);
+  assert.deepEqual([...mesh._matricesTexture.image.data], new three.Matrix4().elements);
+  const original = mesh._indirectTexture;
+  let released = 0;
+  original.addEventListener("dispose", () => released++);
+  mergeModule.identityBatching(mesh, 17);
+  assert.equal(released, 1);
+  assert.equal(mesh._indirectTexture, twin._indirectTexture);
+  assert.equal(mesh._indirectTexture.format, three.RedIntegerFormat);
+  assert.equal(mesh._indirectTexture.type, three.UnsignedIntType);
+  assert.ok(mesh._indirectTexture.image.data instanceof Uint32Array);
+  assert.ok(mesh._indirectTexture.image.data.length >= 17);
+  assert.ok(mesh._indirectTexture.image.data.every((id) => id === 0));
+  mesh._matricesTexture.addEventListener("dispose", () => released++);
+  mesh._indirectTexture.addEventListener("dispose", () => released++);
+  geometry.dispose();
+  assert.equal(released, 3);
+  assert.equal(mesh._matricesTexture, null);
+  assert.equal(twin._indirectTexture, null);
+  material.dispose();
 });
 
 check("portal visibility keeps real openings for main and reflected cameras", () => {

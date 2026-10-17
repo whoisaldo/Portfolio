@@ -325,6 +325,45 @@ export const attributeKey = (geometry) => Object.keys(geometry.attributes).sort(
 // three drops them, a Tiled mesh is a plain mesh and draws everything.
 const MULTI_DRAW = "_multiDrawStarts" in new THREE.BatchedMesh(1, 3, 3);
 
+// These meshes already contain world-space vertices. Native materials still
+// compile Three's batching transform, which needs a real float identity and
+// unsigned integer draw IDs. Null textures bind a byte fallback, invalid for
+// usampler2D. Geometry owns the shared textures and their disposal.
+const identityBatches = new WeakMap();
+export function identityBatching(object, draws = 1) {
+  const geometry = object.geometry;
+  let batch = identityBatches.get(geometry);
+  if (!batch) {
+    const matrix = new THREE.DataTexture(new Float32Array(new THREE.Matrix4().elements), 4, 1, THREE.RGBAFormat, THREE.FloatType);
+    matrix.name = "world batching identity";
+    matrix.needsUpdate = true;
+    batch = { matrix, ids: null, capacity: 0, objects: new Set() };
+    identityBatches.set(geometry, batch);
+    const dispose = () => {
+      batch.matrix.dispose();
+      batch.ids?.dispose();
+      for (const mesh of batch.objects) if (mesh.geometry === geometry) mesh._matricesTexture = mesh._indirectTexture = null;
+      batch.objects.clear();
+      identityBatches.delete(geometry);
+      geometry.removeEventListener("dispose", dispose);
+    };
+    geometry.addEventListener("dispose", dispose);
+  }
+  batch.objects.add(object);
+  if (batch.capacity < Math.max(1, draws)) {
+    batch.ids?.dispose();
+    const size = Math.ceil(Math.sqrt(Math.max(1, draws)));
+    batch.ids = new THREE.DataTexture(new Uint32Array(size * size), size, size, THREE.RedIntegerFormat, THREE.UnsignedIntType);
+    batch.ids.name = "world batching draw IDs";
+    batch.ids.needsUpdate = true;
+    batch.capacity = size * size;
+    for (const mesh of batch.objects) if (mesh.geometry === geometry) mesh._indirectTexture = batch.ids;
+  }
+  object._matricesTexture = batch.matrix;
+  object._indirectTexture = batch.ids;
+  object._colorsTexture = null;
+}
+
 const _frustum = new THREE.Frustum();
 const _view = new THREE.Matrix4();
 
@@ -432,7 +471,6 @@ export class Tiled extends THREE.Mesh {
     if (MULTI_DRAW) {
       this.isBatchedMesh = true;
       this._multiDrawCount = 0;
-      this._matricesTexture = this._indirectTexture = this._colorsTexture = null;
     }
     this.setRuns(runs);
   }
@@ -444,6 +482,7 @@ export class Tiled extends THREE.Mesh {
       this._multiDrawStarts = new Int32Array(runs.cell.length);
       this._multiDrawCounts = new Int32Array(runs.cell.length);
     }
+    if (MULTI_DRAW) identityBatching(this, runs.cell.length);
   }
 
   onBeforeRender(renderer, scene, camera) {
@@ -489,5 +528,5 @@ export function asOneRun(mesh) {
   mesh._multiDrawStarts = Int32Array.of(0);
   mesh._multiDrawCounts = Int32Array.of(index.count);
   mesh._multiDrawCount = 1;
-  mesh._matricesTexture = mesh._indirectTexture = mesh._colorsTexture = null;
+  identityBatching(mesh);
 }
