@@ -729,8 +729,9 @@ else:
     light("bench_amber", "tube", None, [{"at": [X1 - 0.085, 2.39, BENCH_Z], "length": 7.2, "width": 0.07, "normal": (-1, 0, 0), "axis": [0, 0, 1]}],
           (X1 - 1.0, 0.9, BENCH_Z), NEON["amber"], "shop", intensity=0.8)
 # Work lights on their tripods between the bays, by each car's nose, aimed
-# into its bay for the open engine.
-for car, at, aim, sec in (("s4", (465.3, -217.55), (463.3, 0.95, -215.0), S4), ("s6", (465.3, -219.45), (463.3, 0.95, -222.0), S6)):
+# into its bay for the open engine; 2.7 m apart so the phone's approach and
+# shop hold pass between their exported boxes (z -218.5) with 0.45 m clear.
+for car, at, aim, sec in (("s4", (465.3, -217.15), (463.3, 0.95, -215.0), S4), ("s6", (465.3, -219.85), (463.3, 0.95, -222.0), S6)):
     yaw = math.atan2(aim[0] - at[0], aim[2] - at[1])
     NP.place("garage_work_light", at[0], 0.0, at[1], yaw, district=sec)
     cx, cy, cz = GB.WORK_LIGHT_FACE["centre"]
@@ -876,14 +877,15 @@ R = random.Random(2013)
 LIFT_X = BAY[0]
 GS.place_lift2(LIFT_X, BAY[2], math.pi / 2, district=S4)
 # The S4's corner of work: a floor jack and two stands by its nose, a
-# creeper by its door, a drain cart and the oil it has dripped.
+# creeper by its door, a drain cart and the oil it has dripped, the cart
+# parked off the nose clear of the aisle the phone's camera walks.
 NP.place("garage_floor_jack", 465.9, 0.0, -212.75, math.pi * 0.62, district=S4)
 for (x, z) in ((465.0, -212.55), (465.35, -212.25)):
     NP.place("garage_jack_stand", x, 0.0, z, R.uniform(0, 1.5), district=S4)
 NP.place("garage_creeper", 462.6, 0.0, -213.05, math.pi / 2 + 0.08, district=S4)
-NP.place("garage_oil_drain", 466.2, 0.0, -217.3, 0.4, district=S4)
+NP.place("garage_oil_drain", 466.2, 0.0, -215.9, 0.4, district=S4)
 NP.place("garage_stain_a", 463.4, MARKS_Y, -215.1, 0.3, district=S4)
-NP.place("garage_stain_b", 466.1, MARKS_Y, -217.0, 1.2, district=S4)
+NP.place("garage_stain_b", 466.1, MARKS_Y, -215.6, 1.2, district=S4)
 NP.place("garage_bay_lines", BAY[0], MARKS_Y, BAY[2], math.pi / 2, district=S4)
 NP.place("garage_drip_tray", 464.9, FLOOR_Y, -214.1, math.pi / 2 + 0.1, district=S4)
 NP.place("garage_tyre_marks", 456.2, MARKS_Y, -215.0, math.pi / 2, district=APRON)
