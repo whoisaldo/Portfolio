@@ -12,11 +12,11 @@ const PARTS = ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr", "steer_fl", "stee
 // X, the hood on its hinge and the body as one node over the wheels. Until
 // scripts/optimize-s6.mjs writes the S6's revision into src/data/s6.js its
 // URL is null, and the S6 says why it is not available yet. The S6's size is
-// its exported bounds: 2,088 mm across the mirrors, 1,463 high, 4,941 long.
+// its exported bounds: 2,088 mm across the mirrors, 1,463 high, 4,937 long.
 export const cars = {
   s4: { url: s4ModelUrl, name: "ali_s4", title: "Ali's 2013 Audi S4", size: [2.02, 1.38, 4.74], wheelRadius: 0.34325, wheelbase: 2.811, unavailable: null },
   s6: {
-    url: s6ModelUrl, name: "ali_s6", title: "Ali's 2013 Audi S6", size: [2.088, 1.463, 4.941], wheelRadius: 0.3433, wheelbase: 2.912,
+    url: s6ModelUrl, name: "ali_s6", title: "Ali's 2013 Audi S6", size: [2.088, 1.463, 4.937], wheelRadius: 0.3433, wheelbase: 2.912,
     unavailable: s6ModelUrl ? null : "Ali's S6 is not available yet: its model has not been built.",
   },
 };

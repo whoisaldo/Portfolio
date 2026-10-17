@@ -38,9 +38,9 @@ ARCH_Y = {'f': -WHEELBASE / 2, 'r': WHEELBASE / 2}
 # Nose: the bumper face on the centreline, y by height, and how square the
 # plan's corner is at each height (superellipse exponent).
 NOSE_Y = [(.205, -2.335), (.24, -2.36), (.30, -2.372), (.40, -2.375), (.50, -2.371), (.60, -2.36), (.70, -2.338), (.80, -2.305)]
-NOSE_N = [(.2, 2.6), (.3, 2.9), (.45, 2.9), (.6, 2.6), (.72, 2.25), (.82, 2.1)]
+NOSE_N = [(.2, 2.6), (.3, 2.9), (.45, 2.9), (.6, 2.5), (.72, 2.0), (.82, 1.9)]
 # Tail: the bumper face on the centreline and above it the lid face.
-TAIL_FACE = [(.25, 2.49), (.30, 2.52), (.40, 2.542), (.50, 2.550), (.62, 2.546), (.73, 2.534), (.80, 2.515), (.90, 2.493), (1.0, 2.474)]
+TAIL_FACE = [(.20, 2.50), (.24, 2.532), (.30, 2.542), (.40, 2.548), (.50, 2.550), (.62, 2.546), (.73, 2.534), (.80, 2.515), (.90, 2.493), (1.0, 2.474)]
 TAIL_N = [(.25, 3.4), (.4, 3.4), (.6, 3.3), (.8, 4.0), (.95, 4.4)]
 
 # Half-breadths of the lower body at the doors, by waterline: the turned
@@ -49,27 +49,33 @@ TAIL_N = [(.25, 3.4), (.4, 3.4), (.6, 3.3), (.8, 4.0), (.95, 4.4)]
 LOWER_HB = [(.19, .905), (.205, .921), (.235, .929), (.33, .932), (.35, .926), (.395, .921), (.44, .925), (.52, .930), (.62, .933), (.76, .934), (1.0, .934)]
 # Width added over the wheel arches (the C7's flares), by distance from the
 # wheel centre along the car, and the waist at the doors.
-FLARE = [(0, .006), (.3, .006), (.5, .003), (.7, 0)]
+FLARE = [(0, .009), (.3, .009), (.48, .004), (.7, 0)]
 # The tornado line: the crease under the beltline, rising toward the tail.
 CREASE_Z = [(-2.4, .785), (-1.85, .79), (-1.0, .805), (0, .825), (1.0, .845), (1.85, .87), (2.6, .905)]
 # Bottom of the side band: sills and bumper lower edges (arches are cut separately).
-BOTTOM_Z = [(-2.4, .205), (-2.0, .195), (-1.0, .19), (1.0, .195), (2.0, .215), (2.6, .25)]
+BOTTOM_Z = [(-2.4, .205), (-2.0, .195), (-1.0, .19), (1.0, .195), (2.0, .205), (2.6, .195)]
 
 # The top edge, front: the hood's leading edge across the grille and over the
 # headlamps, then back along the hood's shut lines to the cowl.
 HOOD_FRONT_Y = -2.300   # hood lip on the centreline
-HOOD_EDGE = [(-2.30, .0), (-2.29, .20), (-2.27, .40), (-2.225, .62), (-2.14, .76), (-2.035, .815), (-1.85, .818), (-1.40, .80), (-1.04, .775)]
-HOOD_EDGE_Z = [(-2.30, .802), (-2.27, .80), (-2.225, .81), (-2.14, .83), (-2.035, .855), (-1.85, .885), (-1.40, .935), (-1.04, .975)]
-HOOD_CROWN_Z = [(-2.30, .806), (-2.22, .835), (-2.10, .866), (-1.95, .895), (-1.80, .918), (-1.60, .942), (-1.40, .962), (-1.20, .978), (-1.04, .989)]
-COWL_Y = -1.04
+HOOD_EDGE = [(-2.30, .0), (-2.29, .20), (-2.27, .40), (-2.225, .62), (-2.14, .76), (-2.035, .815), (-1.85, .818), (-1.40, .805), (-0.985, .83)]
+HOOD_EDGE_Z = [(-2.30, .785), (-2.27, .787), (-2.225, .80), (-2.14, .84), (-2.035, .865), (-1.85, .888), (-1.40, .935), (-0.985, .978)]
+HOOD_CROWN_Z = [(-2.30, .79), (-2.22, .826), (-2.10, .866), (-1.95, .895), (-1.80, .918), (-1.60, .942), (-1.40, .962), (-1.20, .978), (-0.985, .99)]
+COWL_Y = -0.985
 # The beltline under the side glass: (y, half-breadth, height).
 BELT = [(-0.95, .872, .983), (-0.6, .874, .992), (0, .874, 1.000), (0.6, .872, 1.007), (1.2, .868, 1.020), (1.6, .862, 1.033), (1.78, .84, 1.047)]
 # The top edge, rear: the boot lid's shut lines, (y, half-breadth, height).
-DECK_EDGE = [(1.92, .725, 1.098), (2.1, .72, 1.088), (2.3, .705, 1.078), (2.40, .69, 1.070)]
+DECK_EDGE = [(1.92, .725, 1.098), (2.1, .72, 1.083), (2.3, .705, 1.066), (2.40, .69, 1.055)]
 DECK_Y = 1.92        # the rear window's base, where the lid begins
 LID_SEAM_X = .621    # the lid's sides on the rear face, at the tail lamps' split
 LID_BOTTOM_Z = .735  # the lid's lower edge over the bumper
-LID_TOP = [(1.92, 1.122), (2.0, 1.113), (2.2, 1.094), (2.36, 1.083), (2.43, 1.080), (2.455, 1.068), (2.47, 1.045)]
+LID_LOW_X = .50      # below the lamps the lid's sides turn in to a rounded lower edge
+LAMP_LOW_Z = .85     # the tail lamps' lower edge, where the lid's sides start to turn
+# Feature lines that need a crisp edge, as (height, step): the S6's lower door
+# light-catcher rising toward the tail (set in below it), the rear bumper's
+# crease under the plate, the front bumper's lower lip.
+DOOR_LINE_Z = [(-1.0, .425), (1.05, .47)]
+LID_TOP = [(1.92, 1.122), (2.0, 1.112), (2.2, 1.088), (2.36, 1.068), (2.43, 1.062), (2.455, 1.05), (2.47, 1.03)]
 
 # Greenhouse: windscreen base, header, rear window top and base on the centreline.
 GLASS_BASE_Y = -0.93
@@ -78,8 +84,8 @@ CENTRE_TOP = [(-0.93, 1.000), (-0.8, 1.063), (-0.6, 1.180), (-0.4, 1.287), (-0.2
 HEADER_Y, REAR_GLASS_TOP_Y = -0.25, 1.13
 # The windscreen's side edge and the A-pillar's outer edge, then the roof rail
 # and the rear window's side edge: (y, half-breadth, height).
-GLASS_EDGE = [(-0.93, .700, 1.000), (-0.6, .675, 1.165), (-0.25, .628, 1.370), (0.2, .606, 1.415), (0.6, .604, 1.420), (1.0, .600, 1.405),
-              (1.2, .590, 1.375), (1.5, .575, 1.275), (1.75, .565, 1.180), (1.92, .555, 1.122)]
+GLASS_EDGE = [(-0.93, .745, 1.000), (-0.6, .705, 1.165), (-0.25, .645, 1.370), (0.2, .612, 1.415), (0.6, .610, 1.420), (1.0, .606, 1.405),
+              (1.2, .600, 1.375), (1.5, .600, 1.275), (1.75, .605, 1.180), (1.92, .61, 1.122)]
 # The window opening's top edge (DLO): from its front tip at the belt behind
 # the mirror, up the A-pillar, along the roof rail, down to the quarter
 # window's tip. Heights; the half-breadth follows the glass's tumblehome.
@@ -97,12 +103,12 @@ DOOR_BOTTOM_Z = .345
 # of the published 919 mm and 1,096 mm): (dx, dy, dz) metres, and a pitch
 # about the socket's X axis in degrees (positive tips the top forward).
 SOCKET_MOVES = {
-    'RS_honeycomb_grille': ((0, .05, 0), 9.0),
-    'headlight_l': ((0, .05, 0), 0), 'headlight_r': ((0, .05, 0), 0),
+    'RS_honeycomb_grille': ((0, .05, -.02), 9.0),
+    'headlight_l': ((0, .05, .02), 0), 'headlight_r': ((0, .05, .02), 0),
     'lower_intake_l': ((-.03, .06, .025), 0), 'lower_intake_r': ((.03, .06, .025), 0),
     'taillight_l': ((0, .045, 0), 0), 'taillight_r': ((0, .045, 0), 0),
     'badge_rings_rear': ((0, .015, 0), 0), 'badge_S6_rear': ((0, .024, 0), 0),
-    'rear_diffuser': ((0, .03, 0), 0), 'exhaust_tips': ((0, .03, 0), 0),
+    'rear_diffuser': ((0, .045, 0), 0), 'exhaust_tips': ((0, .045, 0), 0),
     # 2,086 mm across the mirrors.
     'mirror_left': ((-.088, 0, 0), 0), 'mirror_right': ((.088, 0, 0), 0),
 }
@@ -199,15 +205,46 @@ def half_breadth(y, z):
     x += interp(FLARE, d) * smoothstep((z - .42) / .2)
     # The front wings narrow a little toward the nose (his front photo).
     x -= .012 * smoothstep((-1.0 - y) / .85)
+    # Below the lower door line the doors are set in, a light-catching edge.
+    between = smoothstep((y + 1.03) / .08) * smoothstep((1.06 - y) / .08)
+    x -= .007 * between * (1 - smoothstep((z - feature_z('m', y) + .004) / .008))
     return x
 
 
+def feature_z(kind, y):
+    """The height of a column's feature line: door light-catcher, rear bumper crease or front lower lip."""
+    return {'m': interp(DOOR_LINE_Z, y), 'r': .60, 'f': .285}[kind]
+
+
 def nose(z):
-    return CF - interp(NOSE_Y, z), interp(NOSE_N, z)
+    # The lower lip stands 9 mm proud of the face above it.
+    lip = .009 * (1 - smoothstep((z - feature_z('f', 0) + .004) / .008))
+    return CF - interp(NOSE_Y, z) + lip, interp(NOSE_N, z)
 
 
 def tail(z):
-    return interp(TAIL_FACE, min(z, LID_BOTTOM_Z + .2)) - CR, interp(TAIL_N, z)
+    # Under the plate the bumper's crease steps the face in by 8 mm.
+    step = .008 * (1 - smoothstep((z - feature_z('r', 0) + .004) / .008))
+    return interp(TAIL_FACE, min(z, LID_BOTTOM_Z + .2)) - CR - step, interp(TAIL_N, z)
+
+
+def lid_edge_z(x):
+    """Height of the boot lid's lower edge at half-breadth x: flat, then a rounded corner up to the lamps."""
+    if x <= LID_LOW_X:
+        return LID_BOTTOM_Z
+    t = min(1., (x - LID_LOW_X) / (LID_SEAM_X - LID_LOW_X))
+    return LID_BOTTOM_Z + (LAMP_LOW_Z - LID_BOTTOM_Z) * (1 - (1 - t ** 2.2) ** (1 / 2.2))
+
+
+def lid_half_width(z):
+    """The inverse: the lid face's half-width at height z."""
+    if z >= LAMP_LOW_Z:
+        return LID_SEAM_X
+    lo, hi = LID_LOW_X, LID_SEAM_X
+    for _ in range(30):
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if lid_edge_z(mid) < z else (lo, mid)
+    return lo
 
 
 class Column:
@@ -324,17 +361,22 @@ def top_edge(column):
     return Vector((table(BELT, y), y, table(BELT, y, 2))), 'belt'
 
 
-def arch_bottom(y):
-    """Height of the wheel-arch lip above station y (0 outside the arches)."""
+def arch_bottom(y, zb=.19):
+    """Height of the wheel-arch lip above station y (0 outside the arches).
+
+    The circle's ends are filleted down into the sill and bumper edges."""
     for code in 'fr':
-        d = y - ARCH_Y[code]
+        d = abs(y - ARCH_Y[code])
         r = ARCH_R[code]
-        if abs(d) < r:
+        if d < .95 * r:
             return WHEEL_R + math.sqrt(r * r - d * d)
+        if d < 1.1 * r:
+            z95 = WHEEL_R + math.sqrt(r * r - (.95 * r) ** 2)
+            return lerp(z95, zb, smoothstep((d - .95 * r) / (.15 * r)))
     return 0
 
 
-SIDE_ROWS = {'under': 1, 'skirt': 4, 'door': 6, 'crease': 3, 'shoulder': 7}
+SIDE_ROWS = {'under': 1, 'skirt': 4, 'door': 9, 'crease': 3, 'shoulder': 8}
 
 
 def column_section(column):
@@ -342,17 +384,18 @@ def column_section(column):
     y = column.station()
     edge, kind = top_edge(column)
     zb = interp(BOTTOM_Z, y)
-    lip = arch_bottom(y) if column.kind == 'm' else 0
+    lip = arch_bottom(y, zb)
     zc = interp(CREASE_Z, y)
-    top_z = edge.z if edge is not None else LID_BOTTOM_Z
+    lid_top = lid_edge_z(column.plan(column.radius(.8)).x)
+    top_z = edge.z if edge is not None else lid_top
     zc = min(zc, top_z - .03)
     start = max(zb, lip)
     pts = []
     r = column.radius
     if lip > zb:
         # The arch lip rolls in toward the wheel.
-        pts.append(column.point(r(start) - .032, start + .012))
-        pts.append(column.point(r(start) - .006, start + .002))
+        pts.append(column.point(r(start) - .034, start + .016))
+        pts.append(column.point(r(start) + .002, start + .004))
     else:
         pts.append(column.point(r(start + .01) - .045, start))
         pts.append(column.point(r(start + .012) - .008, start + .004))
@@ -362,16 +405,22 @@ def column_section(column):
     for k in range(1, SIDE_ROWS['skirt'] + 1):
         z = lerp(lo, skirt, k / SIDE_ROWS['skirt'])
         pts.append(column.point(r(z), z))
-    for k in range(1, SIDE_ROWS['door'] + 1):
-        z = lerp(skirt, door_top, k / SIDE_ROWS['door'])
+    zl = min(max(feature_z(column.kind, y), skirt + .012), door_top - .012)
+    door = [lerp(skirt, door_top, k / SIDE_ROWS['door']) for k in range(1, SIDE_ROWS['door'] + 1)]
+    door = sorted([z for z in door if abs(z - zl) > .012][:SIDE_ROWS['door'] - 2] + [zl - .004, zl + .004])
+    while len(door) < SIDE_ROWS['door']:
+        door.append(door_top)
+    door.sort()
+    for z in door:
         pts.append(column.point(r(z), z))
     # The crease: a tight row either side keeps the highlight crisp.
-    pts.append(column.point(r(zc - .006), zc - .006))
+    # The crease stands a few millimetres proud of the hollow below it.
+    pts.append(column.point(r(zc - .006) + .002, zc - .006))
     crease_index = len(pts)
-    pts.append(column.point(r(zc), zc))
+    pts.append(column.point(r(zc) + .004, zc))
     if edge is None:
         # Under the boot lid: the bumper stops at the lid's lower edge.
-        z1 = LID_BOTTOM_Z
+        z1 = lid_top
         for k in range(1, SIDE_ROWS['shoulder'] + 2):
             z = lerp(zc, z1, k / (SIDE_ROWS['shoulder'] + 1))
             pts.append(column.point(r(min(z, zc)) - .02 * smoothstep((z - zc) / max(z1 - zc, 1e-3)), z))
@@ -379,7 +428,7 @@ def column_section(column):
     # Over the shoulder to the top edge.
     rc = r(zc)
     re = column.radial(edge)
-    up = Vector((-.32, 1)).normalized()
+    up = Vector((-.42, 1)).normalized()
     inward = {'hood': Vector((-1, .32)), 'deck': Vector((-1, .22)), 'cowl': Vector((-.7, .7)), 'belt': Vector((-.42, 1))}[kind].normalized()
     span = (Vector((re, edge.z)) - Vector((rc, zc))).length
     curve = hermite((rc, zc), (re, edge.z), up * span * 1.1, inward * span * 1.1, SIDE_ROWS['shoulder'] + 1)
@@ -416,7 +465,14 @@ def side_columns():
     for x in (LID_SEAM_X - .004, LID_SEAM_X + .004, .65, .68):
         tail.add(round(tail_angle(x), 5))
     cols += [Column('r', a) for a in sorted(tail, reverse=True)]
-    return cols
+    # Drop columns that stand within 12 mm of the last one kept: slivers shade badly.
+    kept = []
+    for c in cols:
+        p = c.plan(c.radius(.6))
+        if kept and (p - kept[-1][1]).length < .012 and abs(p.x - LID_SEAM_X) > .01:
+            continue
+        kept.append((c, p))
+    return [c for c, _ in kept]
 
 
 def tail_angle(x, z=.9):
@@ -441,14 +497,6 @@ def build_side_band(parent):
     for pts, _, _ in sections:
         pts = pts + [pts[-1]] * (rows - len(pts))
         vs.append(pts)
-    # Door shut lines: the middle column of each cut sinks into a V groove.
-    for ci, c in enumerate(cols):
-        if c.kind == 'm' and any(abs(c.value - cut) < 1e-4 for cut in DOOR_CUTS):
-            crease = sections[ci][1]
-            for k in range(len(vs[ci])):
-                p = vs[ci][k]
-                if DOOR_BOTTOM_Z - .01 < p.z < table(BELT, c.value, 2) - .004 and arch_bottom(c.value) < p.z:
-                    vs[ci][k] = p - Vector((.0045, 0, 0))
     # Right half (x >= 0) as rows of columns, then mirrored and welded on x = 0.
     points = []
     for k in range(rows):
@@ -586,31 +634,54 @@ def lid_face_y(x, z):
 
 
 def build_lid(parent, gap=.003):
-    """The boot lid: from the rear window's base over the deck, round the lip and down the rear face."""
+    """The boot lid: from the rear window's base over the deck, round the lip and down the rear face.
+
+    Its edges run on the quarters' shut line (rear_edge) to the trailing
+    corner; below the lamps its sides turn in to a rounded lower edge.
+    """
     U = 30
-    # Profile on the centreline: deck stations, the lip, the face down to the lower edge.
+    edge = [p for p in rear_edge() if p.y >= DECK_Y - 1e-6]
+    edge_x = [(p.y, p.x) for p in edge]
+    edge_z = [(p.y, p.z) for p in edge]
     deck = [(y, interp(LID_TOP, y)) for y in [DECK_Y + gap + (2.43 - DECK_Y - gap) * k / 14 for k in range(15)]]
-    lip = [(2.455, 1.068), (2.468, 1.048)]
-    face = [(lid_face_y(0, z), z) for z in [1.02 - (1.02 - LID_BOTTOM_Z - gap) * k / 10 for k in range(11)]]
-    profile = deck + lip + face
+    lip = [(2.455, interp(LID_TOP, 2.455)), (2.468, interp(LID_TOP, 2.468))]
+    top_face = edge[-1].z
+    face = [(None, z) for z in [top_face - (top_face - LID_BOTTOM_Z - gap) * k / 14 for k in range(15)]]
     vs = []
-    for y0, z in profile:
-        on_face = y0 > 2.46
+    for y0, z0 in deck + lip + face:
         for i in range(U + 1):
             u = -1 + 2 * i / U
-            if on_face:
-                x = u * (LID_SEAM_X - gap)
-                y = lid_face_y(x, z)
+            if y0 is None:
+                x = u * (lid_half_width(z0) - gap)
+                y, z = lid_face_y(x, z0), z0
             else:
-                half = table(DECK_EDGE, y0) - gap
-                x = u * lerp(half, LID_SEAM_X - gap, smoothstep((y0 - 2.38) / .08))
-                y = y0 + (lid_face_y(x, 1.02) - lid_face_y(0, 1.02)) * smoothstep((y0 - 2.30) / .14)
-                z = lerp(z, table(DECK_EDGE, y0, 2), abs(u) ** 2.4)
+                half = interp(edge_x, y0) - gap
+                x = u * half
+                y = y0 + (lid_face_y(x, 1.0) - lid_face_y(0, 1.0)) * smoothstep((y0 - 2.30) / .14)
+                z = lerp(z0, interp(edge_z, y0), abs(u) ** 2.4)
             vs.append(Vector((x, y, z)))
-    faces = [tuple(reversed(f)) for f in grid_faces(len(profile), U + 1)]
+    rows = len(deck) + len(lip) + len(face)
+    faces = [tuple(reversed(f)) for f in grid_faces(rows, U + 1)]
     lid = mesh('boot_lid', [tuple(v) for v in vs], faces, paint, parent, True)
     facing(lid, (0, .4, 1))
     return lid
+
+
+PLATE_RECESS = (.235, .745, .915)   # half-width, bottom and top of the lid's stamped plate recess
+
+
+def build_plate_recess(lid, parent):
+    """The stamped recess in the lid's face with a blank US plate (no registration) in it."""
+    w, z0, z1 = PLATE_RECESS
+    outline = ccw(rounded([(-w, z0, .03), (w, z0, .03), (w, z1, .03), (-w, z1, .03)], 4))
+    cut_opening(lid, [Vector((x, lid_face_y(x, z), z)) for x, z in outline], -.004, 1)
+    floor = surface('plate_recess', outline, lambda x, z: lid_face_y(x, z) - .016, paint, parent, (0, 1, 0), 1, 0, -.017)
+    plate = material('S6_plate_blank', 'dcdcd8', 0, .45)
+    z = (z0 + z1) / 2
+    y = lid_face_y(0, z) - .016
+    holder = rounded_box('rear_plate_holder', (0, y + .004, z), (.33, .008, .175), satin_black, parent, .006, 1)
+    blank = rounded_box('rear_plate_blank', (0, y + .009, z), (.305, .003, .152), plate, parent, .004, 1)
+    return [floor, holder, blank]
 
 
 # ---- the greenhouse ----
@@ -633,6 +704,9 @@ def greenhouse_stations():
         y += .04
     for v in (DECK_Y, HEADER_Y, REAR_GLASS_TOP_Y, *DLO_Y, *B_PILLAR, *QUARTER_BAR):
         ys.add(round(v, 4))
+    # Fine stations where the raked B-pillar and quarter bar cross them.
+    for lo, hi in ((B_PILLAR[0] - .03, B_PILLAR[1] + .1), (QUARTER_BAR[0] - .03, QUARTER_BAR[1] + .16)):
+        ys |= {round(lo + k * .01, 4) for k in range(int((hi - lo) / .01) + 1)}
     return sorted(ys)
 
 
@@ -689,8 +763,7 @@ def build_greenhouse(parent, glass_mat, trim_mat):
         # The band this face is in, counted from the belt (0) toward the centre.
         k = j - (cols - 1) if j >= cols - 1 else cols - 2 - j
         in_dlo = DLO_Y[0] < y < DLO_Y[1]
-        pillar_b = B_PILLAR[0] < y < B_PILLAR[1]
-        bar = QUARTER_BAR[0] < y < QUARTER_BAR[1]
+        pillar_b = bar = False   # drawn over the glass by build_pillar_trims()
         if k < ns:
             (trim_f if (pillar_b or bar) and in_dlo else glass_f if in_dlo else shell_f).append(f)
         elif k < ns + npil:
@@ -945,14 +1018,13 @@ def build_cabin(parent):
 # ---- details: handles, window trim, the plate ----
 
 def build_details(parent):
-    """Door handles, the bright window surrounds, and a blank plate in the boot lid's recess.
+    """Door handles and the bright window surrounds.
 
     The handles sit just above the tornado line near each door's rear edge
     (Audi's side view); the surrounds run along the window opening's top and
-    the beltline. No registration is modelled: the plate is blank.
+    the beltline.
     """
     trim = material('S6_window_trim_aluminium', 'c9ccd0', .95, .22)
-    plate = material('S6_plate_blank', 'dcdcd8', 0, .45)
     made = []
     for sign in (1, -1):
         for y, z in ((.04, .868), (.95, .885)):
@@ -970,9 +1042,159 @@ def build_details(parent):
             belt.append(Vector((sign * (b.x + .004), y, b.z + .001)))
         made.append(tube('window_trim_top', top, .0045, trim, parent, sides=6))
         made.append(tube('window_trim_belt', belt, .004, trim, parent, sides=6))
-    # The plate recess's blank plate, US size (305 x 152 mm), and its holder.
-    z = .80
-    y = lid_face_y(0, z)
-    made.append(rounded_box('rear_plate_holder', (0, y + .004, z), (.33, .008, .175), satin_black, parent, .006, 1))
-    made.append(rounded_box('rear_plate_blank', (0, y + .009, z), (.305, .003, .152), plate, parent, .004, 1))
+    return made
+
+
+# ---- the S6's bumper features, shut lines and lamps conformed to the body ----
+
+def surface_tree(objs):
+    bm = bmesh.new()
+    for o in objs:
+        part = bmesh.new()
+        part.from_mesh(o.data)
+        part.transform(o.matrix_world)
+        data = bpy.data.meshes.new('_tree')
+        part.to_mesh(data)
+        part.free()
+        bm.from_mesh(data)
+        bpy.data.meshes.remove(data)
+    tree = BVHTree.FromBMesh(bm)
+    bm.free()
+    return tree
+
+
+def on_body(tree, x, y, z, along):
+    """The body surface hit from outside along an axis ('x' or 'y', sign of the approach): (point, normal)."""
+    if along == 'y':
+        o, d = Vector((x, y - 2 * math.copysign(1, y), z)), Vector((0, math.copysign(1, y), 0))
+    else:
+        o, d = Vector((x + 2 * math.copysign(1, x), y, z)), Vector((-math.copysign(1, x), 0, 0))
+    hit, normal, _, _ = tree.ray_cast(o, d, 4)
+    return hit, normal
+
+
+def conform_headlamps(parts, tree):
+    """Lay each headlamp's surfaces on the body's own nose, keeping their relief and outline.
+
+    The lamp was built on head_surface(); every vertex keeps its depth from
+    that surface but measured from the body instead, so the housing folds into
+    the wing and hood corner instead of standing proud of it.
+    """
+    by_base = {key.split('.')[0]: root for key, root in parts.items()}
+    for name in ('headlight_l', 'headlight_r'):
+        root = by_base[name]
+        dy = SOCKET_MOVES[name][0][1]
+        for obj in [o for o in root.children_recursive if o.type == 'MESH']:
+            world = obj.matrix_world
+            inv = world.inverted()
+            for v in obj.data.vertices:
+                p = world @ v.co
+                hit, _ = on_body(tree, p.x, -3, p.z, 'y')
+                if hit is not None:
+                    base = head_surface(p.x, p.z) + dy
+                    p.y = hit.y + (p.y - base)
+                    v.co = inv @ p
+            obj.data.update()
+
+
+def build_bumper_features(parent, tree):
+    """What makes the bumpers an S6's: the bright ledge over each intake, the lower lip
+    and its black centre slot, washer, tow-eye and sensor covers (his front photo), and
+    the rear reflectors."""
+    made = []
+    covers = []
+    for sign in (1, -1):
+        d, _ = SOCKET_MOVES['lower_intake_' + ('l' if sign > 0 else 'r')]
+        top = [(x + d[0], z + d[2] + .013) for x, z in from_unit(INTAKE[:7], *INTAKE_X, *INTAKE_Z, sign)]
+        ledge = []
+        for x, z in top:
+            hit, _ = on_body(tree, x, -3, z, 'y')
+            if hit is not None:
+                ledge.append(Vector((x, hit.y - .004, z)))
+        if len(ledge) > 2:
+            made.append(tube('intake_ledge', smooth_path(ledge, 4), .0065, paint, parent, sides=8))
+        covers += [('headlamp_washer_cover', sign * .775, .605, .075, .10), ('parking_sensor', sign * .83, .50, .024, .024)]
+    covers.append(('tow_eye_cover', -.60, .505, .055, .07))
+    lip = []
+    for k in range(41):
+        x = -.82 + 1.64 * k / 40
+        hit, _ = on_body(tree, x, -3, feature_z('f', 0) - .006, 'y')
+        if hit is not None:
+            lip.append(Vector((x, hit.y - .003, hit.z)))
+    made.append(tube('lower_lip_edge', lip, .006, paint, parent, sides=8))
+    hit, _ = on_body(tree, 0, -3, .245, 'y')
+    made.append(rounded_box('lower_centre_slot', (0, hit.y - .002, .245), (.72, .016, .026), satin_black, parent, .006, 1))
+    outline = material('S6_cover_shut_line', '202224', 0, .6)
+    for name, x, z, w, h in covers:
+        hit, normal = on_body(tree, x, -3, z, 'y')
+        if hit is None:
+            continue
+        back = rounded_box(name + '_line', (0, 0, 0), (w + .006, .002, h + .006), outline, parent, min(w, h) * .3, 1)
+        cover = rounded_box(name, (0, 0, 0), (w, .002, h), paint, parent, min(w, h) * .3, 1)
+        for obj, lift in ((back, .0004), (cover, .0018)):
+            obj.location = hit + normal * lift
+            obj.rotation_euler.z = math.atan2(-normal.x, -normal.y)
+        made += [back, cover]
+    for sign in (1, -1):
+        hit, normal = on_body(tree, sign * .74, 3, .44, 'y')
+        if hit is not None:
+            r = rounded_box('rear_reflector', (0, 0, 0), (.11, .006, .022), lens_red, parent, .006, 1)
+            r.location = hit + normal * .002
+            r.rotation_euler.z = math.atan2(normal.x, normal.y)
+            made.append(r)
+    return made
+
+
+def build_shut_lines(parent, tree):
+    """The doors' shut lines drawn on the side: the front door behind the wing, the
+    raked B-pillar cut, the rear door's rear edge coming down and round the rear
+    arch, and the door bottoms over the sill."""
+    line = material('S6_shut_line', '0c0d0e', 0, .7)
+    made = []
+    r = ARCH_R['r'] + .035
+    for sign in (1, -1):
+        paths = []
+        belt = lambda y: table(BELT, y, 2) - .012
+        paths.append([(-1.005, belt(-1.005)), (-1.0, .6), (-0.995, DOOR_BOTTOM_Z)])
+        paths.append([(0.245, DOOR_BOTTOM_Z), (0.258, .7), (0.268, belt(.268))])
+        rear = [(1.10, belt(1.10)), (1.10, .80)]
+        for k in range(1, 13):
+            a = math.radians(-58 - 30 * k / 12)
+            rear.append((ARCH_Y['r'] + r * math.sin(a), WHEEL_R + r * math.cos(a)))
+        rear.append((rear[-1][0] - .05, DOOR_BOTTOM_Z))
+        paths.append(rear)
+        paths.append([(-0.995, DOOR_BOTTOM_Z), (rear[-1][0], DOOR_BOTTOM_Z)])
+        for path in paths:
+            if len(path) > 3:
+                dense = [tuple(p) for p in smooth_path(path, 4)]
+            else:
+                dense = [tuple(Vector(a).lerp(Vector(b), t / 8)) for a, b in zip(path, path[1:]) for t in range(8)] + [path[-1]]
+            pts = []
+            for y, z in dense:
+                hit, normal = on_body(tree, sign, y, z, 'x')
+                if hit is not None:
+                    pts.append(hit - normal * .0007)
+            if len(pts) > 1:
+                made.append(tube('door_shut_line', pts, .0021, line, parent, sides=5))
+    return made
+
+
+def build_pillar_trims(parent):
+    """The gloss black B-pillar and the quarter window's bar, raked back up the glass
+    (Audi's side view), laid over the side glass as clean strips."""
+    made = []
+    for sign in (1, -1):
+        for name, (y0, y1), lean in (('B_pillar_trim', B_PILLAR, .2), ('quarter_window_bar', QUARTER_BAR, .3)):
+            vs = []
+            for k in range(9):
+                t = k / 8
+                for y_at_belt in (y0, y1):
+                    b, _ = top_edge(Column('m', y_at_belt))
+                    z_top = interp(DLO_TOP, y_at_belt + lean * .4)
+                    z = lerp(b.z + .004, z_top, t)
+                    y = y_at_belt + lean * (z - b.z)
+                    bb, _ = top_edge(Column('m', y))
+                    vs.append((sign * (tumble_x(bb.x, bb.z, z) + .003), y, z))
+            fs = [(2 * k, 2 * k + 1, 2 * k + 3, 2 * k + 2) for k in range(8)]
+            made.append(facing(mesh(name, vs, fs, gloss_black, parent, True), (sign, 0, 0)))
     return made
