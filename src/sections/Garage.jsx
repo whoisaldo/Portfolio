@@ -12,7 +12,7 @@ import GarageText from "../components/garage/GarageText";
 import GarageControls from "../components/garage/GarageControls";
 import { GARAGE_PHOTOS_ENABLED } from "../components/garage/features";
 import { ackGarageRequest, latestGarageRequest, subscribeGarageRequests } from "../lib/garage";
-import { setGarageView } from "../lib/garage3d";
+import { getGarageView, setGarageView } from "../lib/garage3d";
 import { getWorld, useStage } from "../world/stage";
 import { GARAGE_STATIONS } from "../data/world";
 
@@ -24,7 +24,7 @@ const stationOf = ({ carId, modId }) => findMod(carId, modId)?.station ?? carId;
 export default function Garage({ cinematic = false, availability = "idle", reason, reduced, fallback, restoreAnchor, still, onRetry }) {
   const root = useRef(null);
   const { context } = useStage();
-  const [selection, setSelection] = useState(null);
+  const [selection, setSelection] = useState(() => getGarageView().selection ?? null);
   const [activeCar, setActiveCar] = useState("s4");
   const [station, setStation] = useState("arrival");
   const [partsOpen, setPartsOpen] = useState(false);
@@ -38,6 +38,7 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
   const select = useCallback((next) => {
     if (next && !cars[next.carId]?.mods.some((mod) => mod.id === next.modId)) return false;
     setSelection(next);
+    setGarageView({ selection: next });
     if (next) {
       setActiveCar(next.carId);
       setGarageView({ textStation: stationOf(next) });

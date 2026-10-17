@@ -60,6 +60,7 @@ export default function Cinema({ leaving = false }) {
 
   // The director, from the top, with the music if the reader wants it.
   useEffect(() => {
+    if (leaving) return undefined;
     const d = createDirector({ onChange: setUi });
     director.current = d;
     if (soundEnabled()) {
@@ -72,7 +73,7 @@ export default function Cinema({ leaving = false }) {
       d.dispose();
       director.current = null;
     };
-  }, []);
+  }, [leaving]);
 
   // On the way out (the page is coming back while the bars lift), the film
   // lets go of the page at once rather than when it unmounts.
