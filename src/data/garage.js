@@ -209,7 +209,8 @@ export const mods = [
     name: "ECS RS4 suspension",
     brand: "ECS",
     price: 1300,
-    note: "The RS4 suspension set, which is where the ride height in the photographs comes from.",
+    note: "The RS4 suspension set.",
+    photoNote: "The ride height in the photographs comes from this suspension set.",
     pins: [{ view: "front", x: 59, y: 61, label: "Ride height" }],
   },
   {
