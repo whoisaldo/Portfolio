@@ -1,6 +1,6 @@
 {
  "note": "the garage's prototypes (scripts/blender/ncw/garage): triangles drawn always, triangles drawn near by only (<name>__near, never on a phone), the kit materials each wears, its box (half sizes x, y, z, base at y 0: the whole extent, what the site culls by), its bounds (the geometry's min and max in its own frame), its solids (x0, x1, y0, y1, z0, z1 boxes in its own frame: what stands in the way; [] nothing; null the box), whether a phone drops it. assemblies: each preview tile's assembly at the origin, yaw 0, its min and max. fit: the lifts against Ali's S4.",
- "total_triangles": 31803,
+ "total_triangles": 38711,
  "protos": {
   "garage_lift2": {
    "triangles": 750,
@@ -244,12 +244,108 @@
      2.2
     ],
     [
+     -1.08,
+     -0.52,
+     0.0,
+     0.09,
+     -2.34,
+     -2.2
+    ],
+    [
+     -1.08,
+     -0.52,
+     0.0,
+     0.06,
+     -2.48,
+     -2.34
+    ],
+    [
+     -1.08,
+     -0.52,
+     0.0,
+     0.03,
+     -2.62,
+     -2.48
+    ],
+    [
+     -1.08,
+     -0.52,
+     0.0,
+     0.09,
+     2.2,
+     2.34
+    ],
+    [
+     -1.08,
+     -0.52,
+     0.0,
+     0.06,
+     2.34,
+     2.48
+    ],
+    [
+     -1.08,
+     -0.52,
+     0.0,
+     0.03,
+     2.48,
+     2.62
+    ],
+    [
      0.52,
      1.08,
      0.0,
      0.12,
      -2.2,
      2.2
+    ],
+    [
+     0.52,
+     1.08,
+     0.0,
+     0.09,
+     -2.34,
+     -2.2
+    ],
+    [
+     0.52,
+     1.08,
+     0.0,
+     0.06,
+     -2.48,
+     -2.34
+    ],
+    [
+     0.52,
+     1.08,
+     0.0,
+     0.03,
+     -2.62,
+     -2.48
+    ],
+    [
+     0.52,
+     1.08,
+     0.0,
+     0.09,
+     2.2,
+     2.34
+    ],
+    [
+     0.52,
+     1.08,
+     0.0,
+     0.06,
+     2.34,
+     2.48
+    ],
+    [
+     0.52,
+     1.08,
+     0.0,
+     0.03,
+     2.48,
+     2.62
     ]
    ],
    "detail": false,
@@ -2641,7 +2737,7 @@
    "about": "A cable protector across a walkway, 1.2 m, in black with its yellow lid."
   },
   "garage_shop_sign": {
-   "triangles": 192,
+   "triangles": 308,
    "near_triangles": 126,
    "materials": [
     "glow",
@@ -2667,7 +2763,7 @@
    "solids": null,
    "detail": false,
    "reach": 900,
-   "about": "The shop's own sign: AFTERLIFE AUTO in neon tube (cyan over pink, the garage's two colours) on a black backer 3.4 m wide, a spanner in tube at its left, the transformer box under it, the standoffs and the tube's dark returns near by. Its back is on the wall (z 0), its foot at y 0: set it at the height it hangs."
+   "about": "The shop's own sign: AFTERLIFE AUTO in neon tube (cyan over pink, the garage's two colours) on a black backer 3.4 m wide, a spanner in tube at its left, WATSON / BAY 01 painted at its right as the old room's sign had it, the transformer box under it, the standoffs and the tube's dark returns near by. Its back is on the wall (z 0), its foot at y 0: set it at the height it hangs."
   },
   "garage_neon_open": {
    "triangles": 60,
@@ -2843,6 +2939,244 @@
    "detail": false,
    "reach": 600,
    "about": "A 65-inch monitor's bezel on its wall arm, its screen left for the layout's garage_screen (MONITOR_SCREEN); a cable down the wall."
+  },
+  "garage_jacket_chair": {
+   "triangles": 3100,
+   "near_triangles": 486,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.46,
+    0.54,
+    0.36
+   ],
+   "bounds": {
+    "min": [
+     -0.436,
+     0.0,
+     -0.265
+    ],
+    "max": [
+     0.438,
+     1.081,
+     0.323
+    ]
+   },
+   "solids": [
+    [
+     -0.31,
+     0.31,
+     0.0,
+     1.03,
+     -0.31,
+     0.31
+    ]
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "David's yellow jacket thrown over a rolling shop stool: its back, the reflective bands and the teal emblem toward the prototype's front (+z), the stool's seat facing -z (a bench behind it), one sleeve hanging, one across the seat. The old room's David_* pieces, as kit geometry."
+  },
+  "garage_maine_cradle": {
+   "triangles": 1096,
+   "near_triangles": 350,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.78,
+    0.38,
+    0.28
+   ],
+   "bounds": {
+    "min": [
+     -0.771,
+     0.0,
+     -0.258
+    ],
+    "max": [
+     0.718,
+     0.753,
+     0.272
+    ]
+   },
+   "solids": null,
+   "detail": false,
+   "reach": null,
+   "about": "Maine's detached cybernetic arm and its projectile launcher, laid in a service cradle: two padded saddles on a base plate, a ratchet strap over each, a diagnostic lead into the shoulder socket, a plate that says whose it is. The old room's Maine_* pieces, as kit geometry."
+  },
+  "garage_guts_pegs": {
+   "triangles": 544,
+   "near_triangles": 230,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    0.9,
+    0.32,
+    0.16
+   ],
+   "bounds": {
+    "min": [
+     -0.9,
+     0.0,
+     0.0
+    ],
+    "max": [
+     0.9,
+     0.64,
+     0.158
+    ]
+   },
+   "solids": null,
+   "detail": false,
+   "reach": null,
+   "about": "Rebecca's oversize shotgun, Guts, in mint with pink furniture, laid on two steel pegs on a black board, NO REFUNDS in pink neon under it. The old room's Rebecca_* pieces, as kit geometry."
+  },
+  "garage_smasher_frame": {
+   "triangles": 110,
+   "near_triangles": 46,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    1.02,
+    1.48,
+    0.06
+   ],
+   "bounds": {
+    "min": [
+     -1.009,
+     0.0,
+     0.0
+    ],
+    "max": [
+     1.009,
+     2.96,
+     0.056
+    ]
+   },
+   "solids": null,
+   "detail": false,
+   "reach": null,
+   "about": "The Adam Smasher print's place: a steel angle frame round a dark backing board, the print's own opening (SMASHER_ART, the layout's garage_identity_poster) taped to it at the corners and once more where the old tape gave, the frame's bolts and a stain or two near by."
+  },
+  "garage_bd_monitor": {
+   "triangles": 356,
+   "near_triangles": 48,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    1.27,
+    0.93,
+    0.34
+   ],
+   "bounds": {
+    "min": [
+     -1.265,
+     0.0,
+     0.0
+    ],
+    "max": [
+     1.265,
+     1.863,
+     0.34
+    ]
+   },
+   "solids": null,
+   "detail": false,
+   "reach": null,
+   "about": "The braindance screen: a deep black housing round the layout's garage_screen (BD_SCREEN), its wall rails and a status lamp, BRAINDANCE / MOON 02 in cyan tube under it, the BD deck on its bracket, BD lit."
+  },
+  "garage_bench_strip": {
+   "triangles": 38,
+   "near_triangles": 16,
+   "materials": [
+    "trim",
+    "tube"
+   ],
+   "box": [
+    1.22,
+    0.05,
+    0.11
+   ],
+   "bounds": {
+    "min": [
+     -1.2,
+     -0.003,
+     0.0
+    ],
+    "max": [
+     1.224,
+     0.078,
+     0.109
+    ]
+   },
+   "solids": null,
+   "detail": false,
+   "reach": 600,
+   "about": "The amber strip over the bench: a 2.4 m aluminium channel on two wall brackets (back on the wall, z 0, its foot y 0), tilted to light the bench and the pegboard below it, its diffuser in amber tube."
+  },
+  "garage_wall_tube_pink": {
+   "triangles": 166,
+   "near_triangles": 20,
+   "materials": [
+    "trim",
+    "tube"
+   ],
+   "box": [
+    0.42,
+    1.35,
+    0.14
+   ],
+   "bounds": {
+    "min": [
+     -0.065,
+     0.0,
+     0.0
+    ],
+    "max": [
+     0.41,
+     2.7,
+     0.138
+    ]
+   },
+   "solids": null,
+   "detail": false,
+   "reach": 600,
+   "about": "A pink tube on its backplate (the old room's south wall), 1.8 m, its lead down to a switch box at its foot (y 0, back on the wall)."
+  },
+  "garage_wall_tube_cyan": {
+   "triangles": 166,
+   "near_triangles": 20,
+   "materials": [
+    "trim",
+    "tube"
+   ],
+   "box": [
+    0.42,
+    1.35,
+    0.14
+   ],
+   "bounds": {
+    "min": [
+     -0.065,
+     0.0,
+     0.0
+    ],
+    "max": [
+     0.41,
+     2.7,
+     0.138
+    ]
+   },
+   "solids": null,
+   "detail": false,
+   "reach": 600,
+   "about": "The same tube in cyan (the old room's north wall)."
   }
  },
  "assemblies": {
@@ -3613,6 +3947,162 @@
     1.15
    ]
   },
+  "jacket_chair": {
+   "label": "David's jacket on its stool",
+   "min": [
+    -0.436,
+    0.0,
+    -0.265
+   ],
+   "max": [
+    0.438,
+    1.081,
+    0.323
+   ]
+  },
+  "jacket_chair_side": {
+   "label": "David's jacket, from its side",
+   "min": [
+    -0.436,
+    0.0,
+    -0.265
+   ],
+   "max": [
+    0.438,
+    1.081,
+    0.323
+   ]
+  },
+  "jacket_chair_seat": {
+   "label": "David's jacket, from the bench",
+   "min": [
+    -0.436,
+    0.0,
+    -0.265
+   ],
+   "max": [
+    0.438,
+    1.081,
+    0.323
+   ]
+  },
+  "jacket_chair_phone": {
+   "label": "David's jacket, phone (main only)",
+   "min": [
+    -0.436,
+    0.0,
+    -0.265
+   ],
+   "max": [
+    0.438,
+    1.081,
+    0.323
+   ]
+  },
+  "maine_cradle": {
+   "label": "Maine's arm cannon in its cradle",
+   "min": [
+    -0.771,
+    0.0,
+    -0.258
+   ],
+   "max": [
+    0.718,
+    0.753,
+    0.272
+   ]
+  },
+  "maine_cradle_hand": {
+   "label": "Maine's arm, the hand's end",
+   "min": [
+    -0.771,
+    0.0,
+    -0.258
+   ],
+   "max": [
+    0.718,
+    0.753,
+    0.272
+   ]
+  },
+  "maine_cradle_phone": {
+   "label": "Maine's arm, phone (main only)",
+   "min": [
+    -0.752,
+    0.0,
+    -0.258
+   ],
+   "max": [
+    0.718,
+    0.753,
+    0.272
+   ]
+  },
+  "guts_pegs": {
+   "label": "Rebecca's Guts on its pegs",
+   "min": [
+    -0.9,
+    0.0,
+    -0.0
+   ],
+   "max": [
+    0.9,
+    0.64,
+    0.158
+   ]
+  },
+  "guts_pegs_phone": {
+   "label": "Guts, phone (main only)",
+   "min": [
+    -0.9,
+    0.0,
+    -0.0
+   ],
+   "max": [
+    0.9,
+    0.64,
+    0.158
+   ]
+  },
+  "smasher_frame_bare": {
+   "label": "Smasher frame and taped backing",
+   "min": [
+    -1.009,
+    0.0,
+    -0.0
+   ],
+   "max": [
+    1.009,
+    2.96,
+    0.056
+   ]
+  },
+  "bench_strip": {
+   "label": "Amber bench strip",
+   "min": [
+    -1.2,
+    1.397,
+    -0.0
+   ],
+   "max": [
+    1.224,
+    1.478,
+    0.109
+   ]
+  },
+  "wall_tubes": {
+   "label": "Pink and cyan wall tubes",
+   "min": [
+    -0.065,
+    0.0,
+    -0.0
+   ],
+   "max": [
+    1.51,
+    2.7,
+    0.138
+   ]
+  },
   "shop_sign": {
    "label": "Shop sign",
    "min": [
@@ -3785,6 +4275,150 @@
    ],
    "tyres_on_runways": true,
    "runway_past_tyres_m": 0.699
+  }
+ },
+ "surfaces": {
+  "note": "the layout's named surfaces in a prototype's own frame (centre x, y, z; width, height; facing +z, uv 0..1 from the bottom left, u along +x): identity.smasher_art() and identity.monitor_screen() give them placed",
+  "garage_smasher_frame": {
+   "garage_identity_poster": [
+    [
+     0.0,
+     1.48,
+     0.032
+    ],
+    1.8,
+    2.7
+   ]
+  },
+  "garage_bd_monitor": {
+   "garage_screen": [
+    [
+     0.0,
+     1.12,
+     0.081
+    ],
+    2.43,
+    1.367
+   ]
+  },
+  "garage_monitor": {
+   "garage_screen": [
+    [
+     0.0,
+     0.55,
+     0.062
+    ],
+    1.43,
+    0.8
+   ]
+  }
+ },
+ "light_faces": {
+  "garage_bench_strip": {
+   "centre": [
+    0.0,
+    0.032,
+    0.085
+   ],
+   "length_x": 2.3,
+   "width": 0.03,
+   "normal": [
+    0.0,
+    -0.8192,
+    0.5736
+   ],
+   "colour": "amber"
+  },
+  "garage_wall_tube_pink": {
+   "centre": [
+    0.0,
+    1.65,
+    0.1
+   ],
+   "length_y": 1.8,
+   "radius": 0.03,
+   "colour": "pink"
+  },
+  "garage_wall_tube_cyan": {
+   "centre": [
+    0.0,
+    1.65,
+    0.1
+   ],
+   "length_y": 1.8,
+   "radius": 0.03,
+   "colour": "cyan"
+  }
+ },
+ "workbench": {
+  "note": "identity.place_workbench(x, z, yaw): each piece's (x, y, z, turn) in the wall's frame (z 0 the wall's face, +z into the room)",
+  "pieces": {
+   "garage_bench": [
+    0.0,
+    0.0,
+    0.375,
+    0.0
+   ],
+   "garage_pegboard": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "garage_bench_strip": [
+    0.0,
+    2.32,
+    0.0,
+    0.0
+   ],
+   "garage_tool_cab": [
+    1.85,
+    0.0,
+    0.24,
+    0.0
+   ],
+   "garage_tool_top": [
+    1.85,
+    0.99,
+    0.24,
+    0.0
+   ],
+   "garage_bd_monitor": [
+    -2.75,
+    1.25,
+    0.0,
+    0.0
+   ],
+   "garage_smasher_frame": [
+    3.5,
+    0.6,
+    0.0,
+    0.0
+   ],
+   "garage_guts_pegs": [
+    0.0,
+    2.45,
+    0.0,
+    0.0
+   ],
+   "garage_shop_sign": [
+    0.3,
+    3.35,
+    0.0,
+    0.0
+   ],
+   "garage_maine_cradle": [
+    0.42,
+    0.9,
+    0.36,
+    0.0
+   ],
+   "garage_jacket_chair": [
+    -0.75,
+    0.0,
+    1.05,
+    -0.35
+   ]
   }
  }
 }

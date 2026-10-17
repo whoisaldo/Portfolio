@@ -636,7 +636,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       shots.goal(ids, inside.position, inside.locals, aspect, dest, car?.car.position);
     } else shots.goal(ids, stage.position, localsFor(ids, dt), aspect, dest, car?.car.position);
 
-    if (home && inside.on && inspectionCursor && !flight && stage.view !== "cinema") {
+    if (home && inside.on && inspectionCursor && !flight && !garageDeparture && stage.view !== "cinema") {
       if (inspectionAspect !== aspect) {
         inspectionCursor = visit.navigator(inside.p, aspect);
         inspectionAspect = aspect;
@@ -659,13 +659,26 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         const returnInside = home && garageDeparture && dest.position.x >= 451.5 && dest.position.x <= 476 && dest.position.y < 8 && dest.position.z > -230 && dest.position.z < -200;
         let pending = null;
         if (returnInside) {
-          pending = visit.transition(garageDeparture.p, aspect, inspectionCursor ?? visit.navigator(garageDeparture.p, aspect));
+          // The exit cursor is now outside. Rebuild from the saved indoor
+          // location before seeking outside, so Back retains its destination.
+          const cursor = visit.navigator(garageDeparture.p, aspect, garageDeparture.location);
+          pending = visit.transition(garageDeparture.p, aspect, cursor);
           pending.seekOutside();
           pending.reverse(true);
         }
+        let exiting = null;
+        if (indoors && !home) {
+          const cursor = inspectionCursor ?? visit.navigator(inside.p, aspect);
+          const location = cursor.snapshot();
+          if (location.node?.endsWith("_cabin")) location.node = location.node.slice(0, 2);
+          garageDeparture = { p: inside.p, location, target: inspectionTarget };
+          exiting = visit.transition(inside.p, aspect, cursor);
+          // Remounts may replay selection while the exit owns its cursor.
+          // Keep those requests separate until the doorway return completes.
+          inspectionCursor = null;
+        }
         flight = { from: copyPose(makePose(), pose), t: 0, glitched: false,
-          garage: indoors ? visit.transition(inside.p, aspect, inspectionCursor ?? visit.navigator(inside.p, aspect)) : null, pending, safeGarage: indoors || returnInside };
-        if (indoors && !home) garageDeparture = { p: inside.p };
+          garage: exiting, pending, safeGarage: indoors || returnInside };
         if (flight.garage) {
           garageCars?.setDeparture?.({ active: !home, cameraClear: false, liftDown: false });
           garageCars?.setHood("s6", 0);
@@ -680,6 +693,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       if (state.done) {
         if (state.returning) {
           inside.p = state.p;
+          inspectionCursor = visit.navigator(state.p, aspect, garageDeparture.location);
+          inspectionAspect = aspect;
+          inspectionCursor.request(garageDeparture.target ?? state.p, { cut: reduced });
           garageDeparture = null;
           flight = null;
         } else {
@@ -703,7 +719,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         if (flight.pending) {
           flight.garage = flight.pending;
           flight.pending = null;
-        } else flight = null;
+        } else {
+          flight = null;
+          // A Home destination away from Garage has no indoor leg to resume.
+          if (home) garageDeparture = null;
+        }
       }
     } else {
       copyPose(want, dest);
@@ -1579,6 +1599,14 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   };
   const requestInspection = (destination, { cut = reduced } = {}) => {
     if (!visit) return false;
+    if (garageDeparture) {
+      // Selection can arrive before or during Back, including a cabin cut.
+      // Validate it on a separate cursor without moving the active flight.
+      if (!visit.navigator(garageDeparture.p, aspect).request(destination, { cut })) return false;
+      garageDeparture.target = destination;
+      inspectionTarget = destination;
+      return true;
+    }
     inspectionCursor ??= visit.navigator(inside.p, aspect);
     inspectionAspect = aspect;
     if (!inspectionCursor.request(destination, { cut })) return false;
@@ -1600,6 +1628,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       if (!requestInspection(key, options)) inspectionLabel = `${selection.carId.toUpperCase()} ${mod.pose} view is unavailable. The part details remain available.`;
     } else {
       inspectionTarget = null;
+      if (garageDeparture) garageDeparture.target = null;
       inspectionLabel = "Tour resumed.";
     }
     publishGarage();
@@ -2409,7 +2438,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           garageCars?.setLowering(manual.lowering ?? visit.stateAt(stage.garageProgress, reduced).lowering);
           publishGarage();
         },
-        resumeTour() { manual = { selection: null, hood: { s4: null, s6: null }, lowering: null }; clearHoodMotion(); inspectionTarget = null; inspectionLabel = "Tour resumed."; publishGarage(); },
+        resumeTour() { manual = { selection: null, hood: { s4: null, s6: null }, lowering: null }; clearHoodMotion(); inspectionTarget = null; if (garageDeparture) garageDeparture.target = null; inspectionLabel = "Tour resumed."; publishGarage(); },
         /** The room's pack, built in (resolves false with none to build). */
         prepare: prepareGarage,
         goStation(id) {
