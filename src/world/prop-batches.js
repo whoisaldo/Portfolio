@@ -7,7 +7,7 @@ import { attributeKey } from "./merge.js";
 export function createPropBatches(sets, group, copyMaterial) {
   const groups = new Map(), batches = [], textures = new Set();
   for (const set of sets) for (const source of set.instanced) {
-    if (!source.material.isShaderMaterial || source.material.transparent || set.name === "traffic_light") continue;
+    if (source.material.transparent || set.name === "traffic_light") continue;
     const geometry = new THREE.BufferGeometry();
     geometry.index = source.geometry.index;
     for (const [name, attribute] of Object.entries(source.geometry.attributes)) if (name !== "aDeal") geometry.setAttribute(name, attribute);
@@ -18,10 +18,6 @@ export function createPropBatches(sets, group, copyMaterial) {
   for (const parts of groups.values()) {
     if (parts.length < 2) { parts[0].geometry.dispose(); continue; }
     const material = copyMaterial(parts[0].source.material, "prototype-batch", parts[0].geometry);
-    material.userData.sortId = parts[0].source.material.userData.sortId ?? parts[0].source.material.id;
-    // These additive billboards have no back-to-front surface ordering.
-    // DoubleSide with culling disabled covers both windings in one pass.
-    if (material.name === "halo") material.forceSinglePass = true;
     if (!material.userData.prototypeBatch) {
       material.userData.prototypeBatch = true;
       material.vertexShader = "#include <batching_pars_vertex>\n" + material.vertexShader
