@@ -25,17 +25,19 @@ import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { MeshoptDecoder } from "meshoptimizer";
 
-const vite = await createServer({ server: { middlewareMode: true }, appType: "custom", logLevel: "error" });
+const vite = await createServer({ server: { middlewareMode: true }, optimizeDeps: { noDiscovery: true, include: [] }, appType: "custom", logLevel: "error" });
 let world;
 let garage;
 let three;
+let propsModule;
+let materialModule;
 try {
-  [world, garage, three] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three")]);
+  [world, garage, three, propsModule, materialModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js")]);
 } finally {
   await vite.close();
 }
 const { GARAGE_STATIONS, GARAGE_BEATS, GARAGE_POSES, GARAGE_ROUTES, GARAGE_TIMELINE, GARAGE_STATES } = world;
-const { createGarageVisit, rampAt, stretchAt } = garage;
+const { createGarageVisit, createGarageCollision, rampAt, stretchAt } = garage;
 const { Vector3, Quaternion } = three;
 
 const failures = [];
@@ -187,6 +189,40 @@ for (const [tier, anchors] of Object.entries(anchorSets)) {
         assert.ok(holds.some((h) => h.position.distanceTo(got.position) < 1e-6), `a path shown at p=${k / 1000}`);
       }
     });
+    check(`${tag} route interruption and doorway`, () => {
+      for (const start of [0, .1, .2, .275, .4, .465, .515, .6, .67, .8, .9, 1]) {
+        const route = visit.transition(start, aspect);
+        let previous = visit.at(start, aspect);
+        let crossed = false;
+        for (let n = 0; n < 1000; n++) {
+          const state = route.sample(1 / 120);
+          const next = state.pose;
+          assert.ok(previous.position.distanceTo(next.position) < 2, `route must not cut: start=${start} frame=${n} p=${state.p} u=${state.u} ${previous.position.toArray()} -> ${next.position.toArray()}`);
+          if ((previous.position.x - OPENING.x) * (next.position.x - OPENING.x) < 0) {
+            const hit = previous.position.clone().lerp(next.position, (OPENING.x - previous.position.x) / (next.position.x - previous.position.x));
+            assert.ok(hit.y > .45 && hit.y < OPENING.height - .45 && hit.z > OPENING.z0 + .45 && hit.z < OPENING.z1 - .45, `door clearance at ${hit.toArray()}`);
+            crossed = true;
+          }
+          previous = next;
+          if (state.done) break;
+        }
+        assert.ok(crossed, `exit from ${start} crosses the doorway`);
+        // Reverse both in the visit and in the doorway segment. The first
+        // sample must continue from the last, then land at the saved pose.
+        for (const delay of [.4, start * 4 + .8]) {
+          const interrupted = visit.transition(start, aspect);
+          let before;
+          for (let t = 0; t < delay; t += 1 / 120) before = interrupted.sample(1 / 120).pose;
+          interrupted.reverse(true);
+          const first = interrupted.sample(1 / 120);
+          assert.ok(before.position.distanceTo(first.pose.position) < 2, "return must reverse in place");
+          let state = first;
+          for (let n = 0; n < 1000 && !state.done; n++) state = interrupted.sample(1 / 120);
+          assert.ok(state.done && state.returning);
+          assert.ok(state.pose.position.distanceTo(visit.at(start, aspect).position) < 1e-6, "return restores saved pose");
+        }
+      }
+    });
     check(`${tag} door`, () => {
       const inside = (pt) => pt.z > OPENING.z0 && pt.z < OPENING.z1 && pt.y > 0 && pt.y < OPENING.height;
       const entry = visit.entry(aspect);
@@ -205,6 +241,85 @@ for (const [tier, anchors] of Object.entries(anchorSets)) {
     });
   }
 }
+
+// A garage-only prototype and placement must actually produce geometry,
+// independently of the core placement table, and retain their sectors.
+check("late garage prop placements", () => {
+  const { Mesh, BoxGeometry, ShaderMaterial } = three;
+  const material = new ShaderMaterial({ uniforms: { uSpill: { value: null } } });
+  material.name = "metal";
+  const proto = (name) => {
+    const mesh = new Mesh(new BoxGeometry(1, 1, 1), material);
+    mesh.userData.proto = name;
+    return mesh;
+  };
+  const wire = (header, records) => {
+    let text = JSON.stringify(header);
+    if (text.length % 2) text += " ";
+    const bytes = new TextEncoder().encode(text);
+    const buffer = new ArrayBuffer(4 + bytes.length + records.length * 16);
+    new DataView(buffer).setUint32(0, bytes.length, true);
+    new Uint8Array(buffer, 4, bytes.length).set(bytes);
+    new Int16Array(buffer, 4 + bytes.length).set(records.flat());
+    return buffer;
+  };
+  const core = proto("core_test");
+  const pack = proto("garage_test");
+  const system = propsModule.createProps([core], wire({ protos: [{ name: "core_test", box: [1, 1, 1] }], count: 0 }, []));
+  const buffer = wire({ protos: [{ name: "garage_test", box: [1, 1, 1] }], count: 2, sectorRuns: [{ sector: "garage_s4", start: 0, count: 1 }, { sector: "garage_s6", start: 1, count: 1 }] }, [[0, 9240, 0, -4300, 0, 100, 1000, 0], [0, 9240, 0, -4440, 0, 100, 1000, 0]]);
+  const held = system.addPlacements([pack], buffer, { hold: true });
+  assert.equal(held.count, 2);
+  assert.equal(system.group.children.length, 0, "placements stay hidden before commit");
+  const steps = held.prepare();
+  let result;
+  while (!(result = steps.next()).done);
+  assert.equal(result.value.length, 2);
+  held.commit();
+  held.commit();
+  assert.equal(system.group.children.length, 2, "idempotent commit");
+  for (const sector of ["garage_s4", "garage_s6"]) {
+    const group = system.group.getObjectByName(`props_${sector}`);
+    assert.ok(group);
+    group.traverse((mesh) => { if (mesh.isMesh) assert.equal(mesh.userData.sector, sector); });
+  }
+  const bad = wire({ protos: [{ name: "garage_test", box: [1, 1, 1] }], count: 1, sectorRuns: [] }, [[0, 9240, 0, -4300, 0, 100, 1000, 0]]);
+  assert.throws(() => system.addPlacements([pack], bad), /sectors/);
+  system.dispose();
+  core.geometry.dispose();
+  pack.geometry.dispose();
+  material.dispose();
+});
+check("camera collision is independent of visibility", () => {
+  const { Box3, Vector3 } = three;
+  const box = new Box3(new Vector3(2, 0, -1), new Vector3(3, 3, 1));
+  const collision = createGarageCollision({ solids: () => [{ name: "wall", box, visible: false }] });
+  assert.equal(collision.clearance(new Vector3(0, 1, 0)), 2);
+  const hit = collision.sweep(new Vector3(0, 1, 0), new Vector3(5, 1, 0), .45);
+  assert.equal(hit.ok, false);
+  assert.ok(Math.abs(hit.point.x - 1.55) < 1e-6);
+  const clear = collision.sweep(new Vector3(0, 5, 0), new Vector3(5, 5, 0), .45);
+  assert.equal(clear.ok, true);
+  const pose = { position: new Vector3(1.8, 1, 0), target: new Vector3(3, 1, 0), fov: 60 };
+  assert.equal(collision.nearPlane(pose, 16 / 10, .25), 0);
+  collision.solids[0].box.min.x = -50;
+  assert.equal(collision.clearance(new Vector3(0, 1, 0)), 2, "read-only snapshots do not mutate collision");
+});
+check("late external map recovery", () => {
+  const { MeshStandardMaterial, Texture } = three;
+  const registry = materialModule.createGarageMaterials({});
+  const source = new MeshStandardMaterial();
+  source.name = "NCW_garage_shop_photos";
+  source.userData = { runtime: "photo_board", slots: '["baseColor"]', params: '{}' };
+  const first = registry.forName(source);
+  assert.deepEqual(registry.missing, ["NCW_garage_shop_photos.baseColor"]);
+  const atlas = new Texture();
+  registry.setBoards(atlas);
+  assert.equal(first.uniforms.uMap.value, atlas);
+  assert.deepEqual(registry.missing, [], "successful retry clears the pending external slot");
+  assert.equal(registry.forName(source), first, "recovery reuses the material");
+  registry.dispose();
+  source.dispose();
+});
 
 if (placeholders.size) {
   console.log(`check:garage: ${placeholders.size} pose/path stand-ins still from the plan, not the kit:`);

@@ -45,7 +45,12 @@ const OUT = /* glsl */ `
 export function createGarageMaterials(shared, { kit, maxAnisotropy = 8 } = {}) {
   const made = new Map();
   const textures = new Set();
-  const missing = [];
+  const records = new Map();
+  let boards = null;
+  const json = (value, fallback) => {
+    if (typeof value !== "string") return value ?? fallback;
+    try { return JSON.parse(value); } catch { return fallback; }
+  };
   const rects = {
     uRects: { value: 0 },
     uCorner: { value: Array.from({ length: MAX_RECTS }, () => new THREE.Vector3()) },
@@ -59,14 +64,14 @@ export function createGarageMaterials(shared, { kit, maxAnisotropy = 8 } = {}) {
   /** The pictures the pack's material `source` says it has, made ours:
    *  the right colour space, wrapping and filtering, each once. */
   const take = (name, source) => {
-    const declared = [].concat(source.userData?.slots ?? []);
+    const declared = [].concat(json(source.userData?.slots, []));
     const wrap = source.userData?.wrap === "clamp" ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping;
     const maps = {};
+    records.set(name, { declared, maps, runtime: source.userData?.runtime });
     for (const slot of declared) {
       const spec = SLOTS[slot];
-      const tex = spec ? source[spec.key] : null;
+      const tex = slot === "baseColor" && /shop_photos/.test(name) ? boards ?? source[spec.key] : spec ? source[spec.key] : null;
       if (!tex) {
-        missing.push(`${name}.${slot}`);
         continue;
       }
       tex.colorSpace = spec.srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
@@ -241,16 +246,23 @@ export function createGarageMaterials(shared, { kit, maxAnisotropy = 8 } = {}) {
 
   return {
     /** Whether `name` (a glTF material's) is one of the workshop's own. */
-    owns: (name) => /^NCW_garage_(workshop_(floor|wall)|threshold_wet|shop_photos)(\.\d+)?$/.test(name ?? ""),
+    owns: (source) => /^NCW_garage_(workshop_(floor|wall)|threshold_wet|shop_photos)(\.\d+)?$/.test(typeof source === "string" ? source : source?.name ?? "") || Boolean(source?.name?.startsWith("NCW_garage_") && source.userData?.runtime),
     /**
      * The material for the pack's material `source`: made the first time,
      * from that material's own pictures and extras, the same one after.
      */
     forName(source) {
       const name = source.name.replace(/\.\d+$/, "");
-      if (made.has(name)) return made.get(name);
+      if (made.has(name)) {
+        const material = made.get(name);
+        const maps = take(name, source);
+        for (const [slot, uniform] of [["baseColor", "uMap"], ["metallicRoughness", "uRough"], ["normal", "uNormal"]]) {
+          if (maps[slot] && material.uniforms?.[uniform]) material.uniforms[uniform].value = maps[slot];
+        }
+        return material;
+      }
       const runtime = source.userData?.runtime;
-      const params = source.userData?.params ?? {};
+      const params = json(source.userData?.params, {});
       let m = null;
       if (runtime === "threshold_wet" || name === "NCW_garage_threshold_wet") m = threshold ??= kit.forName("NCW_garage_floor");
       else {
@@ -258,7 +270,7 @@ export function createGarageMaterials(shared, { kit, maxAnisotropy = 8 } = {}) {
         if (runtime === "satin_floor") m = satinFloor(name, maps, params);
         else if (runtime === "painted_wall") m = paintedWall(name, maps, params);
         else if (runtime === "photo_board") m = photoBoard(name, maps);
-        else missing.push(`${name}: no runtime`);
+
       }
       if (m) made.set(name, m);
       return m;
@@ -266,6 +278,9 @@ export function createGarageMaterials(shared, { kit, maxAnisotropy = 8 } = {}) {
     /** The external photo atlas (CONTRACT.md 1.4, source "external"),
      *  once fetched: the boards draw it. */
     setBoards(texture) {
+      boards = texture;
+      for (const [name, record] of records) if (/shop_photos/.test(name)) record.maps.baseColor = texture;
+      texture.flipY = false;
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.anisotropy = Math.min(4, maxAnisotropy);
       texture.needsUpdate = true;
@@ -288,7 +303,10 @@ export function createGarageMaterials(shared, { kit, maxAnisotropy = 8 } = {}) {
     },
     /** Every declared picture that did not come: the garage is not ready. */
     get missing() {
-      return missing.slice();
+      return [...records].flatMap(([name, { declared, maps, runtime }]) => [
+        ...declared.filter((slot) => !maps[slot]).map((slot) => `${name}.${slot}`),
+        ...(!["satin_floor", "painted_wall", "photo_board", "threshold_wet"].includes(runtime) ? [`${name}: no runtime`] : []),
+      ]);
     },
     /** What this made: its own materials and the pack's pictures, once.
      *  (The threshold's material is the kit's and goes with the kit.) */

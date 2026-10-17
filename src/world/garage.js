@@ -19,7 +19,7 @@ import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { NEON } from "./materials.js";
 import { preloadMoon } from "./moon.js";
-import { catmullRom, easeInOut, makePose, copyPose, clamp } from "./shots.js";
+import { catmullRom, curveAt, easeInOut, makePose, copyPose, clamp } from "./shots.js";
 import { GARAGE_POSES, GARAGE_ROUTES, GARAGE_ROUTES_PORTRAIT, GARAGE_TIMELINE, GARAGE_STATES, GARAGE_STATIONS } from "../data/world.js";
 
 // The door's travel, in shots before the garage's own (the flight in
@@ -42,7 +42,16 @@ const DRIPS = 26;
  * on them, the two white panels overhead, the amber strip over the bench,
  * and the monitor.
  */
-export function garageLights() {
+export function garageLights(anchors = null) {
+  const fixtures = anchors ? [...anchors].filter(([name]) => name.startsWith("anchor_garage_light_")) : [];
+  if (fixtures.length) return fixtures.map(([, anchor]) => {
+    const data = anchor.extras ?? {};
+    const u = new THREE.Vector3(Number(data.width) || 1, 0, 0).applyQuaternion(anchor.quaternion);
+    const v = new THREE.Vector3(0, 0, Number(data.height) || .1).applyQuaternion(anchor.quaternion);
+    return { corner: anchor.position.clone().addScaledVector(u, -.5).addScaledVector(v, -.5), u, v,
+      normal: new THREE.Vector3(0, -1, 0).applyQuaternion(anchor.quaternion),
+      tint: new THREE.Color(data.color ?? "#ffffff").multiplyScalar(Number(data.intensity) || 1), tube: data.kind !== "screen" };
+  });
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const tube = (hex) => new THREE.Color(hex).multiplyScalar(2.4);
   const wall = (z, y0, y1, x0, x1, facing, color) => ({
@@ -62,8 +71,11 @@ export function garageLights() {
 
 export async function createGarage(named, shared, { reduced = false, reflectLayer = 2 } = {}) {
   const door = named.garage_door;
-  const screen = named.garage_screen;
   const parts = [];
+  let monitorAllowed = false;
+  let monitorVideo = null;
+  const media = [];
+  const pauseMedia = () => media.forEach((item) => item.video.pause());
 
   // ---- the door -------------------------------------------------------------
   const doorUniforms = { ...shared, uDoor: { value: 0 }, uRattle: { value: 0 } };
@@ -124,7 +136,8 @@ export async function createGarage(named, shared, { reduced = false, reflectLaye
   }
 
   // ---- the monitor ------------------------------------------------------------
-  if (screen) {
+  const bindScreen = async (screen) => {
+    if (!screen) return;
     const source = await preloadMoon();
     const map = source.clone();
     map.colorSpace = THREE.SRGBColorSpace;
@@ -171,7 +184,33 @@ export async function createGarage(named, shared, { reduced = false, reflectLaye
     screen.material = material;
     screen.layers.enable(reflectLayer);
     parts.push({ material, map });
-  }
+    // The old room's muted moon loop remains on the shared city monitor.
+    // It requests no bytes before readiness and rests outside the visit.
+    const video = document.createElement("video");
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.preload = "none";
+    let texture = null;
+    const loaded = () => {
+      texture = new THREE.VideoTexture(video);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.flipY = false;
+      material.uniforms.uMap.value = texture;
+    };
+    video.addEventListener("loadeddata", loaded, { once: true });
+    const item = { video, dispose() {
+      video.pause();
+      video.removeEventListener("loadeddata", loaded);
+      video.removeAttribute("src");
+      video.load();
+      texture?.dispose();
+    } };
+    media.push(item);
+    monitorVideo?.pause();
+    monitorVideo = video;
+  };
+  await bindScreen(named.garage_screen);
 
   // ---- drips off the drum -----------------------------------------------------
   const drop = new THREE.BoxGeometry(0.012, 1, 0.012);
@@ -244,12 +283,20 @@ export async function createGarage(named, shared, { reduced = false, reflectLaye
 
   return {
     mesh: drips,
+    bindScreen,
+    pauseMedia,
+    allowMonitor(on) { monitorAllowed = on; if (!on) pauseMedia(); },
     /**
      * `position` is the stage position, `garage` the garage's own index in
      * it (or -1 on a page without one). A case study's route holds the
      * door where it was.
      */
     update(dt, position, garage) {
+      const showMonitor = monitorAllowed && !reduced && garage >= 0 && Math.abs(position - garage) < 1;
+      if (monitorVideo && showMonitor) {
+        if (!monitorVideo.src) monitorVideo.src = `${import.meta.env.BASE_URL}scenes/garage/moon-braindance.mp4`;
+        if (monitorVideo.paused) monitorVideo.play().catch(() => {});
+      } else pauseMedia();
       if (garage >= 0) {
         const k = THREE.MathUtils.clamp((position - (garage - DOOR_FROM)) / (DOOR_FROM - DOOR_TO), 0, 1);
         open = k * k * (3 - 2 * k);
@@ -269,6 +316,7 @@ export async function createGarage(named, shared, { reduced = false, reflectLaye
     },
     dispose() {
       drips.removeFromParent();
+      media.forEach((item) => item.dispose());
       for (const p of parts) {
         p.material.dispose();
         p.map?.dispose();
@@ -511,8 +559,72 @@ export function createGarageVisit(anchors) {
   const entry = (aspect) => tierOf(aspect).routes.entry;
   const exit = (aspect) => tierOf(aspect).routes.exit;
 
+  /** Leaving a route replays the safe visit backwards, then retraces
+   *  entry through the door. Returning during that motion reverses the
+   *  same cursor; it never constructs an outdoor arc inside the room. */
+  const transition = (progress, aspect) => {
+    const start = clamp(progress, 0, 1);
+    let p = start;
+    let u = 0;
+    // The timeline allocates unequal time to paths and holds. Exit travel
+    // is measured on its actual route, so a short p interval cannot make
+    // the camera leap metres in one frame.
+    const distances = [0];
+    let previous = at(0, aspect);
+    const samples = 4096;
+    for (let i = 1; i <= samples; i++) {
+      const next = at(i / samples, aspect);
+      distances.push(distances[i - 1] + previous.position.distanceTo(next.position));
+      previous = next;
+    }
+    const scaled = start * samples;
+    const index = Math.min(samples - 1, Math.floor(scaled));
+    const origin = distances[index] + (distances[index + 1] - distances[index]) * (scaled - index);
+    let distance = origin;
+    const speed = distances[samples] / 4;
+    const progressAt = (d) => {
+      if (d >= origin) return start;
+      let lo = 0;
+      let hi = samples;
+      while (hi - lo > 1) {
+        const middle = (lo + hi) >> 1;
+        if (distances[middle] <= d) lo = middle;
+        else hi = middle;
+      }
+      return (lo + (d - distances[lo]) / Math.max(1e-9, distances[hi] - distances[lo])) / samples;
+    };
+    const points = [...entry(aspect), tierOf(aspect).poses.arrival.position].reverse();
+    const outside = makePose();
+    outside.position.copy(points[points.length - 1]);
+    outside.target.copy(points[Math.max(0, points.length - 2)]);
+    outside.fov = tierOf(aspect).poses.arrival.fov;
+    let returning = false;
+    return {
+      reverse(on) { returning = on; },
+      seekOutside() { distance = 0; p = 0; u = 1; },
+      outside: () => copyPose(makePose(), outside),
+      sample(dt, out = makePose()) {
+        if (returning) {
+          if (u > 0) u = Math.max(0, u - dt / 1.6);
+          else { distance = Math.min(origin, distance + dt * speed); p = progressAt(distance); }
+        } else if (distance > 0) { distance = Math.max(0, distance - dt * speed); p = progressAt(distance); }
+        else u = Math.min(1, u + dt / 1.6);
+        if (u === 0) at(p, aspect, out);
+        else {
+          curveAt(points, u, out.position);
+          const arrival = tierOf(aspect).poses.arrival;
+          out.target.copy(arrival.target).lerp(outside.target, smooth01(u));
+          out.fov = arrival.fov;
+          out.shift = 0;
+        }
+        return { pose: out, p, u, done: returning ? u === 0 && p === start : u === 1, returning };
+      },
+    };
+  };
+
   return {
     at,
+    transition,
     sample,
     stateAt,
     stationAt,
@@ -524,5 +636,46 @@ export function createGarageVisit(anchors) {
     },
     /** The poses and paths still the plan's stand-ins, not the kit's. */
     placeholders: [...placeholders],
+  };
+}
+
+/** Camera collision uses separate solids, never render visibility. Returned
+ *  rows are copies, so consumers cannot alter the workshop's collision data. */
+export function createGarageCollision({ solids = () => [], cars = () => [] } = {}) {
+  const rows = () => [...solids().filter((row) => row.camera !== false && Number(row.camera) !== 0), ...cars()];
+  const betweenBoxes = (a, b) => Math.hypot(
+    Math.max(0, a.min.x - b.max.x, b.min.x - a.max.x),
+    Math.max(0, a.min.y - b.max.y, b.min.y - a.max.y),
+    Math.max(0, a.min.z - b.max.z, b.min.z - a.max.z),
+  );
+  return {
+    get solids() { return Object.freeze(solids().map((row) => Object.freeze({ ...row, box: row.box.clone() }))); },
+    cars: () => cars().map((row) => ({ ...row, box: row.box.clone(), matrixWorld: row.matrixWorld?.clone() })),
+    clearance(point) { return rows().reduce((distance, row) => Math.min(distance, row.box.distanceToPoint(point)), Infinity); },
+    sweep(a, b, radius = .45) {
+      const direction = new THREE.Vector3().subVectors(b, a);
+      const length = direction.length();
+      const ray = new THREE.Ray(a, direction.clone().normalize());
+      let t = 1;
+      for (const { box } of rows()) {
+        const expanded = box.clone().expandByScalar(radius);
+        if (expanded.containsPoint(a)) { t = 0; break; }
+        const hit = ray.intersectBox(expanded, new THREE.Vector3());
+        if (hit && length > 0) t = Math.min(t, hit.distanceTo(a) / length);
+      }
+      return { ok: t >= 1, t: clamp(t, 0, 1), point: a.clone().lerp(b, clamp(t, 0, 1)) };
+    },
+    nearPlane(pose, aspect, near = .25) {
+      const forward = new THREE.Vector3().subVectors(pose.target, pose.position).normalize();
+      const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+      const up = new THREE.Vector3().crossVectors(right, forward);
+      const height = near * Math.tan(pose.fov * Math.PI / 360);
+      const center = pose.position.clone().addScaledVector(forward, near).addScaledVector(up, -(pose.shift ?? 0) * height);
+      const bounds = new THREE.Box3();
+      for (const x of [-1, 1]) for (const y of [-1, 1]) bounds.expandByPoint(center.clone().addScaledVector(right, x * height * aspect).addScaledVector(up, y * height));
+      // The oriented rectangle's bounding box is conservative. It may
+      // reject a tight turn, but cannot grant clearance through a solid.
+      return rows().reduce((distance, row) => Math.min(distance, betweenBoxes(bounds, row.box)), Infinity);
+    },
   };
 }
