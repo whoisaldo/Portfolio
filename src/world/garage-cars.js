@@ -44,9 +44,26 @@ export const MAX_DROP = 0.055;
 // A phone's inspected cars, in triangles (PLAN.md budgets).
 export const HIGH_TRIANGLES = { s4: 128868, s6: 150000 };
 export const PHONE_TRIANGLES = { s4: 60000, s6: 70000 };
-// How strongly the paint reflects the workshop, and the engine bay less.
-const PROBE_GAIN = GARAGE_LIGHT_LOOK.probeGain;
-const ENGINE_GAIN = PROBE_GAIN * GARAGE_LIGHT_LOOK.engineProbe;
+// How strongly the road S4's paint reflects the workshop. The parked cars
+// take their own values from GARAGE_LIGHT_LOOK.cars.
+const PROBE_GAIN = GARAGE_LIGHT_LOOK.cars.s4.probeGain;
+// A part at one corner (wheel_fl, a caliper, a strut) stands for all four:
+// the R8 wheels, the brakes and the suspension are on every corner. Its
+// mirror across the car (left and right swapped, the lateral offset
+// negated: car-space X is the car's left) lets the marker sit on whichever
+// side faces the camera. Null when the anchor is not a corner or the
+// mirrored part does not exist.
+const CORNER = /_(f|r)(l|r)$/;
+const mirrorName = (name) => name?.replace(CORNER, (m, end, side) => `_${end}${side === "l" ? "r" : "l"}`);
+function cornerTwin(root, anchor) {
+  if (!CORNER.test(anchor.part ?? "") && !CORNER.test(anchor.carrier ?? "")) return null;
+  const part = mirrorName(anchor.part), carrier = mirrorName(anchor.carrier);
+  if ((part && !root.getObjectByName(part)) || (carrier && !root.getObjectByName(carrier))) return null;
+  const offset = anchor.offset && [-anchor.offset[0], anchor.offset[1], anchor.offset[2]];
+  const { owner, local } = resolveAnchor(root, { ...anchor, part, carrier, offset });
+  return { owner, local };
+}
+
 // The S4's hood shuts in this long when the car has to leave (the garage's
 // own buttons take about as long).
 const HOOD_SECONDS = 0.9;
@@ -365,7 +382,7 @@ export function createGarageCars(ctx) {
     const pins = [];
     for (const [modId, anchor] of Object.entries(specs)) {
       const start = performance.now();
-      pins.push({ key: `${kind}:${modId}`, carId: kind, modId, ...resolveAnchor(root, anchor), needsHoodOpen: Boolean(anchor.inBay), hood: () => hood[kind] });
+      pins.push({ key: `${kind}:${modId}`, carId: kind, modId, ...resolveAnchor(root, anchor), twin: cornerTwin(root, anchor), needsHoodOpen: Boolean(anchor.inBay), hood: () => hood[kind] });
       mainSlices.push(performance.now() - start);
       await slice();
     }
@@ -392,7 +409,8 @@ export function createGarageCars(ctx) {
   };
   const bind = (probe) => {
     road.setProbe(probe, PROBE_GAIN);
-    for (const m of Object.values(made)) {
+    for (const [kind, m] of Object.entries(made)) {
+      const look = GARAGE_LIGHT_LOOK.cars[kind];
       // A material shared with anything outside the bay keeps the paint's gain.
       const engine = new Set(), outside = new Set();
       m.root.traverse((o) => {
@@ -400,9 +418,10 @@ export function createGarageCars(ctx) {
       });
       for (const material of [...engine, ...outside]) {
         material.envMap = probe;
-        material.envMapIntensity = engine.has(material) && !outside.has(material) ? ENGINE_GAIN : PROBE_GAIN;
+        material.envMapIntensity = look.probeGain * (engine.has(material) && !outside.has(material) ? GARAGE_LIGHT_LOOK.engineProbe : 1);
         // The merged paint carries the engine's plain parts too (slim.js).
         if (material.userData.matte) material.userData.matte.value = GARAGE_LIGHT_LOOK.engineProbe;
+        if (material.userData.envSat) material.userData.envSat.value = look.envSaturation;
       }
     }
   };

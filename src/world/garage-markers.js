@@ -19,6 +19,7 @@
 import * as THREE from "three";
 
 const _w = new THREE.Vector3();
+const _t = new THREE.Vector3();
 const _ndc = new THREE.Vector3();
 const _cam = new THREE.Vector3();
 const _o = new THREE.Vector3();
@@ -46,7 +47,8 @@ function crosses(box, o, d) {
 
 /**
  * `anchors` is garage-cars' list (`anchors()`): `{ key, owner, local,
- * needsHoodOpen, hood() }`. `occluders` is a list of `{ box, object? }`: a
+ * twin?, needsHoodOpen, hood() }`, `twin` the same corner part's mirror
+ * `{ owner, local }`; the nearer of the two is the pin's point. `occluders` is a list of `{ box, object? }`: a
  * box in `object`'s own space when it moves (a car), else in the world's
  * (the room's solids); it may be a function returning that list.
  *
@@ -97,13 +99,21 @@ export function createMarkers({ camera, anchors = [], occluders = [] }) {
         const el = get(a.key);
         if (!el) continue;
         registered.add(el);
-        a.owner.updateWorldMatrix(true, false);
-        _w.copy(a.local).applyMatrix4(a.owner.matrixWorld);
+        // A corner part shows on the side of the car that faces the camera
+        // (its twin, from garage-cars.js); occlusion is then tested there.
+        let owner = a.owner;
+        owner.updateWorldMatrix(true, false);
+        _w.copy(a.local).applyMatrix4(owner.matrixWorld);
+        if (a.twin) {
+          a.twin.owner.updateWorldMatrix(true, false);
+          _t.copy(a.twin.local).applyMatrix4(a.twin.owner.matrixWorld);
+          if (_t.distanceToSquared(_cam) < _w.distanceToSquared(_cam)) { owner = a.twin.owner; _w.copy(_t); }
+        }
         _ndc.copy(_w).project(camera);
         const x = ((_ndc.x + 1) / 2) * view.width;
         const y = ((1 - _ndc.y) / 2) * view.height;
         let why = "";
-        for (let owner = a.owner; owner; owner = owner.parent) if (!owner.visible) { why = "unavailable"; break; }
+        for (let o = owner; o; o = o.parent) if (!o.visible) { why = "unavailable"; break; }
         if (why) { /* Hidden representations cannot expose DOM pins. */ }
         else if (_ndc.z <= -1 || _ndc.z >= 1) why = "behind";
         else if (x < left || x > right || y < top || y > bottom) why = "outside";

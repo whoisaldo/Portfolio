@@ -17,6 +17,15 @@ export const GARAGE_LIGHT_LOOK = Object.freeze({
   flankNits: 90,
   workCandela: 35,
   probeGain: 1.6,
+  // Per car: its paint's probe gain and how much of the room's colour its
+  // paint keeps facing the eye (slim.js uEnvSat). The S6's Quartz Gray is
+  // a paler, cooler metallic than the S4's grey and stands by the cyan
+  // north wall; at the S4's values its doors and fender took that wall's
+  // cyan across the whole panel instead of at their edges.
+  cars: Object.freeze({
+    s4: Object.freeze({ probeGain: 1.6, envSaturation: 1 }),
+    s6: Object.freeze({ probeGain: 1.6, envSaturation: 0.1 }),
+  }),
   // Under-hood parts take this share of probeGain, so the engine stays dark
   // and separate from the paint above it.
   engineProbe: 0.5,
