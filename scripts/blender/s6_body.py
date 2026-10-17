@@ -188,12 +188,13 @@ def grid_faces(rows, cols, cyclic=False):
 
 
 def mirror_grid(points, rows, cols):
-    """A half grid (x >= 0, its first column on the centreline) and its mirror image, welded on the centreline."""
+    """A half grid (x >= 0, its last column on the centreline) and its mirror image, sharing the centreline."""
     full = []
     for i in range(rows):
         row = points[i * cols:(i + 1) * cols]
-        left = [Vector((-p.x, p.y, p.z)) for p in reversed(row[1:])]
-        full.extend(left + list(row))
+        # Left belt to the centreline, then back out to the right belt.
+        left = [Vector((-p.x, p.y, p.z)) for p in row[:-1]]
+        full.extend(left + list(reversed(row)))
     return full, 2 * cols - 1
 
 
@@ -780,7 +781,7 @@ def build_greenhouse(parent, glass_mat, trim_mat):
         i, j = divmod(f[0], wide)
         y = (ys[i] + ys[i + 1]) / 2
         # The band this face is in, counted from the belt (0) toward the centre.
-        k = j - (cols - 1) if j >= cols - 1 else cols - 2 - j
+        k = j if j < cols - 1 else 2 * cols - 3 - j
         in_dlo = DLO_Y[0] < y < DLO_Y[1]
         pillar_b = bar = False   # drawn over the glass by build_pillar_trims()
         if k < ns:
@@ -967,16 +968,20 @@ def seat(name, x, y, mat, stitch, parent, rear=False):
     parts.append(rounded_box(name + '_cushion', (x, y, cz), (w * .62, .5, .1), mat, parent, .03))
     for s in (-1, 1):
         parts.append(rounded_box(name + '_bolster', (x + s * w * .4, y, cz + .03), (w * .17, .5, .14), mat, parent, .035))
+    # The back, its panel and the headrest are built round their own centres
+    # and then placed, so their rake pivots there (not about the car's origin).
     back_y = y + .27
-    back = rounded_box(name + '_back', (x, back_y, cz + .33), (w * .9, .12, .62), mat, parent, .04)
-    back.rotation_euler.x = math.radians(-14 if not rear else -20)
-    parts.append(back)
-    # The S6's quilted centre panel, a shade lighter than the bolsters.
-    panel = rounded_box(name + '_stitched_panel', (x, back_y - .065, cz + .33), (w * .48, .02, .48), stitch, parent, .008, 1)
-    panel.rotation_euler.x = back.rotation_euler.x
-    parts.append(panel)
+    rake = math.radians(-14 if not rear else -20)
+    back = rounded_box(name + '_back', (0, 0, 0), (w * .9, .12, .62), mat, parent, .04)
+    # The S6's quilted centre panel, a shade lighter than the bolsters, on the back's face.
+    panel = rounded_box(name + '_stitched_panel', (0, -.065, 0), (w * .48, .02, .48), stitch, parent, .008, 1)
+    for obj in (back, panel):
+        obj.location = (x, back_y, cz + .33)
+        obj.rotation_euler.x = rake
+    parts += [back, panel]
     if not rear:
-        head = rounded_box(name + '_headrest', (x, back_y + .1, cz + .74), (w * .52, .1, .2), mat, parent, .04)
+        head = rounded_box(name + '_headrest', (0, 0, 0), (w * .52, .1, .2), mat, parent, .04)
+        head.location = (x, back_y + .1, cz + .74)
         head.rotation_euler.x = math.radians(-10)
         parts.append(head)
     return parts
@@ -1312,4 +1317,19 @@ def build_diffuser_surround(shell, parent, tree, parts):
     for obj in list(by_base['rear_diffuser'].children):
         if obj.name.startswith('diffuser_aluminium_border'):
             bpy.data.objects.remove(obj, do_unlink=True)
+    return made
+
+
+def build_cabin_closure(parent):
+    """The firewall, the bulkhead behind the parcel shelf and the sills' inner walls:
+    dark panels that close the cabin, so a shut line, the cowl or a wheel well shows
+    darkness, never the upholstery (scripts/check-s6.mjs keeps the cabin inside them)."""
+    dark = material('S6_body_closure', '0a0a0b', 0, .9)
+    x0, y0, y1, z0 = .815, -.955, 1.85, .284   # just under the carpet
+    made = [mesh('firewall', [(-x0, y0, z0), (x0, y0, z0), (x0, y0, 1.0), (-x0, y0, 1.0)], [(0, 1, 2, 3)], dark, parent),
+            mesh('rear_bulkhead', [(-x0, y1, z0), (x0, y1, z0), (x0, y1, 1.12), (-x0, y1, 1.12)], [(0, 1, 2, 3)], dark, parent),
+            mesh('cabin_floor_pan', [(-x0, y0, z0), (x0, y0, z0), (x0, y1, z0), (-x0, y1, z0)], [(0, 1, 2, 3)], dark, parent)]
+    for sign in (1, -1):
+        made.append(mesh('sill_inner_wall', [(sign * x0, y0, z0), (sign * x0, y1, z0), (sign * x0, y1, .97), (sign * x0, y0, .97)],
+                         [(0, 1, 2, 3)], dark, parent))
     return made
