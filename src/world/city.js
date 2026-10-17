@@ -337,7 +337,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   };
   dressProtos(protoMeshes);
   const visibility = createGarageVisibility(anchors);
-  const props = createProps(protoMeshes, propsBuffer, { phone: tier === "phone", reflectLayer: REFLECT_LAYER, visibleBox: visibility.test });
+  const props = createProps(protoMeshes, propsBuffer, { phone: tier === "phone", reflectLayer: REFLECT_LAYER, visibleBox: visibility.test, visibilityKey: () => visibility.inside ? visibility.passKey : null });
   renderer.setOpaqueSort(opaqueOrder);
   sources.push(...props.sources);
   root.add(props.group);
@@ -499,6 +499,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const merged = new Map();
   const cells = createCells(CELL);
   cells.visibleBox = visibility.test;
+  cells.visibilityKey = () => visibility.inside ? visibility.passKey : null;
   cells.partition = garageCellSector;
   // The wet road's mirror draws only what glows or is glazed (the reflect
   // layer), so it saw straight through every other wall to the signs

@@ -37,6 +37,7 @@ let scrollModule;
 let mergeModule;
 let inspectionModule;
 let policyModule;
+let videoModule;
 let carSpecs;
 let s4Mods;
 let GLTFLoader;
@@ -44,6 +45,7 @@ let carDecoder;
 try {
   [world, garage, three, propsModule, materialModule, scrollModule, mergeModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js"), vite.ssrLoadModule("/src/world/scroll-stage.js"), vite.ssrLoadModule("/src/world/merge.js")]);
   policyModule = await vite.ssrLoadModule("/src/world/garage-policy.js");
+  videoModule = await vite.ssrLoadModule("/src/world/garage-video.js");
   ({ cars: carSpecs } = await vite.ssrLoadModule("/src/three/car/object.js"));
   [inspectionModule, { mods: s4Mods }, { GLTFLoader }, { MeshoptDecoder: carDecoder }] = await Promise.all([vite.ssrLoadModule("/src/three/car/inspect.js"), vite.ssrLoadModule("/src/data/garage.js"), vite.ssrLoadModule("three/addons/loaders/GLTFLoader.js"), vite.ssrLoadModule("three/addons/libs/meshopt_decoder.module.js")]);
 } finally {
@@ -75,6 +77,76 @@ check("the provisional S6 stays on the development test path until review", () =
 });
 
 // ---- the timeline -------------------------------------------------------------
+check("monitor textures follow decoded frames and dispose their callbacks", () => {
+  let callback, requests = 0, cancelled = 0, disposed = 0;
+  const video = { readyState: 2, videoWidth: 1280, videoHeight: 720, currentTime: 0,
+    getVideoPlaybackQuality: () => ({ totalVideoFrames: 1 }),
+    requestVideoFrameCallback(fn) { callback = fn; return ++requests; },
+    cancelVideoFrameCallback(id) { cancelled = id; },
+  };
+  const textures = [];
+  const monitor = videoModule.createGarageVideoTexture(video, (texture) => {
+    textures.push(texture); texture.addEventListener("dispose", () => disposed++);
+  });
+  const first = textures[0], initial = first.version;
+  assert.equal(first.isVideoTexture, true, "retain Three's native video upload path");
+  assert.equal(first.internalFormat, "RGBA8", "retain the monitor shader's raw video texels");
+  assert.equal(video.width, video.videoWidth, "the detached element supplies positive storage dimensions");
+  assert.equal(video.height, video.videoHeight);
+  assert.equal(first.colorSpace, three.SRGBColorSpace);
+  assert.equal(first.generateMipmaps, false);
+  callback(0, { presentedFrames: 1, mediaTime: 0 });
+  monitor.update(); monitor.update();
+  assert.equal(first.version, initial, "a repeated decoded frame and render passes do not dirty the texture");
+  callback(1, { presentedFrames: 2, mediaTime: 1 / 24 });
+  assert.equal(first.version, initial + 1, "every new decoded frame is uploaded");
+  callback(1.5, { presentedFrames: 2, mediaTime: 1.5 });
+  assert.equal(first.version, initial + 2, "a paused seek can change media time without advancing the presented-frame counter");
+  video.videoWidth = 1920; video.videoHeight = 1080;
+  callback(2, { presentedFrames: 3, mediaTime: 2 / 24 });
+  assert.equal(textures.length, 2, "a source-size change gets a fresh allocation");
+  assert.equal(disposed, 1);
+  monitor.dispose();
+  assert.equal(disposed, 2);
+  assert.equal(cancelled, requests);
+  const before = requests;
+  callback(3, { presentedFrames: 4, mediaTime: 3 / 24 });
+  assert.equal(requests, before, "a stale decoded callback cannot rearm after disposal");
+});
+check("monitor textures retain the fallback update contract without frame callbacks", () => {
+  const listeners = new Map();
+  const video = { readyState: 2, videoWidth: 1280, videoHeight: 720, currentTime: 0,
+    addEventListener: (name, fn) => listeners.set(name, fn),
+    removeEventListener: (name) => listeners.delete(name),
+  };
+  let texture;
+  const monitor = videoModule.createGarageVideoTexture(video, (map) => { texture = map; });
+  const initial = texture.version;
+  monitor.update(); monitor.update();
+  assert.equal(texture.version, initial);
+  video.currentTime = .5;
+  monitor.update();
+  assert.equal(texture.version, initial + 1);
+  monitor.update();
+  assert.equal(texture.version, initial + 1, "a paused fallback video does not reupload");
+  monitor.dispose();
+  let frames = 1;
+  video.getVideoPlaybackQuality = () => ({ totalVideoFrames: frames });
+  const counted = videoModule.createGarageVideoTexture(video, (map) => { texture = map; });
+  const first = texture.version;
+  video.currentTime = .51; counted.update();
+  video.currentTime = .52; counted.update();
+  assert.equal(texture.version, first, "a playback clock tick is not a new decoded frame");
+  frames++;
+  counted.update();
+  assert.equal(texture.version, first + 1);
+  video.currentTime = 3;
+  listeners.get("seeked")();
+  assert.equal(texture.version, first + 2, "a fallback paused seek updates even with an unchanged frame counter");
+  counted.dispose();
+  assert.equal(listeners.size, 0);
+});
+
 {
   const queue = garage.createGarageBuildQueue();
   const order = [];
@@ -809,6 +881,26 @@ check("room and exterior triangles sharing a tile keep independent visibility", 
   tile.onBeforeRender({ info: { render: { frame: 1 } } }, null, camera);
   assert.deepEqual(cells.list.map((cell) => cell.sector).sort(), ["exterior", "garage_shell"]);
   assert.equal(Array.from(tile._multiDrawCounts).slice(0, tile._multiDrawCount).reduce((sum, n) => sum + n, 0), 36, "the wall-hidden street box cannot borrow the room's tile exemption");
+  cells.visibilityKey = () => visibility.passKey;
+  const commands = () => ({ starts: Array.from(tile._multiDrawStarts).slice(0, tile._multiDrawCount), counts: Array.from(tile._multiDrawCounts).slice(0, tile._multiDrawCount) });
+  tile.onBeforeRender({ info: { render: { frame: 2 } } }, null, camera);
+  const directCommands = commands();
+  const other = camera.clone(); other.lookAt(475, 2, -215); other.updateMatrixWorld();
+  visibility.prepare(other);
+  tile.onBeforeRender({ info: { render: { frame: 3 } } }, null, other);
+  const otherCommands = commands();
+  for (let pass = 0; pass < 3; pass++) {
+    visibility.prepare(camera);
+    tile.onBeforeRender({ info: { render: { frame: 4 + pass * 2 } } }, null, camera);
+    assert.deepEqual(commands(), directCommands, "restore the direct camera's exact runs");
+    visibility.prepare(other);
+    tile.onBeforeRender({ info: { render: { frame: 5 + pass * 2 } } }, null, other);
+    assert.deepEqual(commands(), otherCommands, "restore the other pass's independent runs");
+  }
+  tile.setRuns({ cell: result.value.cell, start: result.value.start, count: Int32Array.from(result.value.count, n => n / 2) });
+  visibility.prepare(camera);
+  tile.onBeforeRender({ info: { render: { frame: 12 } } }, null, camera);
+  assert.equal(commands().counts.reduce((sum, n) => sum + n, 0), 18, "a new district's run table invalidates saved commands");
   geometry.dispose(); tile.material.dispose(); room.geometry.dispose(); street.geometry.dispose();
 });
 
@@ -824,10 +916,47 @@ check("street props use each prototype's bounds within a shared tile", () => {
   const anchors = new Map([["anchor_garage_portal_door", { position: new Vector3(452, 2.3, -215), quaternion: new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2), extras: { width: 6, height: 4.6 } }]]);
   const visibility = garage.createGarageVisibility(anchors), camera = new three.PerspectiveCamera(60, 1.6, .1, 2000);
   camera.position.set(462, 2, -215); camera.lookAt(440, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
-  const props = propsModule.createProps([a, b], buffer, { visibleBox: visibility.test }); props.update(camera);
+  const opaque = material.clone(); opaque.transparent = false; opaque.name = "metal";
+  const c = a.clone(), d = b.clone(); c.material = d.material = opaque;
+  let caching = true, boxReads = 0;
+  const props = propsModule.createProps([a, b, c, d], buffer, {
+    visibleBox: (box, sector) => { boxReads++; return visibility.test(box, sector); },
+    visibilityKey: () => caching && visibility.inside ? visibility.passKey : null,
+  }); props.update(camera);
   assert.equal(props.group.getObjectByName("props_visible_prop_test_glass").count, 1);
   assert.equal(props.group.getObjectByName("props_hidden_prop_test_glass").count, 0);
-  props.dispose(); a.geometry.dispose(); material.dispose();
+  const capture = () => {
+    const meshes = [];
+    props.group.traverse((mesh) => { if (mesh.isMesh) meshes.push({ name: mesh.name, visible: mesh.visible,
+      count: mesh.isInstancedMesh ? mesh.count : null,
+      matrices: mesh.isInstancedMesh ? Array.from(mesh.instanceMatrix.array.slice(0, mesh.count * 16)) : null,
+      starts: mesh.isBatchedMesh ? Array.from(mesh._multiDrawStarts.slice(0, mesh._multiDrawCount)) : null,
+      counts: mesh.isBatchedMesh ? Array.from(mesh._multiDrawCounts.slice(0, mesh._multiDrawCount)) : null,
+    }); });
+    return meshes;
+  };
+  assert.ok(capture().some((mesh) => mesh.counts), "the fixture exercises baked commands as well as instanced matrices");
+  const wall = camera.clone(); wall.lookAt(475, 2, -215); wall.updateMatrixWorld();
+  const reflected = camera.clone(); reflected.position.y = -2; reflected.lookAt(440, -2, -215); reflected.updateMatrixWorld();
+  const outdoors = camera.clone(); outdoors.position.set(440, 2, -215); outdoors.lookAt(462, 2, -215); outdoors.updateMatrixWorld();
+  const spacer = wall.clone(); spacer.updateMatrixWorld();
+  const use = (view) => { visibility.prepare(view); props.update(view); };
+  for (const view of [camera, wall, reflected, outdoors, camera, reflected]) {
+    caching = false; use(spacer); use(view);
+    const expected = capture();
+    caching = true; use(spacer); use(view);
+    assert.deepEqual(capture(), expected, "cached passes submit the same geometry and matrices as the ordinary culler");
+    use(spacer); visibility.prepare(view);
+    const before = boxReads;
+    props.update(view);
+    assert.deepEqual(capture(), expected, "an outdoor pass cannot overwrite an indoor camera's saved lists");
+    if (visibility.inside) assert.equal(boxReads, before, "a stationary pass does not retest every prop box");
+  }
+  camera.fov = 90; camera.updateProjectionMatrix();
+  caching = false; use(spacer); use(camera); const wide = capture();
+  caching = true; use(spacer); use(camera);
+  assert.deepEqual(capture(), wide, "a projection change invalidates the old prop decisions");
+  props.dispose(); a.geometry.dispose(); material.dispose(); opaque.dispose();
 });
 
 check("ordinary exterior meshes keep independent portal visibility across passes", () => {
@@ -913,6 +1042,20 @@ check("portal visibility keeps real openings for main and reflected cameras", ()
   assert.ok(!visibility.test(box(462, 2, -225), "garage_s6"), "outside cannot see through a closed wall");
   assert.equal(visibility.test(box(462, 2, -225), "garage_shell"), true, "the workshop's outer walls and roof stay visible from the street");
   assert.ok(visibility.test(box(440, 1, -150)), "exterior culling is unchanged outdoors");
+  const direct = camera.clone(), reflected = camera.clone();
+  direct.position.set(462, 2, -215); direct.lookAt(475, 2, -215); direct.updateMatrixWorld();
+  reflected.position.set(462, -2, -215); reflected.lookAt(440, -2, -215); reflected.updateMatrixWorld();
+  for (let pass = 0; pass < 3; pass++) {
+    visibility.prepare(direct);
+    assert.equal(visibility.exteriorVisible, false, "restored direct pass keeps its wall cull");
+    assert.equal(visibility.test(box(440, 1, -215)), false);
+    visibility.prepare(reflected);
+    assert.equal(visibility.exteriorVisible, true, "restored reflected pass keeps its own aperture");
+    assert.equal(visibility.test(box(440, 1, -215)), true);
+  }
+  reflected.fov = 5; reflected.updateProjectionMatrix(); reflected.lookAt(440, -2, -150); reflected.updateMatrixWorld();
+  visibility.prepare(reflected);
+  assert.equal(visibility.test(box(440, 1, -215)), false, "a changed lens/pose invalidates the saved pass");
 });
 
 check("immersive Arrival fits its sticky controls and has an inverse mapping", () => {

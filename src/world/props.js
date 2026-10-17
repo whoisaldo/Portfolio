@@ -297,7 +297,7 @@ export function opaqueOrder(a, b) {
  * materials); `buffer`: the props file. Returns { group, update(camera),
  * sources (for the light bake), dispose }.
  */
-export function createProps(protoMeshes, buffer, { phone = false, reflectLayer = 0, visibleBox = null } = {}) {
+export function createProps(protoMeshes, buffer, { phone = false, reflectLayer = 0, visibleBox = null, visibilityKey = null } = {}) {
   const { protos, data, count, sectorRuns = [] } = parseProps(buffer);
   const placementSectors = new Array(count).fill("exterior");
   for (const { sector, start, count: n } of sectorRuns) placementSectors.fill(sector, start, start + n);
@@ -574,13 +574,32 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   let frames = 0;
   let stale = false;
   let lastCamera = null;
+  let lastKey = null;
+  let passes = new WeakMap();
+  const outsideRuns = new Map();
+  const rememberBaked = (mesh, saved = {}) => {
+    saved.geometry = mesh.geometry; saved.visible = mesh.visible;
+    if (mesh.isBatchedMesh) {
+      saved.count = mesh._multiDrawCount;
+      if (!(saved.starts?.length >= saved.count)) {
+        saved.starts = new Int32Array(saved.count);
+        saved.counts = new Int32Array(saved.count);
+      }
+      saved.starts.set(mesh._multiDrawStarts.subarray(0, saved.count));
+      saved.counts.set(mesh._multiDrawCounts.subarray(0, saved.count));
+    }
+    return saved;
+  };
   const update = (camera) => {
     camera.updateMatrixWorld();
     camera.getWorldDirection(_dir);
     const moved = camera.position.distanceToSquared(lastPosition) > 0.25 || _dir.dot(lastDirection) < 0.99985;
+    const key = visibilityKey?.();
     frames++;
-    if (!moved && !stale && camera === lastCamera && frames % 60 !== 0) return;
+    if (!moved && !stale && camera === lastCamera && (!key || key === lastKey) && frames % 60 !== 0) return;
+    if (stale) passes = new WeakMap();
     lastCamera = camera;
+    lastKey = key;
     stale = false;
     if (cellVis.length !== cellList.length) {
       cellVis = new Uint8Array(cellList.length);
@@ -588,27 +607,54 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     }
     lastPosition.copy(camera.position);
     lastDirection.copy(_dir);
-    _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-    _frustum.setFromProjectionMatrix(_vp);
-    const cam = camera.position;
-    for (let c = 0; c < cellList.length; c++) {
-      cellDist[c] = cellList[c].distanceToPoint(cam);
-      cellVis[c] = _frustum.intersectsBox(cellList[c]) && (!visibleBox || visibleBox(cellList[c], cellList[c].sector)) ? 1 : 0;
+    // Room passes alternate between two static cameras. Reuse their exact
+    // cell/run decisions, then pack from the current matrices and deals.
+    // Cached arrays are copies so an uncached outdoor pass cannot alter them.
+    let prepared = key ? passes.get(camera) : null;
+    const cached = prepared?.key === key && prepared?.vis.length === cellList.length;
+    if (cached) {
+      cellVis.set(prepared.vis); cellDist.set(prepared.dist);
+    } else {
+      _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      _frustum.setFromProjectionMatrix(_vp);
+      const cam = camera.position;
+      for (let c = 0; c < cellList.length; c++) {
+        cellDist[c] = cellList[c].distanceToPoint(cam);
+        cellVis[c] = _frustum.intersectsBox(cellList[c]) && (!visibleBox || visibleBox(cellList[c], cellList[c].sector)) ? 1 : 0;
+      }
+      if (key) {
+        prepared ??= { sets: new Map(), baked: new Map() };
+        if (prepared.vis?.length !== cellList.length) {
+          prepared.vis = new Uint8Array(cellList.length);
+          prepared.dist = new Float32Array(cellList.length);
+        }
+        prepared.vis.set(cellVis); prepared.dist.set(cellDist);
+        prepared.key = key;
+        passes.set(camera, prepared);
+      }
     }
     for (const set of sets) {
       const reach = set.reach;
       // The set of cells it is drawn in, as a hash.
-      let sig = 2166136261;
-      for (const run of set.runs) {
-        if (runVisible(run, reach)) sig = Math.imul(sig ^ run.ci, 16777619) >>> 0;
+      const lists = prepared?.sets ?? outsideRuns;
+      let selected = lists.get(set);
+      if (!cached || !selected) {
+        selected ??= { runs: [], sig: 0 };
+        selected.runs.length = 0;
+        let sig = 2166136261;
+        for (const run of set.runs) if (runVisible(run, reach)) {
+          sig = Math.imul(sig ^ run.ci, 16777619) >>> 0;
+          selected.runs.push(run);
+        }
+        selected.sig = sig;
+        lists.set(set, selected);
       }
-      if (sig === set.sig) continue;
-      set.sig = sig;
+      if (selected.sig === set.sig) continue;
+      set.sig = selected.sig;
       let c = 0;
       const dst = set.instanced[0]?.instanceMatrix.array;
       const dealt = set.aDeal;
-      for (const run of set.runs) {
-        if (!runVisible(run, reach)) continue;
+      for (const run of selected.runs) {
         dst?.set(set.matrices.subarray(run.start * 16, run.end * 16), c * 16);
         if (dealt.length) dealt[0].array.set(set.deals.subarray(run.start, run.end), c);
         c += run.end - run.start;
@@ -630,7 +676,20 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         dealt[m].needsUpdate = true;
       }
     }
-    for (const mesh of baked.values()) mesh.show(cellVis, cellDist);
+    for (const mesh of baked.values()) {
+      const saved = prepared?.baked.get(mesh);
+      if (cached && saved?.geometry === mesh.geometry) {
+        mesh.visible = saved.visible;
+        if (mesh.isBatchedMesh) {
+          mesh._multiDrawCount = saved.count;
+          mesh._multiDrawStarts.set(saved.starts.subarray(0, saved.count));
+          mesh._multiDrawCounts.set(saved.counts.subarray(0, saved.count));
+        }
+      } else {
+        mesh.show(cellVis, cellDist);
+        if (prepared) prepared.baked.set(mesh, rememberBaked(mesh, saved));
+      }
+    }
   };
 
   // The light the props give the street, for the bake (src/world/spill.js):
@@ -722,7 +781,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       if (covered.some((n) => n !== 1)) throw new Error("garage placements lack sector coverage");
       const available = new Set(meshes.map((mesh) => mesh.userData.proto ?? mesh.name.replace(/^proto_/, "").replace(/_[a-z]+(_[a-z]+)?$/, "")));
       for (let i = 0; i < count; i++) if (!available.has(protos[data[i * 8]].name)) throw new Error(`missing garage prototype ${protos[data[i * 8]].name}`);
-      const children = [createProps(meshes, buffer, { phone, reflectLayer, visibleBox })];
+      const children = [createProps(meshes, buffer, { phone, reflectLayer, visibleBox, visibilityKey })];
       let committed = false;
       const commit = () => {
         if (committed) return;
