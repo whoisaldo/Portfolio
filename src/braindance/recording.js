@@ -42,7 +42,7 @@ export const CHAPTERS = [
   { id: "plaza", t: bar(11), pivot: [79, 14, -228], orbit: { radius: [18, 60], pitch: [2, 40], yaw: [180, 75] } },
   { id: "corpo", t: bar(25), pivot: "car", orbit: { radius: [8, 40], pitch: [3, 50] } },
   { id: "roof", t: bar(35), pivot: [452, 37, -270], orbit: { radius: [8, 30], pitch: [3, 45], yaw: [70, 80] } },
-  { id: "garage", t: bar(49), pivot: "car", orbit: { radius: [3.6, 8], pitch: [2, 35] } },
+  { id: "garage", t: bar(49), pivot: "recording", orbit: { radius: [0.45, 24], pitch: [-75, 75], collision: true } },
   { id: "moon", t: bar(64), pivot: [456, 10, -203], orbit: { radius: [4, 20], pitch: [0, 40], yaw: [50, 70] } },
   { id: "end", t: bar(75), pivot: [456, 10, -203], orbit: { radius: [4, 20], pitch: [0, 40], yaw: [50, 70] } },
 ];
@@ -66,7 +66,7 @@ const CAR = [
   { t: [bar(25), bar(35) - 1], u: [392, 702], ease: "cruise" },
   { t: [bar(35), bar(38)], u: [716, 757.6], ease: "out" },
   // Off the rooftop's mark and round into Bay 01, parked as the tubes strike.
-  { t: [bar(46) + 0.6, bar(53) + 0.6], u: [757.6, 834.9], ease: "inout" },
+  { t: [bar(46) + 0.6, bar(50)], u: [757.6, 834.9], ease: "inout" },
 ];
 
 // A cruise: up to speed over the first eighth, steady, and down to the
@@ -152,15 +152,14 @@ const SHOTS = [
   { t: [bar(39), bar(43)], kind: "move", from: { position: [470, 39.5, -262], target: [450, 38, -285], fov: 42 }, to: { position: [465, 38.9, -266], target: [448, 38.6, -288], fov: 42 }, ease: "sine", cut: true },
   { t: [bar(43), bar(46)], kind: "move", from: { position: "cam_stack", target: "cam_stack_target", fov: 42 }, to: { position: "cam_stack", target: [380, 42, -246], fov: 42 }, ease: "sine", cut: true },
   { t: [bar(46), bar(49)], kind: "chase", offset: [-1.8, 3.2, -9], offsetTo: [-1.4, 2.4, -8], look: [0, 1, 9], fov: [46, 44], cut: true },
-  // 5 Bay 01. In after the car through the door, round it under the tubes,
-  // and in close.
-  { t: [bar(49), bar(55)], kind: "path", points: ["cam_garage_street", "cam_garage_across", "cam_garage_door", "cam_garage_in", "cam_garage_swing", "cam_garage"], look: "car", lookOffset: [0, 0.9, 0], lookTo: "cam_garage_target", lookBlend: [0.8, 1], fov: 48, ease: "sine" },
-  { t: [bar(55), bar(60)], kind: "orbit", centre: "car", look: [0, 0.75, 0], radius: [6.4, 5.8], height: [1.5, 1.1], angle: [40, 160], fov: [40, 38], ease: "sine", blend: 1.5 },
-  { t: [bar(60), bar(63)], kind: "orbit", centre: "car", look: [0, 0.5, 1.4], radius: [3.4, 3.1], height: [0.45, 0.6], angle: [-20, 14], fov: [30, 28], ease: "sine", cut: true },
-  { t: [bar(63), bar(64)], kind: "chase", offset: [1.1, 0.75, -3.4], offsetTo: [0.6, 0.8, -2.9], look: [0, 0.7, 0], fov: 30, cut: true },
+  // 5 The workshop. Shared validated paths and pure car states preserve
+  // every stop when the tape jumps, pauses or runs backwards.
+  { t: [bar(49), bar(50)], kind: "garage", phase: "entry", cut: true },
+  { t: [bar(50), bar(63)], kind: "garage", phase: "visit" },
+  { t: [bar(63), bar(64)], kind: "garage", phase: "exit" },
   // 6 The moon. Up from the street onto the garage roof, the moon over the
   // city, and the call that comes in.
-  { t: [bar(64), bar(67)], kind: "path", points: [[432, 3, -222], [440, 6.5, -214], "cam_contact_via", "cam_contact"], look: { w: MOON_LOOK }, fov: 40, ease: "inout" },
+  { t: [bar(64), bar(67)], kind: "path", points: ["anchor_garage_node_outside", "cam_contact_via", "cam_contact"], look: { w: MOON_LOOK }, fov: 40, ease: "inout" },
   { t: [bar(67), bar(75)], kind: "fixed", position: "cam_contact", target: { w: MOON_LOOK }, fov: 40, push: 2 },
   // 7 End of recording.
   { t: [bar(75), DURATION + 1], kind: "fixed", position: "cam_contact", target: { w: MOON_LOOK }, fov: 40, push: 0.6, blend: 0.4 },
@@ -168,8 +167,18 @@ const SHOTS = [
 
 export const SHOT_COUNT = SHOTS.length;
 
-export function createRecording(anchors, road) {
-  const at = (name) => anchors.get(name)?.position;
+export function createRecording(anchors, road, { garage = () => null, aspect = () => 1.6 } = {}) {
+  // The chapter keeps its original bars. Entry and exit each take one bar;
+  // the six-stop visit uses the same progress and hood/drop table as scroll.
+  // Start the gate before the S4 can reach the shutter, while the camera
+  // is still on the completed rooftop/street side of the recording.
+  const garageRange = { start: bar(46), end: bar(64) };
+  const needsGarage = (t) => t >= garageRange.start && t < garageRange.end;
+  const garageProgress = (t) => clamp((t - bar(50)) / (bar(63) - bar(50)), 0, 1);
+  // A failed room may never publish its outside node. The existing Contact
+  // approach is a finished exterior waypoint for continuing after a skip.
+  const at = (name) => anchors.get(name)?.position
+    ?? (name === "anchor_garage_node_outside" ? anchors.get("cam_contact_via")?.position : undefined);
   const vec = (v, out) => (typeof v === "string" ? out.copy(at(v) ?? out.set(0, 0, 0)) : out.fromArray(v));
 
   // The car at time t: where, which way, how fast.
@@ -193,13 +202,14 @@ export function createRecording(anchors, road) {
   // built once per shot.
   const curves = new Map();
   const curveOf = (shot) => {
-    if (!curves.has(shot)) {
+    const sources = shot.points.map((q) => typeof q === "string" ? at(q) : q);
+    if (!curves.has(shot) || curves.get(shot).sources.some((q, i) => q !== sources[i])) {
       const c = new THREE.CatmullRomCurve3(shot.points.map((q) => vec(q, new THREE.Vector3())), false, "centripetal");
       c.arcLengthDivisions = 400;
       c.updateArcLengths();
-      curves.set(shot, c);
+      curves.set(shot, { curve: c, sources });
     }
-    return curves.get(shot);
+    return curves.get(shot).curve;
   };
 
   const _a = new THREE.Vector3();
@@ -233,6 +243,14 @@ export function createRecording(anchors, road) {
     out.fov = range(shot.fov ?? 40, p);
     out.shift = shot.shift ?? 0;
     switch (shot.kind) {
+      case "garage": {
+        const poses = garage()?.poses;
+        if (!poses) throw new Error("The workshop camera is not ready");
+        if (shot.phase === "entry") poses.sample("entry", "outside", "arrival", p, aspect(), out);
+        else if (shot.phase === "exit") poses.sample("exit", "shop", "outside", p, aspect(), out);
+        else poses.at(p, aspect(), out);
+        break;
+      }
       case "fixed": {
         vec(shot.position, out.position);
         target(shot, 0, p, out.target);
@@ -353,8 +371,15 @@ export function createRecording(anchors, road) {
     out.carHeading = car.heading;
     out.board = boardAt(t);
     out.towers = litTowers(t);
-    out.garage.door = clamp((t - (bar(49) + 0.4)) / 3.6, 0, 1);
-    out.garage.tubes = t >= bar(53) + 0.4;
+    const ready = garage()?.state?.availability === "ready";
+    out.garage.door = ready ? clamp((t - bar(47.5)) / (bar(49) - bar(47.5)), 0, 1) : 0;
+    out.garage.tubes = ready && t >= bar(50);
+    out.garage.active = t >= bar(49) && t < bar(64);
+    out.garage.p = out.garage.active ? garageProgress(t) : null;
+    const state = out.garage.active ? garage().poses.stateAt(out.garage.p) : null;
+    out.garage.hood.s4 = state?.hood.s4 ?? 0;
+    out.garage.hood.s6 = state?.hood.s6 ?? 0;
+    out.garage.lowering = state?.lowering ?? 0;
     out.mirror = 1 - clamp((out.pose.position.y - 6) / 22, 0, 1);
     return out;
   };
@@ -393,7 +418,7 @@ export function createRecording(anchors, road) {
     car: { u: 0, v: 0 },
     carPosition: new THREE.Vector3(),
     carHeading: 0,
-    garage: { door: 0, tubes: false },
+    garage: { door: 0, tubes: false, active: false, p: null, hood: { s4: 0, s6: 0 }, lowering: 0 },
     towers: [],
     board: 0,
     glitch: 0,
@@ -409,5 +434,5 @@ export function createRecording(anchors, road) {
   // chunk imports and so changes /recruiters' files).
   const city = { boardSlot: BOARD_SLOT, boardCount: BOARDS.length, towers: TOWERS.map((tw) => tw.slug) };
 
-  return { evaluate, frame, carAt: placeCar, towerPasses, copyPose, city };
+  return { evaluate, frame, needsGarage, garageRange, garageProgress, carAt: placeCar, towerPasses, copyPose, city };
 }

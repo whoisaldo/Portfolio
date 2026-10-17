@@ -10,8 +10,7 @@
 //   project has key art for the billboard;
 //   the road the car drives runs from the hero's curb marks to the garage
 //   bay, and the car's stops are on it;
-//   the flight into the garage ends on GarageModel's own front preset
-//   (src/data/world.js copies it; src/lib/garage-scene.js owns it);
+//   every garage station has paired poses and a hold on the shared route;
 //   the size budgets: the core GLB (what the hero needs and every named
 //   piece) 2.6 MB on a desktop and 1.2 MB on a phone, each streamed pack
 //   2.2 MB and 1.0 MB, no texture over 1024 px.
@@ -48,7 +47,7 @@ try {
   await vite.close();
 }
 const { sections } = data.site;
-const { SHOTS, GARAGE_FRONT, towers, boards } = data.world;
+const { SHOTS, GARAGE_STATIONS, GARAGE_POSES, GARAGE_TIMELINE, towers, boards } = data.world;
 const { experiences } = data.experience;
 const { featuredProjects } = data.projects;
 
@@ -156,14 +155,13 @@ for (const b of boards) {
   assert.ok(b.art?.webp?.[1024] || b.art?.src, `${b.slug} has no key art for the billboard.`);
 }
 
-// ---- the garage handoff -----------------------------------------------------------
-const garage = readFileSync("src/lib/garage-scene.js", "utf8");
-const preset = garage.match(/front:\s*\{\s*position:\s*\[([^\]]+)\],\s*target:\s*\[([^\]]+)\]/);
-assert.ok(preset, "Could not read PRESETS.front from src/lib/garage-scene.js.");
-const nums = (s) => s.split(",").map(Number);
-assert.deepEqual(nums(preset[1]), GARAGE_FRONT.position, "GARAGE_FRONT.position no longer matches PRESETS.front.");
-assert.deepEqual(nums(preset[2]), GARAGE_FRONT.target, "GARAGE_FRONT.target no longer matches PRESETS.front.");
-const fov = garage.match(/new THREE\.PerspectiveCamera\((\d+(?:\.\d+)?)/);
-assert.ok(fov && Number(fov[1]) === GARAGE_FRONT.fov, "GARAGE_FRONT.fov no longer matches the garage camera.");
+// ---- the shared-world garage handoff ---------------------------------------
+// Every station has a complete pose and a matching hold. check:garage
+// additionally evaluates the continuous paths, doorway and interruptions.
+assert.deepEqual(GARAGE_STATIONS.map((station) => station.id), ["arrival", "s4", "s4-bay", "s6", "s6-bay", "shop"]);
+for (const station of GARAGE_STATIONS) {
+  assert.ok(GARAGE_POSES[station.pose]?.wide && GARAGE_POSES[station.pose]?.portrait, `Missing paired pose for ${station.id}`);
+  assert.ok(GARAGE_TIMELINE.some((stretch) => stretch.hold === station.pose), `Missing hold for ${station.id}`);
+}
 
 console.log(`World OK. ${sections.length} shots, ${towers.length} towers, ${boards.length} boards; ${report.join("; ")}.`);

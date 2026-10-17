@@ -32,6 +32,8 @@ import { createFloods } from "./floods.js";
 import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
 import { createGarage, garageLights } from "./garage.js";
+import { GARAGE_PHOTOS_ENABLED } from "../components/garage/features.js";
+import { createGarageMaterials } from "./garage-materials.js";
 import { appendMeshesSteps, asOneRun, attributeKey, mergeMeshes, mergeMeshesSteps, joinSteps, createCells, cutSteps, Tiled, toFloat } from "./merge.js";
 import { LAMPS } from "./glsl.js";
 
@@ -146,7 +148,13 @@ export function preloadCity(tier) {
 /** The districts that stream in behind the core (BIBLE.md, "How it
  *  loads"): each pack's GLB, fetched once and kept like the core's. */
 const packCache = new Map();
-export const PACKS = Object.keys(worldPackUrl.high);
+// The garage's room is a pack too, but not one of these: it is not streamed
+// with the districts, it is asked for by the garage's own readiness
+// (world-scene.js, prepareGarage), after the hero is up and as the reader
+// heads for it.
+export const GARAGE_PACK = "garage";
+export const PACKS = Object.keys(worldPackUrl.high).filter((name) => name !== GARAGE_PACK);
+export const hasGaragePack = (tier) => Boolean(worldPackUrl[tier]?.[GARAGE_PACK]);
 export function preloadPack(tier, pack) {
   const key = `${tier}:${pack}`;
   if (!packCache.has(key)) {
@@ -221,6 +229,10 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   maps.shops.needsUpdate = true;
 
   const kit = createMaterialKit(shared, { maps, reduced });
+  // The workshop's own surfaces, from the garage pack's own pictures as it
+  // is dressed (src/world/garage-materials.js).
+  const garageMats = createGarageMaterials(shared, { kit, maxAnisotropy: renderer.capabilities.getMaxAnisotropy() });
+  garageMats.setRects(garageLights());
   const road = createRoadMaterial(shared, { maps, reflection: quality.reflection > 0, reduced });
   const paint = createRoadMaterial(shared, { maps, reflection: quality.reflection > 0, paint: true, reduced });
 
@@ -264,8 +276,14 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     const sources = [];
     for (const mesh of meshes) {
       const name = mesh.material.name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
-      oldMaterials.add(mesh.material);
-      const mat = name === "asphalt" ? road.material : name === "paint" ? paint.material : name.startsWith("neon_") ? neonAs(mesh, name) : kit.forName(mesh.material.name);
+      const assetKind = mesh.userData.assetKind ?? mesh.material.userData?.assetKind
+        ?? (/garage_board|shop_photos/.test(`${mesh.name} ${name}`) ? "personal-photo" : /garage_screen|garage_identity_poster/.test(`${mesh.name} ${name}`) ? "identity-art" : null);
+      if (assetKind) mesh.userData.assetKind = assetKind;
+      // (A workshop material's pictures are the garage's now: not the
+      // pack's to dispose of with its material.)
+      const own = garageMats.owns(mesh.material);
+      if (!own) oldMaterials.add(mesh.material);
+      const mat = own ? garageMats.forName(mesh.material) : name === "asphalt" ? road.material : name === "paint" ? paint.material : name.startsWith("neon_") ? neonAs(mesh, name) : kit.forName(mesh.material.name);
       if (mat) mesh.material = mat;
       unread(mesh);
       if (name.startsWith("neon_")) {
@@ -519,7 +537,11 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     root.updateMatrixWorld(true);
     const groups = new Map();
     for (const mesh of meshes) {
-      const key = `${mesh.material.uuid}|${attributeKey(mesh.geometry)}|${mesh.layers.mask}|${mesh.renderOrder}`;
+      // (The garage's room is cut into rooms of its own, visibility sectors
+      // the camera's portals choose between, so a piece of it never joins
+      // a batch of the city's or of another room's.)
+      const sector = mesh.userData.visibilitySector ?? "";
+      const key = `${mesh.material.uuid}|${attributeKey(mesh.geometry)}|${mesh.layers.mask}|${mesh.renderOrder}|${sector}|${mesh.userData.assetKind ?? ""}`;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(mesh);
     }
@@ -570,11 +592,19 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       mesh.layers.mask = list[0].layers.mask;
       mesh.renderOrder = list[0].renderOrder;
       mesh.matrixAutoUpdate = false;
+      if (list[0].userData.assetKind) mesh.userData.assetKind = list[0].userData.assetKind;
+      // Which room it is, kept once the meshes it was made of are gone.
+      if (list[0].userData.visibilitySector) {
+        mesh.userData.sector = list[0].userData.visibilitySector;
+        mesh.name = `kit_${material.name}_${mesh.userData.sector}`;
+      }
       if (occluder && OCCLUDES.has(material.name) && !mesh.layers.isEnabled(REFLECT_LAYER)) {
         const twin = mesh.runs ? new Tiled(whole, occluder, cells, mesh.runs) : new THREE.Mesh(whole, occluder);
         twin.name = `occ_${material.name}`;
         twin.layers.set(MIRROR_LAYER);
         twin.matrixAutoUpdate = false;
+        if (mesh.userData.sector) twin.userData.sector = mesh.userData.sector;
+        if (mesh.userData.assetKind) twin.userData.assetKind = mesh.userData.assetKind;
         mesh.userData.twin = twin;
       }
       made.push({ key, list, whole, mesh, prev, bytes: bytesOf(whole) });
@@ -658,6 +688,8 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   scene.add(root);
   const packSigns = [];
   const packsAdded = [];
+  const pendingPacks = new Map();
+  const garageSolids = [];
 
   // The road the car drives: world points, sampled a metre apart in Blender.
   const roadNode = root.getObjectByName("road_spline");
@@ -673,6 +705,8 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     towers,
     logos,
     garage,
+    garageMaterials: garageMats,
+    garageSolids,
     moonDisc,
     kit,
     roadMaterial: road,
@@ -688,7 +722,14 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
      * (the clearance field) and then merged into the core's own, material
      * by material, tile by tile.
      */
-    async addPack(name, packScene, { beforeMerge = null, between = async () => {}, ready = null } = {}) {
+    async addPack(name, packScene, { beforeMerge = null, between = async () => {}, ready = null, placements = null, validate = null } = {}) {
+      if (packsAdded.includes(name)) return name;
+      const pending = pendingPacks.get(name);
+      if (pending) {
+        if (ready) await ready(pending.drawn);
+        pending.commit();
+        return name;
+      }
       // (load: in pieces, `between()` resolving when the page has a moment
       // between its frames: its parts made, its light baked and its kit
       // merged out of sight, then all of it put in the city in one go, so
@@ -708,30 +749,39 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       const kitMeshes = [];
       const batches = [];
       const packProtos = [];
+      const packNamed = [];
+      const packSolids = [];
+      const hidden = [];
       pack.traverse((o) => {
         if (!o.isMesh) return;
-        if (o.name.startsWith("proto_")) packProtos.push(o);
+        if (!GARAGE_PHOTOS_ENABLED && (/^garage_board_(bmw|bench|competitions)$/.test(o.name) || /^NCW_garage_shop_photos(?:\.\d+)?$/.test(o.material?.name ?? ""))) hidden.push(o);
+        else if (/^(collide_garage_|nav_garage_floor_)/.test(o.name)) {
+          hidden.push(o);
+          if (o.name.startsWith("collide_")) packSolids.push({ name: o.name, box: new THREE.Box3().setFromObject(o), ...o.userData });
+        } else if (o.name === "garage_screen") packNamed.push(o);
+        else if (o.name.startsWith("proto_")) packProtos.push(o);
         else if (/^NCW_sign(\.\d+)?$/.test(o.material?.name ?? "") && o.geometry.attributes.color) batches.push(o);
         else kitMeshes.push(o);
       });
+      for (const node of hidden) node.removeFromParent();
       const more = [];
       for (const mesh of kitMeshes) {
         more.push(...dress([mesh]));
         await between();
       }
-      // The prototypes only this district places came with it: its props
-      // are drawn from now on, and light its streets in the bake.
-      let heldProps = null;
-      if (packProtos.length) {
-        for (const mesh of packProtos) {
-          dressProtos([mesh]);
-          await between();
-        }
-        protoMeshes.push(...packProtos);
-        heldProps = props.addProtos(packProtos, { hold: true });
-        more.push(...heldProps.sources);
+      for (const mesh of packProtos) {
+        dressProtos([mesh]);
         await between();
       }
+      // Validate resources before adding light, props or geometry to shared
+      // state. A failed map load can retry without duplicating a room.
+      if (validate) validate();
+      for (const node of packNamed) if (node.name === "garage_screen") await garage.bindScreen(node);
+      let heldProps = null;
+      if (placements) heldProps = props.addPlacements([...protoMeshes, ...packProtos], placements, { hold: true });
+      else if (packProtos.length) heldProps = props.addProtos(packProtos, { hold: true });
+      if (heldProps) more.push(...heldProps.sources);
+      await between();
       const faces = await run(unpackSteps(batches));
       const heldSigns = await run(signs.addFacesSteps(faces));
       if (heldSigns) more.push(...heldSigns.sources);
@@ -742,6 +792,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       await between();
       const next = await bake.finishSliced(between);
       props.disposeBake();
+      heldProps?.disposeBake?.();
       await between();
       // The clearance field a few thousand triangles at a time: the same
       // triangles as the meshes whole (each its highest point over the
@@ -756,13 +807,18 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       }
       const commitKit = await run(mergeSteps(kitMeshes));
       const drawnProps = heldProps ? await run(heldProps.prepare()) : [];
-      if (ready) {
-        const drawn = [...commitKit.drawn, ...drawnProps.map((d) => ({ ...d, bytes: bytesOf(d.geometry) + (d.extra ?? []).reduce((n, a) => n + a.array.byteLength, 0) }))];
-        if (heldSigns) drawn.push({ object: heldSigns.mesh, geometry: heldSigns.geometry, bytes: bytesOf(heldSigns.geometry) });
-        await ready(drawn);
-      }
+      const drawn = [...commitKit.drawn, ...drawnProps.map((d) => ({ ...d, bytes: bytesOf(d.geometry) + (d.extra ?? []).reduce((n, a) => n + a.array.byteLength, 0) }))];
+      if (heldSigns) drawn.push({ object: heldSigns.mesh, geometry: heldSigns.geometry, bytes: bytesOf(heldSigns.geometry) });
+      const commit = () => {
       // ---- the district, in one go ----
       heldProps?.commit();
+      garageSolids.push(...packSolids);
+      for (const node of packNamed) {
+        named[node.name]?.removeFromParent();
+        named[node.name] = node;
+        root.add(node);
+      }
+      protoMeshes.push(...packProtos);
       if (heldSigns) {
         const mesh = heldSigns.commit();
         // (Every pack's faces after the first join the first's mesh.)
@@ -781,6 +837,13 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       commitKit();
       for (const f of faces) f.geometry.dispose();
       packsAdded.push(name);
+        pendingPacks.delete(name);
+      };
+      // A shader/upload failure retries this staged transaction. It does
+      // not rebake the same sources or append duplicate props/geometry.
+      pendingPacks.set(name, { drawn, commit });
+      if (ready) await ready(drawn);
+      commit();
       return name;
     },
     /** (load) The light bake's working arrays let go: every district is in. */
@@ -817,6 +880,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         m.dispose();
       });
       for (const m of Object.values(maps)) m?.dispose?.();
+      garageMats.dispose();
       kit.dispose();
       road.dispose();
       paint.dispose();

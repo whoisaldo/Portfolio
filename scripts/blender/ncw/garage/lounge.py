@@ -21,7 +21,7 @@ from ncw.kit import GLOW, box, cylinder, pipe, poly, quad
 from ncw.props import BOARD, CARTON, POSTER, SHEET, carton, lathe, proto
 from ncw.garage.shapes import (
     BLACK_PAINT, CABLE, CHROME, GREEN, GRIME, GUN, GUN_DARK, OFFWHITE, RED, RUBBER, STEEL_MID, WHITE_PAINT,
-    WOOD_DARK, YELLOW, beam, cable, flat, lin, shade, soft, stroke, words,
+    WOOD_DARK, YELLOW, beam, cable, flat, lin, shade, soft, solid, stroke, words,
 )
 
 VINYL = lin("3b0a10")
@@ -31,7 +31,7 @@ VINYL_LIGHT = lin("5a1a1e")
 # ---------------------------------------------------------------------------
 # The lounge.
 # ---------------------------------------------------------------------------
-@proto("garage_couch", box=(1.06, 0.45, 0.46))
+@proto("garage_couch", box=(1.06, 0.5, 0.46))
 def _couch(k):
     """A worn two-seat couch in oxblood vinyl: its base, two seat cushions
     sagged in the middle, two back cushions leaning, the arms, short legs;
@@ -54,7 +54,7 @@ def _couch(k):
     quad(n, (-1.011, 0.5, 0.1), (-1.011, 0.5, 0.3), (-1.011, 0.6, 0.3), (-1.011, 0.6, 0.1), col=lin("a08f5c"))
 
 
-@proto("garage_fridge", box=(0.3, 0.73, 0.32))
+@proto("garage_fridge", box=(0.3, 0.73, 0.34))
 def _fridge(k):
     """An old shop fridge, 1.45 m: off-white, grubby round its handle, its
     freezer door over the main one, a grille at its foot, stickers, a
@@ -95,7 +95,7 @@ def _side_table(k):
     quad(k("print"), (0.0, h + 0.002, 0.28), (0.21, h + 0.002, 0.3), (0.23, h + 0.002, 0.03), (0.02, h + 0.002, 0.01), col=(0.62, 1.0, SHEET, CARTON))
 
 
-@proto("garage_coffee", box=(0.42, 0.75, 0.27), reach=260)
+@proto("garage_coffee", box=(0.42, 0.75, 0.28), reach=260)
 def _coffee(k):
     """The coffee: a low cabinet, a filter machine on it with its carafe on
     the hot plate and its red light, three mugs, a stack of paper cups, a
@@ -126,7 +126,7 @@ def _coffee(k):
 # ---------------------------------------------------------------------------
 # Safety, and the floor.
 # ---------------------------------------------------------------------------
-@proto("garage_extinguisher", box=(0.12, 0.85, 0.12), reach=200, detail=True)
+@proto("garage_extinguisher", box=(0.12, 0.94, 0.18), reach=200, detail=True)
 def _extinguisher(k):
     """A 6 kg extinguisher on its wall bracket at 1 m, its hose clipped
     down its side, and the red plate over it with FIRE on it."""
@@ -144,7 +144,7 @@ def _extinguisher(k):
     words(t, "FIRE", (0.0, 1.78, 0.0065), (1, 0, 0), (0, 1, 0), 0.15, 0.06, 0.012, WHITE_PAINT)
 
 
-@proto("garage_first_aid", box=(0.18, 0.8, 0.07), reach=200, detail=True)
+@proto("garage_first_aid", box=(0.18, 0.88, 0.13), reach=200, detail=True)
 def _first_aid(k):
     """A first aid box on the wall at 1.45 m: white, a green cross, its
     catch."""
@@ -210,14 +210,14 @@ def _stain(k, r, seed, drops):
         _blob(k("trim", 1), d * math.cos(a), d * math.sin(a), rr.uniform(0.015, 0.05), rr.randint(0, 99), OIL, n=7)
 
 
-@proto("garage_stain_a", box=(0.6, 0.01, 0.6), reach=160, detail=True)
+@proto("garage_stain_a", box=(0.71, 0.01, 1.01), reach=160, detail=True)
 def _stain_a(k):
     """An old oil stain where an engine has stood, a metre across, drips
     round it (a pool, not a decal: see the module's note)."""
     _stain(k, 0.42, 4, 7)
 
 
-@proto("garage_stain_b", box=(0.35, 0.01, 0.35), reach=140, detail=True)
+@proto("garage_stain_b", box=(0.45, 0.01, 0.47), reach=140, detail=True)
 def _stain_b(k):
     """A smaller oil stain, half a metre, a few drops."""
     _stain(k, 0.22, 9, 4)
@@ -231,7 +231,7 @@ def _stain_c(k):
         _blob(t, -0.45 + i * 0.17, 0.02 * math.sin(i), 0.07 + 0.03 * (i % 2), 20 + i, OIL)
 
 
-@proto("garage_tyre_marks", box=(1.6, 0.01, 1.2), reach=160, detail=True)
+@proto("garage_tyre_marks", box=(1.6, 0.01, 1.94), reach=160, detail=True)
 def _tyre_marks(k):
     """Two arcs of tyre rubber where a car has been turned in toward +z,
     broken where the tread lifted."""
@@ -264,6 +264,12 @@ def _bay_02(k):
     _floor_words(k, "BAY 02", 1.7, 0.42, 0.06, (1, 1, 1, 1))
 
 
+# The floor's marks are flat: nothing a walker or a wheel meets.
+for _n in ("garage_floor_drain", "garage_trench_drain", "garage_stain_a", "garage_stain_b", "garage_stain_c",
+           "garage_tyre_marks", "garage_bay_01", "garage_bay_02"):
+    solid(_n)
+
+
 @proto("garage_cable_ramp", box=(0.6, 0.03, 0.15), reach=140, detail=True)
 def _cable_ramp(k):
     """A cable protector across a walkway, 1.2 m, in black with its yellow
@@ -278,7 +284,7 @@ def _cable_ramp(k):
 # ---------------------------------------------------------------------------
 # The shop's sign, its neon, its posters, the monitor's bezel.
 # ---------------------------------------------------------------------------
-@proto("garage_shop_sign", box=(1.75, 0.5, 0.08), reach=900)
+@proto("garage_shop_sign", box=(1.75, 0.5, 0.12), reach=900)
 def _shop_sign(k):
     """The shop's own sign: AFTERLIFE AUTO in neon tube (cyan over pink,
     the garage's two colours) on a black backer 3.4 m wide, a spanner in
@@ -308,7 +314,7 @@ _SPANNER = [((-0.03, -0.28), (-0.03, 0.12)), ((0.03, -0.28), (0.03, 0.12)), ((-0
             ((0.1, 0.18), (0.03, 0.12))]
 
 
-@proto("garage_neon_open", box=(0.45, 0.25, 0.04), reach=500)
+@proto("garage_neon_open", box=(0.45, 0.33, 0.04), reach=500)
 def _neon_open(k):
     """OPEN in red neon in a rounded border, on clear acrylic hung on two
     chains: for a window or the wall by the door (its foot at y 0)."""
@@ -323,7 +329,7 @@ def _neon_open(k):
             box(n, x - 0.004, x + 0.004, 0.42 + i * 0.04, 0.45 + i * 0.04, 0.006, 0.014, col=STEEL_MID)
 
 
-@proto("garage_neon_wrench", box=(0.4, 0.4, 0.04), reach=500)
+@proto("garage_neon_wrench", box=(0.45, 0.45, 0.04), reach=500)
 def _neon_wrench(k):
     """Two spanners crossed in tube, cyan and pink, on a black panel: the
     shop's mark for a wall (its foot at y 0, back on the wall)."""
@@ -360,7 +366,7 @@ def _poster_wide(k):
     _poster(k, 1.2, 0.8)
 
 
-@proto("garage_poster_lit", box=(0.5, 0.75, 0.05), reach=400)
+@proto("garage_poster_lit", box=(0.54, 0.75, 0.11), reach=400)
 def _poster_lit(k):
     """A lightbox advert, 0.9 by 1.4 m, its lead down the wall (its foot
     at y 0, back on the wall)."""
@@ -373,7 +379,7 @@ def _poster_lit(k):
 MONITOR_SCREEN = ((0.0, 0.55, 0.062), 1.43, 0.8)
 
 
-@proto("garage_monitor", box=(0.76, 0.48, 0.07), reach=600)
+@proto("garage_monitor", box=(0.76, 0.49, 0.07), reach=600)
 def _monitor(k):
     """A 65-inch monitor's bezel on its wall arm, its screen left for the
     layout's garage_screen (MONITOR_SCREEN); a cable down the wall."""

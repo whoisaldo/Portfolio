@@ -43,8 +43,9 @@ near by only, and never on a phone, which is how the city's phone tier lightens 
 - `shapes.py`: a box on any axes, a bar between two points, a shape turned about any axis, a hung
   cable, words in the city sign maker's strokes (with figures for the bay numbers), a prop's frame
   for setting parts of an assembly down, and the kit's linear paint colours.
-- `shop.py`: the two-post lift and its arms (in, out, raised), the drive-on scissor lift (down,
-  up) and its power unit, the flush service pad and bay lines, jacks, stands, a creeper, chocks,
+- `shop.py`: the two-post lift with its carriages, telescoping arms and screw pads (set by
+  `place_lift2` under a car's four supports, Ali's S4's by default; arms out; raised), the
+  drive-on scissor lift with 4.4 m runways (down, up) and its power unit, the flush service pad and bay lines, jacks, stands, a creeper, chocks,
   the sectional roll-up door (3 m and 6 m, closed, half, open, with its tracks and opener), the
   fittings of the city's own roller shutter, a man door.
 - `bench.py`: the roll cab and its top box, a utility cart, the workbench and vise, the pegboard
@@ -64,7 +65,15 @@ The preview builds headless from the repository root:
     blender -b --factory-startup --python scripts/blender/build_garage_props.py -- --render DIR
 
 The first writes `garage-props.json` (every prototype's triangles, near-only triangles, materials,
-footprint and whether a phone drops it) and `garage-props.blend` (every prop in rows by kind beside
-a 1.75 m figure). The second also renders a front three-quarter tile of each prop and an overview
-under the garage's kind of light, cool strips overhead and a warm practical low at the side. The
-Blender materials are previews: the site draws `worn`, `print` and `face` with its own shaders.
+whole extent `box`, measured `bounds`, collision `solids`, whether a phone drops it; each
+assembly's extent; the lifts' measured fit against `public/models/ali-s4.glb`) and
+`garage-props.blend` (every prop in rows by kind beside a 1.75 m figure). It stops if a
+prototype's geometry leaves its box. The second also renders a front three-quarter tile of each
+prop, the lifts with the S4 on them, the published solids as red boxes, and an overview under the
+garage's kind of light, cool strips overhead and a warm practical low at the side. The Blender
+materials are previews drawn front faces only, as the site draws them: the site draws `worn`,
+`print` and `face` with its own shaders.
+
+A prototype's `box` is its whole extent, what the site culls by. What of it stands in the way is
+`PROTOS[name]["solids"]` (boxes in its own frame; an empty list for a floor mark or an arm under a
+car): a lift's posts and beam, a door's tracks, the shutter's guides, not the open floor between.
