@@ -2229,6 +2229,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
    */
   const renderDirected = (dt, spec) => {
     if (!city || disposed) return;
+    // Braindance owns the frame loop, including while its tape waits for
+    // the room. Service the same upload queue here instead of throttling
+    // every pack step through the paused-page 250 ms fallback.
+    if (!adapt.sampling) asks.shift()?.run();
     directed = spec;
     copyPose(pose, spec.pose);
     copyPose(want, spec.pose);
@@ -2316,6 +2320,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       pixelRatio: renderer.getPixelRatio(),
       adapt: { shed: [...adapt.shed], p95: adapt.p95, sampling: adapt.sampling },
       packs: [...packsIn],
+      ...(diagnostics ? { deferred: { gpu: asks.length, cpu: waiting.length, streamed } } : {}),
       packsTotal: PACKS.length + Number(hasGaragePack(tier)),
       ...(diagnostics ? { garage: garageDiagnostics() } : {}),
     };
