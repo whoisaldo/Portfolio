@@ -11,15 +11,31 @@ from mathutils import Vector
 
 ROOT = Path(globals().get('PROJECT_ROOT', '/Users/aldo/Desktop/Portfolio'))
 SOURCE = ROOT / 'design/audi-s6/source'
-SCENE_NAME = 'Ali_S6_Final'
+SCENE_NAME = globals().get('SCENE_NAME', 'Ali_S6_Final')
 
 old = bpy.data.scenes.get(SCENE_NAME)
 if old:
+    # Free this build's own data only: the live Blender may hold other work.
+    owned = {obj.data for obj in old.objects if obj.data}
+    owned |= {m for obj in old.objects for m in getattr(obj.data, 'materials', []) if m}
     for obj in list(old.objects):
         bpy.data.objects.remove(obj, do_unlink=True)
     bpy.data.scenes.remove(old)
-scene = bpy.data.scenes.new(SCENE_NAME)
-bpy.context.window.scene = scene
+    for block in sorted(owned, key=lambda b: isinstance(b, bpy.types.Material)):
+        if block.users == 0 or (block.users == 1 and block.use_fake_user):
+            bpy.data.batch_remove([block])
+    for image in [i for i in bpy.data.images if i.name.startswith('S6_') and i.users == 0]:
+        bpy.data.images.remove(image)
+if bpy.app.background:
+    # Headless there is no window to switch; the operators the kit calls act
+    # on the context scene, so build in it.
+    scene = bpy.context.scene
+    for obj in list(scene.objects):
+        bpy.data.objects.remove(obj, do_unlink=True)
+    scene.name = SCENE_NAME
+else:
+    scene = bpy.data.scenes.new(SCENE_NAME)
+    bpy.context.window.scene = scene
 scene.unit_settings.system = 'METRIC'
 
 
@@ -181,7 +197,7 @@ def cylinder(name, location, radius, depth, mat, parent=None, segments=32, axis=
     return obj
 
 
-def text(name, word, location, size, mat, parent=None, rotation=(0, 0, 0), extrude=.0003, font=None):
+def text(name, word, location, size, mat, parent=None, rotation=(0, 0, 0), extrude=.0003, font=None, spacing=1.0):
     curve = bpy.data.curves.new(name, 'FONT')
     curve.body = word
     curve.align_x = 'CENTER'
@@ -189,6 +205,7 @@ def text(name, word, location, size, mat, parent=None, rotation=(0, 0, 0), extru
     curve.size = size
     curve.extrude = extrude
     curve.resolution_u = 3
+    curve.space_character = spacing
     if font:
         curve.font = font
     obj = bpy.data.objects.new(name, curve)
@@ -248,7 +265,7 @@ def build_wheel(code, side, pivot, mats):
     wheel = empty('wheel_' + code + side, parent=pivot)
     signed = lambda profile: [(sign * x, r) for x, r in profile]
     half = .108
-    lathe('tyre_' + code + side, signed([(-.126, RIM_R + .012), (-.129, RIM_R + .04), (-.124, RIM_R + .075), (-.112, WHEEL_R - .003), (-.09, WHEEL_R), (.09, WHEEL_R), (.112, WHEEL_R - .003), (.124, RIM_R + .075), (.129, RIM_R + .04), (.126, RIM_R + .012)]), mats['rubber'], wheel, 72)
+    lathe('tyre_' + code + side, signed([(-.126, RIM_R + .012), (-.129, RIM_R + .04), (-.124, RIM_R + .075), (-.112, WHEEL_R - .003), (-.09, WHEEL_R), (.09, WHEEL_R), (.112, WHEEL_R - .003), (.124, RIM_R + .075), (.129, RIM_R + .04), (.126, RIM_R + .012)]), mats['rubber'], wheel, 64)
     lathe('rim_barrel_' + code + side, signed([(-half, RIM_R + .01), (-half, RIM_R - .006), (half - .02, RIM_R - .006), (half, RIM_R - .002), (half + .012, RIM_R + .01), (half + .016, RIM_R + .004), (half + .012, RIM_R - .014), (half - .01, RIM_R - .02)]), mats['wheel'], wheel, 72)
     lathe('hub_' + code + side, signed([(half - .03, 0), (half - .03, .07), (half - .004, .072), (half + .004, .064), (half + .004, 0)]), mats['wheel'], wheel, 40)
     face = half + .006
@@ -257,11 +274,11 @@ def build_wheel(code, side, pivot, mats):
         for arm in [-1, 1]:
             # Each pair leaves the hub close together and bows apart into
             # the rim in a shallow S, as on Audi's 2013 US wheel chart (E).
-            stations = [(.06, .028, .019, face), (.11, .06, .018, face + .004), (.165, .11, .017, face + .002), (.205, .155, .016, face - .006), (RIM_R - .006, .185, .015, face - .016)]
+            stations = [(.064, .026, .022, face), (.11, .07, .018, face + .005), (.165, .14, .016, face + .003), (.205, .2, .015, face - .006), (RIM_R - .006, .245, .014, face - .017)]
             vs = []
             for r, offset, width, axial in stations:
                 t = base + arm * offset + .05 * math.sin((r - .066) / (RIM_R - .074) * math.pi)
-                for depth in [axial, axial - .026]:
+                for depth in [axial, axial - .032]:
                     for edge in [-1, 1]:
                         vs.append((sign * depth, math.sin(t) * r + math.cos(t) * width * edge, math.cos(t) * r - math.sin(t) * width * edge))
             fs = [(0, 2, 3, 1), (16, 17, 19, 18)]
@@ -270,7 +287,7 @@ def build_wheel(code, side, pivot, mats):
                 fs.extend([(a, b, b + 1, a + 1), (a + 2, a + 3, b + 3, b + 2), (a, a + 2, b + 2, b), (a + 1, b + 1, b + 3, a + 3)])
             if sign < 0:
                 fs = [tuple(reversed(f)) for f in fs]
-            bevel(mesh('S_spoke', vs, fs, mats['wheel'], wheel), .003, 2)
+            bevel(mesh('S_spoke', vs, fs, mats['wheel'], wheel), .003, 1)
     lathe('centre_cap_' + code + side, signed([(face + .004, 0), (face + .004, .052), (face + .008, .054), (face + .011, .05), (face + .012, 0)]), mats['wheel_dark'], wheel, 36)
     for j in range(5):
         t = j * 2 * math.pi / 5 + math.pi / 5
@@ -286,3 +303,8 @@ def build_wheel(code, side, pivot, mats):
     if code == 'f':
         box('caliper_S6_mark', (sign * .053, disc - .014, .0), (.002, .018, .05), mats['badge_red'], pivot, .001)
     return wheel
+
+
+# Until the CC-BY base is in design/audi-s6/source/, the build stops at the
+# S6's own parts on their provisional sockets (s6_parts.py).
+exec((ROOT / 'scripts/blender/s6_parts.py').read_text())
