@@ -240,14 +240,32 @@ def strip(name, path, yfun, width, thick, setback, mat, parent, toward=-1, width
     return obj
 
 
-def honeycomb(name, region, yfun, pitch, flat, height, rib, depth, mat, parent, front=0., keep=None, margin=0.):
+def honeycomb(name, region, yfun, pitch, flat, height, rib, depth, mat, parent, front=0., keep=None, margin=0., cell=None):
     """Flat-topped elongated hexagons (long horizontal edges, pointed ends) in a tight
     tiling: the next column sits half a pitch across and half a cell up. Cells whose
     outline lies inside region (grown by margin) are kept; ribs are rib wide, the
-    openings depth deep."""
+    openings depth deep.
+
+    cell = (flat, run, end) gives the opening its own shape instead: flats that
+    long, diagonals that far across, and short upright ends end tall where they
+    meet the next columns' horizontal ribs (then end thick). The tiling hexagon
+    round it is solved from the lattice, so the diagonal ribs stay even."""
     w = pitch - flat
     hexagon = [(-w / 2, 0), (-flat / 2, -height / 2), (flat / 2, -height / 2), (w / 2, 0), (flat / 2, height / 2), (-flat / 2, height / 2)]
     opening = offset(hexagon, rib / 2)
+    if cell:
+        f, run, end = cell
+        rise = (height - 2 * end) / 2
+        # The tile's diagonal runs midway between this opening's and the next column's.
+        tile_flat = f + (pitch / 2 - f - run) - end * run / rise
+        tip = (pitch - tile_flat) / 2
+        half_w, half_h = f / 2 + run, height / 2 - end / 2
+        opening = [(-half_w, end / 2), (-half_w, -end / 2), (-f / 2, -half_h), (f / 2, -half_h),
+                   (half_w, -end / 2), (half_w, end / 2), (f / 2, half_h), (-f / 2, half_h)]
+        # The tile's points are doubled so its ring pairs vertex for vertex with the opening's.
+        hexagon = [(-tip, 0), (-tip, 0), (-tile_flat / 2, -height / 2), (tile_flat / 2, -height / 2),
+                   (tip, 0), (tip, 0), (tile_flat / 2, height / 2), (-tile_flat / 2, height / 2)]
+    n = len(opening)
     grown = offset(region, -margin) if margin else region
     xs, zs = [p[0] for p in region], [p[1] for p in region]
     vs, fs = [], []
@@ -261,10 +279,13 @@ def honeycomb(name, region, yfun, pitch, flat, height, rib, depth, mat, parent, 
                 base = len(vs)
                 for ring, back in ((hexagon, 0), (opening, 0), (opening, depth)):
                     vs.extend((x + dx, yfun(x + dx, z + dz) + front + back, z + dz) for dx, dz in ring)
-                for i in range(6):
-                    j = (i + 1) % 6
-                    fs.append((base + i, base + j, base + 6 + j, base + 6 + i))
-                    fs.append((base + 6 + i, base + 6 + j, base + 12 + j, base + 12 + i))
+                for i in range(n):
+                    j = (i + 1) % n
+                    if hexagon[i] == hexagon[j]:
+                        fs.append((base + i, base + n + j, base + n + i))
+                    else:
+                        fs.append((base + i, base + j, base + n + j, base + n + i))
+                    fs.append((base + n + i, base + n + j, base + 2 * n + j, base + 2 * n + i))
             x += pitch
         z += height / 2
         k += 1
@@ -376,12 +397,16 @@ sensor_face = material('S6_sensor_face', '1a1c1f', .3, .2, .6)
 # inboard tip (0) to the outer edge (1), v from the top (0) to the bottom (1).
 HEAD_X, HEAD_Z = (.405, .872), (.805, .64)
 HEAD_LENS = [(0, .52), (.1, .45), (.3, .34), (.5, .23), (.7, .13), (.85, .05), (.92, .015), (.97, .07), (1, .3), (1, .55),
-             (.98, .75), (.94, .87), (.85, .915), (.75, .915), (.6, .94), (.42, .985), (.25, 1), (.19, .95), (.12, .82), (.05, .64)]
-# The DRL band: the diagonal return down from the grille end to its lowest
-# point, then the wave along the bottom (low and flat, a slope up through the
-# middle, flat and high again outboard), the outer corner, up the outer edge.
-HEAD_DRL = [(.035, .56), (.09, .67), (.15, .79), (.2, .875), (.25, .9), (.32, .895), (.4, .88), (.5, .85), (.6, .815),
-            (.68, .795), (.8, .79), (.87, .78), (.92, .745), (.94, .66), (.945, .52), (.935, .36), (.92, .2), (.895, .07)]
+             (.99, .74), (.965, .87), (.925, .935), (.88, .955), (.84, .96), (.77, .935), (.66, .9), (.58, .915), (.5, .94),
+             (.42, .965), (.25, 1), (.19, .95), (.12, .82), (.05, .64)]
+# The DRL band, from a brightness scan of the vehicle-right lamp: the diagonal
+# return down from the grille end to its lowest point, the rise through the
+# middle to a crest about two thirds out, the second dip near the outer third,
+# then up round the outer corner and the outer edge. The lens's lower edge
+# above follows the same wave.
+HEAD_DRL = [(.035, .56), (.09, .625), (.14, .71), (.19, .8), (.23, .865), (.268, .9), (.32, .888), (.4, .866), (.5, .835),
+            (.58, .81), (.657, .79), (.7, .797), (.77, .823), (.838, .847), (.885, .835), (.915, .79), (.935, .715),
+            (.945, .62), (.945, .52), (.935, .36), (.92, .2), (.895, .07)]
 
 
 def headlight(sign):
@@ -395,14 +420,14 @@ def headlight(sign):
                         gloss_black, PARTS_ROOT, (0, -1, 0), .05, .01))
     parts.append(surface('headlamp_housing_' + tag, offset(shape, .008), lambda x, z: yf(x, z) + .055, dark_chrome, PARTS_ROOT, (0, -1, 0), 1))
     # The DRL: a flat light guide 11 mm wide in a reflector channel twice that.
-    band = [tuple(p) for p in smooth_path(unit(HEAD_DRL), 4)]
+    band = [tuple(p) for p in smooth_path(unit(HEAD_DRL), 2)]
     parts.append(strip('DRL_light_guide_' + tag, band, yf, .011, .004, .016, drl, PARTS_ROOT))
     parts.append(strip('DRL_reflector_channel_' + tag, band, yf, .024, .006, .021, dark_chrome, PARTS_ROOT))
     # Five recessed LED low-beam optics in a row between the top edge and the
     # band, three smaller ones stacked inside the outer edge, a chrome brow over
     # the row. Each optic is a dished reflector with a small lens in it.
     v_top = lambda u: interp(HEAD_LENS[:6], u)
-    v_band = lambda u: interp(HEAD_DRL[4:13], u)
+    v_band = lambda u: interp(HEAD_DRL[4:14], u)
 
     def optic(name, u, v, w, h):
         (x, z), = unit([(u, v)])
@@ -431,9 +456,12 @@ TAIL_LENS = [(0, .25), (.14, .13), (.39, .07), (.64, .03), (.85, 0), (.93, .03),
 # The lit graphic: a double light guide that sweeps up at the inboard end of
 # the boot-lid piece, runs across the seam, and at the outer end of the fender
 # piece parts into a Y, the upper line up the outer edge, the lower one down.
+# The two lines are 10.5 mm guides 17 mm apart on centre, so a dark channel
+# about 6.5 mm wide runs between them as in his night photo (TAIL_GUIDE).
 TAIL_INNER = [(.03, .30), (.07, .45), (.11, .57), (.16, .635), (.25, .645), (.4, .645), (.546, .645)]
-TAIL_UPPER = [(.556, .612), (.7, .612), (.8, .61), (.85, .585), (.872, .5), (.88, .33), (.885, .12)]
-TAIL_LOWER = [(.556, .678), (.7, .678), (.8, .68), (.85, .705), (.872, .78), (.885, .87), (.893, .95)]
+TAIL_UPPER = [(.556, .587), (.7, .587), (.8, .585), (.85, .56), (.872, .48), (.88, .33), (.885, .12)]
+TAIL_LOWER = [(.556, .703), (.7, .703), (.8, .705), (.85, .73), (.872, .8), (.885, .87), (.893, .95)]
+TAIL_GUIDE = (.0105, .017)   # each guide's width, and their centres apart
 # Pale regions under the bar, one in each piece.
 TAIL_PALE = [(.33, .53, .72, .88), (.58, .84, .73, .92)]
 
@@ -454,12 +482,13 @@ def taillight(sign):
                             gloss_black, PARTS_ROOT, (0, 1, 0), .04, .008))
         parts.append(surface('taillamp_reflector_%s_%s' % (piece, tag), offset(outline, .006), lambda x, z: yf(x, z) - .03,
                              reflector, PARTS_ROOT, (0, 1, 0), 1))
-    lines = [('inner_a', TAIL_INNER, .0048), ('inner_b', TAIL_INNER, -.0048), ('outer_upper', TAIL_UPPER, 0), ('outer_lower', TAIL_LOWER, 0)]
+    width, apart = TAIL_GUIDE
+    lines = [('inner_a', TAIL_INNER, apart / 2), ('inner_b', TAIL_INNER, -apart / 2), ('outer_upper', TAIL_UPPER, 0), ('outer_lower', TAIL_LOWER, 0)]
     for name, trace, d in lines:
-        path = [tuple(p) for p in smooth_path(unit(trace), 4)]
+        path = [tuple(p) for p in smooth_path(unit(trace), 3)]
         if d:
             path = parallel(path, d * sign)
-        parts.append(strip('tail_light_guide_%s_%s' % (name, tag), path, yf, .0095, .004, .012, tail_guide, PARTS_ROOT, 1))
+        parts.append(strip('tail_light_guide_%s_%s' % (name, tag), path, yf, width, .004, .012, tail_guide, PARTS_ROOT, 1))
     for i, (u0, u1, v0, v1) in enumerate(TAIL_PALE):
         (x0, z0), (x1, z1) = unit([(u0, v0), (u1, v1)])
         box_ = ccw(rounded([(x0, z0, .004), (x1, z0, .004), (x1, z1, .004), (x0, z1, .004)], 2))
@@ -474,6 +503,9 @@ def taillight(sign):
 # rounded top shoulders, sides that taper in and bend a little more under the
 # mesh, big lower corners.
 GRILLE_CORNERS = [(0, .792, 0), (.423, .792, .05), (.392, .477, .15), (.352, .322, .06), (0, .322, 0)]
+# One opening of his mesh, measured in his photo at about 1.13 mm a pixel:
+# (flat, diagonal run, upright end), metres.
+GRILLE_CELL = (.029, .0135, .006)
 # Audi's outlined quattro as on Ali's grille: each glyph's outline in x-heights,
 # (x, z, corner radius), and where the glyph starts along the word.
 _T = [(0, 1, 0), (.21, 1, 0), (.21, 1.17, 0), (.53, 1.17, 0), (.53, 1, 0), (1.37, 1, 0), (1.37, .74, 0), (.53, .74, 0), (.53, .29, .05),
@@ -548,10 +580,13 @@ def grille():
     half = max(x for x, z in band) + .004
     rib = [(-half + 2 * half * i / 12, band_top + .003) for i in range(13)]
     parts.append(strip('grille_divider_rib', rib, yf, .008, .012, .006, gloss_black, PARTS_ROOT))
-    # Elongated hexagons: 95 mm across a row, 29 mm tall, the next column half
-    # a pitch over and half a cell up. The mesh runs on behind the rings.
+    # The openings as measured on Ali's grille: 56 x 24 mm, flats 29 mm long,
+    # shallow diagonals, blunt ends against 6 mm horizontal ribs, thin diagonal
+    # ribs; 92 mm across a row, the next column half a pitch over and 15 mm up.
+    # The mesh runs on behind the rings.
     region = ccw(clip(inner, 'z', band_top + .008, True))
-    parts.append(honeycomb('grille_honeycomb', region, yf, .095, .035, .029, .003, .018, gloss_black, PARTS_ROOT, .02, margin=.012))
+    parts.append(honeycomb('grille_honeycomb', region, yf, .092, .035, .030, .003, .018, gloss_black, PARTS_ROOT, .02, margin=.012,
+                           cell=GRILLE_CELL))
     for i in range(4):
         cx = (i - 1.5) * .0637
         y0 = yf(cx, .692) + (.006 if i % 2 else .002)
