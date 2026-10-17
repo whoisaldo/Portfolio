@@ -30,6 +30,15 @@ export function focusInView(el) {
   if (r.top < top || r.bottom > window.innerHeight - bottom) el.scrollIntoView({ block: "nearest", behavior: "instant" });
 }
 
+/** Focus `el` where it stands and say whether focus actually landed. A
+ *  connected, laid-out element can still refuse it: a marker the world has
+ *  made `visibility: hidden`, or one inside a hidden ancestor. Never scrolls. */
+export function tryFocus(el) {
+  if (!el?.isConnected || el.hidden || el.getClientRects().length === 0) return false;
+  el.focus({ preventScroll: true });
+  return document.activeElement === el;
+}
+
 /** The key of the garage control holding focus inside `root`, or null. */
 export function focusedControl(root) {
   const el = typeof document === "undefined" ? null : document.activeElement;
@@ -58,10 +67,7 @@ export function restoreFocus(root, key) {
   if (!root || !key) return null;
   for (const k of candidates(key)) {
     const el = root.querySelector(`[${CONTROL}="${CSS.escape(k)}"]`);
-    if (el && !el.hidden && el.getClientRects().length > 0) {
-      el.focus({ preventScroll: true });
-      return el;
-    }
+    if (tryFocus(el)) return el;
   }
   return null;
 }
