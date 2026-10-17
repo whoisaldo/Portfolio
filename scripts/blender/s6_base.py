@@ -145,6 +145,16 @@ def role(key, isl):
     if m == 'paint' and isl.n <= 60 and isl.c.y > 2.38 and .6 < isl.c.z < .8 and .3 < abs(isl.c.x) < .5 and isl.hi.y - isl.lo.y < .03:
         # The facelift's model and engine letters on the boot lid.
         return None
+    side = mirrored_x(isl)
+    if m == 'paint' and within(side, Vector((.39, -2.4, .37)), Vector((.83, -1.9, .43))) and isl.n > 60:
+        # The facelift's body-colour bar across its intakes.
+        return None
+    if m == 'paint' and within(side, Vector((.66, -2.2, .26)), Vector((.76, -1.9, .39))):
+        # The facelift's fog-lamp surrounds.
+        return None
+    if m == 'paint' and isl.n > 60 and isl.c.y > 1.8 and isl.hi.z < .44 and isl.hi.x - isl.lo.x > 1.5:
+        # The facelift's lower rear valance, between and under the corners.
+        return None
     if m == 'paint':
         if isl.n > 500 and within(isl, Vector((-.85, -2.32, .69)), Vector((.85, -.88, 1.0))):
             return 'hood'
@@ -226,8 +236,6 @@ def split_base(objs):
         for faces in islands(bm):
             isl = Island(key, faces, mats)
             r = role(key, isl)
-            if r == 'shell' and isl.mat == 'paint' and isl.n <= 40 and isl.c.y > 2.3 and abs(isl.c.x) > .7 and isl.c.z < .66:
-                r = 'reflector'
             if r is None:
                 continue
             if r == 'reflector':
@@ -389,74 +397,120 @@ def outermost(points, ahead, r=.008, step=.003):
     return out
 
 
-def fit_lamp(root, lenses, guide, design, tuck, seam=None, ahead=-1, lift=0):
-    """Lay a pre-facelift lamp into the facelift lamp's place.
+def edges_of(points, bins=30):
+    """A vertex cloud's top and bottom over |x|, smoothed tables."""
+    top = top_edge([(p.x, p.z) for p in points], bins)
+    bottom = [(x, -z) for x, z in top_edge([(p.x, -p.z) for p in points], bins)]
+    return top, bottom
+
+
+def fit_lamp(root, lenses, guide, design, ahead, tuck=0., seam=None, x0=None, lift=0., keep_wave=False):
+    """Seat a pre-facelift lamp in the base's lamp opening.
 
     Across the car the lamp is stretched from its inboard end to its outer
-    edge onto the guide's (the facelift lens), optionally piecewise so a
-    given x of ours lands on a given x of the base (the boot-lid seam); up
-    and down it is sheared so its top edge follows the guide's (the hood or
-    boot-lid edge, plus tuck), keeping its own height and its traced lower
-    edge; along the car every vertex keeps its depth from its own design
-    surface, measured instead from a smooth fit of the guide's surface, so
-    the lens sits where the facelift's did and follows its wrap.
+    edge onto the opening's (the facelift lens, the guide), piecewise when a
+    given x of ours must land on a given x of the base (the boot-lid seam).
+    Up and down, column by column, it is mapped between the opening's top
+    edge (plus tuck, under the hood's edge) and a lower edge: the opening's
+    own, or with keep_wave the lamp's traced lower edge carried under the top
+    edge at its own height (the S6's wave), blending into the opening's at the
+    outer end. Every vertex keeps its depth from its own design surface,
+    measured from a smooth fit of the guide's surface, the lower edge brought
+    forward by lift. Returns the lower edge it used, as a table over |x| of
+    the base, for the bumper to be shaped to.
     """
     loops = [outline_xz(lens) for lens in lenses]
     ours = [p for loop in loops for p in loop]
-    gpts = outermost([v.co.copy() for v in guide.data.vertices], -1 if guide.data.vertices[0].co.y < 0 else 1)
+    gpts = outermost([v.co.copy() for v in guide.data.vertices], ahead)
     ox0, ox1 = min(abs(p.x) for p in ours), max(abs(p.x) for p in ours)
     gx0, gx1 = min(abs(p.x) for p in gpts), max(abs(p.x) for p in gpts)
-    to, tg = loop_top(loops), top_edge([(p.x, p.z) for p in gpts], 30)
+    gx0 = gx0 if x0 is None else x0
+    to = loop_top(loops)
+    bo = [(x, -z) for x, z in loop_top([[(p.x, -p.z) for p in loop] for loop in loops])]
+    tg, bg = edges_of(gpts)
     knots = [(ox0, gx0), (ox1, gx1)] if seam is None else [(ox0, gx0), seam, (ox1, gx1)]
+    inverse = [(b, a) for a, b in knots]
     surf = fit_surface(gpts)
-    # The facelift's lens sat a little behind the bumper's edge under it; the
-    # S6's comes forward by lift at its lower edge (none at its top), so the
-    # bumper meets it flush instead of leaving a ledge.
-    low = [(x, -z) for x, z in top_edge([(p.x, -p.z) for p in gpts], 30)]
+
+    def lower(x):
+        """The lower edge at the base's |x|."""
+        if not keep_wave:
+            return interp(bg, x)
+        xo = interp(inverse, x)
+        u = (x - gx0) / (gx1 - gx0)
+        s = smoothstep(min(1, max(0, (u - .72) / .28)))
+        return (interp(tg, x) - (interp(to, xo) - interp(bo, xo))) * (1 - s) + interp(bg, x) * s
 
     def fn(p):
         sign = 1 if p.x > 0 else -1
         x = interp(knots, abs(p.x))
-        z = p.z + interp(tg, x) - interp(to, abs(p.x)) + tuck
-        v = min(1, max(0, (z - interp(low, x)) / max(.02, interp(tg, x) - interp(low, x))))
-        return Vector((sign * x, surf(x, z) + p.y - design(p.x, p.z) + ahead * lift * (1 - v), z))
+        t0, b0 = interp(to, abs(p.x)), interp(bo, abs(p.x))
+        t1, b1 = interp(tg, x) + tuck, lower(x)
+        v = (p.z - b0) / max(.01, t0 - b0)
+        z = b1 + v * (t1 - b1)
+        return Vector((sign * x, surf(x, z) + p.y - design(p.x, p.z) + ahead * lift * (1 - min(1, max(0, v))), z))
     warp(root, fn)
+    return [(gx0 + (gx1 - gx0) * k / 60, lower(gx0 + (gx1 - gx0) * k / 60)) for k in range(61)], bg, (gx0, gx1)
 
 
-def cut_opening(obj, loop, margin, ahead):
-    """Cut an outline (shrunk by margin) through a shell along Y and remove what is inside.
+def smoothstep(t):
+    return t * t * (3 - 2 * t)
 
-    ahead is -1 for an opening in the nose, +1 for one in the tail: only the
-    faces within the outline's own reach along Y, facing that way, are touched.
-    """
-    poly = offset(ccw([(p.x, p.z) for p in loop]), margin)
-    ys = [p.y for p in loop]
-    y0, y1 = min(ys) - .06, max(ys) + .06
-    xs, zs = [p[0] for p in poly], [p[1] for p in poly]
-    box_ = (min(xs) - .03, max(xs) + .03, min(zs) - .03, max(zs) + .03)
+
+def refine(shell, near, longest=.03, passes=1):
+    """Split the base's long edges where near(point) holds, so a reshaping
+    there bends smoothly instead of tilting whole coarse panels."""
     bm = bmesh.new()
-    bm.from_mesh(obj.data)
-
-    def region():
-        out = []
-        for f in bm.faces:
-            c = f.calc_center_median()
-            if y0 < c.y < y1 and box_[0] < c.x < box_[1] and box_[2] < c.z < box_[3] and f.normal.y * ahead > -.2:
-                out.append(f)
-        return out
-    for a, b in zip(poly, poly[1:] + poly[:1]):
-        faces = [f for f in region() if any(min(a[0], b[0]) - .05 < v.co.x < max(a[0], b[0]) + .05 and
-                                            min(a[1], b[1]) - .05 < v.co.z < max(a[1], b[1]) + .05 for v in f.verts)]
-        if not faces:
-            continue
-        geom = list({e for f in faces for e in f.edges}) + faces + list({v for f in faces for v in f.verts})
-        normal = Vector((-(b[1] - a[1]), 0, b[0] - a[0])).normalized()
-        bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-6, plane_co=(a[0], 0, a[1]), plane_no=normal)
-    bm.normal_update()
-    bmesh.ops.delete(bm, geom=[f for f in region() if inside(f.calc_center_median().x, f.calc_center_median().z, poly)], context='FACES')
-    bm.to_mesh(obj.data)
+    bm.from_mesh(shell.data)
+    for _ in range(passes):
+        edges = [e for e in bm.edges if e.calc_length() > longest and any(near(v.co) for v in e.verts)]
+        if edges:
+            bmesh.ops.subdivide_edges(bm, edges=edges, cuts=1, use_grid_fill=True)
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
+    bm.to_mesh(shell.data)
     bm.free()
-    obj.data.update()
+
+
+def shape_lamp_sill(shell, sign, target, current, span, ahead, gap=.002, reach=None, clear=None, most=None):
+    """Move the bumper's edge under a headlamp from the facelift's line to the
+    lamp's lower edge (gap below it, where the lamp's dark bezel shows as the
+    shut line), carrying the surface below with it and fading out. The base's
+    own vertices move; nothing is cut or added."""
+    tree, flags = paint_tree(shell)
+    ring = []
+    for i in range(25):
+        for k in range(8):
+            x = sign * (span[0] + (span[1] - span[0]) * i / 24)
+            z = interp(current, abs(x)) - .02 - .02 * k
+            h, _, f, _ = tree.ray_cast(Vector((x, 4 * ahead, z)), Vector((0, -ahead, 0)), 6)
+            if h is not None and flags[f]:
+                ring.append(h)
+    face = fit_surface(ring, 3, 1)
+    lowest = min(z for x, z in current) - (reach or .2)
+    refine(shell, lambda q: q.x * sign > 0 and span[0] - .03 < abs(q.x) < span[1] + .01 and q.y * ahead > 1.6 and q.z > lowest)
+    for v in shell.data.vertices:
+        p = v.co
+        ax = abs(p.x)
+        if p.x * sign <= 0 or not (span[0] - .03 < ax < span[1] + .01) or p.y * ahead < 1.6:
+            continue
+        if clear and ax < clear(p.z):
+            continue
+        b = interp(current, min(max(ax, span[0]), span[1]))
+        d = interp(target, min(max(ax, span[0]), span[1])) - gap - b
+        if most:
+            d = max(-most, min(most, d))
+        fade = 1 if ax >= span[0] else 1 - (span[0] - ax) / .03
+        reach_ = reach or max(.06, 3 * abs(d))
+        # Only the edge (and its return, just below or at it) and the surface
+        # under it move: what stands above the edge bounds the opening's sides.
+        if p.z > b + .006 or p.z < b - reach_:
+            continue
+        w = 1 if p.z >= b - .004 else (1 - (b - .004 - p.z) / (reach_ - .004)) ** 2
+        w *= fade
+        z = p.z + d * w
+        p.y += face(p.x, z) - face(p.x, p.z)
+        p.z = z
+    shell.data.update()
 
 
 def hull(points):
@@ -475,64 +529,49 @@ def hull(points):
     return lower[:-1] + upper[:-1]
 
 
-def lamp_housing(name, guide, lenses, ahead, grow, parent):
-    """A dark housing behind the lamp: a back plate over the lamp and the
-    facelift's opening together, grow round them and 6 cm behind the lens
-    face, so a gap round the S6 lamp reads as a shut line, never as the
-    car's inside."""
+def lamp_housing(name, guide, lenses, ahead, parent, grow=.015):
+    """The lamp's closed back: a dark plate 6 cm behind the lens face over the
+    lamp's own outline (15 mm round it, never further out or higher than the
+    lamp), so no gap round a lamp shows the car's inside."""
     surf = fit_surface(outermost([v.co.copy() for v in guide.data.vertices], ahead))
-    pts = [(p.x, p.z) for lens in lenses for p in outline_xz(lens)] + [(v.co.x, v.co.z) for v in guide.data.vertices]
+    pts = [(p.x, p.z) for lens in lenses for p in outline_xz(lens)]
     outline = offset(ccw(hull([(round(x, 4), round(z, 4)) for x, z in pts])), -grow)
-    # Never further out than the lamp itself: the lamps wrap round the corners.
-    edge = max(abs(x) for x, z in pts) - .015
-    top = max(z for x, z in pts) + .015
+    edge = max(abs(x) for x, z in pts) - .01
+    top = max(z for x, z in pts)
     outline = [(math.copysign(min(abs(x), edge), x), min(z, top)) for x, z in outline]
     return surface(name, outline, lambda x, z: surf(x, z) - ahead * .06, matte_black, parent, (0, ahead, 0), 2)
 
 
-def tuck_behind(shell, lenses, ahead):
-    """Where the S6 lamp reaches over the facelift's opening, the body's
-    surface under it is pushed in 8 mm behind the lens instead of being cut
-    away, so the bumper or quarter dives under the lamp's edge without a
-    torn edge."""
-    tree = surface_tree(lenses)
-    polys = [offset(ccw([(p.x, p.z) for p in outline_xz(lens)]), .002) for lens in lenses]
-    for v in shell.data.vertices:
-        p = v.co
-        if p.y * ahead < 1.5 or not any(inside(p.x, p.z, poly) for poly in polys):
-            continue
-        y = ray_y(tree, p.x, p.z, ahead)
-        if y is not None and (p.y - y) * ahead > -.008:
-            p.y = y - ahead * .008
-    shell.data.update()
-
-
-def fit_lamps(parts, guides, shell, parent):
-    """Fit the four lamps, cut the shell round them and close the openings behind."""
+def fit_lamps(parts, guides, shell, parent, head_tip=None, grille=None):
+    """Seat the four lamps in the base's lamp openings: the tail lamps fill
+    them exactly (the C7's openings are the same before and after the
+    facelift); the headlamps take the hood and wing edges and keep their own
+    lower edge, and the bumper's edge under them is shaped to it."""
     by_base = {key.split('.')[0]: root for key, root in parts.items()}
-    made = []
-    # The base splits its tail lamps at the boot lid's shut line; the S6's split goes there too.
     for sign, tag in ((1, 'l'), (-1, 'r')):
         side = lambda ahead: piece(guides, lambda c: c.x * sign > 0 and c.y * ahead > 0)
         head, tail = by_base['headlight_' + tag], by_base['taillight_' + tag]
-        for root, prefix, design, ahead, tuck, seam, grow, lift in (
-                (head, 'headlamp_lens', head_surface, -1, .004, None, .03, .012),
-                (tail, 'taillamp_lens', tail_surface, 1, 0, (TAIL_X[0] + (TAIL_X[1] - TAIL_X[0]) * TAIL_SEAM, None), .09, 0)):
-            guide = side(ahead)
-            if seam:
-                bm = bmesh.new()
-                bm.from_mesh(guide.data)
-                # The lid's lens and the quarter's are its two largest pieces.
-                big = sorted(sorted(islands(bm), key=len)[-2:], key=lambda comp: min(v.co.x * sign for f in comp for v in f.verts))
-                big = [[v.co.x * sign for f in comp for v in f.verts] for comp in big]
-                bm.free()
-                seam = (seam[0], (max(big[0]) + min(big[1])) / 2)
-            lenses = [o for o in part_meshes(root) if o.name.startswith(prefix)]
-            fit_lamp(root, lenses, guide, design, tuck, seam, ahead, lift)
-            tuck_behind(shell, lenses, ahead)
-            made.append(lamp_housing(prefix.split('_')[0] + '_housing_back_' + tag, guide, lenses, ahead, grow, parent))
-            bpy.data.meshes.remove(guide.data)
-    return made
+        guide = side(-1)
+        lenses = [o for o in part_meshes(head) if o.name.startswith('headlamp_lens')]
+        lower, current, span = fit_lamp(head, lenses, guide, head_surface, -1, tuck=.004, x0=head_tip, lift=.008, keep_wave=True)
+        # The strip by the grille's frame is the grille's to shape; there the
+        # bumper rises at most 4 cm to the lamp's tip.
+        clear = (lambda z: grille_corner_x(grille, min(max(z, GRILLE_BOTTOM + .01), GRILLE_TOP - .01)) + .006) if grille else None
+        shape_lamp_sill(shell, sign, lower, current, span, -1, clear=clear, most=.04)
+        lamp_housing('headlamp_housing_back_' + tag, guide, lenses, -1, parent)
+        bpy.data.meshes.remove(guide.data)
+        guide = side(1)
+        # The base splits its tail lamps at the boot lid's shut line; the S6's split goes there too.
+        bm = bmesh.new()
+        bm.from_mesh(guide.data)
+        big = sorted(sorted(islands(bm), key=len)[-2:], key=lambda comp: min(v.co.x * sign for f in comp for v in f.verts))
+        big = [[v.co.x * sign for f in comp for v in f.verts] for comp in big]
+        bm.free()
+        seam = (TAIL_X[0] + (TAIL_X[1] - TAIL_X[0]) * TAIL_SEAM, (max(big[0]) + min(big[1])) / 2)
+        lenses = [o for o in part_meshes(tail) if o.name.startswith('taillamp_lens')]
+        fit_lamp(tail, lenses, guide, tail_surface, 1, seam=seam)
+        lamp_housing('taillamp_housing_back_' + tag, guide, lenses, 1, parent)
+        bpy.data.meshes.remove(guide.data)
 
 
 def paint_tree(shell):
@@ -632,17 +671,146 @@ def bounds_xz(points, half=False):
     return (0 if half else min(xs), max(xs), min(zs), max(zs))
 
 
+def radii(loop, centre, n=360):
+    """The outline's distance from centre at each of n angles (its outermost crossing)."""
+    loop = list(loop)
+    out = []
+    for k in range(n):
+        t = 2 * math.pi * k / n
+        d = (math.cos(t), math.sin(t))
+        best = 0
+        for a, b in zip(loop, loop[1:] + loop[:1]):
+            ex, ez = b[0] - a[0], b[1] - a[1]
+            den = d[0] * ez - d[1] * ex
+            if abs(den) < 1e-12:
+                continue
+            ax, az = a[0] - centre[0], a[1] - centre[1]
+            r = (ax * ez - az * ex) / den
+            u = (ax * d[1] - az * d[0]) / den
+            if 0 <= u <= 1 and r > best:
+                best = r
+        out.append(best)
+    return out
+
+
+def surface_round(shell, loop, ahead, band=.06):
+    """A smooth fit of the painted surface in a band round an outline."""
+    tree, flags = paint_tree(shell)
+    xs, zs = [p[0] for p in loop], [p[1] for p in loop]
+    outer = offset(ccw(list(loop)), -band)
+    hits = []
+    for i in range(36):
+        for k in range(24):
+            x = min(xs) - band + (max(xs) - min(xs) + 2 * band) * i / 35
+            z = min(zs) - band + (max(zs) - min(zs) + 2 * band) * k / 23
+            if inside(x, z, ccw(list(loop))) or not inside(x, z, outer):
+                continue
+            h, _, f, _ = tree.ray_cast(Vector((x, 4 * ahead, z)), Vector((0, -ahead, 0)), 6)
+            if h is not None and flags[f]:
+                hits.append(h)
+    return fit_surface(hits, 3, 2)
+
+
+def warp_opening(shell, source, target, centre, ahead, reach=.1, inward_only=False):
+    """Reshape an opening in the base's own surface: every vertex near it moves
+    radially from centre so the opening's edge goes from source to target, the
+    edge and its return in full and the surface round it fading out over
+    reach; along the car each follows the surface. Nothing is cut or added,
+    so the panel keeps its smooth, stamped look."""
+    face = surface_round(shell, source, ahead)
+    rs, rt = radii(source, centre), radii(target, centre)
+    n = len(rs)
+    moved = 0
+    for v in shell.data.vertices:
+        p = v.co
+        if p.y * ahead < 1.6 or abs(p.y - face(p.x, p.z)) > .15:
+            continue
+        dx, dz = p.x - centre[0], p.z - centre[1]
+        r = math.hypot(dx, dz)
+        t = math.atan2(dz, dx) % (2 * math.pi)
+        k = t / (2 * math.pi) * n
+        i, f = int(k) % n, k - int(k)
+        r0 = rs[i] * (1 - f) + rs[(i + 1) % n] * f
+        delta = (rt[i] * (1 - f) + rt[(i + 1) % n] * f) - r0
+        if inward_only:
+            delta = min(0, delta)
+        d = r - r0
+        if r0 == 0 or d >= reach or not delta:
+            continue
+        w = 1 if d <= 0 else (1 - d / reach) ** 2
+        scale = (r + delta * w) / r if r > 1e-6 else 1
+        nx, nz = centre[0] + dx * scale, centre[1] + dz * scale
+        p.y += face(nx, nz) - face(p.x, p.z)
+        p.x, p.z = nx, nz
+        moved += 1
+    shell.data.update()
+    return moved
+
+
+def edge_distance(x, z, poly):
+    """Distance from (x, z) to a closed outline's edge."""
+    best = 9.
+    for a, b in zip(poly, poly[1:] + poly[:1]):
+        ex, ez = b[0] - a[0], b[1] - a[1]
+        t = max(0, min(1, ((x - a[0]) * ex + (z - a[1]) * ez) / (ex * ex + ez * ez or 1)))
+        best = min(best, math.hypot(x - a[0] - t * ex, z - a[1] - t * ez))
+    return best
+
+
+def push_back(shell, outline, ahead, depth, ramp=.03):
+    """Inside an outline that a part covers (the grille's frame and mesh), move
+    the base's surface back, by nothing at the outline rising to depth ramp
+    inside it. The base's faces along the outline are split first, so the
+    slope stays under the part's frame instead of dragging whole panels."""
+    poly = ccw(list(outline))
+    bm = bmesh.new()
+    bm.from_mesh(shell.data)
+    for _ in range(2):
+        near = [e for e in bm.edges if e.calc_length() > .02 and any(v.co.y * ahead > 1.6 and edge_distance(v.co.x, v.co.z, poly) < .04 for v in e.verts)]
+        bmesh.ops.subdivide_edges(bm, edges=near, cuts=1, use_grid_fill=True)
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
+    for v in bm.verts:
+        if v.co.y * ahead > 1.6 and inside(v.co.x, v.co.z, poly):
+            v.co.y -= ahead * depth * min(1, edge_distance(v.co.x, v.co.z, poly) / ramp)
+    bm.to_mesh(shell.data)
+    bm.free()
+    shell.data.update()
+
+# The 2013 S6's grille opening is the single frame Ali's RS grille was traced
+# to: flat across the top under the hood's edge, rounded top corners, sides
+# tapering in, big lower corners, its bottom just above the lip's slot. The
+# facelift's hexagon (narrow at the top, chamfered hard) is reshaped to it.
+GRILLE_TOP, GRILLE_BOTTOM = .72, .262
+
+
+def grille_frame_outline():
+    """The RS frame's outer edge at the size it fits this nose, and that scale."""
+    full = GRILLE_CORNERS + [(-x, z, r) for x, z, r in reversed(GRILLE_CORNERS[1:-1])]
+    k = (GRILLE_TOP - GRILLE_BOTTOM) / (.792 - .322)
+    return ccw([(x * k, GRILLE_BOTTOM + (z - .322) * k) for x, z in rounded(full, 5)]), k
+
+
+def reshape_grille_opening(shell):
+    """Reshape the facelift's grille opening into the S6's: where the hexagon
+    reaches beyond the frame (its sides, its bottom) the bumper's own edge is
+    drawn in to the frame's, 10 mm under it; where the frame reaches beyond
+    the hexagon (its wide top corners) the bumper behind the frame and mesh is
+    moved back behind the grille's backing."""
+    frame, k = grille_frame_outline()
+    hexagon, _ = opening(shell, (0, .5), (-.46, .46, .2, .75), -1)
+    warp_opening(shell, hexagon, offset(frame, .010), (0, .49), -1, reach=.07, inward_only=True)
+    push_back(shell, offset(frame, .015), -1, .05, .02)
+    return frame
+
+
 def fit_grille(parts, shell):
-    """The RS grille into the base's grille opening: its frame's outer edge
-    stretched over the opening (8 mm over its edge, so the frame covers it),
-    laid on the bumper's surface round the opening; rings, camera and
-    script keep their shape. Then the bumper is cut under the frame."""
+    """The RS grille into its opening at one even scale (not stretched), laid
+    on the bumper's surface round the opening."""
     root = {key.split('.')[0]: r for key, r in parts.items()}['RS_honeycomb_grille']
-    outline, surf = opening(shell, (0, .5), (-.46, .46, .2, .75), -1)
-    frame = next(o for o in part_meshes(root) if o.name.startswith('grille_frame'))
-    src = bounds_xz([(p.x, p.z) for p in outline_xz(frame)], True)
-    dst = bounds_xz(outline, True)
-    dst = (0, dst[1] + .008, dst[2] - .008, dst[3] + .008)
+    frame_outline, k = grille_frame_outline()
+    _, surf = opening(shell, (0, .5), (-.46, .46, .2, .75), -1)
+    src = (0, GRILLE_CORNERS[1][0], .322, .792)
+    dst = (0, GRILLE_CORNERS[1][0] * k, GRILLE_BOTTOM, GRILLE_TOP)
     design = lambda x, z: FRONT + .012 + .3 * x * x + (z - .55) * .26
     # How far each vertex of the script stands proud of the panel it is drawn on.
     script = next(o for o in part_meshes(root) if o.name.startswith('grille_quattro_script'))
@@ -659,41 +827,82 @@ def fit_grille(parts, shell):
         if y is not None:
             v.co = inv @ Vector((p.x, y - d, p.z))
     script.data.update()
-    cut_opening(shell, outline_xz(frame), .012, -1)
     return root
 
 
+# The S6's intake pocket off Ali's daylight front photo (car's left, x, z,
+# corner radius): from beside the grille's lower side to the bumper's
+# corner, its bottom just above the lip. Its top is the base's own (the
+# bumper's edge over the facelift's intake), which carries the washer cover
+# above it where his car has it.
+POCKET = [(.41, .02), (.848, .045), (.295, .045), (.288, .025)]   # inner x, outer x, bottoms (outer, inner) with radii
+# The bright ledge: the pocket's top edge comes 4 mm forward, fading out 15 mm above it.
+LEDGE = (.015, .004)
+# The lip's centre slot (the base's) is split by thin dividers, as on his car.
+SLOT_DIVIDERS = (-.24, -.12, 0, .12, .24)
+
+
+def pocket_outline(sign, facelift):
+    """The S6 pocket for one side, its top taken from the facelift opening's."""
+    (xi, ri), (xo, ro), (zbo, rbo), (zbi, rbi) = POCKET
+    top = loop_top([facelift])
+    corners = [(xi, interp(top, xi + .02), ri), (xo, interp(top, xo - .03), ro), (xo, zbo, rbo), (xi, zbi, rbi)]
+    return ccw(rounded([(sign * x, z, r) for x, z, r in corners], 4))
+
 
 def fit_intakes(parts, shell, parent):
-    """The S6's intakes in the base's lower openings: the opening is the pocket
-    (Ali's car shows black honeycomb right to its painted edge), lined with a
-    recessed black backing and honeycomb; the part's sensor and blade are
-    mapped into it and laid on the bumper's surface. The part's own surround,
-    backing and mesh, traced for a different opening, are dropped."""
+    """The S6's intakes in the base's bumper: with the facelift's bar and fog
+    surrounds gone, its intake openings are reshaped into the S6 pocket (the
+    base's own edges moved, nothing cut) and the pocket's top edge comes
+    forward as the bright ledge. The pocket is lined with a black backing and
+    honeycomb right to its edge; the part's sensor and blade keep their
+    round-10 places (his photo) on the bumper's surface; the part's own
+    surround, backing and mesh go."""
     by_base = {key.split('.')[0]: root for key, root in parts.items()}
     made = []
     for sign, tag in ((1, 'l'), (-1, 'r')):
         root = by_base['lower_intake_' + tag]
-        box_ = (.38, .95, .2, .47) if sign > 0 else (-.95, -.38, .2, .47)
-        outline, surf = opening(shell, (sign * .6, .33), box_, -1)
+        box_ = (.38, .95, .2, .5) if sign > 0 else (-.95, -.38, .2, .5)
+        facelift, _ = opening(shell, (sign * .6, .33), box_, -1)
+        pocket = pocket_outline(sign, facelift)
+        # The pocket's bottom is the S6's, 5 cm above the facelift's: the
+        # bumper's edge there and its lip below move up, the lip's lower edge
+        # staying where it is.
+        span = (min(abs(x) for x, z in facelift) + .01, max(abs(x) for x, z in facelift) - .02)
+        bottom = lambda poly: [(x, -z) for x, z in loop_top([[(p[0], -p[1]) for p in poly]])]
+        shape_lamp_sill(shell, sign, bottom(pocket), bottom(facelift), span, -1, gap=0, reach=.14)
+        # The ledge: the pocket's top edge and its return come forward.
+        top = loop_top([pocket])
+        x0, x1 = min(abs(x) for x, z in pocket) + .02, max(abs(x) for x, z in pocket) - .04
+        for v in shell.data.vertices:
+            p = v.co
+            if p.x * sign > 0 and x0 < abs(p.x) < x1 and p.y < -1.9:
+                dz = p.z - interp(top, abs(p.x))
+                if -.03 < dz < LEDGE[0]:
+                    p.y -= LEDGE[1] * (1 if dz <= 0 else 1 - dz / LEDGE[0])
+        shell.data.update()
+        _, surf = opening(shell, (sign * .62, .37), box_, -1)
         for obj in part_meshes(root):
             if obj.name.startswith(('intake_surround', 'intake_backing', 'intake_honeycomb')):
                 bpy.data.objects.remove(obj, do_unlink=True)
-        dst = bounds_xz(outline, True)
-        dst = (min(abs(x) for x, z in outline), dst[1], dst[2], dst[3])
-        fit_into(root, (INTAKE_X[0], INTAKE_X[1], INTAKE_Z[1], INTAKE_Z[0]), dst, intake_surface, surf, ('sensor_',))
+        dx, dz = -sign * .03, .025
+        warp(root, lambda p, dx=dx, dz=dz: Vector((p.x + dx, surf(p.x + dx, p.z + dz) + p.y - intake_surface(p.x, p.z), p.z + dz)))
         sensor = next(o for o in part_meshes(root) if o.name.startswith('sensor_face'))
         bpy.context.view_layer.update()
         c = sensor.matrix_world @ (sum((v.co for v in sensor.data.vertices), Vector()) / len(sensor.data.vertices))
-        grown = offset(outline, -.006)
+        grown = offset(pocket, -.006)
         made.append(surface('intake_pocket_' + tag, grown, lambda x, z: surf(x, z) + .036, matte_black, parent, (0, -1, 0), 1, 0, -.036))
         made.append(honeycomb('intake_pocket_mesh_' + tag, grown, lambda x, z: surf(x, z) + .02, .056, .021, .018, .0025, .012,
                               satin_black, parent, 0, keep=lambda x, z, c=c: math.hypot(x - c.x, z - c.z) > .056, margin=.008))
     # The base's long narrow opening along the lip under the grille (Ali's car
-    # has it too): a recessed black floor behind it.
+    # has it too): a recessed black floor behind it and its thin dividers.
     outline, surf = opening(shell, (0, .25), (-.46, .46, .2, .3), -1, .004)
     made.append(surface('lower_centre_slot', offset(outline, -.006), lambda x, z: surf(x, z) + .022, matte_black, parent,
                         (0, -1, 0), 1, 0, -.022))
+    z0, z1 = min(z for x, z in outline), max(z for x, z in outline)
+    for x in SLOT_DIVIDERS:
+        made.append(box('lower_centre_slot_divider', (x, surf(x, (z0 + z1) / 2) + .011, (z0 + z1) / 2), (.005, .02, z1 - z0 + .004),
+                        satin_black, parent, 0))
     return made
 
 
@@ -704,57 +913,132 @@ DIFFUSER_TOP = [(0, .385), (.40, .39), (.48, .405), (.56, .428), (.63, .437), (.
                 (.828, .33), (.815, .27), (.785, .222)]
 
 
+def even_curve(points, powers=(0, 2, 4, 6)):
+    """A smooth even polynomial y(|x|) through (x, y) points."""
+    import numpy
+    a = numpy.array([[abs(x) ** k for k in powers] for x, y in points])
+    c = numpy.linalg.lstsq(a, numpy.array([y for x, y in points]), rcond=None)[0]
+    return lambda x: float(sum(ck * abs(x) ** k for ck, k in zip(c, powers)))
+
+
+def lower_bumper_edge(shell, current, target, ahead, reach=.18):
+    """Move the bumper's lower edge (its stamped return with it) from current to
+    target, two tables of z over x across the car; the face above follows,
+    fading out over reach, along its own surface. Nothing is cut or added."""
+    tree, flags = paint_tree(shell)
+    hits = []
+    for i in range(-36, 37):
+        for k in range(6):
+            x, z = i * .022, interp(current, i * .022) + .03 + .03 * k
+            h, _, f, _ = tree.ray_cast(Vector((x, 4 * ahead, z)), Vector((0, -ahead, 0)), 6)
+            if h is not None and flags[f]:
+                hits.append(h)
+    face = fit_surface(hits, 4, 1)
+    x0, x1 = current[0][0], current[-1][0]
+    refine(shell, lambda q: x0 <= q.x <= x1 and q.y * ahead > 1.6 and interp(current, q.x) - .03 < q.z < interp(current, q.x) + reach)
+    for v in shell.data.vertices:
+        p = v.co
+        if p.y * ahead < 1.6 or not x0 <= p.x <= x1:
+            continue
+        b = interp(current, p.x)
+        d = interp(target, p.x) - b
+        if p.z < b - .03 or p.z > b + reach or abs(p.y - face(p.x, max(p.z, b))) > .08:
+            continue
+        w = 1 if p.z <= b + .004 else (1 - (p.z - b - .004) / (reach - .004)) ** 2
+        z = p.z + d * w
+        p.y += face(p.x, max(z, b)) - face(p.x, max(p.z, b))
+        p.z = z
+    shell.data.update()
+
+
 def fit_diffuser(parts, shell, parent):
-    """The pre-facelift S6's rear: the facelift's diffuser and outlets are gone,
-    leaving the bumper open below z .43. A painted valance fills down to the
-    S6's arch, the bumper is cut where the arch rises above its edge, and the
-    diffuser, its blade and the quad tips are laid on the bumper's surface."""
+    """The pre-facelift S6's rear. The facelift's lower valance is gone; the
+    bumper's own lower edge (its stamped return with it) is moved to the S6's
+    arch, down in the middle and up over the tip pairs, easing into the base's
+    corners outboard of the tips; nothing is cut or added. Under it, on one
+    smooth surface across the car, the diffuser field, its insert, blade and
+    quad tips, and the bright surround along the edge as it now runs."""
     by_base = {key.split('.')[0]: root for key, root in parts.items()}
+    source, _ = opening(shell, (0, .3), (-.9, .9, .15, .5), 1)
+    edge = lambda poly: [(round(x, 4), z) for x, z in sorted(
+        (x * sgn, z) for x, z in loop_top([[(abs(p[0]), p[1]) for p in poly]]) for sgn in (-1, 1))]
+    calm = lambda rows: [(rows[i][0], sum(z for _, z in rows[max(0, i - 4):i + 5]) / len(rows[max(0, i - 4):i + 5])) for i in range(len(rows))]
+    now = [(x, z) for x, z in edge(source) if abs(x) <= .8]
+    arch_z = lambda x: interp(DIFFUSER_TOP[:8], abs(x))
+    # The S6's arch inboard of the outer tips, easing into the base's corner beyond.
+    ease = lambda x: smoothstep(min(1, max(0, (abs(x) - .64) / .14)))
+    goal = [(x, arch_z(x) * (1 - ease(x)) + z * ease(x)) for x, z in now]
+    lower_bumper_edge(shell, now, goal, 1)
+    after, _ = opening(shell, (0, .3), (-.9, .9, .15, .5), 1)
+    top = calm([(x, z) for x, z in edge(after) if abs(x) <= .8])
+    edge_z = lambda x: interp(top, x)
     tree, flags = paint_tree(shell)
 
-    def row(z):
+    def face_at(z):
         out = []
-        for i in range(33):
-            x = .8 * i / 32
-            h, _, f, _ = tree.ray_cast(Vector((x, 4, z)), Vector((0, -1, 0)), 6)
+        for i in range(-38, 39):
+            h, _, f, _ = tree.ray_cast(Vector((i * .02, 4, z)), Vector((0, -1, 0)), 6)
             if h is not None and flags[f]:
-                out.append((x, h.y))
-        return out
-    # The bumper's face just above its lower edge, and how it leans; below the
-    # edge the S6's diffuser tucks forward under the car.
-    low, high = row(.46), row(.52)
-    surf = lambda x, z: interp(low, abs(x)) + (z - .46) * ((interp(high, abs(x)) - interp(low, abs(x))) / .06 if z > .46 else .3)
+                out.append((i * .02, h.y))
+        return even_curve(out)
+    y46, y52 = face_at(.46), face_at(.52)
+    # Below the edge the diffuser tucks forward under the car.
+    surf = lambda x, z: y46(x) + (z - .46) * ((y52(x) - y46(x)) / .06 if z > .46 else .3)
     design = lambda x, z: REAR - .015 - .14 * (abs(x) / .8) ** 6
     for name in ('rear_diffuser', 'exhaust_tips'):
-        warp(by_base[name], lambda p: Vector((p.x, surf(p.x, p.z) + p.y - design(p.x, p.z), p.z)))
+        # The insert is drawn 4 % narrower, inside the arch's ends.
+        k = .96 if name == 'rear_diffuser' else 1
+        warp(by_base[name], lambda p, k=k: Vector((p.x * k, surf(p.x * k, p.z) + p.y - design(p.x, p.z), p.z)))
     for obj in list(by_base['rear_diffuser'].children):
         if obj.name.startswith('diffuser_aluminium_border'):
             bpy.data.objects.remove(obj, do_unlink=True)
-    half = DIFFUSER_TOP + [(.70, .16)]
-    arch = ccw(half + [(-x, z) for x, z in reversed(half)][:-1])
-    # The facelift's painted lower valance goes between the corners; the S6's
-    # valance, diffuser and tips take its place.
-    bm = bmesh.new()
-    bm.from_mesh(shell.data)
-    bmesh.ops.delete(bm, geom=[f for f in bm.faces if shell.data.materials[f.material_index] == paint and
-                               f.calc_center_median().y > 1.85 and f.calc_center_median().z < .44 and abs(f.calc_center_median().x) < .79],
-                     context='FACES')
-    bm.to_mesh(shell.data)
-    bm.free()
-    # The valance: painted from the arch up behind the bumper's lower edge.
-    arch_z = lambda x: interp(DIFFUSER_TOP[:8], abs(x))
-    vs, n = [], 48
+    # The field: a grid recessed 30 mm, from a wall under the edge down to the floor.
+    platinum_grey = bpy.data.materials['S6_diffuser_platinum_grey']
+    cols, vs = 64, []
+    for i in range(cols + 1):
+        x = -.78 + 1.56 * i / cols
+        zt = edge_z(x) - .003
+        zb = .16 + .07 * (abs(x) / .8) ** 2
+        rows = [(zt, surf(x, zt) - .004)] + [(zt + (zb - zt) * j / 5, surf(x, zt + (zb - zt) * j / 5) - .03) for j in range(6)]
+        vs += [(x, y, z) for z, y in rows]
+    m = 7
+    fs = [(i * m + j, (i + 1) * m + j, (i + 1) * m + j + 1, i * m + j + 1) for i in range(cols) for j in range(m - 1)]
+    made = [facing(mesh('diffuser_field', vs, fs, platinum_grey, parent, True), (0, 1, 0))]
+    path = [Vector((x, surf(x, edge_z(x)) + .001, edge_z(x) - .002)) for x in [-.78 + 1.56 * i / 96 for i in range(97)]]
+    made.append(tube('diffuser_surround', path, .005, aluminium, parent, sides=8))
+    made += rear_reflectors(shell, parent)
+    return made
+
+
+# The pre-facelift S6's rear reflectors: slim horizontal lenses let into the
+# bumper's lower corners above the diffuser's ends (centre x, z; width, height).
+REAR_REFLECTOR = (.74, .475, .11, .022)
+
+
+def inlay(name, tree, centre, w, hgt, ahead, mat, parent, lift=.0006, n=16):
+    """A slim lens let into a panel: a two-row strip along x with rounded ends,
+    every vertex cast onto the panel and lifted only lift along its normal, so
+    it lies in the surface."""
+    cx, cz = centre
+    vs = []
     for i in range(n + 1):
-        x = -.80 + 1.6 * i / n
-        for k in range(4):
-            z = arch_z(x) + (.46 - arch_z(x)) * k / 3
-            vs.append((x, surf(x, z) - .002, z))
-    made = [facing(mesh('rear_valance', vs, [(i * 4 + k, i * 4 + k + 1, i * 4 + k + 5, i * 4 + k + 4) for i in range(n) for k in range(3)],
-                        paint, parent, True), (0, 1, 0))]
-    made.append(surface('diffuser_field', offset(arch, -.004), lambda x, z: surf(x, max(z, .2)) - .03,
-                        bpy.data.materials['S6_diffuser_platinum_grey'], parent, (0, 1, 0), 1, 0, -.03))
-    rim = [(x, z) for x, z in reversed(DIFFUSER_TOP)][:-1] + [(-x, z) for x, z in DIFFUSER_TOP]
-    made.append(tube('diffuser_surround', [Vector((x, surf(x, z) + .002, z)) for x, z in smooth_path(rim, 3)], .005, aluminium, parent, sides=8))
+        u = -1 + 2 * i / n
+        half = hgt / 2 * math.sqrt(max(0., 1 - max(0., abs(u) * w / 2 - (w / 2 - hgt / 2)) ** 2 / (hgt / 2) ** 2))
+        for z in (cz - half, cz + half):
+            hit, normal, _, _ = tree.ray_cast(Vector((cx + u * w / 2, 4 * ahead, z)), Vector((0, -ahead, 0)), 6)
+            vs.append(tuple(hit + normal * lift))
+    fs = [(2 * i, 2 * i + 2, 2 * i + 3, 2 * i + 1) for i in range(n)]
+    return facing(mesh(name, vs, fs, mat, parent, True), (0, ahead, 0))
+
+
+def rear_reflectors(shell, parent):
+    """The S6's reflectors in the bumper's lower corners, with a dark seam round each."""
+    x0, z0, w, hgt = REAR_REFLECTOR
+    tree = surface_tree([shell])
+    made = []
+    for sign in (1, -1):
+        made.append(inlay('rear_reflector_seam', tree, (sign * x0, z0), w + .003, hgt + .003, 1, body_black, parent, .0004))
+        made.append(inlay('rear_reflector', tree, (sign * x0, z0), w, hgt, 1, rear_reflector, parent, .0009))
     return made
 
 
@@ -823,20 +1107,25 @@ def rig_mirrors(base, parts, parent):
 
 def measure_hood(hood):
     """The hood's outline for the engine bay (s6_engine_bay.py): its shut line's
-    half-width and height at stations along the car, its rearmost point (at the
-    corners: its rear edge bows forward to the middle) and the height there."""
+    half-width and height at stations along the car, from where its boundary
+    edges cross each station (the outermost crossing), smoothed; its rearmost
+    point (at the corners: its rear edge bows forward to the middle) and the
+    height there."""
+    bm = bmesh.new()
+    bm.from_mesh(hood.data)
+    edges = [(e.verts[0].co.copy(), e.verts[1].co.copy()) for e in bm.edges if len(e.link_faces) == 1]
+    bm.free()
     vs = [v.co for v in hood.data.vertices]
     y0, y1 = min(v.y for v in vs), max(v.y for v in vs)
-    edge, edge_z = [], []
-    for k in range(25):
-        y = y0 + .01 + (y1 - y0 - .02) * k / 24
-        near = [v for v in vs if abs(v.y - y) < .012] or [min(vs, key=lambda v: abs(v.y - y))]
-        w = max(near, key=lambda v: abs(v.x))
-        edge.append((y, abs(w.x)))
-        edge_z.append((y, min(v.z for v in near if abs(v.x) > abs(w.x) - .03)))
-    return edge, edge_z, y1, max(v.z for v in vs if v.y > y1 - .02)
-
-
+    rows = []
+    for k in range(41):
+        y = y0 + .01 + (y1 - y0 - .02) * k / 40
+        cross = [a.lerp(b, (y - a.y) / (b.y - a.y)) for a, b in edges if a.y != b.y and min(a.y, b.y) <= y <= max(a.y, b.y)]
+        if cross:
+            c = max(cross, key=lambda p: abs(p.x))
+            rows.append((y, abs(c.x), c.z))
+    smooth = lambda col: [(rows[i][0], sum(r[col] for r in rows[max(0, i - 2):i + 3]) / len(rows[max(0, i - 2):i + 3])) for i in range(len(rows))]
+    return smooth(1), smooth(2), y1, max(v.z for v in vs if v.y > y1 - .02)
 
 def split_material(obj, mat, name, parent):
     """Move the faces of obj that use mat into their own object."""
@@ -961,9 +1250,15 @@ def build_closures(parent, glass):
         # Behind the lower intakes, which wrap round the bumper's corners.
         made.append(mesh('intake_side_closure', [(sign * .70, -2.16, .22), (sign * .70, -1.95, .22), (sign * .70, -1.95, .47), (sign * .70, -2.16, .47)],
                          [(0, 1, 2, 3)], body_black, parent))
-    # Across the boot behind the parcel shelf: the tail lamps' gaps open into the boot.
-    made.append(mesh('boot_bulkhead', [(-.76, 1.905, .45), (.76, 1.905, .45), (.76, 1.905, 1.09), (-.76, 1.905, 1.09)],
-                     [(0, 1, 2, 3)], body_black, parent))
+    # Across the boot behind the parcel shelf, from the floor (the tail lamps'
+    # gaps and the diffuser's recess open into the boot) to 8 mm under the deck.
+    deck = surface_tree([shell])
+    vs = []
+    for k in range(17):
+        x = -.76 + 1.52 * k / 16
+        hit = deck.ray_cast(Vector((x, 1.905, 1.6)), Vector((0, 0, -1)), 1.2)[0]
+        vs += [(x, 1.905, .17), (x, 1.905, min(1.09, (hit.z if hit is not None else 1.09) - .008))]
+    made.append(mesh('boot_bulkhead', vs, [(2 * k, 2 * k + 2, 2 * k + 3, 2 * k + 1) for k in range(16)], body_black, parent))
     top = {}
     for v in glass.data.vertices:
         if v.co.y < -.15 and v.co.z > 1.25 and abs(v.co.x) < .7:
@@ -987,3 +1282,35 @@ def keep_behind_windscreen(interior, glass):
             hit = tree.ray_cast(Vector((p.x, p.y - 1, p.z)), Vector((0, 1, 0)), 1.2)[0]
             if hit is not None and hit.y > p.y - .004:
                 v.co = inv @ Vector((p.x, hit.y + .008, p.z))
+
+
+def grille_corner_x(frame, z):
+    """How far out the grille frame reaches at height z."""
+    return max(abs(a[0] + (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1])) for a, b in zip(frame, frame[1:] + frame[:1])
+               if a[1] != b[1] and min(a[1], b[1]) <= z <= max(a[1], b[1]))
+
+
+def clear_wheels(interior, envelope):
+    """Keep the cabin out of the wheels' envelopes (each tyre's swept space
+    with the body lowered, the fronts steered): the door cards' lower rear
+    corners reach into the rear tyres' outline behind the arches, which
+    stops the Virtual Link drop. Faces with a corner inside go; they are
+    hidden inside the doors."""
+    bm = bmesh.new()
+    bm.from_mesh(interior.data)
+    world = interior.matrix_world
+    doomed = []
+    for f in bm.faces:
+        for v in f.verts:
+            p = world @ v.co
+            for y0, r in envelope:
+                if abs(p.x) > .66 and math.hypot(p.y - y0, p.z - WHEEL_R) < r:
+                    doomed.append(f)
+                    break
+            else:
+                continue
+            break
+    bmesh.ops.delete(bm, geom=doomed, context='FACES')
+    bm.to_mesh(interior.data)
+    bm.free()
+    return len(doomed)

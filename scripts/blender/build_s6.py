@@ -343,9 +343,11 @@ shell = BASE['shell']
 shell.name = shell.data.name = 'body_shell'
 shell.parent = body
 lamp_guides, grille_guide = BASE.pop('guide_lamps'), BASE.pop('guide_grille')
+frame = reshape_grille_opening(shell)
 fit_grille(PARTS, shell)
 fit_intakes(PARTS, shell, body)
-fit_lamps(PARTS, lamp_guides, shell, body)
+# The headlamps' inner tips meet the grille frame's top corners, as on the 2013 car.
+fit_lamps(PARTS, lamp_guides, shell, body, grille_corner_x(frame, .70) + .006, frame)
 fit_diffuser(PARTS, shell, body)
 place_badges(PARTS, shell)
 rig_mirrors(BASE, PARTS, body)
@@ -427,6 +429,9 @@ interior = BASE['cabin']
 interior.name = interior.data.name = 'cabin_interior'
 interior.parent = cabin
 decimate(interior, CABIN_RATIO)
+# The tyres' swept space: radius plus Virtual Link's 50 mm drop and 20 mm
+# clearance, the fronts 30 mm more for steering.
+clear_wheels(interior, [(-WHEELBASE / 2, WHEEL_R + .10), (WHEELBASE / 2, WHEEL_R + .07)])
 keep_behind_windscreen(interior, BASE['glass'])
 HEAD_UNIT = head_unit_spot(interior)
 unit = empty('head_unit_screen', HEAD_UNIT, cabin)
