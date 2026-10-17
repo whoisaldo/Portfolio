@@ -57,6 +57,11 @@ export default function Markers({ car, selected, registerPin, onSelect, onFocusL
   // selected one, else the first shown.
   const settle = useCallback(() => {
     const all = [...buttons.current.entries()];
+    // Hand focus on before touching a tabIndex: changing the tabindex of a
+    // focused marker the world has just hidden makes Chrome drop its focus
+    // to the page on the spot, and then there is nothing left to hand on.
+    const active = document.activeElement;
+    if (active && all.some(([, el]) => el === active) && !shown(active)) lost.current?.();
     const visible = all.filter(([, el]) => shown(el)).map(([id]) => id);
     if (!visible.includes(stop.current)) {
       const s = sel.current;
@@ -66,8 +71,6 @@ export default function Markers({ car, selected, registerPin, onSelect, onFocusL
       const t = id === stop.current ? 0 : -1;
       if (el.tabIndex !== t) el.tabIndex = t;
     }
-    const active = document.activeElement;
-    if (active && all.some(([, el]) => el === active) && !shown(active)) lost.current?.();
   }, [car]);
 
   useEffect(() => {
