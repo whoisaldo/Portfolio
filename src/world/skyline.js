@@ -4100,6 +4100,10 @@ ${colGlow.join("\n")}
     plan: { lots, forms, boxes, tips, midFrom },
     update(camera, pixelRatio = 1, visibility = null) {
       sky.position.copy(camera.position);
+      // The world reuses its scene matrices between mirror and main.
+      // This camera-local sky moves during pass preparation, so update
+      // its matrix here rather than leaving the main pass one pose behind.
+      sky.updateMatrixWorld();
       camera.getWorldDirection(look);
       const pitch = Math.asin(Math.max(-1, Math.min(1, look.y))) * (180 / Math.PI);
       const { smoothstep } = THREE.MathUtils;
