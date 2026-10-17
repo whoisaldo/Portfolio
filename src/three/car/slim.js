@@ -1,10 +1,12 @@
 // src/three/car/slim.js: the S4 in few draws.
 //
-// Shared by the city's car (src/world/car.js) and the garage's viewer
-// (src/lib/garage-scene.js). The model is some 150 parts, each its own
-// material, because it is a model of a car and not a game asset; drawn as
-// they come that is 150 draws a pass, and the viewer draws three passes (its
-// key light's shadow, the ambient occlusion's depth, the picture).
+// Shared by the city's car (src/world/car.js), the garage's viewer
+// (src/lib/garage-scene.js) and the two cars parked in the city's garage
+// (src/three/car/inspect.js), the S6 as well as the S4. The model is some
+// 150 parts, each its own material, because it is a model of a car and not
+// a game asset; drawn as they come that is 150 draws a pass, and the viewer
+// draws three passes (its key light's shadow, the ambient occlusion's depth,
+// the picture).
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { attributeKey, mergeMeshes } from "../../world/merge.js";
@@ -12,8 +14,14 @@ import { attributeKey, mergeMeshes } from "../../world/merge.js";
 // The nodes the rig moves. Everything else on the car is rigid.
 export const RIG = ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr", "steer_fl", "steer_fr"];
 // And the hood's, which the viewer opens: the hinge carries the panels, the
-// strut's tube and rod are set from its base and its mount.
-export const HOOD_RIG = ["hood_hinge", "hood_strut_tube", "hood_strut_rod", "hood_strut_base", "hood_strut_mount"];
+// strut's tube and rod are set from its base and its mount. The S6 has a
+// second strut, its nodes suffixed `_r`.
+const STRUT = ["hood_strut_tube", "hood_strut_rod", "hood_strut_base", "hood_strut_mount"];
+export const HOOD_RIG = ["hood_hinge", ...STRUT, ...STRUT.map((name) => `${name}_r`)];
+// A car parked in the garage keeps all of those and its body as well: the
+// S6's Virtual Link drop lowers the body over wheels that stay where they
+// are, which it cannot do once the body's parts are merged into the root.
+export const INSPECT_RIG = [...RIG, ...HOOD_RIG, "body"];
 
 // What a shut hood hides: the engine bay, the hood's lining and its struts.
 // The city never opens the hood (the garage's viewer does), so it leaves
@@ -26,7 +34,7 @@ export const underHood = (o, car) => {
 };
 
 // A part with no picture on it and nothing to see through.
-const plain = (m) => !m.transparent && !Object.values(m).some((v) => v?.isTexture);
+const plain = (m) => !m.transparent && !(m.emissive?.getHex() > 0) && !m.vertexColors && !Object.values(m).some((v) => v?.isTexture);
 
 /**
  * One material for every plain part of the car. Each is the same double-
@@ -35,13 +43,13 @@ const plain = (m) => !m.transparent && !Object.values(m).some((v) => v?.isTextur
  * `surface` for the other three) and the shading is what each part's own
  * material gave it.
  */
-function paintMaterial(like) {
+export function paintMaterial(like) {
   const material = new THREE.MeshPhysicalMaterial({
     vertexColors: true,
     roughness: 1,
     metalness: 1,
     clearcoat: 1,
-    clearcoatRoughness: like.clearcoatRoughness,
+    clearcoatRoughness: Number.isFinite(like.clearcoatRoughness) ? like.clearcoatRoughness : 0,
     side: like.side,
   });
   material.name = "s4_paint";
@@ -101,6 +109,18 @@ export function slim(car, { rig = RIG, keepUnderHood = false } = {}) {
     groups.get(key).meshes.push(o);
   });
   for (const o of hidden) o.removeFromParent();
+  // A merged part leaves the car with whatever hangs from it. Anything the
+  // merge does not take (an anchor's empty, a group of other parts) moves up
+  // to the nearest node that stays, where it stood.
+  const merged = new Set([
+    ...[...painted.values()].flatMap((g) => g.meshes),
+    ...[...groups.values()].filter((g) => g.meshes.length > 1).flatMap((g) => g.meshes),
+  ]);
+  for (const o of merged) {
+    let keep = o.parent;
+    while (merged.has(keep)) keep = keep.parent;
+    for (const child of [...o.children]) if (!merged.has(child)) keep.attach(child);
+  }
   const made = [];
   const paint = like ? paintMaterial(like) : null;
   for (const { owner, meshes } of painted.values()) {
@@ -113,9 +133,9 @@ export function slim(car, { rig = RIG, keepUnderHood = false } = {}) {
       const surface = new Float32Array(n * 3);
       for (let i = 0; i < n; i++) {
         m.color.toArray(color, i * 3);
-        surface[i * 3] = m.roughness;
-        surface[i * 3 + 1] = m.metalness;
-        surface[i * 3 + 2] = m.clearcoat;
+        surface[i * 3] = Number.isFinite(m.roughness) ? m.roughness : 1;
+        surface[i * 3 + 1] = Number.isFinite(m.metalness) ? m.metalness : 0;
+        surface[i * 3 + 2] = Number.isFinite(m.clearcoat) ? m.clearcoat : 0;
       }
       g.setAttribute("color", new THREE.BufferAttribute(color, 3));
       g.setAttribute("surface", new THREE.BufferAttribute(surface, 3));
