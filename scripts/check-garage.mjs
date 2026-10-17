@@ -987,6 +987,98 @@ check("ordinary exterior meshes keep independent portal visibility across passes
   outside.geometry.dispose(); outside.material.dispose();
 });
 
+check("room procedural parts share draws while preserving each original local frame", () => {
+  const geometry = new three.BoxGeometry(.4, .6, .2);
+  geometry.setAttribute("color", new three.Float32BufferAttribute(new Float32Array(geometry.attributes.position.count * 4).fill(.5), 4));
+  const base = new three.ShaderMaterial({ uniforms: { uSpill: { value: null } } }); base.name = "NCW_face";
+  const proto = new three.Mesh(geometry, base); proto.userData.proto = "room_frame_test";
+  const header = { protos: [{ name: "room_frame_test", box: [.2, .3, .1] }], count: 2, sectorRuns: [{ sector: "garage_s4", start: 0, count: 1 }, { sector: "garage_s6", start: 1, count: 1 }] };
+  let json = JSON.stringify(header); while ((4 + Buffer.byteLength(json)) % 4) json += " ";
+  const buffer = new ArrayBuffer(4 + Buffer.byteLength(json) + 32);
+  new DataView(buffer).setUint32(0, Buffer.byteLength(json), true); new Uint8Array(buffer, 4, Buffer.byteLength(json)).set(Buffer.from(json));
+  new Int16Array(buffer, 4 + Buffer.byteLength(json), 16).set([0, 9240, 100, -4300, 1043, 110, 900, 0, 0, 9300, 100, -4400, -1043, 90, 1100, 0]);
+  const system = propsModule.createProps([proto], buffer, { reflectLayer: 2 });
+  const meshes = system.group.children.filter((o) => o.isMesh);
+  assert.equal(meshes.length, 1, "two sectors and placements share a procedural material draw");
+  const mesh = meshes[0], g = mesh.geometry;
+  assert.equal(mesh.isInstancedMesh, undefined); assert.equal(mesh.layers.mask, 5);
+  assert.equal(g.attributes.position.count, 2 * geometry.attributes.position.count);
+  const frame = new three.Matrix4(), point = new Vector3();
+  for (let i = 0; i < g.attributes.position.count; i++) {
+    for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) frame.elements[c * 4 + r] = g.attributes[`_instance_matrix_${c}`].array[i * 4 + r];
+    point.fromBufferAttribute(g.attributes._local_position, i).applyMatrix4(frame);
+    assert.ok(point.distanceTo(new Vector3().fromBufferAttribute(g.attributes.position, i)) < .0001);
+    assert.equal(g.attributes._deal.getX(i), 0);
+    assert.deepEqual(Array.from(g.attributes._local_normal.array.slice(i * 3, i * 3 + 3)), Array.from(geometry.attributes.normal.array.slice((i % geometry.attributes.normal.count) * 3, (i % geometry.attributes.normal.count) * 3 + 3)));
+  }
+  assert.ok(mesh.material.vertexShader.includes("attribute float _deal"));
+  system.dispose(); geometry.dispose(); base.dispose();
+});
+
+check("all six probe faces prepare their own portals and prop runs through the transform wrapper", () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const renderScene = renderer.render;"), to = source.indexOf("  const draw =", from);
+  const scene = new three.Scene(), capture = new three.Scene(), wrapper = new three.Group(), root = new three.Group();
+  capture.add(wrapper); wrapper.add(root);
+  const portals = [], props = [], drawn = [];
+  const city = { root, visibility: { prepare: (view) => portals.push(view) }, props: { update: (view) => props.push(view) } };
+  const renderer = { render: (_scene, view) => drawn.push(view) };
+  runInNewContext(source.slice(from, to), { renderer, city, scene, car: null });
+  const faces = Array.from({ length: 6 }, () => new three.PerspectiveCamera(90, 1, .1, 60));
+  for (const face of faces) renderer.render(capture, face);
+  assert.deepEqual(portals, faces); assert.deepEqual(props, faces); assert.deepEqual(drawn, faces);
+  renderer.render(new three.Scene(), faces[0]);
+  assert.equal(portals.length, 6, "postprocessing scenes cannot replace the portal state");
+});
+
+check("exterior batches keep signals, local shader frames, layers and exact light sources", () => {
+  const wire = (header, rows) => {
+    let json = JSON.stringify(header); while ((4 + Buffer.byteLength(json)) % 4) json += " ";
+    const bytes = Buffer.alloc(4 + Buffer.byteLength(json) + rows.length * 16);
+    bytes.writeUInt32LE(Buffer.byteLength(json)); bytes.write(json, 4);
+    const values = new Int16Array(bytes.buffer, bytes.byteOffset + 4 + Buffer.byteLength(json), rows.length * 8);
+    values.set(rows.flat()); return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  };
+  const base = new three.ShaderMaterial({ uniforms: { uSpill: { value: null } } }); base.name = "glow";
+  const geometry = new three.BoxGeometry(.2, .3, .1).toNonIndexed();
+  geometry.setIndex(Array.from({ length: geometry.attributes.position.count }, (_, i) => i));
+  geometry.setAttribute("color", new three.Float32BufferAttribute(new Float32Array(geometry.attributes.position.count * 4).fill(.5), 4));
+  const glow = new three.Mesh(geometry, base); glow.name = "proto_traffic_light_glow"; glow.userData.proto = "traffic_light";
+  const faceMat = new three.ShaderMaterial(); faceMat.name = "NCW_face";
+  const face = new three.Mesh(geometry, faceMat); face.name = "proto_signal_box_face"; face.userData.proto = "signal_box";
+  const header = { protos: [{ name: "traffic_light", box: [.5, 1, .5], reach: 300 }, { name: "signal_box", box: [.5, 1, .5], reach: 300 }], count: 2 };
+  const rows = [[0, 8800, 100, -4300, 0, 100, 1000, 0], [1, 8800, 100, -4300, 0, 100, 1000, 0]];
+  const full = wire(header, rows), empty = wire({ ...header, count: 0 }, []);
+  const exterior = new three.Group();
+  for (const [i, src] of [glow, face].entries()) {
+    const g = geometry.clone(), matrix = new three.Matrix4().makeTranslation(440, 2, -215);
+    g.applyMatrix4(matrix);
+    if (i) {
+      g.setAttribute("_local_position", geometry.attributes.position.clone()); g.setAttribute("_local_normal", geometry.attributes.normal.clone());
+      for (let col = 0; col < 4; col++) g.setAttribute(`_instance_matrix_${col}`, new three.Float32BufferAttribute(Array.from({ length: g.attributes.position.count }, () => matrix.elements.slice(col * 4, col * 4 + 4)).flat(), 4));
+      g.setAttribute("_deal", new three.Float32BufferAttribute(new Float32Array(g.attributes.position.count), 1));
+    }
+    const node = new three.Mesh(g, { name: `NCW_${i ? "face" : "glow"}` }); node.name = `exterior_test_${i}`;
+    node.userData = { sourceKind: "prop", visibilitySector: "exterior", sourceLayers: 5, shaderLocal: Boolean(i), runs: [[36, -18, 300, 0, g.index.count]], placements: [[i, i, src.userData.proto, src.name, 0, g.index.count]] };
+    exterior.add(node);
+  }
+  const original = propsModule.createProps([glow, face], full, { reflectLayer: 2 });
+  const batch = propsModule.createProps([glow, face], empty, { exterior, originalBuffer: full, reflectLayer: 2 });
+  const lightRows = (system) => system.sources.flatMap((light) => Array.from(light.mesh.geometry.attributes.position.array).map((value) => `${light.color.getHexString()}:${light.intensity}:${value}`)).sort();
+  assert.deepEqual(lightRows(batch), lightRows(original), "every source triangle, colour and gain survives removal of its placement");
+  const signal = batch.written("traffic_light"); assert.equal(signal.length, 1); assert.equal(signal[0].matrices[13], 2);
+  const local = batch.group.getObjectByName("exterior_test_1");
+  const signalFace = batch.dealt("signal_box");
+  assert.equal(signalFace.matrices.length, 16); signalFace.deal(0, -.5);
+  assert.ok(Array.from(local.geometry.attributes._deal.array).every((v) => v === -.5), "crossing signals still update a taken placement");
+  assert.equal(local.layers.mask, 5); assert.ok(local.material.vertexShader.includes("mat4(_instance_matrix_0"));
+  assert.ok(local.material.vertexShader.includes("attribute float _deal"));
+  const camera = new three.PerspectiveCamera(60, 1, .1, 200); camera.position.set(450, 2, -215); camera.lookAt(440, 2, -215); batch.update(camera);
+  assert.ok(local.visible); assert.ok(local._multiDrawCount > 0);
+  camera.lookAt(460, 2, -215); batch.update(camera); assert.equal(local.visible, false);
+  original.dispose(); batch.dispose(); geometry.dispose(); base.dispose(); faceMat.dispose();
+});
+
 check("the road mirror does not repack the unreflected skyline", () => {
   const source = readFileSync("src/world/world-scene.js", "utf8");
   const from = source.indexOf("  const renderScene = renderer.render;"), to = source.indexOf("  const draw =", from);

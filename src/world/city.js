@@ -14,7 +14,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
-import { worldModelUrl, worldPackUrl, worldShopsUrl } from "../data/world-assets.js";
+import { worldModelUrl, worldPackUrl, worldShopsUrl, worldExteriorPropsUrl } from "../data/world-assets.js";
 import { createProps, opaqueOrder, preloadProps } from "./props.js";
 import { bitmapTexture } from "./pictures.js";
 import { fetchUnpacked } from "./fetched.js";
@@ -132,10 +132,14 @@ export function preloadCity(tier) {
         .then((gltf) => inflate(gltf.scene)),
       // (load: decoded as it lands, off the page's thread; src/world/pictures.js.)
       bitmapTexture(worldShopsUrl[tier], false),
-      preloadProps(tier),
+      Promise.all([
+        preloadProps(tier, worldExteriorPropsUrl[tier].props),
+        fetchUnpacked(worldExteriorPropsUrl[tier].meshes).then((data) => new GLTFLoader().parseAsync(data, "")).then((gltf) => gltf.scene),
+        preloadProps(tier),
+      ]),
       preloadLogos(),
     ])
-      .then(([scene, shops, props]) => ({ scene, shops, props }))
+      .then(([scene, shops, [props, exterior, originalProps]]) => ({ scene, shops, props, exterior, originalProps }))
       .catch((err) => {
         cache.delete(tier);
         throw err;
@@ -172,7 +176,7 @@ export function preloadPack(tier, pack) {
 }
 
 export async function createCity(scene, renderer, shared, { tier, quality, reduced = false, signs: signWords = null }) {
-  const [{ scene: source, shops: shopSource, props: propsBuffer }] = await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds(), preloadLogos()]);
+  const [{ scene: source, shops: shopSource, props: propsBuffer, exterior, originalProps }] = await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds(), preloadLogos()]);
   const root = source.clone(true);
   root.name = "night_city";
   root.updateMatrixWorld(true);
@@ -337,7 +341,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   };
   dressProtos(protoMeshes);
   const visibility = createGarageVisibility(anchors);
-  const props = createProps(protoMeshes, propsBuffer, { phone: tier === "phone", reflectLayer: REFLECT_LAYER, visibleBox: visibility.test, visibilityKey: () => visibility.inside ? visibility.passKey : null });
+  const props = createProps(protoMeshes, propsBuffer, { phone: tier === "phone", reflectLayer: REFLECT_LAYER, visibleBox: visibility.test, visibilityKey: () => visibility.inside ? visibility.passKey : null, exterior, originalBuffer: originalProps });
   renderer.setOpaqueSort(opaqueOrder);
   sources.push(...props.sources);
   root.add(props.group);

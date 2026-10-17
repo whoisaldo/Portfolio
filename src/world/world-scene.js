@@ -989,7 +989,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // room-prop lists and portal visibility before projectObject sees them.
   const renderScene = renderer.render;
   renderer.render = function (drawScene, drawCamera) {
-    if (city && (drawScene === scene || city.root.parent === drawScene)) {
+    // PMREM wraps the city in a transform group. Prepare every actual cube
+    // face too, so portal and prop runs never inherit a previous view.
+    let cityPass = drawScene === scene;
+    for (let parent = city?.root; !cityPass && parent; parent = parent.parent) cityPass = parent === drawScene;
+    if (city && cityPass) {
       drawCamera.updateMatrixWorld();
       city.visibility.prepare(drawCamera);
       city.props.update(drawCamera);
