@@ -232,3 +232,33 @@ def place_in(at, yaw, name, ox, oy, oz, turn=0.0, district=None, sy=1.0, sxz=1.0
     (frame_of), turned `turn` more than the prop."""
     x, y, z = at(ox, oy, oz)
     place(name, x, y, z, yaw + turn, sy=sy, sxz=sxz, district=district)
+
+
+# ---------------------------------------------------------------------------
+# What stands in the way. A prototype's `box` is its whole extent (what the
+# site culls by); a lift, a door's tracks or a machine with an arm out is
+# mostly air inside that, so the garage publishes what of each is solid as
+# boxes of its own, PROTOS[name]["solids"]: (x0, x1, y0, y1, z0, z1) in the
+# prototype's frame. An empty list: nothing a walker or a wheel meets (a
+# floor mark, an arm under a car). No entry: the box is the solid, as for
+# the city's own props.
+# ---------------------------------------------------------------------------
+def solid(name, *boxes):
+    from ncw.props import PROTOS
+    PROTOS[name]["solids"] = [tuple(float(v) for v in b) for b in boxes]
+
+
+def world_solids(name, x, y, z, yaw=0.0, sy=1.0, sxz=1.0):
+    """An instance's solids as world boxes ((x0, y0, z0), (x1, y1, z1)), the
+    way collision.json writes a box: each turned with the instance and
+    boxed again square to the world."""
+    from ncw.props import PROTOS
+    p = PROTOS[name]
+    hx, hy, hz = p["box"]
+    at = frame_of(x, y, z, yaw)
+    out = []
+    for x0, x1, y0, y1, z0, z1 in p.get("solids", [(-hx, hx, 0.0, 2 * hy, -hz, hz)]):
+        corners = [at(ox * sxz, 0.0, oz * sxz) for ox in (x0, x1) for oz in (z0, z1)]
+        out.append(((min(c[0] for c in corners), y + y0 * sy, min(c[2] for c in corners)),
+                    (max(c[0] for c in corners), y + y1 * sy, max(c[2] for c in corners))))
+    return out
