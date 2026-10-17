@@ -758,6 +758,9 @@ def fit_diffuser(parts, shell, parent):
     return made
 
 
+V8T_Y = -1.0
+
+
 def place_badges(parts, shell):
     """The S6's black rings and S6 badge where the facelift's rings and model
     badge were on the boot lid; the V8T badges on the wings behind the arches."""
@@ -776,7 +779,10 @@ def place_badges(parts, shell):
         root = by_base['badge_V8T_fender_' + tag]
         pts = [o.matrix_world @ v.co for o in part_meshes(root) for v in o.data.vertices]
         c = sum(pts, Vector()) / len(pts)
-        hit = tree.ray_cast(Vector((sign * 2, c.y, c.z)), Vector((-sign, 0, 0)), 3)[0]
+        # On the wing, midway between the wheel arch (to y -1.09) and the door's shut line (-0.90).
+        root.location.y += V8T_Y - c.y
+        pts = [p + Vector((0, V8T_Y - c.y, 0)) for p in pts]
+        hit = tree.ray_cast(Vector((sign * 2, V8T_Y, c.z)), Vector((-sign, 0, 0)), 3)[0]
         root.location.x += hit.x + sign * .0015 - (max(p.x for p in pts) if sign > 0 else min(p.x for p in pts))
 
 
