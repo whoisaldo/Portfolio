@@ -146,6 +146,9 @@ function GarageShell({ onMounted, onLayout }) {
 
   const can = availability === "ready" && authorized;
   const [layout, setLayout] = useState("text");
+  // Availability copy and Retry can change the text layout too. Commit
+  // them through the same anchor transaction as a text/room replacement.
+  const [presentation, setPresentation] = useState({ availability, reason });
   const cinematic = layout === "cinematic";
   const [auto, setAuto] = useState(false);
   const [fallback, setFallback] = useState(null);
@@ -169,14 +172,15 @@ function GarageShell({ onMounted, onLayout }) {
   // ---- the transaction ----------------------------------------------------------
   const pending = useRef(null);
   useLayoutEffect(() => {
-    if (want === layout) return;
+    const changingLayout = want !== layout;
+    if (!changingLayout && availability === presentation.availability && reason === presentation.reason) return;
     const el = sectionRef.current;
     if (!el) return;
     const vh = window.innerHeight;
     const r = el.getBoundingClientRect();
     const active = document.activeElement;
-    const focusKey = active && el.contains(active) ? active.closest("[data-garage-anchor]")?.dataset.garageAnchor ?? "heading" : null;
-    const going = want === "cinematic" && r.top < vh && r.bottom > 0
+    const focusKey = active && el.contains(active) ? active.closest("[data-garage-anchor]")?.dataset.garageAnchor ?? (active.matches(".gw-card-title") ? "detail" : "heading") : null;
+    const going = changingLayout && want === "cinematic" && r.top < vh && r.bottom > 0
       ? { p: savedP.current ?? STATION_P[getGarageView().textStation] ?? 0 }
       : null;
     const station = stationAt(stage.garageProgress);
@@ -194,16 +198,19 @@ function GarageShell({ onMounted, onLayout }) {
       const from = visible ? box.top : (heading?.getBoundingClientRect().top ?? r.top);
       anchor = { kind: "element", key, offset: from };
     }
-    pending.current = { anchor, focus: focusKey, y: window.scrollY };
+    pending.current = { anchor, focus: focusKey, y: window.scrollY, changingLayout };
     document.documentElement.style.overflowAnchor = "none";
     if (want === "text" && layout === "cinematic") {
       savedP.current = stage.garageProgress;
       setFallback(station);
     }
-    setRestoreAnchor(focusKey);
-    setStill(true);
+    setPresentation({ availability, reason });
+    if (changingLayout) {
+      setRestoreAnchor(focusKey);
+      setStill(true);
+    }
     setLayout(want);
-  }, [want, layout]);
+  }, [want, layout, availability, reason, presentation]);
 
   // Near enough that the garage's city is worth building under reduced
   // motion (src/world/WorldMount.jsx).
@@ -232,9 +239,10 @@ function GarageShell({ onMounted, onLayout }) {
     if (!t) return undefined;
     const el = sectionRef.current;
     const visible = (node) => node && node.getClientRects().length > 0 && getComputedStyle(node).visibility !== "hidden";
-    const target = (key) => [...el.querySelectorAll("[data-garage-anchor]")].find((node) => node.dataset.garageAnchor === key && visible(node))
+    const target = (key) => (key === "detail" ? [...el.querySelectorAll(".gw-card-title")].find(visible) : null)
+      ?? [...el.querySelectorAll("[data-garage-anchor]")].find((node) => node.dataset.garageAnchor === key && visible(node))
       ?? el.querySelector('[data-garage-anchor="heading"]');
-    setStage({ garageCut: stage.garageCut + 1 });
+    if (t.changingLayout) setStage({ garageCut: stage.garageCut + 1 });
     resyncScrollStage();
     const a = t.anchor;
     const correct = () => {
@@ -273,7 +281,7 @@ function GarageShell({ onMounted, onLayout }) {
       cancelAnimationFrame(raf);
       events.forEach((name) => window.removeEventListener(name, cancel));
     };
-  }, [layout, onLayout]);
+  }, [layout, presentation, onLayout]);
 
   const retry = useCallback(() => {
     if (!getWorld()) window.dispatchEvent(new Event("aly:world-retry"));
@@ -288,8 +296,8 @@ function GarageShell({ onMounted, onLayout }) {
           <GarageImpl
             ledeSlot={cinematic ? null : ledeSlot}
             cinematic={cinematic}
-            availability={availability}
-            reason={reason}
+            availability={presentation.availability}
+            reason={presentation.reason}
             reduced={reduced}
             fallback={fallback}
             still={still}

@@ -158,16 +158,17 @@ export default function WorldMount() {
             // again until the restored one has been rebuilt.
             onLost: () => {
               if (!alive) return;
+              setWorld(null);
               setLive(false);
               setStage({ [key]: "loading", context: "lost" });
             },
           });
           setWorld(world);
           await world.warm();
-          if (alive) setStage({ [key]: "ready", context: "ok" });
+          if (alive && stage.context !== "lost") setStage({ [key]: "ready", context: "ok" });
         })
         .catch((err) => {
-          if (!alive) return;
+          if (!alive || stage.context === "lost") return;
           if (import.meta.env.DEV) console.warn("[world] the city did not load; keeping the plate", err);
           didFail = true;
           setStage({ [key]: "failed", context: "ok" });

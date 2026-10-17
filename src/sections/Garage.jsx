@@ -118,7 +118,7 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     onSelect: select, onCar: setActiveCar, onRetry, contactHref: "#contact", request: applied,
     onStation: cinematic ? goStation : (id) => setGarageView({ textStation: id }),
   };
-  return <div ref={root} data-garage-ready={cinematic ? "true" : "false"}>
+  return <div ref={root} data-garage-ready={cinematic && availability === "ready" ? "true" : "false"}>
     {cinematic ? <GarageControls {...common} station={station} stations={GARAGE_STATIONS} hood={worldState.hood} stance={worldState.lowering ? "lowered" : "normal"} override={worldState.override} status={worldState.status ?? ""} onLayout={(layout) => adapter()?.setPinLayout?.(layout)} registerPin={(key, el) => adapter()?.registerPin?.(key, el)} partsOpen={partsOpen} onPartsOpen={setPartsOpen} onHood={(id, open) => adapter()?.setHood?.(id, open)} onStance={(value) => adapter()?.setStance?.(value)} onResumeTour={() => adapter()?.resumeTour?.()} />
       : GARAGE_PHOTOS_ENABLED && ArchivedPhotos ? <Suspense fallback={<GarageText {...common} />}><ArchivedPhotos {...common} /></Suspense> : <GarageText {...common} />}
   </div>;

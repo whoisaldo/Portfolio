@@ -309,6 +309,11 @@ export function createGarageMaterials(shared, { kit, maxAnisotropy = 8 } = {}) {
         ...(!["satin_floor", "painted_wall", "photo_board", "threshold_wet"].includes(runtime) ? [`${name}: no runtime`] : []),
       ]);
     },
+    get report() {
+      return [...records].map(([name, { declared, maps, runtime }]) => ({ name, runtime,
+        slots: declared.map((slot) => ({ slot, bound: Boolean(maps[slot]), texture: maps[slot] ?? null })),
+      }));
+    },
     /** What this made: its own materials and the pack's pictures, once.
      *  (The threshold's material is the kit's and goes with the kit.) */
     dispose() {

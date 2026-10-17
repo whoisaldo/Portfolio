@@ -424,13 +424,14 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       const mine = own.forName(src.material.name);
       const material = mine ?? src.material;
       if (!mine && !material.transparent && n * src.geometry.attributes.position.count <= BAKED) {
-        const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}`;
+        const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}|${src.userData.assetKind ?? ""}`;
         if (!baked.has(key)) {
           const mesh = new Baked(twin(material, "baked", src.geometry));
           // (load: one a streamed district brings is hidden until its parts
           // are written and put in: shown empty, a frame made its program.)
           if (hold) mesh.visible = false;
           mesh.name = `props_small_${material.name}`;
+          if (src.userData.assetKind) mesh.userData.assetKind = src.userData.assetKind;
           if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name)) mesh.layers.enable(reflectLayer);
           group.add(mesh);
           baked.set(key, mesh);
@@ -474,6 +475,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       im.frustumCulled = false;
       im.matrixAutoUpdate = false;
       im.userData.hue = src.userData.hue;
+      if (src.userData.assetKind) im.userData.assetKind = src.userData.assetKind;
       // Light in the air draws after the steam, as the lamps' shafts do.
       if (material.transparent) im.renderOrder = 7;
       if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name)) im.layers.enable(reflectLayer);

@@ -136,6 +136,84 @@ function releaseLut(renderer, scene) {
   for (const k of ["LTC_FLOAT_1", "LTC_FLOAT_2", "LTC_HALF_1", "LTC_HALF_2"]) THREE.UniformsLib[k]?.dispose();
 }
 
+// Development reports read actual draw submissions and target lifetimes.
+// They leave the renderer's counters, pass order and quality unchanged.
+function createRenderDiagnostics(renderer) {
+  const targets = new Map();
+  const submissions = new Map();
+  let owner = "world";
+  const setTarget = renderer.setRenderTarget;
+  const renderBuffer = renderer.renderBufferDirect;
+  renderer.setRenderTarget = function (target, ...args) {
+    const result = setTarget.call(this, target, ...args);
+    if (target) {
+      if (!targets.has(target)) {
+        const row = { owner, active: true };
+        row.release = () => { row.active = false; };
+        target.addEventListener("dispose", row.release);
+        targets.set(target, row);
+      }
+      targets.get(target).active = true;
+    }
+    return result;
+  };
+  renderer.renderBufferDirect = function (camera, scene, geometry, material, object, group) {
+    const before = { ...renderer.info.render };
+    const result = renderBuffer.call(this, camera, scene, geometry, material, object, group);
+    const calls = renderer.info.render.calls - before.calls;
+    if (calls) {
+      const sectorOf = (node) => node ? node.userData.sector ?? node.userData.visibilitySector ?? sectorOf(node.parent) : "unassigned";
+      const target = renderer.getRenderTarget();
+      const sector = sectorOf(object);
+      const key = `${camera.uuid}|${target?.texture.uuid ?? "canvas"}|${object.uuid}`;
+      const row = submissions.get(key) ?? { object: object.name, uuid: object.uuid, sector, scene: scene.uuid, camera: camera.uuid, cameraPosition: camera.position.toArray(), target: target?.texture.uuid ?? "canvas", calls: 0, triangles: 0 };
+      row.calls += calls;
+      row.triangles += renderer.info.render.triangles - before.triangles;
+      submissions.set(key, row);
+    }
+    return result;
+  };
+  const texture = (t) => {
+    const image = (Array.isArray(t.image) ? t.image[0] : t.image)?.image ?? (Array.isArray(t.image) ? t.image[0] : t.image);
+    const width = image?.videoWidth || image?.width || 0, height = image?.videoHeight || image?.height || 0;
+    const layers = t.isCubeTexture ? 6 : image?.depth ?? 1;
+    let bytes = 0;
+    const level = (w, h) => t.isDepthTexture ? w * h * (t.type === THREE.UnsignedShortType ? 2 : 4) : THREE.TextureUtils.getByteLength(w, h, t.format, t.type);
+    try {
+      if (t.mipmaps?.length && !t.isCubeTexture) bytes = t.mipmaps.reduce((sum, m) => sum + level(m.width, m.height), 0) * layers;
+      else if (width && height) {
+        let w = width, h = height;
+        const levels = t.generateMipmaps ? Math.floor(Math.log2(Math.max(w, h))) + 1 : 1;
+        for (let i = 0; i < levels; i++) {
+          bytes += level(w, h) * layers;
+          w = Math.max(1, w >> 1); h = Math.max(1, h >> 1);
+        }
+      }
+    } catch { bytes = null; }
+    return { uuid: t.uuid, name: t.name, width, height, layers, type: t.type, format: t.format, internalFormat: t.internalFormat, mipmaps: t.generateMipmaps, bytes, resident: Boolean(renderer.properties.get(t).__webglTexture), renderTarget: Boolean(t.isRenderTargetTexture), src: image?.currentSrc ?? image?.src ?? null };
+  };
+  return {
+    begin() { submissions.clear(); },
+    async during(label, fn) { const previous = owner; owner = label; try { return await fn(); } finally { owner = previous; } },
+    texture,
+    report() {
+      return { submissions: [...submissions.values()], targets: [...targets].map(([target, row]) => ({
+        id: target.texture.uuid, owner: row.owner, active: row.active, width: target.width, height: target.height, depth: target.depth,
+        name: target.texture.name,
+        samples: target.samples, color: target.textures.map(texture), depthTexture: target.depthTexture ? texture(target.depthTexture) : null,
+        depthBufferBytes: target.depthBuffer && !target.depthTexture ? target.width * target.height * target.depth * (target.isWebGLCubeRenderTarget ? 6 : 1) * 4 : 0,
+        stencilBuffer: target.stencilBuffer,
+      })) };
+    },
+    dispose() {
+      renderer.setRenderTarget = setTarget;
+      renderer.renderBufferDirect = renderBuffer;
+      for (const [target, row] of targets) target.removeEventListener("dispose", row.release);
+      targets.clear(); submissions.clear();
+    },
+  };
+}
+
 export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, reduced = false, effects = [], signs = null } = {}) {
   const quality = { ...TIERS[tier] };
   const renderer = new THREE.WebGLRenderer({
@@ -157,6 +235,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // building it, on the first frame that uses it: worth it while working
   // on the shaders, not on a reader's first strike of the meteor.
   renderer.debug.checkShaderErrors = import.meta.env.DEV;
+  const diagnostics = import.meta.env.DEV ? createRenderDiagnostics(renderer) : null;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050506);
@@ -209,8 +288,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let clearance = null;
   let lightIn = false;
   const setUp = (c) => {
+    if (disposed) return c;
     city = c;
     c.light.ready.then(() => {
+      if (disposed) return;
       lightIn = true;
       if (running !== null) check();
     });
@@ -259,6 +340,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     return carLanded ? withCar(c) : preloadCar().then(() => withCar(c));
   };
   const withCar = (c) => {
+    if (disposed) return c;
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier, reduced });
     shafts = createShafts(scene, c.anchors, shared);
     crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER, walks: c.anchors.get("anchor_crowd")?.extras?.walks ?? [], standers: c.anchors.get("anchor_people")?.extras?.stand ?? [], cover, traffic });
@@ -288,6 +370,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     });
     // (load: and the city's light, baked on a worker meanwhile; city.js.)
     return Promise.all([koiMade, car.ready, c.light.ready]).then(([k]) => {
+      if (disposed) { k?.dispose(); return c; }
       koi = k;
       fitKoi();
       return c;
@@ -880,6 +963,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // flicker). Smoothing everywhere else stays on the frame's dt.
   const draw = (dt, moonView = null, flow = dt) => {
     renderer.info.reset();
+    diagnostics?.begin();
     let mirrored = false;
     clock += reduced ? 0 : flow;
     shared.uTime.value = clock;
@@ -1147,7 +1231,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // ---- context loss ------------------------------------------------------------
   const onContextLost = (e) => {
     e.preventDefault();
-    pause();
+    // Release renderer listeners and resources while this context is lost.
+    // Three must not reset its caches on restoration before those resources
+    // are disposed: their old handles would then reach the restored context.
+    dispose({ contextLost: true });
     onLost?.();
   };
   canvas.addEventListener("webglcontextlost", onContextLost);
@@ -1291,7 +1378,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     running = null;
     check();
     streamPacks();
-    buildSearchlights();
+    buildSearchlights().catch((err) => {
+      if (!disposed && import.meta.env.DEV) console.warn("[world] no searchlights", err);
+    });
     // (load) The voxel moon, after the city's first frame, a little at a
     // time between the page's frames: its programs, and hidden frames of
     // the strike and of the reveal over the street, where the warm-up drew
@@ -1315,12 +1404,15 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // drawn, 5 to 12 ms on a desktop. A page drawing nothing runs it after a
   // quarter of a second; none runs while the adaptive pass is timing.
   const asks = [];
+  const cancelledBuild = () => new DOMException("The world was disposed.", "AbortError");
   const ask = (job) => new Promise((resolve, reject) => {
+    if (disposed) { reject(cancelledBuild()); return; }
     const entry = {
       run() {
         if (entry.done) return;
         entry.done = true;
         clearTimeout(late);
+        if (disposed) { reject(cancelledBuild()); return; }
         try {
           resolve(job());
         } catch (err) {
@@ -1369,6 +1461,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const go = () => {
       cancelAnimationFrame(next);
       clearTimeout(late);
+      if (disposed) {
+        slotArmed = false;
+        waiting.splice(0).forEach((w) => w.resolve());
+        return;
+      }
       const moonFirst = waiting.findIndex((w) => w.untimed);
       const i = moonFirst >= 0 ? moonFirst : adapt.sampling ? -1 : 0;
       if (i < 0) {
@@ -1394,8 +1491,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       if (!slotArmed) arm();
     });
   };
-  const between = () => slot(false);
-  const moonSlot = () => slot(true);
+  const between = async () => { if (disposed) throw cancelledBuild(); await slot(false); if (disposed) throw cancelledBuild(); };
+  const moonSlot = async () => { if (disposed) throw cancelledBuild(); await slot(true); if (disposed) throw cancelledBuild(); };
 
   // ---- the districts behind the core ------------------------------------------
   // Once the hero can be drawn, the rest of the city: each pack fetched in
@@ -1426,6 +1523,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         cover?.render(city.root);
         packsIn.push(name);
       } catch (err) {
+        if (disposed) return;
         if (import.meta.env.DEV) console.warn(`[world] the ${name} districts did not load`, err);
       }
     }
@@ -1474,9 +1572,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const tour = state.p != null ? visit.stateAt(state.p, reduced) : { hood: { s4: 0, s6: 0 }, lowering: 0 };
     return { hood: state.hood ?? tour.hood, lowering: state.lowering ?? tour.lowering, driving: Boolean(state.free) };
   };
-  const applyDirectedGarageState = (state = {}) => {
+  const applyDirectedGarageState = (state = {}, { seek = false } = {}) => {
     if (!garageCars?.applyState || garageAvailable !== "ready") return false;
-    garageCars.applyState(directedGarageState(state));
+    garageCars.applyState(directedGarageState(state), { seek });
     return true;
   };
   const requestInspection = (destination, { cut = reduced } = {}) => {
@@ -1585,6 +1683,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         if (!streamed) await afterStreaming;
         if (disposed || !city) return false;
         await idle();
+        if (disposed) return false;
         if (atlas) city.garageMaterials.setBoards(boardTexture = atlas);
         packScene.updateMatrixWorld(true);
         packScene.traverse((node) => {
@@ -1612,11 +1711,16 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         }
         if (disposed) return false;
         await between();
+        if (disposed) return false;
         // The completed room is still behind text. Cars and their static
         // lighting probe can now prepare against its actual surfaces.
         if (!garageCars) garageCars = (runtime.default ?? runtime.createGarageCars)({ scene, renderer, shared, tier, reduced, anchors: city.anchors, fixtures, road: car, camera, between });
         await garageCars.ready;
-        await garageCars.captureProbe?.(city.root);
+        if (disposed) return false;
+        if (["s4", "s6"].some((id) => garageCars.stats?.[id]?.placeholder)) throw new Error("Both actual car models are required for the workshop.");
+        if (diagnostics) await diagnostics.during("garage-probe", () => garageCars.captureProbe?.(city.root));
+        else await garageCars.captureProbe?.(city.root);
+        if (disposed) return false;
         if (!city.garageSolids.length) throw new Error("The workshop camera solids are unavailable.");
         // Validate the sampled camera after the actual car state has been
         // applied. All geometry remains hidden behind the text until this
@@ -1629,7 +1733,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           const parked = withParkedS4(() => garageCars.bounds());
           const collision = createGarageCollision({ solids: () => city.garageSolids, cars: () => parked });
           if (collision.clearance(candidate.position) < .45 || collision.nearPlane(candidate, a, camera.near) < .15) throw new Error(`Workshop camera clearance failed at ${p.toFixed(3)}.`);
-          if (i % 20 === 0) await between();
+          if (i % 20 === 0) { await between(); if (disposed) return false; }
         }
         // Inspection changes may take any graph branch with either hood
         // open. Validate complete oriented poses against the conservative
@@ -1645,7 +1749,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
             for (let i = 0; i <= count; i++) {
               const candidate = visit.sample(edge.id, edge.from, edge.into, i / count, a, makePose());
               if (graphCollision.clearance(candidate.position) < .45 || graphCollision.nearPlane(candidate, a, camera.near) < .15) throw new Error(`Workshop inspection clearance failed on ${edge.id} at ${i}/${count}.`);
-              if (i % 100 === 0) await between();
+              if (i % 100 === 0) { await between(); if (disposed) return false; }
             }
           }
           for (const id of ["s4", "s6"]) {
@@ -1663,6 +1767,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         await ask(() => {
           if (disposed) return;
           const warmTarget = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType });
+          warmTarget.texture.name = "garage readiness warm frame";
           const previousTarget = renderer.getRenderTarget();
           const previousCamera = { position: camera.position.clone(), quaternion: camera.quaternion.clone(), fov: camera.fov, shift: lensShift };
           try {
@@ -1697,6 +1802,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         const markerModule = Object.values(import.meta.glob("./garage-markers.js"))[0];
         if (markerModule && !markers) {
           const mod = await markerModule();
+          if (disposed) return false;
           markers = (mod.createMarkers ?? mod.default)({ camera, anchors: garageCars.anchors(), occluders: () => [...garageCars.occluders(), ...garageCollision.solids.filter((s) => s.kind !== "floor")] });
         }
         cover?.render(city.root);
@@ -1707,6 +1813,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         publishGarage();
         return true;
       })().catch((err) => {
+        if (disposed) return false;
         garageRoom = null;
         garageCars?.dispose();
         garageCars = null;
@@ -1871,6 +1978,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     traverseVisible() {}
   }
   const readyToDraw = async (drawn) => {
+    if (disposed) return;
     const programs = warmKit ? [] : (warmKit = makeWarmKit()).programs;
     const versions = new Map();
     // A few objects at a time: a new program is its shaders' text put
@@ -2101,41 +2209,48 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     camera.updateMatrixWorld();
   };
 
-  const dispose = () => {
+  const dispose = ({ contextLost = false } = {}) => {
+    if (disposed) return;
     disposed = true;
+    asks.splice(0).forEach((entry) => entry.run());
     garageCars?.dispose();
     garageSubscribers.clear();
     markers?.dispose?.();
     pinElements.clear();
+    warmKit?.dispose();
+    warmKit = null;
     releaseLut(renderer, scene);
     pause();
     unwatch();
     window.removeEventListener("resize", resize);
     canvas.removeEventListener("webglcontextlost", onContextLost);
-    building.then((c) => {
-      c.dispose();
-      skyline?.dispose();
-      rain?.dispose();
-      cover?.dispose();
-      bolt?.dispose();
-      traffic?.dispose();
-      car?.dispose();
-      shafts?.dispose();
-      koi?.dispose();
-      plazaKoi?.dispose();
-      crowd?.dispose();
-      steam?.dispose();
-      searchlights?.dispose();
-    }).catch(() => {});
+    // Resources already made go now, before the renderer's property cache
+    // is released. An unfinished CPU build is cleaned when it arrives.
+    if (city) city.dispose();
+    else building.then((c) => c.dispose()).catch(() => {});
+    skyline?.dispose();
+    rain?.dispose();
+    cover?.dispose();
+    bolt?.dispose();
+    traffic?.dispose();
+    car?.dispose();
+    shafts?.dispose();
+    koi?.dispose();
+    plazaKoi?.dispose();
+    crowd?.dispose();
+    steam?.dispose();
+    searchlights?.dispose();
     // (load: the moon may still be on its way: it goes when it comes.)
-    moonMade?.then((m) => m?.dispose());
+    if (moon) moon.dispose();
+    else moonMade?.then((m) => m?.dispose());
     mirror?.dispose();
     mirror = null;
     glass.dispose();
     soundscape.dispose();
     post.dispose();
+    diagnostics?.dispose();
     renderer.dispose();
-    renderer.forceContextLoss();
+    if (!contextLost) renderer.forceContextLoss();
   };
 
   const stats = () => {
@@ -2155,6 +2270,49 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       adapt: { shed: [...adapt.shed], p95: adapt.p95, sampling: adapt.sampling },
       packs: [...packsIn],
       packsTotal: PACKS.length + Number(hasGaragePack(tier)),
+      ...(diagnostics ? { garage: garageDiagnostics() } : {}),
+    };
+  };
+
+  const garageDiagnostics = () => {
+    const allocations = diagnostics.report();
+    const textures = new Map();
+    const rigs = [];
+    const sectors = [];
+    const visible = (node) => { for (let parent = node; parent; parent = parent.parent) if (!parent.visible) return false; return true; };
+    const addTexture = (value, owner) => {
+      if (Array.isArray(value)) value.forEach((v) => addTexture(v, owner));
+      else if (value?.isTexture) {
+        if (!textures.has(value.uuid)) textures.set(value.uuid, { ...diagnostics.texture(value), owners: [] });
+        const row = textures.get(value.uuid);
+        if (!row.owners.includes(owner)) row.owners.push(owner);
+      }
+    };
+    scene.traverse((node) => {
+      const sector = node.userData.sector ?? node.userData.visibilitySector;
+      if (sector) sectors.push({ name: node.name, uuid: node.uuid, sector, visible: visible(node), layers: node.layers.mask, assetKind: node.userData.assetKind ?? null });
+      if (/^ali_s[46]$/.test(node.name)) {
+        const owners = [];
+        node.traverse((child) => {
+          if (/^(body|hood_hinge|opening_hood|HOOD_RIG|wheel_|steer_|axle_|mirror_|mod_)/.test(child.name)) owners.push({ name: child.name, parent: child.parent?.name, matrixWorld: child.matrixWorld.toArray(), visible: visible(child) });
+        });
+        rigs.push({ name: node.name, visible: visible(node), matrixWorld: node.matrixWorld.toArray(), owners });
+      }
+      let owner = "world-shared";
+      for (let parent = node; parent; parent = parent.parent) {
+        if ((parent.userData.sector ?? parent.userData.visibilitySector ?? "").startsWith("garage_") || /^(ali_s[46]|garage_)/.test(parent.name)) { owner = "garage"; break; }
+      }
+      for (const material of [].concat(node.material ?? [])) {
+        Object.values(material).forEach((v) => addTexture(v, owner));
+        Object.values(material.uniforms ?? {}).forEach((u) => addTexture(u.value, owner));
+      }
+    });
+    for (const row of city?.garageMaterials.report ?? []) for (const slot of row.slots) if (slot.texture) addTexture(slot.texture, "garage");
+    const garageTextures = [...textures.values()].filter((t) => t.resident && t.owners.includes("garage") && !t.renderTarget);
+    return { complete: garageAvailable === "ready", materialSlots: (city?.garageMaterials.report ?? []).map((row) => ({ ...row, slots: row.slots.map(({ texture, ...slot }) => ({ ...slot, texture: texture?.uuid ?? null })) })),
+      cars: garageCars?.stats ?? null, rigs, sectors, ...allocations, textures: [...textures.values()],
+      garageTextureBytes: garageTextures.some((t) => t.bytes === null) ? null : garageTextures.reduce((sum, t) => sum + t.bytes, 0),
+      accounting: "Decoded texture storage including mip levels. Shared UUIDs count once. Render targets include transient/disposed records; active marks current allocations. Driver padding is not measurable here. Depth renderbuffers use four bytes per pixel.",
     };
   };
 
@@ -2221,6 +2379,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       if (!visit) return null;
       return {
         stations: GARAGE_STATIONS,
+        ...(diagnostics ? { diagnostics: garageDiagnostics } : {}),
         get state() { return garageState(); },
         subscribe(fn) { garageSubscribers.add(fn); return () => garageSubscribers.delete(fn); },
         retry: prepareGarage,

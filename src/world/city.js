@@ -276,6 +276,9 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     const sources = [];
     for (const mesh of meshes) {
       const name = mesh.material.name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
+      const assetKind = mesh.userData.assetKind ?? mesh.material.userData?.assetKind
+        ?? (/garage_board|shop_photos/.test(`${mesh.name} ${name}`) ? "personal-photo" : /garage_screen|garage_identity_poster/.test(`${mesh.name} ${name}`) ? "identity-art" : null);
+      if (assetKind) mesh.userData.assetKind = assetKind;
       // (A workshop material's pictures are the garage's now: not the
       // pack's to dispose of with its material.)
       const own = garageMats.owns(mesh.material);
@@ -538,7 +541,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       // the camera's portals choose between, so a piece of it never joins
       // a batch of the city's or of another room's.)
       const sector = mesh.userData.visibilitySector ?? "";
-      const key = `${mesh.material.uuid}|${attributeKey(mesh.geometry)}|${mesh.layers.mask}|${mesh.renderOrder}|${sector}`;
+      const key = `${mesh.material.uuid}|${attributeKey(mesh.geometry)}|${mesh.layers.mask}|${mesh.renderOrder}|${sector}|${mesh.userData.assetKind ?? ""}`;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(mesh);
     }
@@ -589,6 +592,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       mesh.layers.mask = list[0].layers.mask;
       mesh.renderOrder = list[0].renderOrder;
       mesh.matrixAutoUpdate = false;
+      if (list[0].userData.assetKind) mesh.userData.assetKind = list[0].userData.assetKind;
       // Which room it is, kept once the meshes it was made of are gone.
       if (list[0].userData.visibilitySector) {
         mesh.userData.sector = list[0].userData.visibilitySector;
@@ -599,6 +603,8 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         twin.name = `occ_${material.name}`;
         twin.layers.set(MIRROR_LAYER);
         twin.matrixAutoUpdate = false;
+        if (mesh.userData.sector) twin.userData.sector = mesh.userData.sector;
+        if (mesh.userData.assetKind) twin.userData.assetKind = mesh.userData.assetKind;
         mesh.userData.twin = twin;
       }
       made.push({ key, list, whole, mesh, prev, bytes: bytesOf(whole) });

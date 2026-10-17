@@ -407,15 +407,18 @@ check("floor normal recovery updates sampler presence and clears stale slots", (
   const material = registry.forName(source);
   assert.equal(material.uniforms.uHasNormal.value, 0);
   assert.deepEqual(registry.missing, ["NCW_garage_workshop_floor.normal"]);
+  assert.deepEqual(registry.report[0].slots.map(({ slot, bound }) => [slot, bound]), [["baseColor", true], ["metallicRoughness", true], ["normal", false]]);
   source.normalMap = new three.Texture();
   assert.equal(registry.forName(source), material);
   assert.equal(material.uniforms.uNormal.value, source.normalMap);
   assert.equal(material.uniforms.uHasNormal.value, 1);
   assert.deepEqual(registry.missing, []);
+  assert.equal(registry.report[0].slots.find((row) => row.slot === "normal").texture, source.normalMap);
   source.normalMap = null;
   registry.forName(source);
   assert.equal(material.uniforms.uNormal.value, null);
   assert.equal(material.uniforms.uHasNormal.value, 0);
+  assert.equal(registry.report[0].slots.find((row) => row.slot === "normal").bound, false);
   source.userData.slots = '[]';
   registry.forName(source);
   assert.equal(material.uniforms.uMap.value, null);
