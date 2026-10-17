@@ -864,13 +864,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     return a + (b - a) * THREE.MathUtils.smoothstep(stage.position - i, 0.15, 0.85);
   };
 
-  const step = (dt) => {
+  const step = (dt, scrollDt = dt) => {
     // A jump of more than a shot in one frame is a deep link or a long nav
     // jump: land on it, with a glitch to say so, rather than fly across the
     // whole city in half a second. The car lands on its stop with it.
     const routeChanged = lastRoute !== null && routeKey() !== lastRoute;
     const jumped = !routeChanged && !flight && Math.abs(stage.position - lastPosition) > 1.2;
-    const cut = followInside(dt, jumped);
+    const cut = followInside(scrollDt, jumped);
     driveCar(dt, !posed || jumped);
     aim(dt);
     aimTower(dt);
@@ -1175,14 +1175,15 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // (load: one piece of work that waits on the GPU's process, before this
     // frame's draws; see `ask`.)
     if (!adapt.sampling) asks.shift()?.run();
-    const dt = last ? clamp((now - last) / 1000, 0, 1 / 20) : 0;
+    const scrollDt = last ? clamp((now - last) / 1000, 0, .5) : 0;
+    const dt = Math.min(scrollDt, 1 / 20);
     if (last) {
       times[timeIndex % times.length] = now - last;
       timeIndex++;
     }
     sample(dt, last ? now - last : 0);
     last = now;
-    step(dt);
+    step(dt, scrollDt);
     // Reduced motion: nothing in the city moves by itself, so a frame that
     // would show what the last one showed is not drawn. A new pose, a new
     // size, a change of the garage's state or layout, or a room arriving
@@ -1621,8 +1622,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       const mod = findMod(selection.carId, selection.modId);
       const missingModel = selection.carId === "s6" && carModels.s6.unavailable;
       const key = missingModel ? mod.pose === "bay" ? "s6_bay" : "s6" : mod.pose === "bay" ? `${selection.carId}_bay` : mod.pose === "front" ? selection.carId : `${selection.carId}_${mod.pose}`;
-      if (mod.pose === "bay" && !options?.preserveState) commandHood(selection.carId, 1);
-      if (mod.pose === "stance" && !options?.preserveState) manual.lowering = 0;
+      if (!missingModel && mod.pose === "bay" && !options?.preserveState) commandHood(selection.carId, 1);
+      if (!missingModel && mod.pose === "stance" && !options?.preserveState) manual.lowering = 0;
       const leavingCabin = inspectionCursor?.snapshot().node?.endsWith("_cabin");
       inspectionLabel = mod.pose === "cabin" ? `${selection.carId.toUpperCase()} cabin view. Camera cut.` : `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} ${mod.pose} view.`;
       if (missingModel) inspectionLabel = `${mod.name ?? mod.title ?? mod.id} selected. The S6 model is being built; its bay is empty.`;
@@ -1863,7 +1864,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const tour = visit?.stateAt(p, reduced) ?? { hood: { s4: 0, s6: 0 }, lowering: 0 };
     const overrides = stage.view === "cinema" ? { selection: null, hood: { s4: null, s6: null }, lowering: null } : manual;
     return { availability: garageAvailable, reason: garageReason, models: { s4: true, s6: !carModels.s6.unavailable }, visiting: Boolean(visiting()), p, station: manual.selection && stage.view !== "cinema" ? findMod(manual.selection.carId, manual.selection.modId)?.station : visit?.stationAt(p), selection: manual.selection, activeCar: overrides.selection?.carId ?? (typeof inspectionTarget === "string" && /^(s4|s6)/.test(inspectionTarget) ? inspectionTarget.slice(0, 2) : visit?.activeCarAt(p)), status: inspectionLabel,
-      hood: { s4: overrides.hood.s4 == null ? tour.hood.s4 : hoodMotion.s4?.value ?? overrides.hood.s4, s6: overrides.hood.s6 == null ? tour.hood.s6 : hoodMotion.s6?.value ?? overrides.hood.s6 }, lowering: overrides.lowering ?? tour.lowering,
+      hood: { s4: overrides.hood.s4 == null ? tour.hood.s4 : hoodMotion.s4?.value ?? overrides.hood.s4, s6: carModels.s6.unavailable ? 0 : overrides.hood.s6 == null ? tour.hood.s6 : hoodMotion.s6?.value ?? overrides.hood.s6 }, lowering: carModels.s6.unavailable ? 0 : overrides.lowering ?? tour.lowering,
       override: { selection: overrides.selection, hoodS4: overrides.hood.s4, hoodS6: overrides.hood.s6, lowering: overrides.lowering } };
 
   };
@@ -2430,11 +2431,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           if (saved.inspection != null) requestInspection(saved.inspection, { cut: true });
         } },
         select: selectGaragePart,
-        setHood(id, value) { if (id in manual.hood) {
+        setHood(id, value) { if (id === "s6" && carModels.s6.unavailable) return false; if (id in manual.hood) {
           commandHood(id, value);
           publishGarage();
         } },
         setStance(value) {
+          if (carModels.s6.unavailable) return false;
           requestInspection("s6_stance");
           manual.lowering = value == null ? null : value === "lowered" ? 1 : 0;
           garageCars?.setLowering(manual.lowering ?? visit.stateAt(stage.garageProgress, reduced).lowering);

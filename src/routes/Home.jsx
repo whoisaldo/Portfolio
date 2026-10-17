@@ -323,7 +323,7 @@ function GarageShell({ onMounted, onLayout }) {
       <div className={cinematic ? "sticky top-0 h-[100svh] overflow-hidden" : "gutter pt-24 md:pt-32 pb-24 md:pb-32"}>
         {cinematic ? (
           <div className="gutter pt-20 md:pt-24 rail-clear">
-            <p data-garage-anchor="heading" tabIndex={-1} className="mono-label text-volt focus:outline-none">
+            <p data-garage-anchor="heading" tabIndex={-1} className="sr-only focus:outline-none">
               05 // Garage
             </p>
             <h2 className="sr-only">Garage</h2>

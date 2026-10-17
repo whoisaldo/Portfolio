@@ -31,12 +31,13 @@ let garage;
 let three;
 let propsModule;
 let materialModule;
+let scrollModule;
 let inspectionModule;
 let s4Mods;
 let GLTFLoader;
 let carDecoder;
 try {
-  [world, garage, three, propsModule, materialModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js")]);
+  [world, garage, three, propsModule, materialModule, scrollModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js"), vite.ssrLoadModule("/src/world/scroll-stage.js")]);
   [inspectionModule, { mods: s4Mods }, { GLTFLoader }, { MeshoptDecoder: carDecoder }] = await Promise.all([vite.ssrLoadModule("/src/three/car/inspect.js"), vite.ssrLoadModule("/src/data/garage.js"), vite.ssrLoadModule("three/addons/loaders/GLTFLoader.js"), vite.ssrLoadModule("three/addons/libs/meshopt_decoder.module.js")]);
 } finally {
   await vite.close();
@@ -452,10 +453,26 @@ check("floor normal recovery updates sampler presence and clears stale slots", (
   registry.dispose(); source.dispose();
 });
 
+check("immersive Arrival fits its sticky controls and has an inverse mapping", () => {
+  const shots = [{ id: "stack", top: 1000, height: 1000 }, { id: "garage", top: 3000, height: 7000 }, { id: "contact", top: 11000, height: 1000 }];
+  const [start, end] = scrollModule.holdRange(shots, 1, 1000, 11000);
+  assert.equal(start, 3000);
+  assert.equal(scrollModule.holdRange(shots, 0, 1000, 11000)[1], 1000);
+  assert.equal(scrollModule.positionAt(shots, start, 1000, 11000), 1);
+  for (const p of [0, .2, .4, .6, .8, 1]) {
+    const y = scrollModule.garageScrollFor(p, shots, 1000, 11000);
+    assert.ok(Math.abs(scrollModule.garageProgressAt(shots, y, 1000, 11000) - p) < 1e-10);
+    assert.ok(y >= start && y <= end);
+  }
+  shots[1].height = 2500;
+  assert.equal(scrollModule.holdRange(shots, 1, 1000, 11000)[0], 2800, "text keeps the ordinary mapping");
+});
+
 check("Smasher art keeps its declared clamped map and neutral base", () => {
   const registry = materialModule.createGarageMaterials({});
   const source = new three.MeshStandardMaterial();
   source.name = "NCW_garage_identity_poster";
+  source.side = three.DoubleSide;
   source.map = new three.Texture();
   source.userData = { runtime: "painted_wall", slots: '["baseColor"]', wrap: "clamp", params: { baseTint: "#ffffff", uvScale: [1, 1] } };
   assert.ok(registry.owns(source));
@@ -465,6 +482,7 @@ check("Smasher art keeps its declared clamped map and neutral base", () => {
   assert.equal(source.map.wrapS, three.ClampToEdgeWrapping);
   assert.equal(source.map.wrapT, three.ClampToEdgeWrapping);
   assert.equal(material.uniforms.uBase.value.getHex(), 0xffffff);
+  assert.equal(material.side, three.DoubleSide, "the thin print stays visible from the room");
   assert.deepEqual(registry.missing, []);
   registry.dispose(); source.dispose();
 });

@@ -39,6 +39,11 @@ import { sections as SECTIONS } from "../data/site";
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const smooth = (t) => t * t * (3 - 2 * t);
+// The immersive garage's controls fill one sticky viewport. Its incoming
+// flight lands once that viewport is at the top, so Arrival never places
+// the bottom controls below the screen. Natural-height text keeps the
+// ordinary section mapping.
+const shotStart = (shot, vh) => shot.top - (shot.id === "garage" && shot.height >= 6 * vh ? 0 : .2 * vh);
 
 /**
  * Where the reader is, in shots, at scroll `y`. Pure, so the same numbers
@@ -50,9 +55,9 @@ export function positionAt(shots, y, vh, maxScroll) {
   for (let i = 0; i < n - 1; i++) {
     const a = shots[i];
     const b = shots[i + 1];
-    let nextStart = b.top - 0.2 * vh;
+    let nextStart = shotStart(b, vh);
     if (i === n - 2) nextStart = Math.min(nextStart, maxScroll);
-    const holdEnd = Math.min(Math.max(a.top - 0.2 * vh, a.top + a.height - vh), nextStart);
+    const holdEnd = Math.min(Math.max(shotStart(a, vh), a.top + a.height - vh), nextStart);
     if (y < holdEnd) return i;
     if (y < nextStart) return i + (y - holdEnd) / Math.max(1, nextStart - holdEnd);
   }
@@ -71,10 +76,10 @@ export function holdRange(shots, i, vh, maxScroll) {
   if (!a) return [0, 0];
   if (i === n - 1) return [maxScroll, maxScroll];
   const b = shots[i + 1];
-  let nextStart = b.top - 0.2 * vh;
+  let nextStart = shotStart(b, vh);
   if (i === n - 2) nextStart = Math.min(nextStart, maxScroll);
-  const end = Math.min(Math.max(a.top - 0.2 * vh, a.top + a.height - vh), nextStart);
-  const start = i === 0 ? 0 : clamp(a.top - 0.2 * vh, 0, end);
+  const end = Math.min(Math.max(shotStart(a, vh), a.top + a.height - vh), nextStart);
+  const start = i === 0 ? 0 : clamp(shotStart(a, vh), 0, end);
   return [start, end];
 }
 

@@ -273,7 +273,12 @@ export function createGarageMaterials(shared, { kit, maxAnisotropy = 8 } = {}) {
         else if (runtime === "photo_board") m = photoBoard(name, maps);
 
       }
-      if (m) made.set(name, m);
+      if (m) {
+        // Blender's thin art and wall planes deliberately render on both
+        // sides. Preserve that authored setting when replacing glTF PBR.
+        m.side = source.side;
+        made.set(name, m);
+      }
       return m;
     },
     /** The external photo atlas (CONTRACT.md 1.4, source "external"),

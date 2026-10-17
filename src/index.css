@@ -1419,12 +1419,12 @@ html:has(body.recruiters) { background-color: #f7f6f2; }
 #garage [data-garage-car-missing="true"] [data-garage-control^="stance:"] { display: none; }
 #garage .garage-model-note {
   position: absolute;
-  top: 6rem;
+  top: 8.25rem;
   left: clamp(12px, 3vw, 48px);
   right: 12px;
   max-width: 27rem;
   font-size: 0.6875rem;
   line-height: 1.4;
-  color: var(--dim);
+  color: rgb(236 234 228 / 0.56);
   pointer-events: none;
 }

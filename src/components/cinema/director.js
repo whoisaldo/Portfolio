@@ -42,6 +42,7 @@ import { GARAGE_STATIONS, GARAGE_TIMELINE } from "../../data/world";
 import { filmCanVisit, setGarageView } from "../../lib/garage3d";
 
 import { car as S6 } from "../../data/garage-s6";
+import { s6ModelUrl } from "../../data/s6";
 
 // The visit's pass: how long the page takes over it, and where each
 // station's caption comes up, at the start of the stretch that arrives at
@@ -76,15 +77,15 @@ function visitCaption(st, label) {
   const s6 = S6 ? `${S6.year} ${S6.name}` : null;
   switch (st.id) {
     case "arrival":
-      return { label, title: st.label, line: s6 ? `${s4} · ${s6}` : s4 };
+      return { label, title: st.label, line: s6ModelUrl ? `${s4} · ${s6}` : `${s4} · S6 model in progress` };
     case "s4":
       return { label, title: s4, line: `${car.engine} · ${car.output}` };
     case "s4-bay":
       return { label, title: st.label, line: car.engine };
     case "s6":
-      return { label, title: s6 ?? st.label, line: S6?.engine ?? null };
+      return { label, title: s6 ?? st.label, line: s6ModelUrl ? S6?.engine ?? null : "Model in progress. The S6 build details are available in Parts." };
     case "s6-bay":
-      return { label, title: st.label, line: S6?.engine ?? null };
+      return { label, title: st.label, line: s6ModelUrl ? S6?.engine ?? null : "Model in progress. The S6 build details are available in Parts." };
     case "shop":
       return { label, title: teardown.title, line: teardown.lede };
     default:
