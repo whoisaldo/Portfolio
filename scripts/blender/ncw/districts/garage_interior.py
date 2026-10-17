@@ -216,8 +216,8 @@ def _blobs(n, size, rng, r0, r1, depth0, depth1):
 
 
 def make_maps():
-    """The workshop's maps, drawn once from the kit's own CC0 concrete
-    (ambientCG Concrete023) and kept beside the city's other sources: the
+    """The workshop's maps, drawn once from the kit's own concrete
+    (Concrete023) and kept beside the city's other sources: the
     generator's version is in each file's name, so a change here writes new
     files rather than quietly replacing the old."""
     import numpy as np

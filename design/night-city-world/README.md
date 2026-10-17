@@ -267,14 +267,9 @@ replaced one box with the cars painted on.
   (Arasaka `#ff003c`, Militech `#fcee0a`, Afterlife `#ff2e88`, Ripperdoc
   `#eceae4` with its cross); that component and `RoadTraffic.jsx` are gone,
   and their signs and traffic are this city's.
-- [ambientCG Asphalt 026 C](https://ambientcg.com/view?id=Asphalt026C) is the
-  road (re-encoded 1K JPGs in `textures/`). The sidewalk, the concrete and the
-  garage's walls outside the viewer's pictures reuse the garage's
-  [Concrete 048](https://ambientcg.com/view?id=Concrete048) and
-  [Concrete 023](https://ambientcg.com/view?id=Concrete023) in place. All
-  [CC0](https://docs.ambientcg.com/license/). Poly Haven was not used (its
-  integration is switched off in Ali's Blender addon, and the addon was left
-  as it was).
+- The road is Asphalt 026 C (re-encoded 1K JPGs in `textures/`). The
+  sidewalk, the concrete and the garage's walls outside the viewer's pictures
+  reuse the garage's Concrete 048 and Concrete 023 in place.
 - `textures/holo-figure.jpg`, the holographic woman, is an original image
   generated for this with Codex image generation (the `codex-image` skill,
   two variants, the first kept), from this prompt: "a towering holographic
@@ -662,8 +657,7 @@ replaced one box with the cars painted on.
   the board and lighting corpo row a tower at a time, with captions from the
   data. The frame is letterboxed to 2.39 in a viewfinder that reports only
   real things (the scene, the running time, the lens worked out from the
-  camera's field of view), and the credits are the page's own contents,
-  rolled over the moon. Space pauses, the arrows skip, Esc gives the page
+  camera's field of view), and it ends on the contact card. Space pauses, the arrows skip, Esc gives the page
   back.
 - Photo mode (P, the camera in Look and the film, or `photo`): `snapshot`
   draws the frame again without the page's frost and copies it in the same

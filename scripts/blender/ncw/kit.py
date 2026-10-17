@@ -139,7 +139,7 @@ def textured(name, folder, asset, tint=None, rough_scale=1.0, normal=0.6):
     return mat
 
 
-# Surfaces (ambientCG, CC0). The road carries most of the colour, as in the
+# Surfaces. The road carries most of the colour, as in the
 # plate: dark, cracked, wet. Its roughness is pulled down for the preview.
 textured("asphalt", TEX, "Asphalt026C", rough_scale=0.35, normal=0.8)
 textured("sidewalk", GARAGE_TEX, "Concrete048", normal=0.4)

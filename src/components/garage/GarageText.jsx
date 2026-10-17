@@ -7,7 +7,6 @@ import { scrollToSection } from "../../lib/scroll";
 import Panel from "../ui/Panel";
 import PartCard from "./PartCard";
 import PartList from "./PartList";
-import Credits from "./Credits";
 import { ShopText } from "./Shop";
 import { CARS, findCar, findMod, resolveRequest } from "./cars";
 import { ANCHOR, CONTROL, focusInView } from "./focus";
@@ -19,7 +18,6 @@ export default function GarageText({
   availability,
   reason,
   showPrices,
-  credits,
   onSelect,
   onCar,
   onStation,
@@ -127,7 +125,6 @@ export default function GarageText({
 
       <ShopText />
       <div className="mt-12 pt-6 border-t border-ink-line flex flex-wrap items-center justify-between gap-5">
-        <Credits credits={credits} />
         <a href={contactHref} className="gw-next ml-auto" {...{ [CONTROL]: "contact" }} onClick={(e) => {
           if (!contactHref.startsWith("#")) return;
           e.preventDefault();

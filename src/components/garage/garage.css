@@ -252,8 +252,6 @@
 }
 .gw-next:hover .font-display { color: #fcee0a; }
 
-.gw-credits summary { width: max-content; }
-
 /* ---- the workshop's stage ------------------------------------------------ */
 .gw-stage {
   --gw-pad-x: clamp(1.25rem, 4vw, 5rem);
@@ -264,8 +262,7 @@
   pointer-events: none;
 }
 .gw-stage > :not(.gw-markers) { position: relative; z-index: 2; min-width: 0; }
-.gw-stage [data-glass],
-.gw-stage .gw-credits { pointer-events: auto; }
+.gw-stage [data-glass] { pointer-events: auto; }
 
 .gw-label {
   grid-area: label;
@@ -291,7 +288,6 @@
   align-items: flex-start;
   gap: 0.5rem;
 }
-.gw-credits-in-list { display: none; }
 /* The card's row is whatever the stage has left between the label and the
    bottom rows; the card shrinks into it and scrolls inside itself rather
    than running under the controls. */
@@ -339,12 +335,6 @@
   overscroll-behavior: contain;
 }
 .gw-panel-scroll { padding-bottom: 0.5rem; }
-.gw-credits-overlay {
-  padding: 0 0.75rem;
-  background: rgb(8 8 10 / 0.6);
-  max-width: 22rem;
-}
-.gw-credits-overlay[open] { padding-bottom: 0.75rem; }
 
 /* Desktop: label upper left, the card down the left side, and two rows
    along the bottom, the car and part controls above the stations. */
@@ -388,8 +378,6 @@
   /* The station bar already has a tab for each car, so the car tabs would
      only repeat it on a screen this narrow. */
   .gw-area-car { display: none; }
-  .gw-credits-in-util { display: none; }
-  .gw-credits-in-list { display: block; }
   .gw-area-side { align-self: end; justify-self: stretch; }
   .gw-area-actions { justify-self: stretch; }
   .gw-area-actions [data-glass] { width: 100%; }
