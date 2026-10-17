@@ -165,7 +165,7 @@ export function createGarageVisibility(anchors) {
     test(box, sector = "") {
       if (!portals.length || nearOpening) return true;
       if (inside && (sector.startsWith("garage_") || box.intersectsBox(room) && sector !== "exterior")) return true;
-      if (!inside && !sector.startsWith("garage_") && !room.containsBox(box)) return true;
+      if (!inside && (sector === "garage_shell" || !sector.startsWith("garage_") && !room.containsBox(box))) return true;
       return cones.some((planes) => planes.every((plane) => {
         positive.set(plane.normal.x > 0 ? box.max.x : box.min.x, plane.normal.y > 0 ? box.max.y : box.min.y, plane.normal.z > 0 ? box.max.z : box.min.z);
         return plane.distanceToPoint(positive) >= 0;

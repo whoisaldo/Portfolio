@@ -805,6 +805,7 @@ check("portal visibility keeps real openings for main and reflected cameras", ()
   camera.position.set(440, 2, -215); camera.lookAt(462, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
   assert.ok(visibility.test(box(462, 2, -215), "garage_s4"));
   assert.ok(!visibility.test(box(462, 2, -225), "garage_s6"), "outside cannot see through a closed wall");
+  assert.equal(visibility.test(box(462, 2, -225), "garage_shell"), true, "the workshop's outer walls and roof stay visible from the street");
   assert.ok(visibility.test(box(440, 1, -150)), "exterior culling is unchanged outdoors");
 });
 
