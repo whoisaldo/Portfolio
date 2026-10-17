@@ -9103,8 +9103,8 @@
    "kind": "cam",
    "at": [
     475.1,
-    2.55,
-    -215.2
+    2.35,
+    -215.3
    ],
    "yaw": 0.0,
    "district": "afterlife",
@@ -9118,8 +9118,8 @@
    "kind": "cam",
    "at": [
     475.1,
-    2.1,
-    -215.9
+    2.15,
+    -216.2
    ],
    "yaw": 0.0,
    "district": "afterlife",
@@ -9192,9 +9192,9 @@
    "name": "cam_garage_gaze_s4bay_s6rear_01_portrait",
    "kind": "cam",
    "at": [
-    463.25,
-    1.05,
-    -215.0
+    464.09,
+    0.6,
+    -215.14
    ],
    "yaw": 0.0,
    "district": "afterlife",
@@ -9279,6 +9279,21 @@
    }
   },
   {
+   "name": "cam_garage_gaze_s6bay_shop_01_portrait",
+   "kind": "cam",
+   "at": [
+    464.22,
+    0.6,
+    -222.12
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.0,
+    "route": "s6bay_shop"
+   }
+  },
+  {
    "name": "cam_garage_gaze_s6bay_shop_02",
    "kind": "cam",
    "at": [
@@ -9328,8 +9343,8 @@
    "kind": "cam",
    "at": [
     475.1,
-    2.55,
-    -215.2
+    2.35,
+    -215.3
    ],
    "yaw": 0.0,
    "district": "afterlife",
@@ -9343,8 +9358,8 @@
    "kind": "cam",
    "at": [
     475.1,
-    2.1,
-    -215.9
+    2.15,
+    -216.2
    ],
    "yaw": 0.0,
    "district": "afterlife",
@@ -9435,6 +9450,21 @@
     463.3,
     1.05,
     -222.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "stance_s6bay"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_stance_s6bay_02_portrait",
+   "kind": "cam",
+   "at": [
+    464.22,
+    0.6,
+    -222.12
    ],
    "yaw": 0.0,
    "district": "afterlife",
@@ -9598,9 +9628,9 @@
    "name": "cam_garage_path_exit_01",
    "kind": "cam",
    "at": [
-    470.0,
-    2.6,
-    -218.5
+    466.6,
+    2.9,
+    -218.4
    ],
    "yaw": 0.0,
    "district": "afterlife",
@@ -9740,9 +9770,9 @@
    "name": "cam_garage_path_s6bay_shop_01",
    "kind": "cam",
    "at": [
-    469.0,
+    467.3,
     3.0,
-    -222.8
+    -221.0
    ],
    "yaw": 0.0,
    "district": "afterlife",
@@ -9753,12 +9783,26 @@
    }
   },
   {
+   "name": "cam_garage_path_s6bay_shop_01_portrait",
+   "kind": "cam",
+   "at": [
+    467.4,
+    3.1,
+    -220.8
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "s6bay_shop"
+   }
+  },
+  {
    "name": "cam_garage_path_s6bay_shop_02",
    "kind": "cam",
    "at": [
-    468.6,
-    2.7,
-    -218.9
+    467.4,
+    2.6,
+    -218.0
    ],
    "yaw": 0.0,
    "district": "afterlife",
@@ -9772,9 +9816,9 @@
    "name": "cam_garage_path_s6bay_shop_02_portrait",
    "kind": "cam",
    "at": [
-    468.6,
-    2.4,
-    -219.4
+    467.5,
+    2.5,
+    -218.4
    ],
    "yaw": 0.0,
    "district": "afterlife",
@@ -9915,9 +9959,9 @@
    "name": "cam_garage_s4_bay_target_portrait",
    "kind": "cam",
    "at": [
-    463.25,
-    1.05,
-    -215.0
+    464.09,
+    0.6,
+    -215.14
    ],
    "yaw": 0.0,
    "district": "afterlife"
@@ -10113,9 +10157,9 @@
    "name": "cam_garage_s6_bay_target_portrait",
    "kind": "cam",
    "at": [
-    463.3,
-    1.05,
-    -222.0
+    464.22,
+    0.6,
+    -222.12
    ],
    "yaw": 0.0,
    "district": "afterlife"
@@ -10304,15 +10348,15 @@
    "name": "cam_garage_shop",
    "kind": "cam",
    "at": [
-    468.5,
-    2.6,
-    -215.0
+    467.5,
+    2.3,
+    -215.2
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "fov": 58.0,
-    "fov_portrait": 70.0,
+    "fov": 60.0,
+    "fov_portrait": 72.0,
     "station": "shop",
     "p": 1.0
    }
@@ -10321,9 +10365,9 @@
    "name": "cam_garage_shop_portrait",
    "kind": "cam",
    "at": [
-    468.5,
+    467.6,
     2.1,
-    -215.9
+    -216.25
    ],
    "yaw": 0.0,
    "district": "afterlife"
@@ -10333,8 +10377,8 @@
    "kind": "cam",
    "at": [
     475.1,
-    2.55,
-    -215.2
+    2.35,
+    -215.3
    ],
    "yaw": 0.0,
    "district": "afterlife"
@@ -10344,8 +10388,8 @@
    "kind": "cam",
    "at": [
     475.1,
-    2.1,
-    -215.9
+    2.15,
+    -216.2
    ],
    "yaw": 0.0,
    "district": "afterlife"

@@ -64,15 +64,18 @@ GARAGE_STATIONS = [
     # -222.8], so the S6's own bumper does not hide its tyres' contact.)
     ("arrival", 0.0, ((453.8, 2.2, -225.0), (462.0, 0.45, -219.0), 58), ((454.0, 3.6, -228.6), (461.5, 0.8, -220.0), 84)),
     ("s4", 0.2, ((468.5, 1.8, -210.8), (462.8, 0.85, -215.0), 48), ((469.4, 2.3, -211.3), (462.5, 0.85, -215.0), 60)),
-    ("s4_bay", 0.4, ((466.4, 3.15, -215.9), (463.3, 1.05, -215.0), 44), ((466.9, 3.45, -215.6), (463.25, 1.05, -215.0), 58)),
+    # (A phone looks steeper into each bay, so the open engine sits in the
+    # picture's clear upper part, over the collapsed part card.)
+    ("s4_bay", 0.4, ((466.4, 3.15, -215.9), (463.3, 1.05, -215.0), 44), ((466.9, 3.45, -215.6), (464.086, 0.6, -215.137), 58)),
     ("s6", 0.6, ((467.8, 1.55, -225.6), (462.5, 0.8, -222.0), 48), ((470.0, 2.1, -226.0), (462.5, 0.8, -222.0), 60)),
-    ("s6_bay", 0.8, ((466.7, 3.45, -222.8), (463.3, 1.05, -222.0), 44), ((467.2, 3.65, -222.5), (463.3, 1.05, -222.0), 58)),
-    # Afterlife workbench, straight on to the shop wall's working centre:
-    # the benches under the amber strip, the moon's screen and AFTERLIFE
-    # AUTO over them, the jacket on its chair in front, Guts and the Smasher
-    # print either side; a phone farther back, level, holding the middle
-    # bench, the jacket, the screen and the sign in one column.
-    ("shop", 1.0, ((468.5, 2.6, -215.0), (475.1, 2.55, -215.2), 58), ((468.5, 2.1, -215.9), (475.1, 2.1, -215.9), 70)),
+    ("s6_bay", 0.8, ((466.7, 3.45, -222.8), (463.3, 1.05, -222.0), 44), ((467.2, 3.65, -222.5), (464.224, 0.6, -222.118), 58)),
+    # Afterlife workbench, straight on to the shop wall's working centre
+    # from about where the old room's view stood (8 m back): the benches
+    # under the amber strip, the moon's screen and AFTERLIFE AUTO over them,
+    # the jacket on its chair in front, Guts and the Smasher print either
+    # side; a phone level and wide, holding the middle bench, the jacket,
+    # the screen and the sign in one column over its card.
+    ("shop", 1.0, ((467.5, 2.3, -215.2), (475.1, 2.35, -215.3), 60), ((467.6, 2.1, -216.25), (475.1, 2.15, -216.2), 72)),
 ]
 GARAGE_POSES = [
     # Inspection poses the tour and the parts reach between stations.
@@ -133,9 +136,9 @@ GARAGE_ROUTES = {
                   [(0.0, "s6_rear"), (0.45, (461.6, 0.8, -223.4)), (1.0, "s6")]),
     "s6_stance": ("s6", "s6_stance", [], {}, []),
     "stance_s6bay": ("s6_stance", "s6_bay", [(466.4, 1.8, -224.8)], {}, [(0.0, "s6_stance"), (1.0, "s6_bay")]),
-    "s6bay_shop": ("s6_bay", "shop", [(469.0, 3.0, -222.8), (468.6, 2.7, -218.9)], {2: (468.6, 2.4, -219.4)},
+    "s6bay_shop": ("s6_bay", "shop", [(467.3, 3.0, -221.0), (467.4, 2.6, -218.0)], {1: (467.4, 3.1, -220.8), 2: (467.5, 2.5, -218.4)},
                    [(0.0, "s6_bay"), (0.35, (475.0, 1.3, -220.4)), (0.65, (474.6, 2.7, -218.2)), (0.85, (473.6, 1.3, -216.9)), (1.0, "shop")]),
-    "exit": ("shop", "outside", [(470.0, 2.6, -218.5), (458.2, 3.0, -219.0), (455.0, 2.7, -216.5), (451.5, 2.4, -215.3)], {},
+    "exit": ("shop", "outside", [(466.6, 2.9, -218.4), (458.2, 3.0, -219.0), (455.0, 2.7, -216.5), (451.5, 2.4, -215.3)], {},
              [(0.0, "shop"), (0.4, (460.0, 1.6, -218.6)), (0.8, (447.0, 2.2, -216.4)), (1.0, (440.0, 2.6, -217.0))]),
     "apron_s4rear": ("apron", "s4_rear", [(455.6, 2.2, -213.4)], {}, [(1.0, "s4_rear")]),
     "apron_s6rear": ("apron", "s6_rear", [(455.4, 2.3, -222.6)], {}, [(1.0, "s6_rear")]),
