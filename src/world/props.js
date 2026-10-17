@@ -283,7 +283,7 @@ class Baked extends THREE.Mesh {
 
   /** The cells in sight and in reach, as an instanced part has them: those
    *  that follow one another in the index go as one run. */
-  show(cellVis, cellDist, visibleBox = null) {
+  show(cellVis, cellDist, visibleBox = null, frustum = _frustum) {
     // (load: one a streamed district brought, not yet written, draws nothing.)
     if (!this.geometry.index) {
       this.visible = false;
@@ -294,7 +294,7 @@ class Baked extends THREE.Mesh {
     let n = 0;
     let joined = false;
     for (let r = 0; r < ci.length; r++) {
-      if (!cellVis[ci[r]] || cellDist[ci[r]] > reach[r] || bounds?.[r] && (!_frustum.intersectsBox(bounds[r]) || visibleBox && !visibleBox(bounds[r], sectors[r]))) {
+      if (!cellVis[ci[r]] || cellDist[ci[r]] > reach[r] || bounds?.[r] && (!frustum.intersectsBox(bounds[r]) || visibleBox && !visibleBox(bounds[r], sectors[r]))) {
         joined = false;
       } else if (!MULTI_DRAW) {
         n++;
@@ -677,9 +677,10 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   // holds and how far each is, once for everyone; then each prototype's
   // instances in the cells it is drawn at (inside its reach), rebuilt only
   // if that set of cells changed since last time.
+  const frustum = new THREE.Frustum();
   let cellVis = new Uint8Array(cellList.length);
   let cellDist = new Float32Array(cellList.length);
-  const runVisible = (run, reach) => cellVis[run.ci] && cellDist[run.ci] <= reach && (run.frustumSafe === false || _frustum.intersectsBox(run.box)) && (!visibleBox || visibleBox(run.box, run.sector));
+  const runVisible = (run, reach) => cellVis[run.ci] && cellDist[run.ci] <= reach && (run.frustumSafe === false || frustum.intersectsBox(run.box)) && (!visibleBox || visibleBox(run.box, run.sector));
   let frames = 0;
   let stale = false;
   let lastCamera = null;
@@ -721,15 +722,17 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     // Cached arrays are copies so an uncached outdoor pass cannot alter them.
     let prepared = key ? passes.get(camera) : null;
     const cached = prepared?.key === key && prepared?.vis.length === cellList.length;
+    // Signals query these same runs between draws. Restore the camera
+    // frustum even when its visible lists came from the pass cache.
+    _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    frustum.setFromProjectionMatrix(_vp);
     if (cached) {
       cellVis.set(prepared.vis); cellDist.set(prepared.dist);
     } else {
-      _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-      _frustum.setFromProjectionMatrix(_vp);
       const cam = camera.position;
       for (let c = 0; c < cellList.length; c++) {
         cellDist[c] = cellList[c].distanceToPoint(cam);
-        cellVis[c] = _frustum.intersectsBox(cellList[c]) && (!visibleBox || visibleBox(cellList[c], cellList[c].sector)) ? 1 : 0;
+        cellVis[c] = frustum.intersectsBox(cellList[c]) && (!visibleBox || visibleBox(cellList[c], cellList[c].sector)) ? 1 : 0;
       }
       if (key) {
         prepared ??= { sets: new Map(), baked: new Map() };
@@ -795,7 +798,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
           mesh._multiDrawCounts.set(saved.counts.subarray(0, saved.count));
         }
       } else {
-        mesh.show(cellVis, cellDist, visibleBox);
+        mesh.show(cellVis, cellDist, visibleBox, frustum);
         if (prepared) prepared.baked.set(mesh, rememberBaked(mesh, saved));
       }
     }

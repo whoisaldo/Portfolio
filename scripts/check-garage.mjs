@@ -1064,6 +1064,29 @@ check("room procedural parts share draws while preserving each original local fr
   system.dispose(); geometry.dispose(); base.dispose();
 });
 
+check("signal deals use the restored frustum after a cached camera pass", () => {
+  const material = new three.ShaderMaterial({ uniforms: { uSpill: { value: null } } }); material.name = "NCW_face";
+  const source = new three.Mesh(new three.BoxGeometry(.2, .3, .1), material);
+  source.name = "proto_signal_box_face"; source.userData.proto = "signal_box";
+  const header = { protos: [{ name: "signal_box", box: [.5, .5, .5], reach: 100 }], count: 2 };
+  let json = JSON.stringify(header); while ((4 + Buffer.byteLength(json)) % 4) json += " ";
+  const bytes = Buffer.alloc(4 + Buffer.byteLength(json) + 32); bytes.writeUInt32LE(Buffer.byteLength(json)); bytes.write(json, 4);
+  new Int16Array(bytes.buffer, bytes.byteOffset + 4 + Buffer.byteLength(json), 16).set([0, 9000, 50, -4300, 0, 100, 1000, 0, 0, 9560, 50, -4300, 0, 100, 1000, 0]);
+  const left = new three.PerspectiveCamera(50, 1.6, .1, 100), right = left.clone();
+  left.position.set(463, 1, -215); left.lookAt(450, 1, -215); left.updateMatrixWorld();
+  right.position.copy(left.position); right.lookAt(478, 1, -215); right.updateMatrixWorld();
+  let key = "left";
+  const props = propsModule.createProps([source], bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), { visibilityKey: () => key });
+  props.update(left); key = "right"; props.update(right); key = "left"; props.update(left);
+  const mesh = props.group.children.find((node) => node.isInstancedMesh);
+  assert.equal(mesh.count, 1); assert.equal(mesh.instanceMatrix.array[12], 450);
+  props.dealt("signal_box").deal(0, 6);
+  assert.equal(mesh.geometry.attributes.aDeal.array[0], 6, "a cached direct pass updates its own visible signal");
+  key = "right"; props.update(right); key = "left"; props.update(left);
+  assert.equal(mesh.geometry.attributes.aDeal.array[0], 6, "a later pass preserves the new live design value");
+  props.dispose(); source.geometry.dispose(); material.dispose();
+});
+
 check("all six probe faces prepare their own portals and prop runs through the transform wrapper", () => {
   const source = readFileSync("src/world/world-scene.js", "utf8");
   const from = source.indexOf("  const renderScene = renderer.render;"), to = source.indexOf("  const draw =", from);
