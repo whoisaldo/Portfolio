@@ -214,7 +214,7 @@ def garage_layout(GI, inside):
         return g if isinstance(g, str) else [_r(v, 3) for v in g]
     routes = {rid: {"from": a, "to": b, "controls": [pt(c) for c in ctrl],
                     "portrait": {f"{k:02d}": pt(v) for k, v in portrait.items()},
-                    "gaze": [{"u": u, "at": pt(g)} for u, g in gaze],
+                    "gaze": [{"u": u, "at": pt(g), **({"portrait": {"u": own[0][0], "at": pt(own[0][1])}} if own else {})} for u, g, *own in gaze],
                     "anchors": [f"cam_garage_path_{rid}_{i:02d}" for i in range(1, len(ctrl) + 1)]}
               for rid, (a, b, ctrl, portrait, gaze) in C.GARAGE_ROUTES.items()}
     timeline = [{"p": [a, b], "route": r, "hold": at, "states": {k: [list(e) for e in v] for k, v in st.items()}}
