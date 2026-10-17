@@ -749,10 +749,11 @@ else:
     for tz in (ART_Z - ART_W / 2 + 0.06, ART_Z + ART_W / 2 - 0.06):
         for ty in (ART_Y0 + 0.04, ART_Y0 + ART_H - 0.04):
             box(key(xp, tz, "trim", 1), xp - 0.003, xp - 0.001, ty - 0.055, ty + 0.055, tz - 0.08, tz + 0.08, scale=1.0, col=(0.6, 0.58, 0.5, 1))
-# Facing -x, into the room: left to right as seen from it is +z to -z, and
-# the picture's top is its v = 1 in Blender (glTF's v = 0).
+# Facing -x, into the room: left to right as seen from it is -z to +z (so
+# the picture's left edge, u = 0, is on its -z side), and the picture's top
+# is its v = 1 in Blender (glTF's v = 0).
 named_mesh("garage_identity_poster", [((xp, ART_Y0, ART_Z + ART_W / 2), (xp, ART_Y0, ART_Z - ART_W / 2), (xp, ART_Y0 + ART_H, ART_Z - ART_W / 2),
-                                        (xp, ART_Y0 + ART_H, ART_Z + ART_W / 2))], "garage_identity_poster", uvs=[((0, 0), (1, 0), (1, 1), (0, 1))],
+                                        (xp, ART_Y0 + ART_H, ART_Z + ART_W / 2))], "garage_identity_poster", uvs=[((1, 0), (0, 0), (0, 1), (1, 1))],
            props={"pack": "garage", "visibilitySector": SHOP, "art": "adam-smasher", "assetKind": "identity-art"})
 ART = [{"id": "adam-smasher", "mesh": "garage_identity_poster", "material": "NCW_garage_identity_poster",
         "source": "design/night-city-garage/textures/adam-smasher.jpg", "frame": SMASHER_FRAME,
@@ -794,9 +795,10 @@ def photo_boards():
             u0, v1 = (t % ATLAS_COLS) / ATLAS_COLS, 1 - (t // ATLAS_COLS) / ATLAS_ROWS
             u1, v0 = u0 + 1 / ATLAS_COLS, v1 - 1 / ATLAS_ROWS
             xp = xb_ - 0.045
-            # Facing -x (into the room): left to right as seen from it is +z to -z.
+            # Facing -x (into the room): left to right as seen from it is -z to +z,
+            # so the photograph's left edge (u0) is on its -z side.
             quads.append(((xp, py0, pz1), (xp, py0, pz0), (xp, py0 + PHOTO_H, pz0), (xp, py0 + PHOTO_H, pz1)))
-            uvs.append(((u0, v0), (u1, v0), (u1, v1), (u0, v1)))
+            uvs.append(((u1, v0), (u0, v0), (u0, v1), (u1, v1)))
             sbox("trim", xp + 0.002, xp + 0.006, py0 - 0.02, py0 + PHOTO_H + 0.02, pz0 - 0.02, pz1 + 0.02, col=(0.85, 0.84, 0.8, 1))
             # glTF's v runs down the image: the atlas rectangle as the site samples it.
             photos.append({"id": name, "center": [round(xp, 3), round(py0 + PHOTO_H / 2, 3), round((pz0 + pz1) / 2, 3)],

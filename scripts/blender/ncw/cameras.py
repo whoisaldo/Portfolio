@@ -69,13 +69,14 @@ GARAGE_STATIONS = [
     ("s4_bay", 0.4, ((466.4, 3.15, -215.9), (463.3, 1.05, -215.0), 44), ((466.9, 3.45, -215.6), (464.086, 0.6, -215.137), 58)),
     ("s6", 0.6, ((467.8, 1.55, -225.6), (462.5, 0.8, -222.0), 48), ((470.0, 2.1, -226.0), (462.5, 0.8, -222.0), 60)),
     ("s6_bay", 0.8, ((466.7, 3.45, -222.8), (463.3, 1.05, -222.0), 44), ((467.2, 3.65, -222.5), (464.224, 0.6, -222.118), 58)),
-    # Afterlife workbench, straight on to the shop wall's working centre
-    # from about where the old room's view stood (8 m back): the benches
-    # under the amber strip, the moon's screen and AFTERLIFE AUTO over them,
-    # the jacket on its chair in front, Guts and the Smasher print either
-    # side; a phone level and wide, holding the middle bench, the jacket,
-    # the screen and the sign in one column over its card.
-    ("shop", 1.0, ((467.5, 2.3, -215.2), (475.1, 2.35, -215.3), 60), ((467.6, 2.1, -216.25), (475.1, 2.15, -216.2), 72)),
+    # Afterlife workbench, the old room's Explore view at a workshop's
+    # size: 8 m back and some 25 degrees off square, as that view stood to
+    # its back wall, the benches running away under the amber strip, the
+    # moon's screen and AFTERLIFE AUTO over them, the jacket on its chair in
+    # front, Guts and the Smasher print either side; a phone nearly square
+    # and wide, holding the middle bench, the jacket, the screen and the
+    # sign in one column over its card.
+    ("shop", 1.0, ((467.6, 2.5, -212.2), (475.1, 2.35, -215.6), 60), ((467.6, 2.1, -215.0), (475.1, 2.15, -216.2), 72)),
 ]
 GARAGE_POSES = [
     # Inspection poses the tour and the parts reach between stations.
