@@ -690,6 +690,56 @@ check("resting garage preparation uploads once per frame without drawing", () =>
   assert.deepEqual(completed, [1, 2, 3, 4], "disposal cancels pending and stale callbacks");
 });
 
+// Run the actual preparation loop with a clock and resources whose cost is
+// known. Grouping warm-up must retain every program, texture and buffer job.
+{
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const readyToDraw = async (drawn) => {");
+  const to = source.indexOf("  // ---- searchlights", from);
+  assert.ok(from >= 0 && to > from);
+  let now = 0;
+  const events = [], batches = [];
+  const textures = Array.from({ length: 6 }, (_, id) => ({ isTexture: true, image: {}, version: 1, id }));
+  const materials = textures.map((map) => ({ version: 0, map }));
+  const resident = new Map([[textures[0], { __version: 1 }]]);
+  const drawn = materials.map((material, id) => ({ object: { material }, geometry: { id }, bytes: id === 0 ? 12 : 0 }));
+  const renderer = {
+    info: { programs: [] }, properties: { get: (texture) => resident.get(texture) ?? {} },
+    getRenderTarget: () => null, setRenderTarget() {},
+    compile(list) {
+      const id = renderer.info.programs.length;
+      renderer.info.programs.push({ isReady: () => true,
+        getUniforms() { events.push(`uniforms:${id}`); now += 1; },
+        getAttributes() { events.push(`attributes:${id}`); now += 1; },
+      });
+      return list.drawn.map(({ object }) => object.material);
+    },
+    initTexture(texture) { events.push(`texture:${texture.id}`); resident.set(texture, { __version: texture.version }); now += 2; },
+  };
+  const prepare = runInNewContext(`${source.slice(from, to)}\nreadyToDraw;`, {
+    disposed: false, warmKit: { programs: [], send(list) {
+      events.push(`buffers:${list.length}`);
+      return [() => events.push("buffer piece")];
+    } },
+    renderer, post: { composer: { inputBuffer: {} } }, camera: {}, scene: {}, cover: null,
+    Listed: class { constructor(drawn) { this.drawn = drawn; } },
+    between: async () => {}, workAllowance: () => 4, WARM_BYTES: 100,
+    performance: { now: () => now },
+    ask: async (job) => { const start = now; const result = job(); batches.push({ ms: now - start }); return result; },
+  });
+  await prepare(drawn);
+  check("bounded preparation finishes every resource before readiness", () => {
+    for (let id = 0; id < materials.length; id++) {
+      assert.equal(events.filter((event) => event === `uniforms:${id}`).length, 1);
+      assert.equal(events.filter((event) => event === `attributes:${id}`).length, 1);
+      assert.equal(events.filter((event) => event === `texture:${id}`).length, id === 0 ? 0 : 1);
+    }
+    assert.deepEqual(events.slice(-2), ["buffers:1", "buffer piece"]);
+    assert.ok(batches.every(({ ms }) => ms <= 4), "small jobs fit the actual work allowance");
+    assert.equal(batches.length, 8, "lookups and pictures share bounded frame slots");
+  });
+}
+
 check("resting frames draw effective manual car state and layout once", () => {
   // Exercise the runtime's actual frame gate with a stable camera. The
   // renderer records the effective hood state only when a frame is drawn.
