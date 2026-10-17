@@ -38,7 +38,7 @@ ARCH_Y = {'f': -WHEELBASE / 2, 'r': WHEELBASE / 2}
 # Nose: the bumper face on the centreline, y by height, and how square the
 # plan's corner is at each height (superellipse exponent).
 NOSE_Y = [(.205, -2.335), (.24, -2.36), (.30, -2.372), (.40, -2.375), (.50, -2.371), (.60, -2.36), (.70, -2.338), (.80, -2.305)]
-NOSE_N = [(.2, 2.4), (.3, 2.6), (.45, 2.65), (.6, 2.5), (.72, 2.0), (.82, 1.9)]
+NOSE_N = [(.2, 2.15), (.3, 2.25), (.45, 2.35), (.6, 2.5), (.72, 2.0), (.82, 1.9)]
 # Tail: the bumper face on the centreline and above it the lid face.
 TAIL_FACE = [(.20, 2.50), (.24, 2.532), (.30, 2.542), (.40, 2.548), (.50, 2.550), (.62, 2.546), (.73, 2.534), (.80, 2.515), (.90, 2.493), (1.0, 2.474)]
 TAIL_N = [(.25, 3.4), (.4, 3.4), (.6, 3.3), (.8, 4.0), (.95, 4.4)]
@@ -59,7 +59,7 @@ BOTTOM_Z = [(-2.4, .205), (-2.0, .195), (-1.0, .19), (1.0, .195), (2.0, .205), (
 # headlamps, then back along the hood's shut lines to the cowl.
 HOOD_FRONT_Y = -2.300   # hood lip on the centreline
 HOOD_EDGE = [(-2.30, .0), (-2.29, .20), (-2.27, .40), (-2.225, .62), (-2.14, .76), (-2.035, .815), (-1.85, .818), (-1.40, .805), (-0.985, .83)]
-HOOD_EDGE_Z = [(-2.30, .785), (-2.27, .787), (-2.225, .80), (-2.14, .84), (-2.035, .865), (-1.85, .888), (-1.40, .935), (-0.985, .978)]
+HOOD_EDGE_Z = [(-2.30, .785), (-2.27, .787), (-2.225, .80), (-2.14, .825), (-2.035, .835), (-1.85, .878), (-1.40, .935), (-0.985, .978)]
 HOOD_CROWN_Z = [(-2.30, .79), (-2.22, .826), (-2.10, .866), (-1.95, .895), (-1.80, .918), (-1.60, .942), (-1.40, .962), (-1.20, .978), (-0.985, .99)]
 COWL_Y = -0.985
 # The beltline under the side glass: (y, half-breadth, height).
@@ -464,7 +464,9 @@ def side_columns():
         for s in (-1, 1):
             stations.add(round(ARCH_Y[code] + s * ARCH_R[code] * .9999, 4))
     for b in (BELT[0][0], BELT[-1][0], COWL_Y, DECK_Y):
-        stations.add(round(b, 4))
+        # Only between the fans: a station past a fan's centre folds the grid back.
+        if CF < b < CR:
+            stations.add(round(b, 4))
     cols += [Column('m', y) for y in sorted(stations)]
     tail = {round(math.radians(90 * math.cos(math.pi / 2 * i / 28)), 5) for i in range(1, 29)}
     # Either side of the boot lid's seam on the rear face, and between them
@@ -1149,8 +1151,9 @@ def build_bumper_features(parent, tree):
         top = [(x + d[0], z + d[2] + .013) for x, z in from_unit(INTAKE[:7], *INTAKE_X, *INTAKE_Z, sign)]
         ledge = []
         for x, z in top:
-            hit, _ = on_body(tree, x, -3, z, 'y')
-            if hit is not None:
+            hit, normal = on_body(tree, x, -3, z, 'y')
+            # Stop where the nose turns into the side, as on his bumper.
+            if hit is not None and abs(normal.y) > .55:
                 ledge.append(Vector((x, hit.y - .004, z)))
         if len(ledge) > 2:
             made.append(tube('intake_ledge', smooth_path(ledge, 4), .0065, paint, parent, sides=8))
@@ -1159,8 +1162,8 @@ def build_bumper_features(parent, tree):
     lip = []
     for k in range(41):
         x = -.82 + 1.64 * k / 40
-        hit, _ = on_body(tree, x, -3, feature_z('f', 0) - .006, 'y')
-        if hit is not None:
+        hit, normal = on_body(tree, x, -3, feature_z('f', 0) - .006, 'y')
+        if hit is not None and abs(normal.y) > .55:
             lip.append(Vector((x, hit.y - .003, hit.z)))
     made.append(tube('lower_lip_edge', lip, .006, paint, parent, sides=8))
     hit, _ = on_body(tree, 0, -3, .245, 'y')
@@ -1170,7 +1173,7 @@ def build_bumper_features(parent, tree):
     for k in range(41):
         x = -.84 + 1.68 * k / 40
         hit, normal = on_body(tree, x, -3, feature_z('f', 0) + .01, 'y')
-        if hit is not None:
+        if hit is not None and abs(normal.y) > .55:
             groove.append(hit - normal * .0012)
     made.append(tube('lower_lip_line', groove, .0035, satin_black, parent, sides=6))
     outline = material('S6_cover_shut_line', '202224', 0, .6)
