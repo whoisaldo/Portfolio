@@ -43,13 +43,13 @@ const plain = (m) => !m.transparent && !(m.emissive?.getHex() > 0) && !m.vertexC
  * `surface` for the other three) and the shading is what each part's own
  * material gave it.
  */
-function paintMaterial(like) {
+export function paintMaterial(like) {
   const material = new THREE.MeshPhysicalMaterial({
     vertexColors: true,
     roughness: 1,
     metalness: 1,
     clearcoat: 1,
-    clearcoatRoughness: like.clearcoatRoughness,
+    clearcoatRoughness: Number.isFinite(like.clearcoatRoughness) ? like.clearcoatRoughness : 0,
     side: like.side,
   });
   material.name = "s4_paint";
@@ -133,9 +133,9 @@ export function slim(car, { rig = RIG, keepUnderHood = false } = {}) {
       const surface = new Float32Array(n * 3);
       for (let i = 0; i < n; i++) {
         m.color.toArray(color, i * 3);
-        surface[i * 3] = m.roughness;
-        surface[i * 3 + 1] = m.metalness;
-        surface[i * 3 + 2] = m.clearcoat;
+        surface[i * 3] = Number.isFinite(m.roughness) ? m.roughness : 1;
+        surface[i * 3 + 1] = Number.isFinite(m.metalness) ? m.metalness : 0;
+        surface[i * 3 + 2] = Number.isFinite(m.clearcoat) ? m.clearcoat : 0;
       }
       g.setAttribute("color", new THREE.BufferAttribute(color, 3));
       g.setAttribute("surface", new THREE.BufferAttribute(surface, 3));

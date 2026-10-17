@@ -55,7 +55,7 @@ import { createLamps, createGroundLight } from "../three/drift/lamps.js";
 import { createRig, createDrift } from "../three/drift/rig.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { SHOTS } from "../data/world.js";
-import { createGarageLighting, fixturesFrom } from "./garage-lighting.js";
+import { createGarageLighting, fixturesFrom, scopeCarLighting } from "./garage-lighting.js";
 import { slim } from "../three/car/slim.js";
 import { toFloat } from "./merge.js";
 
@@ -291,6 +291,8 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
     : Promise.resolve();
   standIn.layers.set(mirrorLayer);
   car.add(standIn);
+  const lightInside = { value: 0 };
+  scopeCarLighting(car, lightInside);
   car.traverse((o) => {
     if (o.isMesh) {
       o.castShadow = false;
@@ -523,11 +525,8 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
     // street fades to nothing at the door and the workshop's comes up from
     // there, so their reflections never show at once.
     inside = insideAt(car.position.x, car.position.z);
-    const out = 1 - inside;
-    key.intensity *= out;
-    rimM.intensity *= out;
-    rimC.intensity *= out;
-    hemi.intensity = 0.5 * out;
+    lightInside.value = inside;
+    hemi.intensity = 0.5;
     const want = probe && inside > 0.5 ? probe : envMap;
     const gain = probe && want === probe ? probeGain * (2 * inside - 1) : scene.environmentIntensity * (probe ? Math.max(0, 1 - 2 * inside) : 1);
     for (const m of reflecting) {
@@ -600,6 +599,7 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
         if (inspection) car.remove(inspection.root);
         inspection = null;
         if (root) {
+          scopeCarLighting(root, lightInside);
           const parts = root.userData.parts ?? {};
           inspection = { root, wheels: rig.wheels.map((w) => parts[w.name]), steers: rig.steers.map((st) => parts[st.name]) };
           root.position.set(0, 0, 0);

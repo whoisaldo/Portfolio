@@ -53,14 +53,46 @@ const colorOf = (e) => e.color ? new THREE.Color(typeof e.color === "string" && 
 // use this export so floor traces and physical materials share positions.
 export function fixturesFrom(source) {
   if (!source) return [];
-  if (source instanceof Map) return [...source].filter(([n]) => n.startsWith("anchor_garage_light_")).map(([n, a]) => ({ id: n.slice(20), ...a }));
-  return source.flatMap((f) => f.faces ? f.faces.map((face) => {
+  const rows = source instanceof Map ? [...source].filter(([n]) => n.startsWith("anchor_garage_light_")).map(([name, a]) => ({ ...a, name })) : source;
+  const seen = new Set();
+  return rows.flatMap((f) => f.faces ? f.faces.map((face) => {
     const normal = vector(face.normal, [0, -1, 0]);
     const x = vector(face.axis, [1, 0, 0]).normalize();
     const y = normal.negate().normalize();
     const z = new THREE.Vector3().crossVectors(x, y).normalize();
     return { id: face.anchor?.replace("anchor_garage_light_", "") ?? f.id, position: vector(face.at), quaternion: new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z)), extras: { ...f, ...face } };
-  }) : [{ ...f, extras: f.extras ?? f }]);
+  }) : [{ ...f, extras: f.extras ?? f }]).map((f) => {
+    const id = (f.id ?? f.name)?.replace(/^anchor_garage_light_/, "");
+    if (!id || seen.has(id)) throw new TypeError(`Missing or duplicate garage fixture ID: ${id}`);
+    seen.add(id);
+    return { ...f, id };
+  });
+}
+
+// WebGL gathers lights per camera, not per mesh layer. The car materials
+// consume the city's moving directional/hemisphere road lights and fixed
+// area/spot workshop lights with a separate handoff uniform per car.
+export function scopeCarLighting(root, inside) {
+  const materials = new Set();
+  root.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) if (m.isMeshStandardMaterial || m.isMeshLambertMaterial) materials.add(m); });
+  for (const material of materials) {
+    if (material.userData.garageLightScope) continue;
+    material.userData.garageLightScope = inside;
+    const before = material.onBeforeCompile;
+    const key = material.customProgramCacheKey();
+    material.onBeforeCompile = function (shader, renderer) {
+      before.call(this, shader, renderer);
+      shader.uniforms.garageInside = inside;
+      const begin = THREE.ShaderChunk.lights_fragment_begin
+        .replace("getDirectionalLightInfo( directionalLight, directLight );", "getDirectionalLightInfo( directionalLight, directLight );\n directLight.color *= 1.0 - garageInside;")
+        .replace("getSpotLightInfo( spotLight, geometryPosition, directLight );", "getSpotLightInfo( spotLight, geometryPosition, directLight );\n directLight.color *= garageInside;")
+        .replace("rectAreaLight = rectAreaLights[ i ];", "rectAreaLight = rectAreaLights[ i ];\n rectAreaLight.color *= garageInside;")
+        .replace("getHemisphereLightIrradiance( hemisphereLights[ i ], geometryNormal )", "(1.0 - garageInside) * getHemisphereLightIrradiance( hemisphereLights[ i ], geometryNormal )");
+      shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nuniform float garageInside;").replace("#include <lights_fragment_begin>", begin);
+    };
+    material.customProgramCacheKey = () => `${key}:garage-light-scope-v1`;
+    material.needsUpdate = true;
+  }
 }
 
 function faceOf(f) {
@@ -129,8 +161,8 @@ export function createGarageLighting({ scene, renderer, layer = null, fixtures =
   const clear = () => { Object.values(lights).forEach((l) => l.dispose?.()); group.clear(); lights = {}; };
   const setFixtures = (source) => {
     if (disposed) return;
-    clear();
     const parsed = fixturesFrom(source);
+    clear();
     faces = (parsed.length ? parsed : DEFAULT_FACES).map(faceOf);
     for (const f of faces) {
       const slot = slotOf(f);
@@ -153,7 +185,7 @@ export function createGarageLighting({ scene, renderer, layer = null, fixtures =
     group,
     get lights() { return lights; },
     get fixtures() { return faces; },
-    get stats() { return { lightCount: Object.keys(lights).length, fixtureFaces: faces.length, provisional: true, probe: target ? { width: target.width, height: target.height, colorBytes: target.width * target.height * 8, depthBytes: target.width * target.height * 4, bytes: target.width * target.height * 12, temporaryFilterBytes: target.width * target.height * 8, size: GARAGE_LIGHT_LOOK.probeSize[tier], type: "half-float cube-UV", source: target.userData?.source } : null }; },
+    get stats() { return { lightCount: group.children.filter((o) => o.isLight).length, fixtureFaces: faces.length, provisional: true, probe: target ? { width: target.width, height: target.height, colorBytes: target.width * target.height * 8, depthBytes: target.width * target.height * 4, bytes: target.width * target.height * 12, temporaryFilterBytes: target.width * target.height * 8, size: GARAGE_LIGHT_LOOK.probeSize[tier], type: "half-float cube-UV", source: target.userData?.source } : null }; },
     probe: null,
     ready: Promise.resolve(),
     setFixtures,
@@ -161,11 +193,34 @@ export function createGarageLighting({ scene, renderer, layer = null, fixtures =
     capture(source = null) {
       if (disposed) throw new Error("The garage light rig is disposed.");
       const pmrem = new THREE.PMREMGenerator(renderer);
-      const workshop = source?.isScene ? null : workshopScene(faces);
+      if (source != null && !source.isObject3D) { pmrem.dispose(); throw new TypeError("A garage probe source must be an Object3D."); }
+      const workshop = source == null ? workshopScene(faces) : null;
+      const captureScene = source?.isScene ? source : workshop?.scene ?? new THREE.Scene();
+      let parent, index;
+      if (source && !source.isScene) {
+        source.updateWorldMatrix(true, true);
+        parent = source.parent;
+        index = parent?.children.indexOf(source);
+        // Keep the original subtree, including live material bindings. A
+        // wrapper carries its parent's world transform without altering
+        // the source's local transform or allocating cloned room geometry.
+        const wrapper = new THREE.Group();
+        wrapper.matrixAutoUpdate = false;
+        if (parent) wrapper.matrix.copy(parent.matrixWorld);
+        captureScene.add(wrapper);
+        wrapper.add(source);
+      }
       let next;
-      try { next = pmrem.fromScene(source?.isScene ? source : workshop.scene, 0.03, 0.1, 60, { size: GARAGE_LIGHT_LOOK.probeSize[tier], position: new THREE.Vector3(463, 1.2, -218.5) }); }
-      finally { workshop?.dispose(); pmrem.dispose(); }
-      next.userData = { source: source?.isScene ? "ready-room" : "fixture-development" };
+      try { next = pmrem.fromScene(captureScene, 0.03, 0.1, 60, { size: GARAGE_LIGHT_LOOK.probeSize[tier], position: new THREE.Vector3(463, 1.2, -218.5) }); }
+      finally {
+        if (source && !source.isScene) {
+          source.removeFromParent();
+          if (parent) { parent.add(source); parent.children.splice(parent.children.indexOf(source), 1); parent.children.splice(index, 0, source); }
+          source.updateWorldMatrix(true, true);
+        }
+        workshop?.dispose(); pmrem.dispose();
+      }
+      next.userData = { source: source ? "ready-room" : "fixture-development" };
       const previous = target;
       target = next;
       api.probe = next.texture;

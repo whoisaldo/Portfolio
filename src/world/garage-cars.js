@@ -20,12 +20,11 @@
 // the S6 unavailable and B5 keeps the text fallback.
 import * as THREE from "three";
 import { cars, preloadCar, createObject } from "../three/car/object.js";
-import { slim, INSPECT_RIG } from "../three/car/slim.js";
-import { resolveAnchor, loweringRoom, localBounds, triangles, dropCellWalls, prepareTier } from "../three/car/inspect.js";
+import { resolveAnchor, localBounds, triangles, prepareInspection } from "../three/car/inspect.js";
 import { createContactShadow } from "../three/car/street-contact.js";
 import { mods as S4_MODS } from "../data/garage.js";
 import { oneProgram } from "./car.js";
-import { fixturesFrom, GARAGE_LIGHT_LOOK } from "./garage-lighting.js";
+import { fixturesFrom, GARAGE_LIGHT_LOOK, scopeCarLighting } from "./garage-lighting.js";
 
 // The S6's five, each on the empty its model carries for it (A1's node
 // contract, agents/A1/LOADER-CONTRACT.md). The tunes are in the engine bay.
@@ -261,6 +260,8 @@ export function createGarageCars(ctx) {
   let departure = { active: false, cameraClear: true, liftDown: true };
   let externalHold = null;
   let selection = null;
+  let driving = false;
+  const abort = new AbortController();
   const flashes = new Map();
   const check = () => { if (disposed) throw Object.assign(new Error("Garage preparation was disposed."), { code: "garage-disposed" }); };
   const slice = async () => { await between(); check(); };
@@ -294,39 +295,41 @@ export function createGarageCars(ctx) {
   };
   const prepare = async (kind, r, specs) => {
     const t0 = performance.now();
+    const mainSlices = [];
     const root = r.root;
     collect(r);
     r.originalGeometries = new Set(r.geometries);
     r.originalMaterials = new Set(r.materials);
     root.visible = true;
-    root.updateMatrixWorld(true);
-    const source = triangles(root);
     const geometries = new Set();
     root.traverse((o) => { if (o.isMesh) geometries.add(o.geometry); });
     const fileTriangles = [...geometries].reduce((n, g) => n + (g.index?.count ?? g.attributes.position.count) / 3, 0);
-    const pins = Object.entries(specs).map(([modId, anchor]) => ({ key: `${kind}:${modId}`, carId: kind, modId, ...resolveAnchor(root, anchor), needsHoodOpen: Boolean(anchor.inBay), hood: () => hood[kind] }));
-    let room = kind === "s6" ? loweringRoom(root) : null;
-    const shut = localBounds(root);
-    const wallTriangles = tier === "phone" ? dropCellWalls(root) : 0;
-    const slimmed = slim(root, { rig: INSPECT_RIG, keepUnderHood: true });
-    slimmed.geometries.forEach((g) => r.geometries.add(g));
-    if (slimmed.material) r.materials.add(slimmed.material);
+    mainSlices.push(performance.now() - t0);
+    const pins = [];
+    for (const [modId, anchor] of Object.entries(specs)) {
+      const start = performance.now();
+      pins.push({ key: `${kind}:${modId}`, carId: kind, modId, ...resolveAnchor(root, anchor), needsHoodOpen: Boolean(anchor.inBay), hood: () => hood[kind] });
+      mainSlices.push(performance.now() - start);
+      await slice();
+    }
+    const phone = tier === "phone";
+    const prepared = await prepareInspection(root, { cacheKey: `${kind}:${cars[kind].url ?? "development-v1"}`, tier, target: (phone ? PHONE_TRIANGLES : HIGH_TRIANGLES)[kind], between: slice, signal: abort.signal, workerFactory: () => new Worker(new URL("../three/car/inspect.js", import.meta.url), { type: "module" }) });
+    prepared.geometries.forEach((g) => r.geometries.add(g));
+    prepared.materials.forEach((m) => r.materials.add(m));
+    const { source, room, wallTriangles, geometry } = prepared;
+    const shut = new THREE.Box3(new THREE.Vector3(...prepared.shut[0]), new THREE.Vector3(...prepared.shut[1]));
+    const conversionStart = performance.now();
     oneProgram(root).forEach((g) => r.geometries.add(g));
+    mainSlices.push(performance.now() - conversionStart, ...prepared.mainSlices);
     // Keep the source lens geometry here. The road helper duplicates its
     // back faces to save a draw, which would exceed the inspection budget.
-    const workMs = performance.now() - t0;
     await slice();
-    const phone = tier === "phone";
-    const geometry = await prepareTier(root, { target: (phone ? PHONE_TRIANGLES : HIGH_TRIANGLES)[kind], errors: phone ? undefined : [0.00025, 0.0005, 0.001], cacheKey: `${kind}:${tier}:${cars[kind].url ?? "development-v1"}`, between: slice });
     check();
-    if (room) {
-      const preparedRoom = loweringRoom(root);
-      room = { limit: Math.min(room.limit, preparedRoom.limit), tyre: Math.min(room.tyre, preparedRoom.tyre), floor: Math.min(room.floor, preparedRoom.floor) };
-    }
+    if (kind === "s6") scopeCarLighting(root, { value: 1 });
     root.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
     collect(r);
     root.visible = false;
-    stats[kind] = { placeholder: Boolean(root.userData.placeholder), sourceBytes: bytesOf(cars[kind].url), sourceTriangles: source, uniqueSourceTriangles: fileTriangles, preparedTriangles: trianglesVisible(root), prepareMs: Math.round(workMs + geometry.ms), geometry, phone: phone ? { ...geometry, cellWalls: wallTriangles } : null, fallbackAnchors: pins.filter((p) => p.fallback).map((p) => p.modId), lowering: room };
+    stats[kind] = { placeholder: Boolean(root.userData.placeholder), sourceBytes: bytesOf(cars[kind].url), sourceTriangles: source, uniqueSourceTriangles: fileTriangles, preparedTriangles: trianglesVisible(root), prepareMs: Math.round(performance.now() - t0), workerMs: prepared.workerMs, mainSlices, cached: prepared.cached, finiteValues: prepared.finiteValues, geometry, phone: phone ? { ...geometry, cellWalls: wallTriangles } : null, fallbackAnchors: pins.filter((p) => p.fallback).map((p) => p.modId), lowering: room };
     if (!geometry.met) throw Object.assign(new Error(`${kind.toUpperCase()} inspection geometry exceeds the ${tier} budget: ${geometry.after} triangles.`), { code: "car-geometry-budget", kind });
     return { ...r, pins, shut, shapes: shapesOf(shut), room };
   };
@@ -347,12 +350,11 @@ export function createGarageCars(ctx) {
   let probeSource = ctx.probeTarget;
   const captureProbe = (source = probeSource) => {
     check();
-    probeSource = source;
     const visibility = road.car.visible;
     const shown = Object.values(made).map((m) => [m.root, m.root.visible]);
     road.car.visible = false;
     for (const [root] of shown) root.visible = false;
-    try { bind(lighting.capture(source)); }
+    try { bind(lighting.capture(source)); probeSource = source; }
     finally { road.car.visible = visibility; for (const [root, visible] of shown) root.visible = visible; }
     stats.lighting = lighting.stats;
   };
@@ -368,6 +370,7 @@ export function createGarageCars(ctx) {
       check();
       s6 = track(createObject("s6"));
     }
+    await slice();
     made.s4 = await prepare("s4", track(createObject("s4")), Object.fromEntries(S4_MODS.map((m) => [m.id, m.anchor])));
     made.s6 = await prepare("s6", s6, S6_ANCHORS);
     check();
@@ -430,7 +433,7 @@ export function createGarageCars(ctx) {
       if (!made.s6) return;
       made.s6.root.visible = true;
       contactRoot.visible = true;
-      road.setInspection(made.s4.root, road.atBay);
+      road.setInspection(made.s4.root, !driving && road.mode !== "free" && road.atBay);
     },
     detach() {
       attached = false;
@@ -451,6 +454,28 @@ export function createGarageCars(ctx) {
       made.s6?.root.userData.setLowering(lowering * drop);
     },
     setInside(k) { road.setInside(k); },
+    // B6 keeps the parked S6 attached while parts.car.free drives the one
+    // S4. This explicit switch also closes the hood before the first free
+    // move; checking road.mode alone would be one frame late on handoff.
+    setDriving(on) {
+      if (disposed) return;
+      driving = Boolean(on);
+      if (driving) { departure = { active: false, cameraClear: true, liftDown: true }; closing = 0; asked.s4 = 0; setHoods(); road.setInside(null); }
+      if (made.s4) road.setInspection(made.s4.root, attached && !driving && road.mode !== "free" && road.atBay);
+    },
+    // Apply recording/seek state synchronously BEFORE B5/B6 collision
+    // queries. No update(dt), tween or rendered frame is needed. A seek
+    // cancels a prior exit hold, and bounds() reads the new hood geometry.
+    applyState(state = {}) {
+      if (disposed) return;
+      api.setDeparture({ active: false, cameraClear: true, liftDown: true });
+      api.setDriving(state.driving ?? false);
+      closing = driving ? 0 : 1;
+      for (const carId of ["s4", "s6"]) if (state.hood?.[carId] != null) asked[carId] = clamp(state.hood[carId]);
+      setHoods();
+      if (state.lowering != null) api.setLowering(state.lowering);
+      for (const m of Object.values(made)) m.root.updateWorldMatrix(true, true);
+    },
     select(value) {
       if (value && !(value.carId === "s4" ? S4_MODS.some((m) => m.id === value.modId) : value.carId === "s6" && Object.hasOwn(S6_ANCHORS, value.modId))) throw new TypeError("Unknown garage part.");
       selection = value ? { carId: value.carId, modId: value.modId } : null;
@@ -468,9 +493,9 @@ export function createGarageCars(ctx) {
     update(dt = 0) {
       if (disposed || !made.s4) return;
       const leaving = departure.active || road.departing;
-      closing = leaving ? reduced ? 0 : Math.max(0, closing - Math.max(0, dt) / HOOD_SECONDS) : road.atBay ? 1 : 0;
+      closing = driving || road.mode === "free" ? 0 : leaving ? reduced ? 0 : Math.max(0, closing - Math.max(0, dt) / HOOD_SECONDS) : road.atBay ? 1 : 0;
       setHoods();
-      road.setInspection(made.s4.root, attached && road.atBay);
+      road.setInspection(made.s4.root, attached && !driving && road.mode !== "free" && road.atBay);
       for (const [kind, flash] of flashes) {
         flash.time += Math.max(0, dt);
         const on = reduced ? flash.time < 0.6 ? 0.6 : 0 : flash.time < 0.16 || flash.time > 0.32 && flash.time < 0.48 ? 1 : 0;
@@ -483,13 +508,19 @@ export function createGarageCars(ctx) {
       return ["s4", "s6"].filter((k) => made[k]).map((carId) => {
         const object = objectOf(carId);
         object.updateWorldMatrix(true, true);
-        return { carId, box: localBox(carId).applyMatrix4(object.matrixWorld), matrixWorld: object.matrixWorld.clone(), hoodOpen: hood[carId] > 0.001 };
+        const parts = made[carId].root.userData.parts;
+        const wheels = ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr"].map((n) => {
+          const center = parts[n].getWorldPosition(new THREE.Vector3());
+          if (carId === "s4") { made.s4.root.worldToLocal(center); object.localToWorld(center); }
+          return center.y - cars[carId].wheelRadius;
+        });
+        return { carId, box: localBox(carId).applyMatrix4(object.matrixWorld), matrixWorld: object.matrixWorld.clone(), hoodOpen: hood[carId] > 0.001, wheelFloor: Math.min(...wheels), liftDown: wheels.every((y) => Math.abs(y) <= 0.02) };
       });
     },
     anchors() { return disposed ? [] : ["s4", "s6"].flatMap((k) => made[k]?.pins ?? []); },
     occluders() {
       if (disposed) return [];
-      return ["s4", "s6"].filter((k) => made[k] && (k === "s4" ? road.atBay && attached : made[k].root.visible)).flatMap((k) => made[k].shapes.map((box, i) => ({ kind: i === 0 ? "lower" : "cabin", box: box.clone().translate(new THREE.Vector3(0, k === "s6" ? -lowering * drop : 0, 0)), object: objectOf(k), carId: k })));
+      return ["s4", "s6"].filter((k) => made[k] && (k === "s4" ? made.s4.root.visible : made[k].root.visible)).flatMap((k) => made[k].shapes.map((box, i) => ({ kind: i === 0 ? "lower" : "cabin", box: box.clone().translate(new THREE.Vector3(0, k === "s6" ? -lowering * drop : 0, 0)), object: objectOf(k), carId: k })));
     },
     pick(raycaster) {
       if (disposed) return null;
@@ -528,6 +559,7 @@ export function createGarageCars(ctx) {
     dispose() {
       if (disposed) return;
       disposed = true;
+      abort.abort();
       attached = false;
       road.setHold(null);
       road.setInspection(null);

@@ -10,7 +10,9 @@
 // and a phone's car in fewer triangles, prepared once from the one source in
 // slices between the page's frames.
 import * as THREE from "three";
-import { INSPECT_RIG } from "./slim.js";
+import { INSPECT_RIG, slim, paintMaterial } from "./slim.js";
+import { toFloat } from "../../world/merge.js";
+import { MeshoptSimplifier } from "meshoptimizer/simplifier";
 
 const _box = new THREE.Box3();
 // A node by its name as Blender wrote it or as three's loader keeps it
@@ -233,7 +235,6 @@ const ERRORS = [0.001, 0.002, 0.004, 0.007, 0.012, 0.02];
 export async function prepareTier(car, { target, errors = ERRORS, cacheKey = null, between = () => Promise.resolve() } = {}) {
   const before = triangles(car);
   if (before <= target) return { before, after: before, error: 0, ms: 0, met: true };
-  const { MeshoptSimplifier } = await import("meshoptimizer/simplifier");
   await MeshoptSimplifier.ready;
   const jobs = [];
   car.traverse((o) => {
@@ -274,4 +275,187 @@ export async function prepareTier(car, { target, errors = ERRORS, cacheKey = nul
   const stats = { before, after: Math.round(total), error, ms: Math.round(ms), met: total <= target, cached: false };
   if (key) tierCache.set(key, Promise.resolve({ indices: jobs.map((j) => j.out.slice()), stats }));
   return stats;
+}
+
+// Send typed buffers rather than Object3D.toJSON's per-number arrays. The
+// fresh instance's geometry buffers transfer after anchor resolution;
+// A1's cached source stays intact. The worker transfers prepared buffers
+// back. No WebGL or textures are
+// created in the worker. Stable traversal IDs let a later instance reuse
+// the complete prepared plan without merging or scanning vertices again.
+const preparationCache = new Map();
+const MATERIAL_FIELDS = ["name", "roughness", "metalness", "clearcoat", "clearcoatRoughness", "side", "transparent", "opacity", "vertexColors"];
+
+function* packPreparationSteps(root, originalNodes = null, originalMaterials = null) {
+  const nodes = [], geometries = [], materials = [];
+  const ids = new Map(), gs = new Map(), ms = new Map();
+  const geometryId = (g) => {
+    if (gs.has(g)) return gs.get(g);
+    const id = geometries.length;
+    gs.set(g, id);
+    const attribute = (a) => ({ array: a.isInterleavedBufferAttribute ? a.data.array : a.array, itemSize: a.itemSize, normalized: a.normalized, stride: a.isInterleavedBufferAttribute ? a.data.stride : 0, offset: a.offset, count: a.count });
+    geometries.push({ attributes: Object.fromEntries(Object.entries(g.attributes).map(([n, a]) => [n, attribute(a)])), index: g.index ? attribute(g.index) : null, groups: g.groups, box: g.boundingBox ? [g.boundingBox.min.toArray(), g.boundingBox.max.toArray()] : null, sphere: g.boundingSphere ? [g.boundingSphere.center.toArray(), g.boundingSphere.radius] : null });
+    return id;
+  };
+  const materialId = (m) => {
+    if (ms.has(m)) return ms.get(m);
+    const id = materials.length;
+    ms.set(m, id);
+    materials.push({ original: originalMaterials ? originalMaterials.indexOf(m) : id, physical: Boolean(m.isMeshPhysicalMaterial), fields: Object.fromEntries(MATERIAL_FIELDS.filter((k) => m[k] !== undefined).map((k) => [k, m[k]])), color: m.color?.toArray(), emissive: m.emissive?.toArray(), textures: Object.keys(m).filter((k) => m[k]?.isTexture) });
+    return id;
+  };
+  const objects = [];
+  root.traverse((o) => objects.push(o));
+  for (const o of objects) {
+    const id = nodes.length;
+    ids.set(o, id);
+    nodes.push({ original: originalNodes ? originalNodes.indexOf(o) : id, parent: ids.get(o.parent) ?? -1, name: o.name, position: o.position.toArray(), quaternion: o.quaternion.toArray(), scale: o.scale.toArray(), visible: o.visible, renderOrder: o.renderOrder, geometry: o.isMesh ? geometryId(o.geometry) : null, material: o.isMesh ? [].concat(o.material).map(materialId) : null, arrayMaterial: Array.isArray(o.material) });
+    if (nodes.length % 8 === 0) yield;
+  }
+  return { nodes, geometries, materials };
+}
+
+function packPreparation(...args) {
+  const steps = packPreparationSteps(...args);
+  let step;
+  do { step = steps.next(); } while (!step.done);
+  return step.value;
+}
+
+function unpackPreparation(plan, originals = null) {
+  const attribute = (a) => {
+    const attr = a.stride ? new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(a.array, a.stride), a.itemSize, a.offset, a.normalized) : new THREE.BufferAttribute(a.array, a.itemSize, a.normalized);
+    if (!a.stride) attr.count = a.count;
+    return attr;
+  };
+  const geometries = plan.geometries.map((g) => {
+    const out = new THREE.BufferGeometry();
+    for (const [name, a] of Object.entries(g.attributes)) out.setAttribute(name, attribute(a));
+    if (g.index) out.setIndex(attribute(g.index));
+    out.groups = g.groups;
+    if (g.box) out.boundingBox = new THREE.Box3(new THREE.Vector3(...g.box[0]), new THREE.Vector3(...g.box[1]));
+    if (g.sphere) out.boundingSphere = new THREE.Sphere(new THREE.Vector3(...g.sphere[0]), g.sphere[1]);
+    return out;
+  });
+  const materials = plan.materials.map((m) => {
+    if (originals && m.original >= 0) return originals.materials[m.original];
+    if (originals) return paintMaterial(m.fields);
+    const material = m.physical ? new THREE.MeshPhysicalMaterial(m.fields) : new THREE.MeshStandardMaterial(m.fields);
+    if (m.color) material.color.fromArray(m.color);
+    if (m.emissive) material.emissive.fromArray(m.emissive);
+    for (const name of m.textures) material[name] = { isTexture: true };
+    return material;
+  });
+  const nodes = plan.nodes.map((n) => {
+    const o = originals && n.original >= 0 ? originals.nodes[n.original] : n.geometry != null ? new THREE.Mesh() : new THREE.Group();
+    o.clear();
+    o.name = n.name;
+    o.position.fromArray(n.position); o.quaternion.fromArray(n.quaternion); o.scale.fromArray(n.scale);
+    o.visible = n.visible; o.renderOrder = n.renderOrder;
+    if (n.geometry != null) { o.geometry = geometries[n.geometry]; o.material = n.arrayMaterial ? n.material.map((i) => materials[i]) : materials[n.material[0]]; }
+    return o;
+  });
+  plan.nodes.forEach((n, i) => { if (n.parent >= 0) nodes[n.parent].add(nodes[i]); });
+  return { root: nodes[0], nodes, geometries, materials };
+}
+
+export function validateAttributes(root) {
+  const seen = new Set();
+  let values = 0;
+  root.traverse((o) => {
+    if (!o.isMesh || seen.has(o.geometry)) return;
+    seen.add(o.geometry);
+    for (const [name, attr] of Object.entries(o.geometry.attributes)) {
+      const getters = ["getX", "getY", "getZ", "getW"];
+      for (let i = 0; i < attr.count; i++) for (let k = 0; k < attr.itemSize; k++) {
+        if (!Number.isFinite(attr[getters[k]](i))) throw Object.assign(new Error(`Non-finite ${name} in ${o.name}.`), { code: "car-invalid-geometry" });
+        values++;
+      }
+    }
+  });
+  return values;
+}
+
+export async function prepareInspection(root, { cacheKey, tier, target, between = () => Promise.resolve(), signal, workerFactory } = {}) {
+  await between();
+  const mainSlices = [];
+  let mainStart = performance.now();
+  const nodes = [], materials = [];
+  root.traverse((o) => { nodes.push(o); if (o.isMesh) for (const m of [].concat(o.material)) if (!materials.includes(m)) materials.push(m); });
+  // The source URL/hash, tier, target and complete topology identify a plan.
+  const key = `${cacheKey}:${tier}:${target}:${nodes.map((n) => `${n.name}:${n.geometry?.attributes.position.count ?? 0}`).join("|")}`;
+  let plan = preparationCache.get(key);
+  const cached = Boolean(plan);
+  if (!plan) {
+    mainSlices.push(performance.now() - mainStart);
+    const steps = packPreparationSteps(root);
+    let step;
+    do {
+      await between();
+      const start = performance.now();
+      step = steps.next();
+      mainSlices.push(performance.now() - start);
+    } while (!step.done);
+    const input = step.value;
+    const buffers = new Set();
+    for (const g of input.geometries) for (const a of [...Object.values(g.attributes), g.index].filter(Boolean)) buffers.add(a.array.buffer);
+    await between();
+    const workerStart = performance.now();
+    const worker = workerFactory();
+    mainSlices.push(performance.now() - workerStart);
+    try { await between(); } catch (error) { worker.terminate(); throw error; }
+    plan = await new Promise((resolve, reject) => {
+      const start = performance.now();
+      const finish = (error, value) => { worker.terminate(); signal?.removeEventListener("abort", abort); error ? reject(error) : resolve(value); };
+      const abort = () => finish(Object.assign(new Error("Garage preparation was disposed."), { code: "garage-disposed" }));
+      signal?.addEventListener("abort", abort, { once: true });
+      worker.onmessage = ({ data }) => data.error ? finish(Object.assign(new Error(data.error.message), { code: data.error.code })) : finish(null, data);
+      worker.onerror = (e) => finish(new Error(e.message));
+      if (signal?.aborted) abort();
+      else { try { worker.postMessage({ input, tier, target }, [...buffers]); } catch (error) { finish(error); } }
+      mainSlices.push(performance.now() - start);
+    });
+    preparationCache.set(key, plan);
+  }
+  await between();
+  mainStart = performance.now();
+  const made = unpackPreparation(plan.output, { nodes, materials });
+  mainSlices.push(performance.now() - mainStart);
+  return { ...made, ...plan.stats, workerMs: cached ? 0 : plan.stats.workerMs, geometry: { ...plan.stats.geometry, cached, ms: cached ? 0 : plan.stats.geometry.ms }, cached, mainSlices };
+}
+
+// This module is also Vite's worker entry. All vertex loops, clipped-
+// triangle clearance, grille filtering, merging and simplification run
+// here. Only graph/buffer descriptors cross back to the renderer thread.
+if (typeof document === "undefined" && typeof self !== "undefined" && typeof self.postMessage === "function") {
+  self.onmessage = async ({ data: { input, tier, target } }) => {
+    try {
+      const t0 = performance.now();
+      const { root, nodes, materials } = unpackPreparation(input);
+      root.updateMatrixWorld(true);
+      const source = triangles(root);
+      const shut = localBounds(root);
+      const hasBody = root.name === "ali_s6";
+      const room = hasBody ? loweringRoom(root) : null;
+      const wallTriangles = tier === "phone" ? dropCellWalls(root) : 0;
+      slim(root, { rig: INSPECT_RIG, keepUnderHood: true });
+      // Match oneProgram's float conversion without changing the real
+      // materials. The main thread binds their maps and shader callbacks.
+      root.traverse((o) => {
+        const m = o.material;
+        if (o.isMesh && m?.isMeshPhysicalMaterial && m.map && !m.normalMap && !m.transparent && !Object.values(o.geometry.attributes).every((a) => !a.isInterleavedBufferAttribute && a.array instanceof Float32Array)) o.geometry = toFloat(o.geometry);
+      });
+      const geometry = await prepareTier(root, { target, errors: tier === "phone" ? undefined : [0.00025, 0.0005, 0.001] });
+      if (room) {
+        const prepared = loweringRoom(root);
+        for (const k of ["limit", "tyre", "floor"]) room[k] = Math.min(room[k], prepared[k]);
+      }
+      const finiteValues = validateAttributes(root);
+      root.traverse((o) => { if (o.isMesh) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); } });
+      const output = packPreparation(root, nodes, materials);
+      const buffers = new Set();
+      for (const g of output.geometries) for (const a of [...Object.values(g.attributes), g.index].filter(Boolean)) buffers.add(a.array.buffer);
+      self.postMessage({ output, stats: { source, shut: [shut.min.toArray(), shut.max.toArray()], room, wallTriangles, geometry, finiteValues, workerMs: performance.now() - t0 } }, [...buffers]);
+    } catch (error) { self.postMessage({ error: { message: error.message, code: error.code } }); }
+  };
 }
