@@ -326,7 +326,8 @@ def rear_edge():
         pts.append(Vector((lerp(x0, DECK_EDGE[0][1], u), lerp(y0, DECK_Y, t), lerp(z0, DECK_EDGE[0][2], u))))
     pts += [Vector((x, y, z)) for y, x, z in DECK_EDGE[1:]]
     face_y = lid_face_y(LID_SEAM_X, 1.0)
-    pts += [Vector((.665, 2.42, 1.058)), Vector((.64, face_y - .005, 1.035)), Vector((LID_SEAM_X + .004, face_y, 1.0))]
+    # The corner falls steadily from the shut line to the lid's side (a rise here folded the quarter top).
+    pts += [Vector((.668, 2.42, 1.047)), Vector((.645, face_y - .006, 1.03)), Vector((LID_SEAM_X + .004, face_y, 1.0))]
     return pts
 
 
@@ -666,10 +667,17 @@ def build_lid(parent, gap=.003):
                 x = u * (lid_half_width(z0) - gap)
                 y, z = lid_face_y(x, z0), z0
             else:
-                half = interp(edge_x, y0) - gap
+                # The lid's rows curve forward toward its corners; take the edge
+                # from the shut line where each point actually lands, so the
+                # lid and the quarters meet along one line (no slit at the lip).
+                shift = lambda x: (lid_face_y(x, 1.0) - lid_face_y(0, 1.0)) * smoothstep((y0 - 2.30) / .14)
+                y_edge = y0
+                for _ in range(3):
+                    y_edge = y0 + shift(interp(edge_x, y_edge) - gap)
+                half = interp(edge_x, y_edge) - gap
                 x = u * half
-                y = y0 + (lid_face_y(x, 1.0) - lid_face_y(0, 1.0)) * smoothstep((y0 - 2.30) / .14)
-                z = lerp(z0, interp(edge_z, y0), abs(u) ** 2.4)
+                y = y0 + shift(x)
+                z = lerp(z0, interp(edge_z, y_edge), abs(u) ** 2.4)
             vs.append(Vector((x, y, z)))
     rows = len(deck) + len(lip) + len(face)
     faces = [tuple(reversed(f)) for f in grid_faces(rows, U + 1)]
