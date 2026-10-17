@@ -341,7 +341,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   };
   dressProtos(protoMeshes);
   const visibility = createGarageVisibility(anchors);
-  const props = createProps(protoMeshes, propsBuffer, { phone: tier === "phone", reflectLayer: REFLECT_LAYER, visibleBox: visibility.test, visibilityKey: () => visibility.inside ? visibility.passKey : null, exterior, originalBuffer: originalProps });
+  const props = createProps(protoMeshes, propsBuffer, { phone: tier === "phone", reflectLayer: REFLECT_LAYER, visibleBox: visibility.test, visibilityKey: () => visibility.inside ? visibility.passKey : null, exterior, originalBuffer: originalProps, batchInstances: true });
   renderer.setOpaqueSort(opaqueOrder);
   sources.push(...props.sources);
   root.add(props.group);

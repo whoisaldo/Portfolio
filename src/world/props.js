@@ -45,6 +45,7 @@ import { NEON } from "./materials.js";
 import { RULES, deal } from "./prop-deal.js";
 import { createPropSurfaces } from "./prop-surfaces.js";
 import { identityBatching } from "./merge.js";
+import { createPropBatches } from "./prop-batches.js";
 
 const CELL = 12;
 // The most vertices a part may have in the whole city and be written out.
@@ -332,7 +333,7 @@ export function opaqueOrder(a, b) {
  * materials); `buffer`: the props file. Returns { group, update(camera),
  * sources (for the light bake), dispose }.
  */
-export function createProps(protoMeshes, buffer, { phone = false, reflectLayer = 0, visibleBox = null, visibilityKey = null, exterior = null, originalBuffer = null } = {}) {
+export function createProps(protoMeshes, buffer, { phone = false, reflectLayer = 0, visibleBox = null, visibilityKey = null, exterior = null, originalBuffer = null, batchInstances = false } = {}) {
   const { protos, data, count, sectorRuns = [] } = parseProps(buffer);
   const placementSectors = new Array(count).fill("exterior");
   for (const { sector, start, count: n } of sectorRuns) placementSectors.fill(sector, start, start + n);
@@ -435,6 +436,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     return twins.get(key);
   };
   // The small parts' meshes, by material and attributes.
+  let buildingCore = true;
   const baked = new Map();
   const unwritten = new Set();
   // A prototype's instances and their draws, once its meshes are here (the
@@ -487,7 +489,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       // parts into the shared material batches, including detailed tools.
       // The city keeps its size limit so thousands of street instances
       // still share their prototype vertices.
-      if (!material.transparent && (sectorRuns.length || (!mine && n * src.geometry.attributes.position.count <= BAKED))) {
+      if (!material.transparent && (sectorRuns.length || (!mine && n * src.geometry.attributes.position.count <= BAKED && (!batchInstances || !buildingCore || k.name === "traffic_light")))) {
         const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}|${src.userData.assetKind ?? ""}|${layerMask}`;
         if (!baked.has(key)) {
           const shader = twin(material, mine ? "baked-local" : "baked", src.geometry);
@@ -599,6 +601,8 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     };
   }
   for (const k of kinds) build(k);
+  buildingCore = false;
+  const prototypeBatches = batchInstances && !sectorRuns.length ? createPropBatches(sets, group, twin) : null;
   write();
 
   // Offline exterior batches replace their placements atomically. Keep the
@@ -761,6 +765,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         selected.sig = sig;
         lists.set(set, selected);
       }
+      set.selected = selected;
       if (selected.sig === set.sig) continue;
       set.sig = selected.sig;
       let c = 0;
@@ -788,6 +793,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         dealt[m].needsUpdate = true;
       }
     }
+    prototypeBatches?.update(camera);
     for (const mesh of baked.values()) {
       const saved = prepared?.baked.get(mesh);
       if (cached && saved?.geometry === mesh.geometry) {
@@ -992,6 +998,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
             return;
           }
           set.deals[j] = value;
+          for (const { mesh, ids } of set.batchDeals ?? []) mesh.setColorAt(ids[j], new THREE.Vector4(value, 0, 0, 1));
           // Where it is in what is drawn: the runs in sight before its own.
           let c = 0;
           for (const run of set.runs) {
@@ -1020,6 +1027,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     },
     dispose() {
       attachments.forEach((child) => child.dispose());
+      prototypeBatches?.dispose();
       for (const m of bakeMeshes) m.geometry.dispose();
       for (const set of sets) for (const im of set.instanced) im.dispose();
       for (const mesh of baked.values()) {

@@ -1087,6 +1087,36 @@ check("signal deals use the restored frustum after a cached camera pass", () => 
   props.dispose(); source.geometry.dispose(); material.dispose();
 });
 
+check("shared prototype batches keep cached IDs, transforms and live deals for both cameras", () => {
+  const material = new three.ShaderMaterial({ uniforms: { uSpill: { value: null } } }); material.name = "NCW_face";
+  const a = new three.Mesh(new three.BoxGeometry(.2, .3, .1), material); a.userData.proto = "signal_box";
+  const b = a.clone(); b.userData = { proto: "vending_warm" };
+  const header = { protos: [{ name: "signal_box", box: [.5, .5, .5], reach: 100 }, { name: "vending_warm", box: [.5, .5, .5], reach: 100 }], count: 4 };
+  let json = JSON.stringify(header); while ((4 + Buffer.byteLength(json)) % 4) json += " ";
+  const bytes = Buffer.alloc(4 + Buffer.byteLength(json) + 64); bytes.writeUInt32LE(Buffer.byteLength(json)); bytes.write(json, 4);
+  new Int16Array(bytes.buffer, bytes.byteOffset + 4 + Buffer.byteLength(json), 32).set([0, 9000, 50, -4300, 0, 100, 1000, 0, 0, 9560, 50, -4300, 0, 100, 1000, 0, 1, 9000, 50, -4300, 0, 100, 1000, 0, 1, 9560, 50, -4300, 0, 100, 1000, 0]);
+  const left = new three.PerspectiveCamera(50, 1.6, .1, 100), right = left.clone();
+  left.position.set(463, 1, -215); left.lookAt(450, 1, -215); left.updateMatrixWorld();
+  right.position.copy(left.position); right.lookAt(478, 1, -215); right.updateMatrixWorld();
+  let key = "left";
+  const props = propsModule.createProps([a, b], bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), { visibilityKey: () => key, batchInstances: true });
+  const mesh = props.group.children.find((node) => node.isBatchedMesh && !node.isBaked);
+  assert.ok(mesh); assert.equal(props.group.children.filter((node) => node.isInstancedMesh).length, 0);
+  props.update(left); const leftIDs = mesh._indirectTexture, version = leftIDs.version;
+  const ids = Array.from(leftIDs.image.data.subarray(0, mesh._multiDrawCount));
+  assert.equal(ids.length, 2);
+  const matrix = new three.Matrix4(); for (const id of ids) { mesh.getMatrixAt(id, matrix); assert.equal(matrix.elements[12], 450); }
+  key = "right"; props.update(right); const rightIDs = mesh._indirectTexture;
+  assert.notEqual(rightIDs, leftIDs); for (const id of rightIDs.image.data.subarray(0, mesh._multiDrawCount)) { mesh.getMatrixAt(id, matrix); assert.equal(matrix.elements[12], 478); }
+  key = "left"; props.update(left);
+  assert.equal(mesh._indirectTexture, leftIDs); assert.equal(leftIDs.version, version, "returning to a camera does not upload the same static draw IDs again");
+  props.dealt("signal_box").deal(0, 6);
+  const color = new three.Vector4(); mesh.getColorAt(ids[0], color); assert.equal(color.x, 6);
+  assert.equal((mesh.material.vertexShader.match(/#include <batching_pars_vertex>/g) ?? []).length, 1);
+  let disposed = 0; leftIDs.addEventListener("dispose", () => disposed++); rightIDs.addEventListener("dispose", () => disposed++);
+  props.dispose(); assert.equal(disposed, 2); a.geometry.dispose(); material.dispose();
+});
+
 check("all six probe faces prepare their own portals and prop runs through the transform wrapper", () => {
   const source = readFileSync("src/world/world-scene.js", "utf8");
   const from = source.indexOf("  const renderScene = renderer.render;"), to = source.indexOf("  const draw =", from);
