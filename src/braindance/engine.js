@@ -40,6 +40,7 @@ const _up = new THREE.Vector3();
 /** A downloaded room is not ready until its cars and collision are usable. */
 export function garageIsReady(garage) {
   return garage?.state?.availability === "ready"
+    && typeof garage.applyDirectedState === "function"
     && ["at", "sample", "stateAt", "inspection"].every((key) => typeof garage.poses?.[key] === "function")
     && Array.isArray(garage.collision?.solids)
     && ["clearance", "sweep", "nearPlane", "cars"].every((key) => typeof garage.collision?.[key] === "function")
@@ -255,7 +256,13 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   retry.onkeydown = (event) => {
     if (event.key === "Enter" || event.key === " ") event.stopPropagation();
   };
-  notice.append(message, retry);
+  const skip = document.createElement("button");
+  skip.type = "button";
+  skip.className = "bd-btn";
+  skip.textContent = "Skip garage segment";
+  skip.style.minHeight = "44px";
+  skip.onkeydown = retry.onkeydown;
+  notice.append(message, retry, skip);
   let returnFocus = null;
   const gate = createGarageGate({
     getGarage: () => world.garage,
@@ -272,10 +279,12 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
         returnFocus = document.activeElement;
         canvas.parentElement?.append(notice);
       }
-      message.textContent = status === "failed" ? "The workshop is unavailable. The recording is held at a safe frame." : "Loading the workshop. The recording is held at a safe frame.";
-      if (status === "loading" && document.activeElement === retry) message.focus({ preventScroll: true });
+      message.textContent = status === "failed" ? "The workshop is unavailable. Retry, or skip this segment to continue the recording." : "Loading the workshop. The recording is held at a safe frame.";
+      if (status === "loading" && (document.activeElement === retry || document.activeElement === skip)) message.focus({ preventScroll: true });
       retry.hidden = status !== "failed";
       retry.style.display = status === "failed" ? "inline-flex" : "none";
+      skip.hidden = status !== "failed";
+      skip.style.display = status === "failed" ? "inline-flex" : "none";
     },
     onReady(request) {
       clock.t = request.time;
@@ -288,6 +297,13 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   });
   retry.onclick = () => {
     if (gate.pending) gate.request(gate.pending.time, gate.pending.playing, true);
+  };
+  skip.onclick = () => {
+    if (!gate.pending) return;
+    // Cut beyond the unavailable approach/visit in the current direction.
+    // Seeking cancels the old job and preserves its latest transport intent.
+    api.seek(dir < 0 ? recording.garageRange.start - 0.001 : recording.garageRange.end);
+    toast("camera", "Garage segment skipped", "You can return with the timeline and retry the workshop.", 4000);
   };
   const holdForGarage = (t) => {
     if (!recording.needsGarage(t) || garageIsReady(world.garage)) return false;
@@ -427,15 +443,19 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     bd.time = t;
 
     if (!gate.pending || !recording.needsGarage(t)) recording.evaluate(t, spec);
+    // Live car bounds must describe this sought frame before either the
+    // authored camera or the final edit/photo proposal queries collision.
+    let carStateApplied = !free && world.garage?.applyDirectedState?.({ ...spec.garage, free: false });
     if (!free && spec.garage.active && garageIsReady(world.garage)) {
       const collision = world.garage.collision;
-      if (!(spec.pose.position.distanceToSquared(spec.pose.target) > 1e-6 && collision.clearance(spec.pose.position) >= 0.45 && collision.nearPlane(spec.pose, camera.aspect) >= 0.15)) {
+      if (carStateApplied !== true || !(spec.pose.position.distanceToSquared(spec.pose.target) > 1e-6 && collision.clearance(spec.pose.position) >= 0.45 && collision.nearPlane(spec.pose, camera.aspect) >= 0.15)) {
         gate.fail(t, playing, new Error("The workshop camera is obstructed"));
         playing = false;
         deckPlay();
         set({ playing: false });
         t = clock.t = bd.time = safeTime;
         recording.evaluate(t, spec);
+        carStateApplied = world.garage.applyDirectedState({ ...spec.garage, free: false });
         edit.ready = false;
         edit.accepted = null;
       } else safeTime = t;
@@ -449,7 +469,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     edit.k += (target - edit.k) * (1 - Math.exp(-dt * 5));
     if (target && (!edit.ready || edit.chapter !== spec.chapter)) enterEdit();
     if (!target && edit.k < 1e-3) edit.ready = false;
-    const inside = !free && spec.garage.active && garageIsReady(world.garage);
+    const inside = !free && spec.garage.active && carStateApplied === true && garageIsReady(world.garage);
     if (inside) edit.k = target;
     if (inside && garageTool && !target) toast("camera", "Recording camera", "Returned to the recorded workshop view.", 2000);
     garageTool = inside && Boolean(target);
@@ -692,7 +712,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       clock.t = into;
       bd.time = clock.t;
       deckPlay();
-      if (clock.t < DURATION) set({ ended: false });
+      set({ playing, ended: clock.t < DURATION ? false : bd.ended });
     },
     /** 1, 2 or 4 times, forward or back. */
     setSpeed(r, d = 1) {
@@ -724,7 +744,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     setMode(mode) {
       // The editor orbits a held moment of the recording: not while roaming.
       if (mode === "edit" && roam?.on) return;
-      if (mode === "edit" && playing) api.pause();
+      if (mode === "edit" && (playing || gate.pending?.playing)) api.pause();
       set({ mode });
     },
     /** Drag in edit mode: orbit. Drag while playing: look about. */
@@ -843,7 +863,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
         }
         if (job !== roamJob) return false;
         // The tape stops where it is; the radio plays on.
-        resumeAfter = playing;
+        resumeAfter = gate.pending?.playing ?? playing;
         playing = false;
         rate = 1;
         dir = 1;

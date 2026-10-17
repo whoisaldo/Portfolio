@@ -172,7 +172,8 @@ export function createRecording(anchors, road, { garage = () => null, aspect = (
   // the six-stop visit uses the same progress and hood/drop table as scroll.
   // Start the gate before the S4 can reach the shutter, while the camera
   // is still on the completed rooftop/street side of the recording.
-  const needsGarage = (t) => t >= bar(46) && t < bar(64);
+  const garageRange = { start: bar(46), end: bar(64) };
+  const needsGarage = (t) => t >= garageRange.start && t < garageRange.end;
   const garageProgress = (t) => clamp((t - bar(50)) / (bar(63) - bar(50)), 0, 1);
   const at = (name) => anchors.get(name)?.position;
   const vec = (v, out) => (typeof v === "string" ? out.copy(at(v) ?? out.set(0, 0, 0)) : out.fromArray(v));
@@ -429,5 +430,5 @@ export function createRecording(anchors, road, { garage = () => null, aspect = (
   // chunk imports and so changes /recruiters' files).
   const city = { boardSlot: BOARD_SLOT, boardCount: BOARDS.length, towers: TOWERS.map((tw) => tw.slug) };
 
-  return { evaluate, frame, needsGarage, garageProgress, carAt: placeCar, towerPasses, copyPose, city };
+  return { evaluate, frame, needsGarage, garageRange, garageProgress, carAt: placeCar, towerPasses, copyPose, city };
 }
