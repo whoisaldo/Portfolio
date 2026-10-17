@@ -5,17 +5,28 @@
 import * as THREE from "three";
 import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
 
-// PROVISIONAL LOOK PASS: all artistic gains live here. Fixture locations,
-// dimensions, aim and colors belong to B2's published anchors, not this table.
-// These values need the later paint look pass with A1's actual S6.
+// The look: every artistic gain lives here. Fixture locations, dimensions,
+// aim and colors belong to B2's published anchors, not this table. Set in
+// the look pass on the actual site at every station, wide and phone, with
+// A1's Quartz Gray values on a stand-in body in the S6 bay; recheck the
+// S6 bay once A1's real model lands.
 export const GARAGE_LIGHT_LOOK = Object.freeze({
-  taskNits: 38,
-  flankNits: 65,
-  workCandela: 45,
-  probeGain: 0.8,
-  fixtureEmission: 7,
-  workEmission: 10,
-  accentEmission: 5,
+  // The paint is metallic: its flanks read only through reflections, so
+  // the probe carries the car and the strips draw its top lines.
+  taskNits: 50,
+  flankNits: 90,
+  workCandela: 35,
+  probeGain: 1.6,
+  // Under-hood parts take this share of probeGain, so the engine stays dark
+  // and separate from the paint above it.
+  engineProbe: 0.5,
+  // A parked car's headlamp pool keeps this share of its road strength
+  // indoors, where the room lights the floor.
+  lampPool: 0.1,
+  // How bright each kind of practical is in the probe, against the room's
+  // own lit surfaces: a lamp outshines a wall. Neutral faces dominate so
+  // grey paint stays grey; pink, cyan and amber stay edge colour.
+  practicals: Object.freeze({ task: 30, flank: 30, work: 8, tube: 25, neon: 12, amber: 15, screen: 3 }),
   wallGain: 1,
   streetGain: 1.4,
   background: 0x020203,
@@ -32,7 +43,8 @@ const DEFAULT_FACES = ["s4", "s6"].flatMap((bay) => {
   return [
     { id: `${bay}_task`, position: [463, 5.45, z], extras: { kind: "strip", bay, length: 4.5, width: 0.35, aim: [462.8, 0.9, z], kelvin: 4400 } },
     ...[461.2, 463.6].map((x, i) => ({ id: `${bay}_flank_${i}`, position: [x, 5.55, z + (bay === "s4" ? 3 : -3)], extras: { kind: "strip", bay, length: 2.36, width: 0.08, aim: [462.6, 0.45, z + (bay === "s4" ? 1 : -1)], kelvin: 4300 } })),
-    { id: `${bay}_work`, position: [465.3, 2.1, bay === "s4" ? -217.55 : -219.45], extras: { kind: "work", bay, length: 0.32, width: 0.2, aim: [463.3, 0.95, z], kelvin: 4500 } },
+    // B2's work-light faces as exported (e4e998d), each aimed at its own bay.
+    { id: `${bay}_work`, position: [465.225, 2.1, bay === "s4" ? -217.069 : -219.931], extras: { kind: "work", bay, length: 0.32, width: 0.2, aim: [463.3, 0.95, z], kelvin: 4400 } },
   ];
 });
 
@@ -103,6 +115,29 @@ function faceOf(f) {
   return { id: f.id, at, q, aim, along: new THREE.Vector3(1, 0, 0).applyQuaternion(q), length: e.length ?? 1.2, width: e.width ?? 0.05, color: colorOf(e), gain: e.intensity ?? 1, kind: e.kind, bay: e.bay };
 }
 
+// Which row of GARAGE_LIGHT_LOOK.practicals a face takes in the probe.
+const practicalOf = (f) => f.kind === "strip" ? (/flank/.test(f.id) ? "flank" : "task") : /amber/.test(f.id) ? "amber" : /cyan|pink/.test(f.id) ? "neon" : f.kind;
+
+// Every exported luminous face as an emissive box, for the probe only.
+function practicals(faces) {
+  const group = new THREE.Group();
+  group.name = "garage_probe_practicals";
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const materials = [];
+  for (const f of faces) {
+    const gain = GARAGE_LIGHT_LOOK.practicals[practicalOf(f)] ?? 0;
+    if (!gain) continue;
+    const m = new THREE.MeshBasicMaterial({ color: f.color.clone().multiplyScalar(f.gain * gain), side: THREE.DoubleSide, toneMapped: false });
+    materials.push(m);
+    const mesh = new THREE.Mesh(geometry, m);
+    mesh.position.copy(f.at);
+    mesh.quaternion.copy(f.q);
+    mesh.scale.set(f.length, 0.026, f.width);
+    group.add(mesh);
+  }
+  return { group, dispose() { group.removeFromParent(); geometry.dispose(); materials.forEach((m) => m.dispose()); } };
+}
+
 function slotOf(f) {
   if (f.bay !== "s4" && f.bay !== "s6") return null;
   if (f.kind === "work") return "work";
@@ -122,7 +157,7 @@ function orient(light, f) {
 // A fixture-only development probe remains available before the room pack
 // is attached. capture(roomScene) instead captures the actual ready room,
 // including its artwork. The latter is required for final look evidence.
-function workshopScene(faces) {
+function workshopScene() {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(GARAGE_LIGHT_LOOK.background);
   const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -145,7 +180,6 @@ function workshopScene(faces) {
   add(L.wall, L.wallGain, [452.5, 2.3, -223.75], [0.1, 4.6, 11.5]);
   add(L.wall, L.wallGain, [452.5, 2.3, -206.25], [0.1, 4.6, 11.5]);
   add(L.street, L.streetGain, [451, 2.3, -215], [0.1, 4.6, 6]);
-  for (const f of faces) add(f.color, f.gain * (f.kind === "work" ? L.workEmission : f.kind === "tube" ? L.accentEmission : L.fixtureEmission), f.at, [f.length, 0.026, f.width], f.q);
   return { scene, dispose() { geometry.dispose(); materials.forEach((m) => m.dispose()); } };
 }
 
@@ -185,7 +219,7 @@ export function createGarageLighting({ scene, renderer, layer = null, fixtures =
     group,
     get lights() { return lights; },
     get fixtures() { return faces; },
-    get stats() { return { lightCount: group.children.filter((o) => o.isLight).length, fixtureFaces: faces.length, provisional: true, probe: target ? { width: target.width, height: target.height, colorBytes: target.width * target.height * 8, depthBytes: target.width * target.height * 4, bytes: target.width * target.height * 12, temporaryFilterBytes: target.width * target.height * 8, size: GARAGE_LIGHT_LOOK.probeSize[tier], type: "half-float cube-UV", source: target.userData?.source } : null }; },
+    get stats() { return { lightCount: group.children.filter((o) => o.isLight).length, fixtureFaces: faces.length, provisional: false, probe: target ? { width: target.width, height: target.height, colorBytes: target.width * target.height * 8, depthBytes: target.width * target.height * 4, bytes: target.width * target.height * 12, temporaryFilterBytes: target.width * target.height * 8, size: GARAGE_LIGHT_LOOK.probeSize[tier], type: "half-float cube-UV", source: target.userData?.source } : null }; },
     probe: null,
     ready: Promise.resolve(),
     setFixtures,
@@ -194,7 +228,7 @@ export function createGarageLighting({ scene, renderer, layer = null, fixtures =
       if (disposed) throw new Error("The garage light rig is disposed.");
       const pmrem = new THREE.PMREMGenerator(renderer);
       if (source != null && !source.isObject3D) { pmrem.dispose(); throw new TypeError("A garage probe source must be an Object3D."); }
-      const workshop = source == null ? workshopScene(faces) : null;
+      const workshop = source == null ? workshopScene() : null;
       const captureScene = source?.isScene ? source : workshop?.scene ?? new THREE.Scene();
       let parent, index;
       if (source && !source.isScene) {
@@ -210,9 +244,13 @@ export function createGarageLighting({ scene, renderer, layer = null, fixtures =
         captureScene.add(wrapper);
         wrapper.add(source);
       }
+      // The room's own surfaces, plus its practicals as bright as lamps are.
+      const lamps = practicals(faces);
+      captureScene.add(lamps.group);
       let next;
       try { next = pmrem.fromScene(captureScene, 0.03, 0.1, 60, { size: GARAGE_LIGHT_LOOK.probeSize[tier], position: new THREE.Vector3(463, 1.2, -218.5) }); }
       finally {
+        lamps.dispose();
         if (source && !source.isScene) {
           source.removeFromParent();
           if (parent) { parent.add(source); parent.children.splice(parent.children.indexOf(source), 1); parent.children.splice(index, 0, source); }

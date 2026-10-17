@@ -53,12 +53,19 @@ export function paintMaterial(like) {
     side: like.side,
   });
   material.name = "s4_paint";
+  // How much of the environment an uncoated part (rubber, cast metal,
+  // plastics, the engine) takes against the lacquered paint and glass. The
+  // garage lowers it so a strong workshop probe sells the paint without
+  // washing the engine bay or the blacks; the street keeps 1.
+  material.userData.matte = { value: 1 };
   material.onBeforeCompile = (shader) => {
+    shader.uniforms.uMatte = material.userData.matte;
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nattribute vec3 surface;\nvarying vec3 vSurface;")
       .replace("#include <begin_vertex>", "#include <begin_vertex>\n\tvSurface = surface;");
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nvarying vec3 vSurface;")
+      .replace("#include <common>", "#include <common>\nvarying vec3 vSurface;\nuniform float uMatte;")
+      .replace("#include <lights_fragment_maps>", "#include <lights_fragment_maps>\n\tfloat envShare = mix(uMatte, 1.0, smoothstep(0.35, 0.7, clearcoat * vSurface.z));\n\tradiance *= envShare;\n\tiblIrradiance *= envShare;")
       .replace("#include <roughnessmap_fragment>", "float roughnessFactor = roughness * vSurface.x;")
       .replace("#include <metalnessmap_fragment>", "float metalnessFactor = metalness * vSurface.y;")
       .replace(

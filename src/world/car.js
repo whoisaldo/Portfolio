@@ -55,7 +55,7 @@ import { createLamps, createGroundLight } from "../three/drift/lamps.js";
 import { createRig, createDrift } from "../three/drift/rig.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { SHOTS } from "../data/world.js";
-import { createGarageLighting, fixturesFrom, scopeCarLighting } from "./garage-lighting.js";
+import { createGarageLighting, fixturesFrom, GARAGE_LIGHT_LOOK, scopeCarLighting } from "./garage-lighting.js";
 import { slim } from "../three/car/slim.js";
 import { toFloat } from "./merge.js";
 
@@ -307,7 +307,8 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   // The city is darker than the plate the drift was tuned over, and it has
   // real bloom: the beams, the pools and the smoke come down to match.
   const lamps = createLamps(car, { depthTest: true, lift: 0.5, layer, reverse: true, directional: true, glow: 0.55, near: [6, 16], beam: 0.028 });
-  const ground = createGroundLight(scene, { size: 70, fade: [14, 34], y: 0.03, follow: true, lamps: 0.6 });
+  const pool = 0.6;
+  const ground = createGroundLight(scene, { size: 70, fade: [14, 34], y: 0.03, follow: true, lamps: pool });
   const drift = createDrift(scene, car, rig, { smokeRgb: [0.3, 0.29, 0.33] });
 
   // ---- light -------------------------------------------------------------
@@ -526,6 +527,9 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
     // there, so their reflections never show at once.
     inside = insideAt(car.position.x, car.position.z);
     lightInside.value = inside;
+    // The headlamps stay lit; their pool on the floor is the road's, and in
+    // the lit workshop it would lie on the concrete like fog.
+    ground.material.uniforms.uLamps.value = pool * (1 - inside * (1 - GARAGE_LIGHT_LOOK.lampPool));
     hemi.intensity = 0.5;
     const want = probe && inside > 0.5 ? probe : envMap;
     const gain = probe && want === probe ? probeGain * (2 * inside - 1) : scene.environmentIntensity * (probe ? Math.max(0, 1 - 2 * inside) : 1);
