@@ -380,8 +380,11 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const alphas = material.vertexColors && geometry.attributes.color?.itemSize === 4;
     const key = `${material.uuid}|${kind}|${alphas}`;
     if (!twins.has(key)) {
-      const copy = material.clone();
-      copy.uniforms = kind === "baked" ? Object.create(material.uniforms, { uProp: { value: { value: 1 }, enumerable: true } }) : material.uniforms;
+      // The world uniforms are shared below. Copying their render targets
+      // first is unsupported by Three and would create unusable duplicates.
+      const source = material.uniforms ? Object.create(material, { uniforms: { value: {} } }) : material;
+      const copy = new material.constructor().copy(source);
+      if (material.uniforms) copy.uniforms = kind === "baked" ? Object.create(material.uniforms, { uProp: { value: { value: 1 }, enumerable: true } }) : material.uniforms;
       copy.userData.sortId = material.id;
       twins.set(key, copy);
     }

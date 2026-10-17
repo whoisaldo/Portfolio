@@ -364,18 +364,36 @@ check("late garage prop placements", () => {
   const bad = wire({ protos: [{ name: "garage_test", box: [1, 1, 1] }], count: 1, sectorRuns: [] }, [[0, 9240, 0, -4300, 0, 100, 1000, 0]]);
   assert.throws(() => system.addPlacements([pack], bad), /sectors/);
   system.dispose();
-  const plantMaterial = new ShaderMaterial({ uniforms: { uSpill: { value: null } } });
+  const sharedTarget = new three.WebGLRenderTarget(1, 1);
+  const plantMaterial = new ShaderMaterial({ uniforms: { uSpill: { value: sharedTarget.texture } } });
   plantMaterial.name = "baked_test";
   const plant = new Mesh(new BoxGeometry(1, 1, 1), plantMaterial);
   plant.userData.proto = "native_test";
-  const native = propsModule.createProps([plant], wire({ protos: [{ name: "native_test", box: [1, 1, 1] }], count: 1 }, [[0, 9240, 0, -4300, 0, 100, 1000, 0]]));
+  const warn = console.warn;
+  let cloneWarnings = 0;
+  let native;
+  try {
+    console.warn = (...args) => {
+      if (args.some((arg) => String(arg).includes("Textures of render targets cannot be cloned"))) cloneWarnings++;
+      else warn(...args);
+    };
+    native = propsModule.createProps([plant], wire({ protos: [{ name: "native_test", box: [1, 1, 1] }], count: 1 }, [[0, 9240, 0, -4300, 0, 100, 1000, 0]]));
+  } finally {
+    console.warn = warn;
+  }
+  assert.equal(cloneWarnings, 0);
   const baked = native.group.children.find((mesh) => mesh.isBaked);
   assert.ok(baked, "small props exercise batching and geometry disposal");
   assert.equal(baked._indirectTexture.type, three.UnsignedIntType);
+  assert.equal(baked.material.uniforms.uSpill.value, sharedTarget.texture);
   let released = 0;
+  let sharedReleased = false;
+  sharedTarget.texture.addEventListener("dispose", () => { sharedReleased = true; });
   baked._indirectTexture.addEventListener("dispose", () => released++);
   native.dispose();
   assert.equal(released, 1);
+  assert.equal(sharedReleased, false, "prop disposal keeps borrowed render targets alive");
+  sharedTarget.dispose();
   plant.geometry.dispose();
   plantMaterial.dispose();
   core.geometry.dispose();
