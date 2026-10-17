@@ -116,7 +116,7 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     ackGarageRequest(applied.id);
   }, [applied, cinematic, partsOpen, selection]);
   const common = {
-    selection, activeCar, availability, reason, reduced, fallback, still, showPrices: SHOW_PRICES, credits,
+    selection, activeCar, availability, reason: availability === "failed" ? null : reason, reduced, fallback, still, showPrices: SHOW_PRICES, credits,
     onSelect: select, onCar: setActiveCar, onRetry, contactHref: "#contact", request: applied,
     onStation: cinematic ? goStation : (id) => setGarageView({ textStation: id }),
   };
