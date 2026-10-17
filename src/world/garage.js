@@ -96,7 +96,7 @@ export function createGarageVisibility(anchors) {
   }).filter(Boolean);
   const eye = new THREE.Vector3();
   const view = new THREE.Frustum(), matrix = new THREE.Matrix4(), positive = new THREE.Vector3();
-  let inside = false, nearOpening = false, cones = [], roadVisible = true;
+  let inside = false, nearOpening = false, cones = [], trafficCones = [], roadVisible = true;
   const clip = (polygon, plane) => {
     const result = [];
     for (let i = 0; i < polygon.length; i++) {
@@ -118,6 +118,18 @@ export function createGarageVisibility(anchors) {
       nearOpening = false;
       roadVisible = false;
       cones = [];
+      // Traffic is packed once per frame for both direct and reflected
+      // sight. Vertical portal sides have the same X/Z silhouette for
+      // both eyes. Keeping their full height is conservative for flying
+      // vehicles, whose existing frustum test still bounds the frame.
+      trafficCones = portals.map((points) => {
+        const center = points.reduce((sum, p) => sum.add(p), new THREE.Vector3()).multiplyScalar(.25);
+        const through = center.clone().add(center.clone().sub(eye).normalize());
+        return [[points[1], points[2]], [points[3], points[0]]].map(([a, b]) => {
+          const plane = new THREE.Plane().setFromCoplanarPoints(eye, a, b);
+          return plane.distanceToPoint(through) < 0 ? plane.negate() : plane;
+        });
+      });
       const apertures = eye.y < 0 ? portals.flatMap((points) => [points, points.map((p) => new THREE.Vector3(p.x, -p.y, p.z))]) : portals;
       for (const points of apertures) {
         // Keep both the physical opening above the floor and its reflected
@@ -139,6 +151,11 @@ export function createGarageVisibility(anchors) {
         cones.push(planes);
         if (polygon.some((p) => p.y < eye.y && p.y >= -.01)) roadVisible = true;
       }
+    },
+    testTrafficSphere(x, y, z, radius) {
+      if (!portals.length || !inside || nearOpening) return true;
+      if (x >= room.min.x - radius && x <= room.max.x + radius && z >= room.min.z - radius && z <= room.max.z + radius) return true;
+      return trafficCones.some((planes) => planes.every(({ normal, constant }) => normal.x * x + normal.y * y + normal.z * z + constant >= -radius));
     },
     testSphere(x, y, z, radius) {
       if (!portals.length || !inside || nearOpening) return true;

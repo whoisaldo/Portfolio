@@ -335,6 +335,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       elevated: c.anchors.get("anchor_traffic")?.extras?.paths ?? [],
       deckCars: tier === "phone" ? 1 : 2,
       props: c.props,
+      visibleSphere: c.visibility.testTrafficSphere,
     });
     // (load: the S4's model, if it is not in yet; see preloadWorld. When it
     // is, the city goes on being made in the same breath, as it did.)
@@ -994,7 +995,6 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       if (drawScene === scene && city.visibility.exteriorVisible) {
         skyline?.update(drawCamera, renderer.getPixelRatio(), city.visibility);
         crowd?.update(drawCamera);
-        if (city.visibility.inside) traffic?.prepare(drawCamera, city.visibility.testSphere);
       }
     }
     // Exterior systems use shader-positioned batches, so their ordinary

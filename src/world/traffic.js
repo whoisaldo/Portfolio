@@ -662,7 +662,7 @@ const madeAhead = (key, make) => {
   return got ?? make();
 };
 
-export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, elevated = [], deckCars = 0, props = null } = {}) {
+export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, elevated = [], deckCars = 0, props = null, visibleSphere = null } = {}) {
   const avGeo = madeAhead("av", avGeometry);
   const full = cars >= 4;
   if (full) prepareNearModels();
@@ -2183,7 +2183,6 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const viewMatrix = new THREE.Matrix4();
   const ball = new THREE.Sphere();
   let viewed = false;
-  let visibleSphere = null;
   // (And how long the lens is: a far craft's lamps are grown to a share of
   // the frame, which on a phone's narrow frame or a long lens is fewer
   // degrees.)
@@ -2643,14 +2642,6 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
 
   return {
     update,
-    // Repack the current instant for a real pass camera without advancing
-    // the traffic clock. Main and mirror keep independent portal lists.
-    prepare(camera, testSphere) {
-      view.setFromProjectionMatrix(viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-      viewed = true;
-      visibleSphere = testSphere;
-      update(0, voices.on);
-    },
     avMesh,
     voices,
     /** Dev: hold every vehicle where it is, or where it is at second `at`

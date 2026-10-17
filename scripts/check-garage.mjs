@@ -787,6 +787,9 @@ check("portal visibility keeps real openings for main and reflected cameras", ()
   camera.position.set(462, 2, -215); camera.lookAt(440, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
   assert.ok(visibility.test(box(440, 1, -215)), "street through the doorway");
   assert.equal(visibility.testSphere(440, 1, -215, .1), true);
+  assert.equal(visibility.testTrafficSphere(440, 1, -215, .1), true);
+  assert.equal(visibility.testTrafficSphere(440, 1, -150, .1), false);
+  assert.equal(visibility.testTrafficSphere(440, 40, -215, .1), true, "one traffic list conservatively covers both direct and reflected sight");
   assert.equal(visibility.testSphere(440, 1, -150, .1), false, "shader-positioned batches use the same portal");
   assert.ok(!visibility.test(box(440, 1, -150)), "street hidden by the side wall");
   assert.ok(visibility.test(box(467, 1, -225), "garage_s6"), "open room remains visible");
@@ -797,6 +800,8 @@ check("portal visibility keeps real openings for main and reflected cameras", ()
   assert.equal(visibility.test(box(440, 1, -215)), false, "opening behind camera submits no street");
   camera.position.y = -2; camera.lookAt(440, -2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
   assert.ok(visibility.test(box(440, 1, -215)), "reflected aperture keeps street light");
+  assert.equal(visibility.testTrafficSphere(440, 1, -215, .1), true);
+  assert.equal(visibility.testTrafficSphere(440, 1, -150, .1), false);
   camera.position.set(440, 2, -215); camera.lookAt(462, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
   assert.ok(visibility.test(box(462, 2, -215), "garage_s4"));
   assert.ok(!visibility.test(box(462, 2, -225), "garage_s6"), "outside cannot see through a closed wall");
