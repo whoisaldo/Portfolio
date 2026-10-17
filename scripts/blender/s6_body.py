@@ -940,3 +940,39 @@ def build_cabin(parent):
     rounded_box('head_unit_bezel', (0, 0, 0), (.25, .018, .15), plastic, unit, .008, 1)
     box('head_unit_display', (0, -.0095, 0), (.23, .002, .13), screen, unit, 0)
     return cabin, dash
+
+
+# ---- details: handles, window trim, the plate ----
+
+def build_details(parent):
+    """Door handles, the bright window surrounds, and a blank plate in the boot lid's recess.
+
+    The handles sit just above the tornado line near each door's rear edge
+    (Audi's side view); the surrounds run along the window opening's top and
+    the beltline. No registration is modelled: the plate is blank.
+    """
+    trim = material('S6_window_trim_aluminium', 'c9ccd0', .95, .22)
+    plate = material('S6_plate_blank', 'dcdcd8', 0, .45)
+    made = []
+    for sign in (1, -1):
+        for y, z in ((.04, .868), (.95, .885)):
+            x = half_breadth(y, min(z, interp(CREASE_Z, y)))
+            x -= .32 * max(0., z - interp(CREASE_Z, y))   # the shoulder leans in above the crease
+            handle = rounded_box('door_handle', (sign * (x + .012), y, z), (.022, .19, .032), paint, parent, .01)
+            cup = box('door_handle_cup', (sign * (x + .001), y - .005, z - .004), (.004, .12, .03), satin_black, parent, 0)
+            made += [handle, cup]
+        top, belt = [], []
+        for y in [DLO_Y[0] + .01 + (DLO_Y[1] - DLO_Y[0] - .02) * k / 60 for k in range(61)]:
+            pts = greenhouse_section(y)
+            n = GREEN_COLS['side']
+            b, d = pts[0], pts[n]
+            top.append(Vector((sign * (d.x + .004), y, d.z + .002)))
+            belt.append(Vector((sign * (b.x + .004), y, b.z + .001)))
+        made.append(tube('window_trim_top', top, .0045, trim, parent, sides=6))
+        made.append(tube('window_trim_belt', belt, .004, trim, parent, sides=6))
+    # The plate recess's blank plate, US size (305 x 152 mm), and its holder.
+    z = .80
+    y = lid_face_y(0, z)
+    made.append(rounded_box('rear_plate_holder', (0, y + .004, z), (.33, .008, .175), satin_black, parent, .006, 1))
+    made.append(rounded_box('rear_plate_blank', (0, y + .009, z), (.305, .003, .152), plate, parent, .004, 1))
+    return made

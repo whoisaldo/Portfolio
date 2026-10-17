@@ -343,6 +343,7 @@ greenhouse, windows = build_greenhouse(body, window_glass, gloss_black)
 build_underbody(body, columns, sections, matte_black)
 build_wheel_wells(body, matte_black)
 cut_openings(shell, lid, PARTS)
+build_details(body)
 for name, group in (('headlights', ('headlight_l', 'headlight_r')), ('taillights', ('taillight_l', 'taillight_r'))):
     node = empty(name, (0, 0, 0), body)
     for part in group:
@@ -398,6 +399,21 @@ for name, location in [('mod_ie_ecu_tune', (-.52, -1.12, .86)),        # engine 
                        ('mod_rs_grille', tuple(by_base['RS_honeycomb_grille'].location)),
                        ('mod_rsnav_head_unit', (0, -.73, 1.02))]:
     empty(name, location, body)
+
+# Within each node, join the rigid meshes that share a material, so a part
+# costs one draw per material rather than one per piece. The engine bay is
+# already grouped, and the hood keeps its liner separate.
+nodes = [n for n in [car] + list(car.children_recursive) if n.type == 'EMPTY']
+for node in nodes:
+    if node == engine or node in engine.children_recursive:
+        continue
+    groups = {}
+    for child in node.children:
+        if child.type == 'MESH' and not child.children and len(child.data.materials) == 1:
+            groups.setdefault(child.data.materials[0], []).append(child)
+    for objects in groups.values():
+        if len(objects) > 1:
+            join(sorted(objects, key=lambda o: o.name))
 
 # Export the car only: the review camera and lights belong to the .blend.
 bpy.ops.object.select_all(action='DESELECT')
