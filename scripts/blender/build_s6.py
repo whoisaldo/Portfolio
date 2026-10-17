@@ -338,8 +338,10 @@ for name in ('steer_fl', 'steer_fr', 'axle_rl', 'axle_rr'):
 move_sockets(PARTS)
 
 shell, columns, sections = build_side_band(body)
-conform_headlamps(PARTS, surface_tree([shell]))
+whole_shell = surface_tree([shell])   # before any opening is cut
+conform_headlamps(PARTS, whole_shell)
 lid = build_lid(body)
+conform_taillamps(PARTS, surface_tree([shell, lid]))
 # Tinted as in his photos.
 window_glass = glass('S6_window_glass_tint', '101316', .8, .02)
 greenhouse, windows = build_greenhouse(body, window_glass, gloss_black)
@@ -347,17 +349,21 @@ build_pillar_trims(body)
 build_underbody(body, columns, sections, matte_black)
 build_wheel_wells(body, matte_black)
 cut_openings(shell, lid, PARTS)
+build_intake_pockets(shell, body, whole_shell)
+build_diffuser_surround(shell, body, whole_shell, PARTS)
 build_plate_recess(lid, body)
 build_details(body)
 painted = surface_tree([shell, lid])
 build_bumper_features(body, painted)
 build_shut_lines(body, painted)
-# The cowl cover closes the slot between the hood's rear edge and the windscreen.
+# The cowl cover closes the slot between the hood's rear edge and the windscreen,
+# its rear edge tucked just under the glass's lower edge.
+base = sorted((abs(p.x), p.z) for p in greenhouse_section(GLASS_BASE_Y))
 cowl = []
 for k in range(25):
-    x = -.86 + 1.72 * k / 24
+    x = -.88 + 1.76 * k / 24
     z_front = hood_height(x, COWL_Y) - .012 if abs(x) < .82 else table(BELT, -.95, 2) - .01
-    cowl += [(x, COWL_Y - .006, z_front), (x, GLASS_BASE_Y + .004, interp(CENTRE_TOP, GLASS_BASE_Y) - .004 - .02 * (x / .86) ** 2)]
+    cowl += [(x, COWL_Y - .006, z_front), (x, GLASS_BASE_Y + .025, interp(base, abs(x)) + .004)]
 mesh('cowl_cover', cowl, [(2 * k, 2 * k + 2, 2 * k + 3, 2 * k + 1) for k in range(24)], satin_black, body, True)
 for name, group in (('headlights', ('headlight_l', 'headlight_r')), ('taillights', ('taillight_l', 'taillight_r'))):
     node = empty(name, (0, 0, 0), body)
@@ -406,6 +412,7 @@ for sign, suffix in ((1, ''), (-1, '_r')):
             node.location = base + delta * .45
 
 cabin, dash = build_cabin(body)
+build_cabin_closure(body)
 
 # One anchor for each of the S6's mods, where the garage pins its marker.
 for name, location in [('mod_ie_ecu_tune', (-.52, -1.12, .86)),        # engine ECU, in the plenum by the cowl
