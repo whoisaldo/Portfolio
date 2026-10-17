@@ -13,12 +13,7 @@ The room contains a framed Adam Smasher illustration, Maine's detached arm canno
 
 The room is real geometry. The poster and the monitor image are textures on that geometry. Browser lighting and postprocessing are tuned separately from the Blender preview.
 
-## References
-
-- [Official Edgerunners character art](https://www.cyberpunk.net/en/edgerunners) was used to check Adam Smasher, David, Lucy and Maine. The Smasher poster is an original generated illustration based on that character reference.
-- [CDPR's Edgerunners update announcement](https://blog.playstation.com/?p=369114) documents David's jacket and Rebecca's Guts in the game.
-- [ambientCG Concrete 023](https://ambientcg.com/view?id=Concrete023), [Concrete 048](https://ambientcg.com/view?id=Concrete048) and [Painted Metal 004](https://ambientcg.com/view?id=PaintedMetal004) provide the surface maps. These assets are [CC0](https://docs.ambientcg.com/license/).
-- Ali's two attached inspiration images guide composition and lighting. The source images are not served by the website.
+Ali's two attached inspiration images guide composition and lighting. The source images are not served by the website.
 
 ## Behavior and verification
 

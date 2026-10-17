@@ -4,7 +4,7 @@
 // Here it is one surface seen the same way from every eye (the hero's half
 // a metre off the road, a driver's, a walker's, a roof's), on every street:
 //
-//   the asphalt  ambientCG's cracked aggregate, dark, lit by the spill map,
+//   the asphalt  a cracked aggregate, dark, lit by the spill map,
 //                and what a road picks up in use: patches of newer tar with
 //                a sealed joint round them, tar run into the long cracks,
 //                the wheel tracks worn smooth, oil down the middle of each
