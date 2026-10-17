@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
-// The S6's body was faired from a lines plan measured off a shape reference
-// that is not part of this repository and must never ship. This proves the
-// GLB carries none of that reference's geometry. The fingerprint holds no
+// An earlier S6 body was faired from a lines plan measured off a shape
+// reference that is not part of this repository and must never ship. This
+// proves the GLB carries none of that reference's geometry. The fingerprint holds no
 // coordinates: only each reference mesh's vertex count, its shape moments and
 // SHA-256 hashes of 512 sampled vertex positions on a 1 mm grid, in the
 // frames a copy could plausibly arrive in (as supplied, in metres or
