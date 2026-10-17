@@ -37,14 +37,14 @@ import { fmt } from "./format.js";
 const DEG = Math.PI / 180;
 const _up = new THREE.Vector3();
 
-/** A downloaded room is not ready until its cars and collision are usable. */
+/** A ready room needs the S6 body, or the S4 when the S6 bay is explicitly empty. */
 export function garageIsReady(garage) {
   return garage?.state?.availability === "ready"
     && typeof garage.applyDirectedState === "function"
     && ["at", "sample", "stateAt", "inspection"].every((key) => typeof garage.poses?.[key] === "function")
     && Array.isArray(garage.collision?.solids)
     && ["clearance", "sweep", "nearPlane", "cars"].every((key) => typeof garage.collision?.[key] === "function")
-    && garage.collision.cars().some((car) => car.carId === "s6" && !car.box.isEmpty());
+    && garage.collision.cars().some((car) => car.carId === (garage.state.models?.s6 === false ? "s4" : "s6") && !car.box.isEmpty());
 }
 
 /** Hold the latest requested tape time without letting an old load resume it. */
