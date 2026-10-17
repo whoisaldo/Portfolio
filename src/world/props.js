@@ -44,6 +44,7 @@ import { fetchUnpacked } from "./fetched.js";
 import { NEON } from "./materials.js";
 import { RULES, deal } from "./prop-deal.js";
 import { createPropSurfaces } from "./prop-surfaces.js";
+import { identityBatching } from "./merge.js";
 
 const CELL = 48;
 // The most vertices a part may have in the whole city and be written out.
@@ -120,7 +121,7 @@ class Baked extends THREE.Mesh {
       this._multiDrawStarts = new Int32Array(0);
       this._multiDrawCounts = new Int32Array(0);
       this._multiDrawCount = 0;
-      this._matricesTexture = this._indirectTexture = this._colorsTexture = null;
+      identityBatching(this);
     }
   }
 
@@ -239,6 +240,7 @@ class Baked extends THREE.Mesh {
         if (MULTI_DRAW) {
           this._multiDrawStarts = new Int32Array(ci.length);
           this._multiDrawCounts = new Int32Array(ci.length);
+          identityBatching(this, ci.length);
         }
       },
     };
@@ -295,7 +297,7 @@ export function opaqueOrder(a, b) {
  * materials); `buffer`: the props file. Returns { group, update(camera),
  * sources (for the light bake), dispose }.
  */
-export function createProps(protoMeshes, buffer, { phone = false, reflectLayer = 0 } = {}) {
+export function createProps(protoMeshes, buffer, { phone = false, reflectLayer = 0, visibleBox = null } = {}) {
   const { protos, data, count } = parseProps(buffer);
   const attachments = [];
   const lastPosition = new THREE.Vector3(1e9, 0, 0);
@@ -378,8 +380,11 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const alphas = material.vertexColors && geometry.attributes.color?.itemSize === 4;
     const key = `${material.uuid}|${kind}|${alphas}`;
     if (!twins.has(key)) {
-      const copy = material.clone();
-      copy.uniforms = kind === "baked" ? Object.create(material.uniforms, { uProp: { value: { value: 1 }, enumerable: true } }) : material.uniforms;
+      // The world uniforms are shared below. Copying their render targets
+      // first is unsupported by Three and would create unusable duplicates.
+      const source = material.uniforms ? Object.create(material, { uniforms: { value: {} } }) : material;
+      const copy = new material.constructor().copy(source);
+      if (material.uniforms) copy.uniforms = kind === "baked" ? Object.create(material.uniforms, { uProp: { value: { value: 1 }, enumerable: true } }) : material.uniforms;
       copy.userData.sortId = material.id;
       twins.set(key, copy);
     }
@@ -544,12 +549,14 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   let cellDist = new Float32Array(cellList.length);
   let frames = 0;
   let stale = false;
+  let lastCamera = null;
   const update = (camera) => {
     camera.updateMatrixWorld();
     camera.getWorldDirection(_dir);
     const moved = camera.position.distanceToSquared(lastPosition) > 0.25 || _dir.dot(lastDirection) < 0.99985;
     frames++;
-    if (!moved && !stale && frames % 60 !== 0) return;
+    if (!moved && !stale && camera === lastCamera && frames % 60 !== 0) return;
+    lastCamera = camera;
     stale = false;
     if (cellVis.length !== cellList.length) {
       cellVis = new Uint8Array(cellList.length);
@@ -562,7 +569,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const cam = camera.position;
     for (let c = 0; c < cellList.length; c++) {
       cellDist[c] = cellList[c].distanceToPoint(cam);
-      cellVis[c] = _frustum.intersectsBox(cellList[c]) ? 1 : 0;
+      cellVis[c] = _frustum.intersectsBox(cellList[c]) && (!visibleBox || visibleBox(cellList[c])) ? 1 : 0;
     }
     for (const set of sets) {
       const reach = set.reach;
@@ -701,7 +708,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
           new Uint8Array(next, 4, encoded.length).set(encoded);
           const records = new Int16Array(next, 4 + encoded.length);
           indices.forEach((i, j) => records.set(data.subarray(i * 8, i * 8 + 8), j * 8));
-          const child = createProps(meshes, next, { phone, reflectLayer });
+          const child = createProps(meshes, next, { phone, reflectLayer, visibleBox });
           child.group.name = `props_${sector}`;
           child.group.traverse((object) => { object.userData.sector = sector; });
           children.push(child);
@@ -824,7 +831,6 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       for (const set of sets) for (const im of set.instanced) im.dispose();
       for (const mesh of baked.values()) {
         mesh.geometry.dispose();
-        mesh.dispose();
       }
       for (const geometry of owned) geometry.dispose();
       for (const material of twins.values()) material.dispose();

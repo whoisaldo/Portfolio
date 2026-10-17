@@ -15,6 +15,7 @@ import { ackGarageRequest, latestGarageRequest, subscribeGarageRequests } from "
 import { getGarageView, setGarageView } from "../lib/garage3d";
 import { getWorld, useStage } from "../world/stage";
 import { garageCredits as credits } from "../data/garage-credits";
+import { s6ModelUrl } from "../data/s6";
 import { GARAGE_STATIONS } from "../data/world";
 
 const ArchivedPhotos = lazy(() => import("../components/garage/GaragePhotos"));
@@ -59,7 +60,7 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     setStation(id);
     setSelection(null);
     savedOverrides.current = null;
-    if (id.startsWith("s4") || id.startsWith("s6")) setActiveCar(id.slice(0, 2));
+    setActiveCar(id.startsWith("s4") || id.startsWith("s6") ? id.slice(0, 2) : null);
     setGarageView({ textStation: id });
     adapter()?.goStation(id);
   }, []);
@@ -73,13 +74,14 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     if (!cinematic) return undefined;
     const g = adapter();
     setWorldState(g?.state ?? {});
+    setActiveCar(g?.state?.activeCar ?? null);
     savedOverrides.current = g?.saveState?.() ?? savedOverrides.current;
     return g?.subscribe?.((state) => {
       savedOverrides.current = g.saveState?.() ?? savedOverrides.current;
       if (state.type === "pin-hidden") return;
       setWorldState(state);
       if (state.station) setStation(state.station);
-      if (state.activeCar) setActiveCar(state.activeCar);
+      if ("activeCar" in state) setActiveCar(state.activeCar);
       if (state.selection !== undefined) {
         setSelection(state.selection);
         if (state.selection) setActiveCar(state.selection.carId);
@@ -114,11 +116,12 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     ackGarageRequest(applied.id);
   }, [applied, cinematic, partsOpen, selection]);
   const common = {
-    selection, activeCar, availability, reason, reduced, fallback, still, showPrices: SHOW_PRICES, credits,
+    selection, activeCar, availability, reason: availability === "failed" ? null : reason, reduced, fallback, still, showPrices: SHOW_PRICES, credits,
     onSelect: select, onCar: setActiveCar, onRetry, contactHref: "#contact", request: applied,
     onStation: cinematic ? goStation : (id) => setGarageView({ textStation: id }),
   };
-  return <div ref={root} data-garage-ready={cinematic && availability === "ready" ? "true" : "false"}>
+  return <div ref={root} data-garage-car-missing={cinematic && !s6ModelUrl && activeCar === "s6" ? "true" : undefined} data-garage-ready={cinematic && availability === "ready" ? "true" : "false"}>
+    {cinematic && !s6ModelUrl && <p className="garage-model-note">The S6 model is being built. Its build details are available in Parts.</p>}
     {cinematic ? <GarageControls {...common} station={station} stations={GARAGE_STATIONS} hood={worldState.hood} stance={worldState.lowering ? "lowered" : "normal"} override={worldState.override} status={worldState.status ?? ""} onLayout={(layout) => adapter()?.setPinLayout?.(layout)} registerPin={(key, el) => adapter()?.registerPin?.(key, el)} partsOpen={partsOpen} onPartsOpen={setPartsOpen} onHood={(id, open) => adapter()?.setHood?.(id, open)} onStance={(value) => adapter()?.setStance?.(value)} onResumeTour={() => adapter()?.resumeTour?.()} />
       : GARAGE_PHOTOS_ENABLED && ArchivedPhotos ? <Suspense fallback={<GarageText {...common} />}><ArchivedPhotos {...common} /></Suspense> : <GarageText {...common} />}
   </div>;

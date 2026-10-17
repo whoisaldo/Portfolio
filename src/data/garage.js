@@ -204,7 +204,7 @@ export const mods = [
   },
   {
     id: "suspension",
-    anchor: { part: "wheel_fl", offset: [0.02, 0.36, 0], box: [0.9, 0.5, 0.8] },
+    anchor: { part: "wheel_fl", carrier: "steer_fl", offset: [0.02, 0.36, 0], box: [0.9, 0.5, 0.8] },
     group: "suspension",
     name: "ECS RS4 suspension",
     brand: "ECS",

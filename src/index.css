@@ -1413,3 +1413,21 @@ html:has(body.recruiters) { background-color: #f7f6f2; }
 
 /* B4's projected translate includes the pin's half-size offset. */
 #garage .gw-pin-3d { margin: 0; }
+
+/* An unfinished car has readable details, with physical controls withheld. */
+#garage [data-garage-car-missing="true"] [data-garage-control="hood"],
+#garage [data-garage-car-missing="true"] [data-garage-control^="stance:"] { display: none; }
+#garage .garage-model-note {
+  position: absolute;
+  top: 8.25rem;
+  left: clamp(12px, 3vw, 48px);
+  right: 12px;
+  max-width: 27rem;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: rgb(236 234 228 / 0.56);
+  pointer-events: none;
+}
+
+/* The immersive section lands with its full sticky viewport in view. */
+#garage[data-garage-layout="cinematic"] { scroll-margin-top: 0; }

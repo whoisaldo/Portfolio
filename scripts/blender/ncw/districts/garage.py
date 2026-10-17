@@ -2,47 +2,49 @@ from ncw.kit import *  # noqa: F401,F403 (the shared kit: primitives, materials,
 from ncw.districts.rooftop import STREET_X
 
 # ---------------------------------------------------------------------------
-# THE GARAGE. A workshop on the street below the rooftop with a roll-up door
-# (garage_door, which the site rolls up as the car comes): magenta fixtures
-# on one wall, cyan on the other, as in the garage room. The car pulls in
-# forward and stops on anchor_garage_bay facing +x, and the flight ends on
-# GarageModel's front preset in the car's own space: in front of the car,
-# looking back at it and out of the door.
+# THE GARAGE, from the street. A workshop on the street below the rooftop
+# with a roll-up door (garage_door, which the site rolls up as the car
+# comes): its shell, its door and drum, its signs and lamps, and the street
+# it stands on. The car pulls in forward and stops on anchor_garage_bay
+# facing +x. What is inside (the workshop, its mezzanine, its lights and
+# both bays) is districts/garage_interior.py, which streams in a pack of its
+# own; this is what the city shows before it does.
 # ---------------------------------------------------------------------------
 GA = "garage"
 GX0, GX1, GZ0, GZ1, GH = 452.0, 476.0, -230.0, -200.0, 8.0
 DOOR_Z0, DOOR_Z1, DOOR_H = -218.0, -212.0, 4.6
 BAY = (462.0, 0.0, -215.0)
 box((GA, "garage_wall", 0), GX0, GX0 + 0.5, 0, GH, GZ0, DOOR_Z0, scale=2.0)
-box((GA, "garage_wall", 0), GX0, GX0 + 0.5, 0, GH, DOOR_Z1, GZ1, scale=2.0)
+# The front wall south of the door, with the mezzanine office's window in
+# it (districts/garage_interior.py builds the office behind it).
+OFFICE_WIN = (-206.8, -202.2, 4.3, 5.9)
+box((GA, "garage_wall", 0), GX0, GX0 + 0.5, 0, GH, DOOR_Z1, OFFICE_WIN[0], scale=2.0)
+box((GA, "garage_wall", 0), GX0, GX0 + 0.5, 0, GH, OFFICE_WIN[1], GZ1, scale=2.0)
+box((GA, "garage_wall", 0), GX0, GX0 + 0.5, 0, OFFICE_WIN[2], OFFICE_WIN[0], OFFICE_WIN[1], scale=2.0)
+box((GA, "garage_wall", 0), GX0, GX0 + 0.5, OFFICE_WIN[3], GH, OFFICE_WIN[0], OFFICE_WIN[1], scale=2.0)
+# Its glazing near the street face, seen from both sides, and a steel frame
+# round it.
+_pane = [(GX0 + 0.06, OFFICE_WIN[2], OFFICE_WIN[1]), (GX0 + 0.06, OFFICE_WIN[2], OFFICE_WIN[0]),
+         (GX0 + 0.06, OFFICE_WIN[3], OFFICE_WIN[0]), (GX0 + 0.06, OFFICE_WIN[3], OFFICE_WIN[1])]
+quad((GA, "clearglass", 0), *_pane, col=(0.55, 0.62, 0.66, 1))
+quad((GA, "clearglass", 0), *_pane[::-1], col=(0.55, 0.62, 0.66, 1))
+for (y0, y1, z0, z1) in ((OFFICE_WIN[2] - 0.08, OFFICE_WIN[2], OFFICE_WIN[0] - 0.08, OFFICE_WIN[1] + 0.08),
+                         (OFFICE_WIN[3], OFFICE_WIN[3] + 0.08, OFFICE_WIN[0] - 0.08, OFFICE_WIN[1] + 0.08),
+                         (OFFICE_WIN[2], OFFICE_WIN[3], OFFICE_WIN[0] - 0.08, OFFICE_WIN[0]),
+                         (OFFICE_WIN[2], OFFICE_WIN[3], OFFICE_WIN[1], OFFICE_WIN[1] + 0.08),
+                         (OFFICE_WIN[2], OFFICE_WIN[3], -204.54, -204.46)):
+    box((GA, "metal", 0), GX0 - 0.04, GX0 + 0.08, y0, y1, z0, z1, scale=1.0)
 box((GA, "garage_wall", 0), GX0, GX0 + 0.5, DOOR_H, GH, DOOR_Z0, DOOR_Z1, scale=2.0)
 box((GA, "garage_wall", 0), GX1 - 0.5, GX1, 0, GH, GZ0, GZ1, scale=2.0)
 box((GA, "garage_wall", 0), GX0, GX1, 0, GH, GZ0, GZ0 + 0.5, scale=2.0)
 box((GA, "garage_wall", 0), GX0, GX1, 0, GH, GZ1 - 0.5, GZ1, scale=2.0)
-# The viewer's walls on these, a centimetre proud, at the viewer room's own
-# scale set to this room's height (its 5.8 m to 8): the wall behind the car
-# round the door (the viewer's front preset looks back past the car at it),
-# its magenta wall on the car's passenger side (+z here) and its cyan wall on
-# the driver's.
-ROOM_K = GH / 5.8
-bw = 14.6 * ROOM_K
-zl, zr = -215.0 + bw / 2, -215.0 - bw / 2
-u = lambda z: (zl - z) / bw  # noqa: E731
-xw = GX0 + 0.51
-for (za, zb, y0) in ((zl, DOOR_Z1, 0.0), (DOOR_Z0, zr, 0.0), (DOOR_Z1, DOOR_Z0, DOOR_H)):
-    quad((GA, "garage_wall_back", 0), (xw, y0, za), (xw, y0, zb), (xw, GH, zb), (xw, GH, za),
-         ((u(za), y0 / GH), (u(zb), y0 / GH), (u(zb), 1), (u(za), 1)))
-sw = 17.0 * ROOM_K
-u0, u1 = (sw - 23.0) / 2 / sw, 1 - (sw - 23.0) / 2 / sw
-zp, zc = GZ1 - 0.51, GZ0 + 0.51
-quad((GA, "garage_wall_magenta", 0), (GX1 - 0.5, 0, zp), (GX0 + 0.5, 0, zp), (GX0 + 0.5, GH, zp), (GX1 - 0.5, GH, zp),
-     ((u0, 0), (u1, 0), (u1, 1), (u0, 1)))
-quad((GA, "garage_wall_cyan", 0), (GX0 + 0.5, 0, zc), (GX1 - 0.5, 0, zc), (GX1 - 0.5, GH, zc), (GX0 + 0.5, GH, zc),
-     ((u0, 0), (u1, 0), (u1, 1), (u0, 1)))
 # Closed underneath: from inside, the ceiling the tubes hang from.
 box((GA, "roof", 0), GX0, GX1, GH - 0.3, GH, GZ0, GZ1, scale=4.0, bottom=True)
 mass(GA, GX0 - 0.02, GX1, GZ0, GZ1, SHOP_H, GH, 8002, faces=("-x", "+z"), roof=False)
-ground((GA, "garage_floor", 0), GX0 + 0.5, GX1 - 0.5, GZ0 + 0.5, GZ1 - 0.5, y=0.01, scale=3.0)
+# The floor the street sees through the door before the workshop arrives
+# (districts/garage_interior.py lays its own, 2 mm over this, so the kit's
+# floor marks at y 0 stand on that).
+ground((GA, "garage_floor", 0), GX0 + 0.5, GX1 - 0.5, GZ0 + 0.5, GZ1 - 0.5, y=-0.001, scale=3.0)
 box((GA, "door", 0), GX0 - 0.1, GX0 + 0.6, DOOR_H, DOOR_H + 0.55, DOOR_Z0 - 0.2, DOOR_Z1 + 0.2, scale=0.6)
 box((GA, "neon_yellow", 0), GX0 - 0.12, GX0 - 0.08, 0.1, DOOR_H, DOOR_Z0 - 0.15, DOOR_Z0 - 0.05, scale=1.0)
 box((GA, "neon_yellow", 0), GX0 - 0.12, GX0 - 0.08, 0.1, DOOR_H, DOOR_Z1 + 0.05, DOOR_Z1 + 0.15, scale=1.0)
@@ -59,52 +61,37 @@ for y in (2.7, 7.7):
 for z in (DOOR_Z0 - 1.1, DOOR_Z1 + 1.1):
     box((GA, "metal", 1), GX0 - 0.42, GX0 - 0.02, 5.2, 5.52, z - 0.2, z + 0.2, scale=0.5)
     box((GA, "neon_amber", 0), GX0 - 0.38, GX0 - 0.06, 5.16, 5.2, z - 0.16, z + 0.16, scale=0.5)
-# Fixtures, as in the garage room: magenta on the car's passenger side
-# (car -X, which is world +z in this bay), cyan on the driver's side, white
-# overhead, so from GarageModel's front preset magenta is on the left.
-box((GA, "tube", 0), GX0 + 2, GX1 - 2, 3.0, 3.12, GZ1 - 0.62, GZ1 - 0.5, scale=1.0, col=TUBE["pink"])
-box((GA, "tube", 0), GX0 + 2, GX1 - 2, 3.0, 3.12, GZ0 + 0.5, GZ0 + 0.62, scale=1.0, col=TUBE["cyan"])
-# (The washes that were high on each wall are the painted walls' own tubes
-# now: the room's light comes off its walls, src/world/city.js.)
-for z in (-219.5, -210.5):
-    box((GA, "tube", 0), GX0 + 3, GX1 - 3, GH - 0.42, GH - 0.36, z - 0.06, z + 0.06, scale=1.0, col=TUBE["white"])
-    box((GA, "tube", 0), GX0 + 3, GX1 - 3, GH - 0.36, GH - 0.33, z - 0.9, z + 0.9, scale=1.0, col=TUBE["white"])
-box((GA, "metal", 1), GX1 - 1.4, GX1 - 0.5, 0, 0.95, -224, -206, scale=0.8)
-box((GA, "tube", 0), GX1 - 0.56, GX1 - 0.5, 2.4, 2.46, -224, -206, scale=1.0, col=TUBE["amber"])
 # The door itself, down, in the opening's guides; the site rolls it up into
 # its drum (the "door" box over the opening) and back down behind a reader
 # going back up the page.
 named_quad("garage_door", "door_panel", GX0 + 0.12, DOOR_H / 2, (DOOR_Z0 + DOOR_Z1) / 2,
            DOOR_Z1 - DOOR_Z0 + 0.1, DOOR_H, -math.pi / 2, double=True)
-# Over the bench, the monitor the garage's own room has, facing the door:
-# the site plays the intro's moon on it.
-named_quad("garage_screen", "screen", GX1 - 0.56, 3.55, -215.0, 3.4, 1.9, -math.pi / 2)
-box((GA, "metal", 1), GX1 - 0.54, GX1 - 0.5, 2.5, 4.6, -216.9, -213.1, scale=1.0)
-# Shop furniture, low and to the sides of the camera's way in: red tool
-# chests and a pegboard on the cyan wall, tyres by the door, ducting and a
-# hoist beam overhead, and the bay painted out on the floor round the car.
-for x0 in (464.0, 466.4, 468.8):
-    box((GA, "tool_red", 1), x0, x0 + 2.1, 0, 1.05, GZ0 + 0.5, GZ0 + 1.25, scale=1.0)
-    for y in (0.3, 0.55, 0.8):
-        box((GA, "dark", 1), x0 + 0.1, x0 + 2.0, y, y + 0.03, GZ0 + 1.25, GZ0 + 1.27, scale=1.0)
-    box((GA, "metal", 1), x0 + 0.2, x0 + 1.9, 1.05, 1.1, GZ0 + 0.5, GZ0 + 1.3, scale=1.0)
-box((GA, "dark", 1), 464.0, 471.0, 1.5, 3.1, GZ0 + 0.5, GZ0 + 0.56, scale=1.0)
-for i in range(9):
-    x = 464.5 + i * 0.72
-    box((GA, "metal", 1), x, x + 0.08, 1.9 + (i % 3) * 0.3, 2.6 + (i % 2) * 0.2, GZ0 + 0.56, GZ0 + 0.62, scale=1.0)
-for k, (tx, tz) in enumerate(((453.6, -222.4), (453.6, -221.3), (454.7, -222.4))):
-    cylinder((GA, "dark", 1), tx, tz, 0.0, 0.9 if k < 2 else 0.6, 0.34, segs=12)
-for z in (-224.0, -206.0):
-    box((GA, "metal", 1), GX0 + 0.6, GX1 - 0.6, GH - 1.05, GH - 0.75, z - 0.18, z + 0.18, scale=1.0)
-box((GA, "hazard", 0), 468.3, 468.6, GH - 0.72, GH - 0.42, GZ0 + 1, GZ1 - 1, scale=1.0)
-box((GA, "metal", 1), 468.4, 468.5, 5.2, GH - 0.72, -219.05, -218.95, scale=1.0)
-box((GA, "hazard", 1), 468.25, 468.65, 4.95, 5.2, -219.2, -218.8, scale=1.0)
-for (a0, a1, b0, b1) in ((458.9, 465.1, -216.45, -216.3), (458.9, 465.1, -213.7, -213.55),
-                         (458.9, 459.05, -216.45, -213.55), (464.95, 465.1, -216.45, -213.55)):
-    box((GA, "hazard", 0), a0, a1, 0.011, 0.016, b0, b1, scale=1.0)
-for i in range(8):
-    z0 = DOOR_Z0 + 0.1 + i * 0.75
-    box((GA, "hazard", 0), GX0 + 0.55, GX0 + 1.0, 0.011, 0.016, z0, z0 + 0.36, scale=1.0)
+# High on the shop wall over the middle bench, the monitor the garage's own
+# room has, facing the door: the site plays the intro's moon on it. The
+# kit's braindance monitor (ncw/garage/identity.py, garage_bd_monitor: the
+# old room's housing at its 2.43 by 1.367 m, BD_SCREEN where its screen
+# sits) when the kit has it, else its 65-inch monitor (lounge.py,
+# MONITOR_SCREEN) set at SCREEN_SCALE to the same size; the workshop hangs
+# it round this screen, which is the street's, so the moon is there first.
+# Either is clear over the benches' amber strips (to y 2.42).
+from ncw.garage.lounge import MONITOR_SCREEN  # noqa: E402
+try:
+    from ncw.garage.identity import BD_SCREEN  # noqa: E402
+except ImportError:
+    BD_SCREEN = None
+SCREEN_Z, SCREEN_WALL = -215.5, GX1 - 0.5 - 0.023
+if BD_SCREEN:
+    SCREEN_PROTO, SCREEN_FOOT, SCREEN_SCALE = "garage_bd_monitor", 2.45, 1.0
+    (_sx, _sy, _sz), _sw, _sh = BD_SCREEN
+    _sz += 0.0005
+else:
+    SCREEN_PROTO, SCREEN_FOOT, SCREEN_SCALE = "garage_monitor", 2.55, 1.7
+    (_sx, _sy, _sz), _sw, _sh = MONITOR_SCREEN
+    _sz += 0.002 / SCREEN_SCALE
+# Its centre and size, world metres (its mesh is written in world space).
+SCREEN_AT = (SCREEN_WALL - _sz * SCREEN_SCALE, SCREEN_FOOT + _sy * SCREEN_SCALE, SCREEN_Z + _sx * SCREEN_SCALE)
+SCREEN_WH = (_sw * SCREEN_SCALE, _sh * SCREEN_SCALE)
+named_quad("garage_screen", "screen", *SCREEN_AT, *SCREEN_WH, -math.pi / 2, props={"assetKind": "identity-art"})
 empty("anchor_garage_bay", BAY, yaw=math.pi / 2)
 # Under the roof it does not rain: the site's rain skips this box.
 empty("anchor_shelter_garage", (GX0, 0.0, GZ0), props={"size": [GX1 - GX0, GH - 0.3, GZ1 - GZ0]})
@@ -178,9 +165,12 @@ for (a0, a1, b0, b1) in ((GX0, GX1, GZ1 - 0.3, GZ1), (GX0, GX1, GZ0, GZ0 + 0.3),
 # round them (lamp_*).
 for k, (z0_, z1_) in enumerate(((-257.6, -250.8), (-250.8, -244.0), (-244.0, -237.2), (-237.2, -230.4))):
     shopfront(GA, 1, z0_, z1_, 8300 + k, awning=k != 2, xf=GX0 - 0.04)
-quad((GA, "shop", 0), (GX0 - 0.03, 0.15, -228.6), (GX0 - 0.03, 0.15, -222.6), (GX0 - 0.03, 4.1, -222.6),
-     (GX0 - 0.03, 4.1, -228.6), col=(0.5, 0.5, 0.0, 1.0))
-box((GA, "hazard", 1), GX0 - 0.08, GX0 - 0.02, 4.1, 4.3, -228.8, -222.4, scale=1.0)
+# (Inside, its sections are the workshop's second door, closed: the opening
+# is the 6 m by 4.6 m the first one is, so the two read as a pair.)
+quad((GA, "shop", 0), (GX0 - 0.03, 0.15, -228.6), (GX0 - 0.03, 0.15, -222.6), (GX0 - 0.03, 4.6, -222.6),
+     (GX0 - 0.03, 4.6, -228.6), col=(0.5, 0.5, 0.0, 1.0))
+box((GA, "hazard", 1), GX0 - 0.08, GX0 - 0.02, 4.6, 4.8, -228.8, -222.4, scale=1.0)
+sign("bay_02", GX0 - 0.16, 5.45, -225.6, 2.8, 0.7, -math.pi / 2, preview="BAY 02", district=GA)
 quad((GA, "shop", 0), (GX0 - 0.03, 1.0, -208.2), (GX0 - 0.03, 1.0, -203.6), (GX0 - 0.03, 2.9, -203.6),
      (GX0 - 0.03, 2.9, -208.2), col=(0.8, 0.9, 1.0, 1.0))
 box((GA, "door", 0), GX0 - 0.06, GX0, 0.0, 2.3, -202.8, -201.6, scale=1.0)

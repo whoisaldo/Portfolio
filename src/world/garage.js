@@ -22,6 +22,107 @@ import { preloadMoon } from "./moon.js";
 import { catmullRom, curveAt, easeInOut, makePose, copyPose, clamp } from "./shots.js";
 import { GARAGE_POSES, GARAGE_ROUTES, GARAGE_ROUTES_PORTRAIT, GARAGE_TIMELINE, GARAGE_STATES, GARAGE_STATIONS } from "../data/world.js";
 
+// The car owner keeps a development rig until the S6 asset exists. The
+// visitor room can still open: a hidden parent contains that entire rig
+// and its shadow, while the real S4 keeps its road-owned parent. No proxy
+// can draw in any camera pass, or masquerade as a physical car in queries.
+export function createGaragePresentation(createCars, context, { s6Available = true } = {}) {
+  if (s6Available) return createCars(context);
+  const parked = new THREE.Group();
+  parked.name = "garage_pending_s6";
+  parked.visible = false;
+  context.scene.add(parked);
+  const cars = createCars({ ...context, scene: parked, placeholder: true });
+  const physical = (rows) => rows.filter((row) => row.carId !== "s6");
+  for (const name of ["bounds", "anchors", "occluders"]) {
+    const query = cars[name];
+    cars[name] = () => physical(query());
+  }
+  const pick = cars.pick;
+  cars.pick = (ray) => {
+    const visibility = parked.children.map((child) => [child, child.visible]);
+    try {
+      for (const [child] of visibility) child.visible = false;
+      return pick(ray);
+    } finally {
+      for (const [child, visible] of visibility) child.visible = visible;
+    }
+  };
+  const flash = cars.flash;
+  cars.flash = (id) => id === "s6" ? null : flash(id);
+  const dispose = cars.dispose;
+  cars.dispose = () => { dispose(); parked.removeFromParent(); };
+  cars.ready.then(() => {
+    cars.stats.s6.visitorOmitted = true;
+    cars.stats.s6.reason = "The S6 model is being built. Its bay is empty.";
+  }, () => {});
+  return cars;
+}
+
+// A reduced-motion canvas rests until the room is ready. Its preparation
+// can still upload one resource per animation frame without drawing or
+// advancing the scene. The caller excludes active renderers and sampling.
+export function createGarageUploadPump({ run, pending, canRun, schedule = requestAnimationFrame, cancel = cancelAnimationFrame }) {
+  let frame = 0, disposed = false;
+  const wake = () => {
+    if (disposed || frame || !pending()) return;
+    frame = schedule(() => {
+      frame = 0;
+      if (disposed || !canRun() || !pending()) return;
+      run();
+      wake();
+    });
+  };
+  return { wake, dispose() { disposed = true; cancel(frame); frame = 0; } };
+}
+
+// Visibility is evaluated for the actual main, reflected or probe camera.
+// Keep mixed room/street cells conservatively. Only cells wholly beyond
+// the room must be visible through one of its authored openings.
+export function createGarageVisibility(anchors) {
+  const room = new THREE.Box3(new THREE.Vector3(452.05, -8, -229.95), new THREE.Vector3(475.95, 8, -200.05));
+  const portals = [...anchors].filter(([name]) => /^anchor_garage_portal_/.test(name)).map(([, anchor]) => {
+    const width = Number(anchor.extras?.width), height = Number(anchor.extras?.height);
+    if (!(width > 0 && height > 0)) return null;
+    const u = new THREE.Vector3(width / 2, 0, 0).applyQuaternion(anchor.quaternion);
+    const v = new THREE.Vector3(0, height / 2, 0).applyQuaternion(anchor.quaternion);
+    return { center: anchor.position, corners: [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => anchor.position.clone().addScaledVector(u, a).addScaledVector(v, b)) };
+  }).filter(Boolean);
+  const eye = new THREE.Vector3();
+  const direction = new THREE.Vector3();
+  let inside = false, nearOpening = false, cones = [];
+  return {
+    prepare(camera) {
+      eye.setFromMatrixPosition(camera.matrixWorld);
+      inside = room.containsPoint(eye);
+      nearOpening = false;
+      cones = portals.map(({ center, corners }) => {
+        // The road mirror sees the reflection of the opening below its
+        // floor. Its conservative cone includes that reflected aperture.
+        const points = corners.map((p) => p.clone());
+        if (eye.y < 0) for (const p of points) p.y = -p.y;
+        const midpoint = center.clone(); if (eye.y < 0) midpoint.y *= -1;
+        direction.subVectors(midpoint, eye).normalize();
+        const through = midpoint.clone().add(direction);
+        const planes = points.map((point, i) => {
+          const plane = new THREE.Plane().setFromCoplanarPoints(eye, point, points[(i + 1) % 4]);
+          if (plane.distanceToPoint(through) < 0) plane.negate();
+          return plane;
+        });
+        const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(direction, midpoint);
+        if (Math.abs(new THREE.Plane().setFromCoplanarPoints(...points.slice(0, 3)).distanceToPoint(eye)) < .5) nearOpening = true;
+        return new THREE.Frustum(...planes, plane, new THREE.Plane(new THREE.Vector3(), 1));
+      });
+    },
+    test(box, sector = "") {
+      if (!portals.length || nearOpening) return true;
+      if (inside && box.intersectsBox(room)) return true;
+      if (!inside && !sector.startsWith("garage_") && !room.containsBox(box)) return true;
+      return cones.some((cone) => cone.intersectsBox(box));
+    },
+  };
+}
+
 // The door's travel, in shots before the garage's own (the flight in
 // starts a whole shot out, at the rooftop): up just before the car, which
 // crosses the door's line at about 0.67 of a shot out. The tubes strike as
@@ -596,8 +697,8 @@ export function createGarageVisit(anchors) {
     }
     throw new Error(`No workshop route from ${from} to ${to}.`);
   };
-  const navigator = (progress, aspect) => {
-    let location = locationAt(progress);
+  const navigator = (progress, aspect, start = locationAt(progress)) => {
+    let location = { ...start };
     let target = { ...location };
     let cutPending = false;
     const lengthOf = (edge) => pathOf(edge.id, edge.from, edge.into, aspect).length;
@@ -667,6 +768,9 @@ export function createGarageVisit(anchors) {
   const transition = (progress, aspect, cursor = null) => {
     if (cursor) {
       const saved = cursor.snapshot();
+      // A cabin cut rejoins its car's exterior before using the doorway.
+      // The inspection request can restore the cabin after the safe return.
+      if (saved.node?.endsWith("_cabin")) saved.node = saved.node.slice(0, 2);
       let returning = false;
       cursor.request("outside");
       return {
