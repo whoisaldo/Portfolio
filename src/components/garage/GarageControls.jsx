@@ -20,7 +20,7 @@
 //
 // One polite, atomic status line: the integration's `status` string (what
 // was selected, where a hood came to rest) and the layer's own few words
-// (a focused marker going out of view), whichever came last.
+// (no marker left in view once the camera rests), whichever came last.
 //
 // Keyboard order is the plan's: stations, car, one marker stop, Parts, hood
 // and stance, the card's own actions, then photographs, then the rest of the
@@ -102,6 +102,7 @@ export default function GarageControls({
   const partsButton = useRef(null);
   const titleRef = useRef(null);
   const activator = useRef(null);
+  const focusTitle = useRef(null);
   const lastKey = useRef(null);
   const parts = useRef({});
   // B5 may keep Parts open while restoring a photo-row anchor into 3D.
@@ -161,6 +162,16 @@ export default function GarageControls({
     if (tryFocus(back.el)) return;
     const same = back.key ? root.current?.querySelector(`[${CONTROL}="${CSS.escape(back.key)}"]`) : null;
     if (!tryFocus(same)) partsButton.current?.focus({ preventScroll: true });
+  });
+
+  // A row's card takes focus in the commit that closes the list. A frame
+  // later, focus would first have gone to the row's marker (its key's
+  // nearest equivalent), where the selection's own camera move can hide it.
+  useLayoutEffect(() => {
+    const want = focusTitle.current;
+    if (!want || want.carId !== mod?.carId || want.modId !== mod.id || !titleRef.current) return;
+    focusTitle.current = null;
+    titleRef.current.focus({ preventScroll: true });
   });
 
   useLayoutEffect(() => {
@@ -227,10 +238,8 @@ export default function GarageControls({
     activator.current = el ?? null;
     setSelection({ carId: m.carId, modId: m.id }, { source: focusCard ? "list" : "marker" });
     setCardOpen(false);
-    if (focusCard) {
-      setListOpen(false);
-      requestAnimationFrame(() => titleRef.current?.focus({ preventScroll: true }));
-    }
+    focusTitle.current = focusCard ? { carId: m.carId, modId: m.id } : null;
+    if (focusCard) setListOpen(false);
   };
 
   const closeCard = () => {

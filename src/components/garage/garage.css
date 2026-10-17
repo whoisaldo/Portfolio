@@ -212,6 +212,11 @@
   pointer-events: auto;
   will-change: transform;
 }
+/* Focus waits on the layer itself while the camera moves its marker away. */
+.gw-markers:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px #fcee0a;
+}
 /* Not shown until the world has placed it once. */
 .gw-pin-3d:not([style*="transform"]) { visibility: hidden; }
 
