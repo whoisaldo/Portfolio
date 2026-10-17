@@ -57,14 +57,29 @@ ncw.ROOT = ROOT
 kit = importlib.import_module("ncw.kit")
 NP = importlib.import_module("ncw.props")
 G = importlib.import_module("ncw.garage")
-from ncw.garage import bench, shop  # noqa: E402
+from ncw.garage import bench, identity, shop  # noqa: E402
 
 OUT = ROOT / "design/night-city-garage"
 NP.build_protos()
 
 # ---------------------------------------------------------------------------
-# The prototypes as meshes, one per prototype and material (finish.py's way).
+# The prototypes as meshes, one per prototype and material (finish.py's way:
+# a garage prototype welded, smooth-shaded, its edges over 35 degrees kept
+# sharp, as finish.py's _smooth exports it).
 # ---------------------------------------------------------------------------
+
+
+def smooth(mesh, angle=math.radians(35.0)):
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bm.to_mesh(mesh)
+    bm.free()
+    mesh.shade_smooth()
+    mesh.set_sharp_from_angle(angle=angle)
+
+
 WANT = [n for n in NP.PROTOS if n.startswith("garage_") and not n.endswith(NP.NEAR)] + ["drum"]
 meshes = {}
 stats = {}
@@ -87,6 +102,8 @@ for (key, mat_name, _), b in kit.batches.items():
             li += 1
     mesh.materials.append(kit.MATS[mat_name])
     mesh.validate()
+    if base.startswith("garage_"):
+        smooth(mesh)
     meshes.setdefault(base, []).append(mesh)
     tris = sum(len(f) - 2 for f in b.faces)
     s = stats.setdefault(base, {"triangles": 0, "near_triangles": 0, "materials": set()})
@@ -268,6 +285,55 @@ def with_s4(build, y=0.0, mesh=None):
     return f
 
 
+# The layout's named surfaces, for the preview only (B2 authors the real
+# ones): the moon on garage_screen, the Smasher on garage_identity_poster.
+TEX = ROOT / "design/night-city-garage/textures"
+
+
+def art(name, image, emit, at):
+    cx, cy, cz, w, h, yaw = at
+    mat = bpy.data.materials.get("GP_" + name)
+    if mat is None:
+        mat = bpy.data.materials.new("GP_" + name)
+        mat.use_nodes = True
+        nt = mat.node_tree
+        bsdf = kit.principled(mat)
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = bpy.data.images.load(str(TEX / image), check_existing=True)
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Emission Color"])
+        bsdf.inputs["Emission Strength"].default_value = emit
+        bsdf.inputs["Roughness"].default_value = 0.6
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    mesh = bpy.data.meshes.new("GP_" + name)
+    mesh.from_pydata([kit.P(cx + rx * u, cy + v, cz + rz * u) for u, v in ((-w / 2, -h / 2), (w / 2, -h / 2), (w / 2, h / 2), (-w / 2, h / 2))], [], [(0, 1, 2, 3)])
+    uv = mesh.uv_layers.new(name="UVMap")
+    for i, c in enumerate(((0, 0), (1, 0), (1, 1), (0, 1))):
+        uv.data[i].uv = c
+    mesh.materials.append(mat)
+    return bpy.data.objects.new("GP_" + name, mesh)
+
+
+def screen_art(at):
+    return art("garage_screen", "moon.jpg", 0.9, at)
+
+
+def poster_art(at):
+    return art("garage_identity_poster", "adam-smasher.jpg", 0.12, at)
+
+
+def workbench():
+    surf = identity.place_workbench(0, 0, 0, district="garage")
+    return [screen_art(surf["garage_screen"]), poster_art(surf["garage_identity_poster"])]
+
+
+# The old room's back wall, framed from the Afterlife workbench station
+# (cam_garage_shop's wide and portrait views, carried into the set-down's
+# frame: its wall face 6.6 m ahead, the eye 2.6 / 2.1 m up).
+WB_WIDE = {"eye": (0.2, 2.6, 6.6), "look": (0.0, 2.55, 0.0), "fov": 58, "res": (1200, 675), "wall": True}
+WB_PORTRAIT = {"eye": (-0.7, 2.1, 6.6), "look": (-0.7, 2.1, 0.0), "fov": 70, "res": (390, 844), "phone": True, "wall": True}
+WB_CLOSE = {"eye": (0.9, 1.75, 3.2), "look": (0.1, 1.5, 0.0), "fov": 50, "res": (1200, 675), "wall": True}
+
 TILES = [
     ("Fit (Ali's S4)", [
         ("s4_lift2_down", "S4 on the two-post lift, down", with_s4(lambda: shop.place_lift2(0, 0, district="garage")), {"az": 35, "el": 12}),
@@ -284,7 +350,7 @@ TILES = [
         ("s4_scissor_up", "S4 on the scissor lift, up", with_s4(lambda: shop.place_scissor(0, 0, raised=True, district="garage"), y=shop.SCISSOR_TOP["up"]),
          {"az": 70, "el": 6}),
         ("s4_hood_light", "Under-hood light, from the S4's engine", with_s4(one("garage_hood_light", y=1.25, z=1.45), mesh=S4_OPEN),
-         {"eye": (0.55, 0.86, 2.0), "look": (-0.1, 1.05, 1.3), "lens": 18}),
+         {"eye": (1.05, 0.92, 1.75), "look": (-0.15, 0.95, 1.35), "lens": 16}),
     ]),
     ("Collision (published solids)", [
         ("lift2_solids", "Two-post lift's solids, S4 pads", lambda: shop.place_lift2(0, 0, district="garage"), {"az": 20, "el": 18, "solids": True}),
@@ -294,6 +360,8 @@ TILES = [
         ("tyre_machines_solids", "Tyre changer, balancer: solids", one("garage_tyre_changer", ("garage_balancer", 2.0, 0, 0, 0)),
          {"solids": True}),
         ("tune_cart_solids", "Tune cart's solid (the lead is air)", one("garage_tune_cart"), {"az": 60, "solids": True}),
+        ("scissor_down_solids", "Scissor down: runways and ramp treads", lambda: shop.place_scissor(0, 0, district="garage"),
+         {"az": 70, "el": 14, "solids": True}),
     ]),
     ("Lifts and jacks", [
         ("lift2_down", "Two-post lift, arms down", lambda: shop.place_lift2(0, 0, district="garage"), {}),
@@ -365,6 +433,31 @@ TILES = [
         ("drains", "Floor drain, trench drain", one("garage_floor_drain", ("garage_trench_drain", 0, 0, 0.6, 0)), {"el": 55}),
         ("stains", "Oil stains, tyre marks", one("garage_stain_a", ("garage_stain_b", 1.2, 0, 0.3, 0), ("garage_stain_c", -0.6, 0, 1.0, 0.3), ("garage_tyre_marks", 0.5, 0, -1.4, 0)), {"el": 60}),
         ("bay_numbers", "Bay numbers, cable ramp", one("garage_bay_01", ("garage_bay_02", 0, 0, -1.2, 0), ("garage_cable_ramp", 0, 0, 1.0, 0)), {"el": 60, "az": 10}),
+    ]),
+    ("The old room's pieces", [
+        ("jacket_chair", "David's jacket on its stool", one("garage_jacket_chair"), {"az": 30, "el": 14}),
+        ("jacket_chair_side", "David's jacket, from its side", one("garage_jacket_chair"), {"az": 115, "el": 12}),
+        ("jacket_chair_seat", "David's jacket, from the bench", one("garage_jacket_chair"), {"az": -150, "el": 30}),
+        ("jacket_chair_phone", "David's jacket, phone (main only)", one("garage_jacket_chair"), {"az": 30, "el": 14, "phone": True}),
+        ("maine_cradle", "Maine's arm cannon in its cradle", one("garage_maine_cradle"), {"az": 25, "el": 20}),
+        ("maine_cradle_hand", "Maine's arm, the hand's end", one("garage_maine_cradle"), {"az": 70, "el": 16}),
+        ("maine_cradle_phone", "Maine's arm, phone (main only)", one("garage_maine_cradle"), {"az": 25, "el": 20, "phone": True}),
+        ("guts_pegs", "Rebecca's Guts on its pegs", one("garage_guts_pegs"), {"wall": True, "az": 20, "el": 10}),
+        ("guts_pegs_phone", "Guts, phone (main only)", one("garage_guts_pegs"), {"wall": True, "az": 20, "el": 10, "phone": True}),
+        ("smasher_frame", "Smasher frame, art placeholder", lambda: (one("garage_smasher_frame")(), [poster_art(identity.smasher_art(0, 0, 0))])[1],
+         {"wall": True, "az": 15}),
+        ("smasher_frame_bare", "Smasher frame and taped backing", one("garage_smasher_frame"), {"wall": True, "az": 15}),
+        ("smasher_frame_phone", "Smasher frame, phone (main only)", lambda: (one("garage_smasher_frame")(), [poster_art(identity.smasher_art(0, 0, 0))])[1],
+         {"wall": True, "az": 15, "phone": True}),
+        ("bd_monitor", "Braindance monitor, moon placeholder", lambda: (one("garage_bd_monitor")(), [screen_art(identity.monitor_screen(0, 0, 0))])[1],
+         {"wall": True, "az": 15}),
+        ("bench_strip", "Amber bench strip", one("garage_bench_strip", y=1.4), {"wall": True, "az": 25, "el": -4}),
+        ("wall_tubes", "Pink and cyan wall tubes", one("garage_wall_tube_pink", ("garage_wall_tube_cyan", 1.1, 0, 0, 0)), {"wall": True, "az": 15}),
+    ]),
+    ("Afterlife workbench", [
+        ("workbench", "Afterlife workbench, station 6 wide", workbench, WB_WIDE),
+        ("workbench_close", "Afterlife workbench, close", workbench, WB_CLOSE),
+        ("workbench_phone", "Afterlife workbench, phone portrait (main only)", workbench, WB_PORTRAIT),
     ]),
     ("Signs", [
         ("shop_sign", "Shop sign", one("garage_shop_sign"), {"wall": True, "az": 15}),
@@ -440,7 +533,11 @@ for category, tiles in TILES:
         lo, hi = Vector((1e9, 1e9, 1e9)), Vector((-1e9, -1e9, -1e9))
         objs = []
         for name, ix, iy, iz, yaw, sy, sxz, _ in insts:
+            if opts.get("phone") and NP.PROTOS[name]["detail"]:
+                continue
             for m in meshes.get(name, []):
+                if opts.get("phone") and NP.NEAR in m.name:
+                    continue
                 o = bpy.data.objects.new(m.name.replace("GP_proto_", "garage_" if not name.startswith("garage_") else ""), m)
                 o.rotation_euler = (0, 0, yaw)
                 o.scale = (sxz, sxz, sy)
@@ -526,7 +623,23 @@ FIT = fit()
             "phone drops it. assemblies: each preview tile's assembly at the origin, yaw 0, its min and max. fit: the lifts "
             "against Ali's S4.",
     "total_triangles": total, "protos": {n: r for n, r in report.items() if n != "drum"},
-    "assemblies": assemblies, "fit": FIT}, indent=1))
+    "assemblies": assemblies, "fit": FIT,
+    "surfaces": {
+        "note": "the layout's named surfaces in a prototype's own frame (centre x, y, z; width, height; facing +z, uv 0..1 "
+                "from the bottom left, u along +x): identity.smasher_art() and identity.monitor_screen() give them placed",
+        "garage_smasher_frame": {"garage_identity_poster": [list(identity.SMASHER_ART[0]), identity.SMASHER_ART[1], identity.SMASHER_ART[2]]},
+        "garage_bd_monitor": {"garage_screen": [list(identity.BD_SCREEN[0]), identity.BD_SCREEN[1], identity.BD_SCREEN[2]]},
+        "garage_monitor": {"garage_screen": [list(G.lounge.MONITOR_SCREEN[0]), G.lounge.MONITOR_SCREEN[1], G.lounge.MONITOR_SCREEN[2]]},
+    },
+    "light_faces": {
+        "garage_bench_strip": {"centre": list(identity.BENCH_STRIP_FACE[0]), "length_x": identity.BENCH_STRIP_FACE[1],
+                               "width": identity.BENCH_STRIP_FACE[2], "normal": [round(v, 4) for v in identity.BENCH_STRIP_FACE[3]],
+                               "colour": "amber"},
+        "garage_wall_tube_pink": {"centre": list(identity.WALL_TUBE[0]), "length_y": identity.WALL_TUBE[1], "radius": identity.WALL_TUBE[2], "colour": "pink"},
+        "garage_wall_tube_cyan": {"centre": list(identity.WALL_TUBE[0]), "length_y": identity.WALL_TUBE[1], "radius": identity.WALL_TUBE[2], "colour": "cyan"},
+    },
+    "workbench": {"note": "identity.place_workbench(x, z, yaw): each piece's (x, y, z, turn) in the wall's frame (z 0 the wall's face, +z into the room)",
+                  "pieces": {k: list(v) for k, v in identity.WORKBENCH.items()}}}, indent=1))
 
 
 # ---------------------------------------------------------------------------
@@ -691,14 +804,22 @@ if args.render:
             (fx0, fy0, fz0), (fx1, fy1, fz1) = o["focus"]
             ox = p["origin"]
             lo, hi = Vector((ox + fx0, -fz1 + p["dy"], fy0)), Vector((ox + fx1, -fz0 + p["dy"], fy1))
-        frame(lo, hi, az=o.get("az", 35.0), el=o.get("el", 22.0), wall=o.get("wall", False), under=o.get("under", False))
+        rw, rh = o.get("res", (400, 300))
+        scene.render.resolution_x, scene.render.resolution_y = rw, rh
+        cam_data.sensor_fit = "AUTO"
         cam_data.lens = o.get("lens", 40)
+        frame(lo, hi, az=o.get("az", 35.0), el=o.get("el", 22.0), wall=o.get("wall", False), under=o.get("under", False), aspect=rw / rh)
         if "eye" in o:
             # A camera set by hand, in the kit's frame from the tile's origin.
             eye, look = (Vector(kit.P(*v)) + Vector((p["origin"], p["dy"], 0)) for v in (o["eye"], o["look"]))
             cam.location = eye
             cam.rotation_euler = (look - eye).to_track_quat("-Z", "Y").to_euler()
             cam_data.clip_start, cam_data.clip_end = 0.02, 40.0
+            if "fov" in o:
+                # A vertical field of view, as the site's cameras give theirs.
+                cam_data.sensor_fit = "VERTICAL"
+                cam_data.sensor_height = 24.0
+                cam_data.lens = 12.0 / math.tan(math.radians(o["fov"]) / 2)
         path = out / "tiles" / f"{i:02d}-{p['name']}.png"
         scene.render.filepath = str(path)
         bpy.ops.render.render(write_still=True, scene=scene.name)
