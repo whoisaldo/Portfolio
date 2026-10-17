@@ -308,7 +308,6 @@ export function* appendMeshesSteps(kit, meshes, into, cells, { untiled = false, 
     cell: Int32Array.from([...kit.runs.cell, ...partRuns.cell]),
     start: Int32Array.from([...kit.runs.start, ...Array.from(partRuns.start, (st) => st + i0)]),
     count: Int32Array.from([...kit.runs.count, ...partRuns.count]),
-    bounds: [...(kit.runs.bounds ?? Array(kit.runs.cell.length).fill(null)), ...(partRuns.bounds ?? Array(partRuns.cell.length).fill(null))],
   };
   const bytes = room
     ? Object.values(geometry.attributes).reduce((b, a) => b + pv * a.itemSize * a.array.BYTES_PER_ELEMENT, pi * 4)
@@ -371,7 +370,7 @@ const _view = new THREE.Matrix4();
 /** The ground in `size`-metre cells: the cells every Tiled mesh of a city
  *  is cut to, each with the bounds of all that stands in it. */
 export function createCells(size) {
-  return { size, list: [], ids: new Map(), frame: -1, camera: null, view: 0 };
+  return { size, list: [], ids: new Map(), frame: -1 };
 }
 
 /** Which cells a camera holds: worked out once for each render call (a
@@ -379,13 +378,11 @@ export function createCells(size) {
  *  each cell in sight marked with the call's number, which is returned. */
 function look(cells, renderer, camera) {
   const frame = renderer.info.render.frame;
-  if (cells.frame === frame && cells.camera === camera) return cells.view;
+  if (cells.frame === frame) return frame;
   cells.frame = frame;
-  cells.camera = camera;
-  const seen = cells.view = (cells.view ?? 0) + 1;
   _frustum.setFromProjectionMatrix(_view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-  for (const cell of cells.list) if (_frustum.intersectsBox(cell.box) && (!cells.visibleBox || cells.visibleBox(cell.box, cell.sector))) cell.seen = seen;
-  return seen;
+  for (const cell of cells.list) if (_frustum.intersectsBox(cell.box) && (!cells.visibleBox || cells.visibleBox(cell.box, cell.sector))) cell.seen = frame;
+  return frame;
 }
 
 /**
@@ -430,11 +427,10 @@ export function* cutSteps(geometry, cells, min = 0) {
     if (r === undefined) {
       r = runs.length;
       runAt.set(id, r);
-      runs.push({ id, count: 0, at: 0, box: new THREE.Box3() });
+      runs.push({ id, count: 0, at: 0 });
     }
     runOf[t] = r;
     runs[r].count += 3;
-    runs[r].box.union(bounds);
     const { min: lo, max: hi } = cells.list[id].box;
     lo.set(Math.min(lo.x, pos[a], pos[b], pos[c]), Math.min(lo.y, pos[a + 1], pos[b + 1], pos[c + 1]), Math.min(lo.z, pos[a + 2], pos[b + 2], pos[c + 2]));
     hi.set(Math.max(hi.x, pos[a], pos[b], pos[c]), Math.max(hi.y, pos[a + 1], pos[b + 1], pos[c + 1]), Math.max(hi.z, pos[a + 2], pos[b + 2], pos[c + 2]));
@@ -458,7 +454,7 @@ export function* cutSteps(geometry, cells, min = 0) {
   yield;
   index.set(sorted);
   geometry.index.needsUpdate = true;
-  return { cell: Int32Array.from(rows, (run) => run.id), start, count: Int32Array.from(rows, (run) => run.count), bounds: rows.map((run) => run.box) };
+  return { cell: Int32Array.from(rows, (run) => run.id), start, count: Int32Array.from(rows, (run) => run.count) };
 }
 
 /**
@@ -521,7 +517,7 @@ export class Tiled extends THREE.Mesh {
       remember();
       return;
     }
-    const { cell, start, count, bounds } = this.runs;
+    const { cell, start, count } = this.runs;
     const { list } = this.cells;
     const seen = look(this.cells, renderer, camera);
     // A run's start is asked for in bytes.
@@ -529,8 +525,7 @@ export class Tiled extends THREE.Mesh {
     let n = 0;
     let joined = false;
     for (let r = 0; r < cell.length; r++) {
-      const box = bounds?.[r];
-      if ((cell[r] >= 0 && list[cell[r]].seen !== seen) || box && (!_frustum.intersectsBox(box) || this.cells.visibleBox && !this.cells.visibleBox(box, this.userData.sector))) {
+      if (cell[r] >= 0 && list[cell[r]].seen !== seen) {
         joined = false;
       } else if (joined) {
         this._multiDrawCounts[n - 1] += count[r];
