@@ -62,17 +62,40 @@ const check = (name, fn) => {
   }
 };
 
-check("the reviewed S6 is available to visitors without a test URL", () => {
+check("the provisional S6 stays on the development test path until review", () => {
   const asset = "/models/ali-s6.glb?v=review";
-  assert.deepEqual(policyModule.garageS6Policy(asset), { url: asset, unavailable: null });
+  assert.equal(policyModule.garageS6Policy(asset).url, null);
+  assert.equal(policyModule.garageS6Policy(asset, { search: "?garage-test-s6=1" }).url, null);
+  assert.equal(policyModule.garageS6Policy(asset, { development: true }).url, null);
+  assert.deepEqual(policyModule.garageS6Policy(asset, { development: true, search: "?garage-test-s6=1" }), { url: asset, unavailable: null });
   assert.equal(policyModule.garageS6Policy(null).url, null);
-  for (const id of ["s4", "s6"]) {
-    assert.ok(carSpecs[id].url, `${id} must have a real model URL`);
-    assert.equal(carSpecs[id].unavailable, null);
-  }
+  assert.ok(carSpecs.s4.url);
+  assert.equal(carSpecs.s4.unavailable, null);
+  assert.equal(carSpecs.s6.url, null);
 });
 
 // ---- the timeline -------------------------------------------------------------
+{
+  const queue = garage.createGarageBuildQueue();
+  const order = [];
+  let release;
+  const first = queue.run(async () => {
+    order.push("current district");
+    await new Promise((resolve) => { release = resolve; });
+    order.push("current district committed");
+  });
+  const later = queue.run(() => order.push("later district"));
+  const room = queue.run(() => order.push("requested garage"), { priority: true });
+  release();
+  await Promise.all([first, later, room]);
+  check("a cold garage waits only for the current shared build", () => {
+    assert.deepEqual(order, ["current district", "current district committed", "requested garage", "later district"]);
+  });
+  await assert.rejects(queue.run(() => { throw new Error("failed pack"); }));
+  await queue.run(() => order.push("retry"));
+  check("a failed shared build does not strand queued construction", () => assert.equal(order.at(-1), "retry"));
+}
+
 check("stations", () => {
   assert.deepEqual(GARAGE_STATIONS.map((s) => s.id), ["arrival", "s4", "s4-bay", "s6", "s6-bay", "shop"]);
   assert.deepEqual(GARAGE_STATIONS.map((s) => s.p), [0, 0.2, 0.4, 0.6, 0.8, 1]);

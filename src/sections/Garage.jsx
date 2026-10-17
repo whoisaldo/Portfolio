@@ -15,7 +15,6 @@ import { ackGarageRequest, latestGarageRequest, subscribeGarageRequests } from "
 import { getGarageView, setGarageView } from "../lib/garage3d";
 import { getWorld, useStage } from "../world/stage";
 import { garageCredits as credits } from "../data/garage-credits";
-import { s6ModelUrl } from "../data/s6";
 import { GARAGE_STATIONS } from "../data/world";
 
 const ArchivedPhotos = lazy(() => import("../components/garage/GaragePhotos"));
@@ -120,7 +119,9 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     onSelect: select, onCar: setActiveCar, onRetry, contactHref: "#contact", request: applied,
     onStation: cinematic ? goStation : (id) => setGarageView({ textStation: id }),
   };
-  return <div ref={root} data-garage-car-missing={cinematic && !s6ModelUrl && activeCar === "s6" ? "true" : undefined} data-garage-ready={cinematic && availability === "ready" ? "true" : "false"}>
+  const missingS6 = worldState.models?.s6 === false;
+  return <div ref={root} data-garage-car-missing={cinematic && missingS6 && activeCar === "s6" ? "true" : undefined} data-garage-ready={cinematic && availability === "ready" ? "true" : "false"}>
+    {cinematic && missingS6 && <p className="garage-model-note">The S6 model is being rebuilt. Its build details are available in Parts.</p>}
     {cinematic ? <GarageControls {...common} station={station} stations={GARAGE_STATIONS} hood={worldState.hood} stance={worldState.lowering ? "lowered" : "normal"} override={worldState.override} status={worldState.status ?? ""} onLayout={(layout) => adapter()?.setPinLayout?.(layout)} registerPin={(key, el) => adapter()?.registerPin?.(key, el)} partsOpen={partsOpen} onPartsOpen={setPartsOpen} onHood={(id, open) => adapter()?.setHood?.(id, open)} onStance={(value) => adapter()?.setStance?.(value)} onResumeTour={() => adapter()?.resumeTour?.()} />
       : GARAGE_PHOTOS_ENABLED && ArchivedPhotos ? <Suspense fallback={<GarageText {...common} />}><ArchivedPhotos {...common} /></Suspense> : <GarageText {...common} />}
   </div>;

@@ -14,9 +14,9 @@
 //
 // The integration (src/world/world-scene.js) makes this once the garage's
 // room is wanted and calls it every frame; agents/B5/CONTRACT.md section
-// 2.6 and agents/B4/NOTES.md give the contract. Both reviewed GLBs are loaded
-// for visitors. An explicitly unavailable asset can still use an isolated
-// development placeholder, which the presentation excludes from queries.
+// 2.6 and agents/B4/NOTES.md give the contract. Availability controls each
+// real GLB. An explicitly unavailable asset can use an isolated development
+// placeholder, which the presentation excludes from visitors and queries.
 import * as THREE from "three";
 import { cars, preloadCar, createObject } from "../three/car/object.js";
 import { resolveAnchor, localBounds, triangles, prepareInspection } from "../three/car/inspect.js";

@@ -22,6 +22,31 @@ import { preloadMoon } from "./moon.js";
 import { catmullRom, curveAt, easeInOut, makePose, copyPose, clamp } from "./shots.js";
 import { GARAGE_POSES, GARAGE_ROUTES, GARAGE_ROUTES_PORTRAIT, GARAGE_TIMELINE, GARAGE_STATES, GARAGE_STATIONS } from "../data/world.js";
 
+// Room and district construction share mutable light-bake and upload buffers.
+// Finish the current job, then let the requested room precede distant districts.
+export function createGarageBuildQueue() {
+  const waiting = [];
+  let active = false;
+  const drain = async () => {
+    if (active) return;
+    active = true;
+    while (waiting.length) {
+      const job = waiting.shift();
+      try { job.resolve(await job.run()); }
+      catch (error) { job.reject(error); }
+    }
+    active = false;
+  };
+  return { run(run, { priority = false } = {}) {
+    return new Promise((resolve, reject) => {
+      const job = { run, resolve, reject };
+      if (priority) waiting.unshift(job);
+      else waiting.push(job);
+      void drain();
+    });
+  } };
+}
+
 // A deliberately unavailable asset stays absent from every camera and
 // physical query, including its shadow and any development proxy.
 export function createGaragePresentation(createCars, context, { s6Available = true } = {}) {

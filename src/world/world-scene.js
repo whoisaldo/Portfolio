@@ -48,7 +48,7 @@ import { createTraffic, makeTrafficAhead } from "./traffic.js";
 import { createCar } from "./car.js";
 import { createClearance } from "./clearance.js";
 import { createShafts } from "./shafts.js";
-import { createGarageVisit, createGarageCollision, createGaragePresentation, createGarageUploadPump, cullGarageObjects, garageLights } from "./garage.js";
+import { createGarageVisit, createGarageCollision, createGaragePresentation, createGarageUploadPump, createGarageBuildQueue, cullGarageObjects, garageLights } from "./garage.js";
 import { LIGHT_BOUNDS } from "./spill.js";
 import { cars as carModels, preloadCar } from "../three/car/object.js";
 import { getGarageView } from "../lib/garage3d.js";
@@ -1579,6 +1579,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // far blocks there, as it did before the rebuild.
   const idle = () => new Promise((resolve) => (window.requestIdleCallback ? window.requestIdleCallback(resolve, { timeout: 1500 }) : setTimeout(resolve, 50)));
   const packsIn = [];
+  const construction = createGarageBuildQueue();
   const streamPacks = async () => {
     // All fetched at once, built in one at a time in the streaming order.
     const loads = PACKS.map((name) => preloadPack(tier, name).then((s) => ({ s }), (err) => ({ err })));
@@ -1587,6 +1588,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         const { s: packScene, err } = await loads[i];
         if (err) throw err;
         if (disposed) return;
+        await construction.run(async () => {
         await idle();
         if (disposed || !city) return;
         // (load: built a few milliseconds at a time between the page's frames,
@@ -1599,17 +1601,19 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         if (disposed) return;
         cover?.render(city.root);
         packsIn.push(name);
+        });
+        if (disposed) return;
       } catch (err) {
         if (disposed) return;
         if (import.meta.env.DEV) console.warn(`[world] the ${name} districts did not load`, err);
       }
     }
     streamed = true;
-    streamedNow?.();
-    // The light bake's working arrays and the warm-up kit go once the last
-    // pack is in: the garage's room, if there is one, comes after the
-    // districts and bakes its light into the same maps.
-    if (!hasGaragePack(tier)) releaseStreaming();
+    // The room can open before distant districts finish. Refresh its probe
+    // against the completed world before releasing the shared bake buffers.
+    if (garageAvailable === "ready") garageCars?.captureProbe?.(city.root);
+    // The room and districts use the same bake. Keep it until both are in.
+    if (!hasGaragePack(tier) || garageAvailable === "ready") releaseStreaming();
   };
   const releaseStreaming = () => {
     city?.releaseBake();
@@ -1621,12 +1625,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // Not streamed with the districts: the garage asks for it (the adapter's
   // prepare, from the section once the hero is up and sooner as the reader
   // heads for it). Fetched at once when asked; built, like a district, in
-  // slices between the page's frames once the districts are in, since they
-  // share the light bake; and the bake let go after it. A failure lets a
-  // later ask try again.
+  // slices between frames on the same serialized construction queue as the
+  // districts. It gets the next turn and leaves the remaining districts to
+  // resume afterwards. A failure lets a later ask try again.
   let streamed = false;
-  let streamedNow = null;
-  const afterStreaming = new Promise((resolve) => (streamedNow = resolve));
   let garageRoom = null;
   let roomCommitted = false;
   let boardTexture = null;
@@ -1768,10 +1770,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       })) : Promise.reject(new Error("The workshop placements are unavailable."));
       const boardsUrl = GARAGE_PHOTOS_ENABLED ? Reflect.get(worldAssets, "worldGarageBoardsUrl")?.[tier] : null;
       const atlasLoad = boardsUrl && !boardTexture ? new THREE.TextureLoader().loadAsync(boardsUrl).then((texture) => (boardTexture = texture)) : Promise.resolve(boardTexture);
-      garageRoom = (async () => {
+      garageRoom = construction.run(async () => {
         const [packScene, placements, atlas, runtime, registry] = await Promise.all([fetching, placementLoad, atlasLoad, carRuntime(), garageData()]);
         findMod = registry.findMod;
-        if (!streamed) await afterStreaming;
         if (disposed || !city) return false;
         await idle();
         if (disposed) return false;
@@ -1899,11 +1900,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         cover?.render(city.root);
         // The job has supplied every draw before it releases the shared
         // bake. Readiness never precedes maps, placements or car warm-up.
-        releaseStreaming();
+        if (streamed) releaseStreaming();
         garageAvailable = "ready";
         publishGarage();
         return true;
-      })().catch((err) => {
+      }, { priority: true }).catch((err) => {
         if (disposed) return false;
         garageRoom = null;
         garageCars?.dispose();
