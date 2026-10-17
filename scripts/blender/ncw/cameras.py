@@ -141,11 +141,13 @@ GARAGE_ROUTES = {
     "s6_stance": ("s6", "s6_stance", [], {}, []),
     "stance_s6bay": ("s6_stance", "s6_bay", [(466.4, 1.8, -224.8)], {}, [(0.0, "s6_stance"), (1.0, "s6_bay")]),
     # (A phone swings up to the Smasher print, six metres off it, holds on
-    # it, and pulls back down the aisle to the whole wall.)
+    # it, and pulls back down the aisle to the whole wall; on the way back
+    # it looks between the print and the wall's middle, so the print keeps
+    # inside the frame's right edge until the wide hold takes it in.)
     "s6bay_shop": ("s6_bay", "shop", [(467.3, 3.0, -221.0), (467.4, 2.6, -218.0), (467.5, 2.55, -215.0)],
                    {1: (468.8, 3.1, -220.3), 2: (470.9, 2.6, -216.9), 3: (470.4, 2.3, -215.2)},
                    [(0.0, "s6_bay"), (0.35, (475.0, 1.3, -220.4), (0.3, SMASHER_AT)), (0.65, (474.6, 2.7, -218.2), (0.62, SMASHER_AT)),
-                    (0.85, (473.6, 1.3, -216.9), (0.84, (475.1, 2.0, -215.4))), (1.0, "shop")]),
+                    (0.85, (473.6, 1.3, -216.9), (0.84, (475.1, 2.0, -214.8))), (1.0, "shop")]),
     "exit": ("shop", "outside", [(466.6, 2.9, -218.4), (458.2, 3.0, -219.0), (455.0, 2.7, -216.5), (451.5, 2.4, -215.3)], {1: (465.2, 2.4, -218.6)},
              [(0.0, "shop"), (0.4, (460.0, 1.6, -218.6)), (0.8, (447.0, 2.2, -216.4)), (1.0, (440.0, 2.6, -217.0))]),
     "apron_s4rear": ("apron", "s4_rear", [(455.6, 2.2, -213.4)], {}, [(1.0, "s4_rear")]),
