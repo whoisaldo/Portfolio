@@ -721,6 +721,41 @@ check("room and exterior triangles sharing a tile keep independent visibility", 
   geometry.dispose(); tile.material.dispose(); room.geometry.dispose(); street.geometry.dispose();
 });
 
+check("street props use each prototype's bounds within a shared tile", () => {
+  const material = new three.ShaderMaterial({ transparent: true, uniforms: { uSpill: { value: null } } }); material.name = "test_glass";
+  const a = new three.Mesh(new three.BoxGeometry(.2, .2, .2), material), b = a.clone();
+  a.userData.proto = "visible_prop"; b.userData.proto = "hidden_prop";
+  let header = JSON.stringify({ protos: [{ name: "visible_prop", box: [1, 1, 1] }, { name: "hidden_prop", box: [1, 1, 1] }], count: 2 });
+  if (header.length % 2) header += " ";
+  const bytes = new TextEncoder().encode(header), buffer = new ArrayBuffer(4 + bytes.length + 32);
+  new DataView(buffer).setUint32(0, bytes.length, true); new Uint8Array(buffer, 4, bytes.length).set(bytes);
+  new Int16Array(buffer, 4 + bytes.length).set([0, 8800, 100, -4300, 0, 100, 1000, 0, 1, 8800, 100, -4120, 0, 100, 1000, 0]);
+  const anchors = new Map([["anchor_garage_portal_door", { position: new Vector3(452, 2.3, -215), quaternion: new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2), extras: { width: 6, height: 4.6 } }]]);
+  const visibility = garage.createGarageVisibility(anchors), camera = new three.PerspectiveCamera(60, 1.6, .1, 2000);
+  camera.position.set(462, 2, -215); camera.lookAt(440, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
+  const props = propsModule.createProps([a, b], buffer, { visibleBox: visibility.test }); props.update(camera);
+  assert.equal(props.group.getObjectByName("props_visible_prop_test_glass").count, 1);
+  assert.equal(props.group.getObjectByName("props_hidden_prop_test_glass").count, 0);
+  props.dispose(); a.geometry.dispose(); material.dispose();
+});
+
+check("ordinary exterior meshes keep independent portal visibility across passes", () => {
+  const scene = new three.Scene();
+  const outside = new three.Mesh(new three.BoxGeometry(), new three.MeshBasicMaterial());
+  outside.position.set(440, 1, -207);
+  const room = outside.clone(); room.position.set(462, 1, -215);
+  const parked = new three.Group(); parked.name = "ali_s4_world";
+  const car = outside.clone(); parked.add(car);
+  scene.add(outside, room, parked); scene.updateMatrixWorld();
+  const visibility = { testSphere: (x) => x > 452 };
+  const restore = garage.cullGarageObjects(scene, visibility, { car: parked });
+  assert.equal(outside.visible, false); assert.equal(room.visible, true); assert.equal(car.visible, true);
+  restore(); assert.equal(outside.visible, true);
+  const streetPass = garage.cullGarageObjects(scene, { testSphere: () => true }, { car: parked });
+  assert.equal(outside.visible, true); streetPass();
+  outside.geometry.dispose(); outside.material.dispose();
+});
+
 check("per-pass exterior culling restores visibility and keeps room lights and car shadows", () => {
   const source = readFileSync("src/world/world-scene.js", "utf8");
   const from = source.indexOf("  const renderScene = renderer.render;");

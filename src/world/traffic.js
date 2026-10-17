@@ -2183,6 +2183,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const viewMatrix = new THREE.Matrix4();
   const ball = new THREE.Sphere();
   let viewed = false;
+  let visibleSphere = null;
   // (And how long the lens is: a far craft's lamps are grown to a share of
   // the frame, which on a phone's narrow frame or a long lens is fewer
   // degrees.)
@@ -2221,6 +2222,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     if (!viewed) return true;
     ball.center.copy(p);
     ball.radius = 24 * s;
+    if (visibleSphere && !visibleSphere(p.x, p.y, p.z, ball.radius)) return false;
     if (view.intersectsSphere(ball)) return true;
     ball.center.y = -p.y;
     return view.intersectsSphere(ball);
@@ -2474,6 +2476,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       const { shown, braking } = now;
       const off = p.distanceToSquared(shared.uCam.value);
       if (off > LAMPS_TO * LAMPS_TO) continue;
+      if (visibleSphere) {
+        x.lamps.box.getBoundingSphere(ball);
+        ball.center.applyQuaternion(q).add(p);
+        if (!visibleSphere(ball.center.x, ball.center.y, ball.center.z, ball.radius + 1)) continue;
+      }
       if (viewed) {
         ball.center.copy(p);
         ball.radius = 18;
@@ -2636,6 +2643,14 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
 
   return {
     update,
+    // Repack the current instant for a real pass camera without advancing
+    // the traffic clock. Main and mirror keep independent portal lists.
+    prepare(camera, testSphere) {
+      view.setFromProjectionMatrix(viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+      viewed = true;
+      visibleSphere = testSphere;
+      update(0, voices.on);
+    },
     avMesh,
     voices,
     /** Dev: hold every vehicle where it is, or where it is at second `at`

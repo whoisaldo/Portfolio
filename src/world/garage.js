@@ -157,6 +157,25 @@ export function createGarageVisibility(anchors) {
   };
 }
 
+// Ordinary meshes already promise conservative bounds to Three's frustum
+// culler. Use the same sphere for the workshop portals, and restore every
+// visibility flag after the pass so mirrors and street views are independent.
+export function cullGarageObjects(scene, visibility, { car = null } = {}) {
+  const hidden = [], sphere = new THREE.Sphere();
+  scene.traverseVisible((node) => {
+    if (!node.isMesh || !node.frustumCulled || node.isInstancedMesh || node.geometry?.isInstancedBufferGeometry) return;
+    for (let parent = node; parent; parent = parent.parent) {
+      if (parent === car || /^(ali_s6|garage_)/.test(parent.name) || (parent.userData.sector ?? parent.userData.visibilitySector ?? "").startsWith("garage_")) return;
+    }
+    const geometry = node.geometry;
+    if (!geometry.boundingSphere) geometry.computeBoundingSphere();
+    sphere.copy(geometry.boundingSphere).applyMatrix4(node.matrixWorld);
+    if (visibility.testSphere(sphere.center.x, sphere.center.y, sphere.center.z, sphere.radius)) return;
+    hidden.push(node); node.visible = false;
+  });
+  return () => { for (const node of hidden) node.visible = true; };
+}
+
 // The door's travel, in shots before the garage's own (the flight in
 // starts a whole shot out, at the rooftop): up just before the car, which
 // crosses the door's line at about 0.67 of a shot out. The tubes strike as

@@ -410,6 +410,13 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     built.add(k.name);
     const mine = [];
     // Sort by cell, and note each cell's run.
+    const prototypeBounds = new THREE.Box3();
+    for (const src of [...meshes, ...(parts.get(k.name + NEAR) ?? [])]) {
+      if (!src.geometry.boundingBox) src.geometry.computeBoundingBox();
+      prototypeBounds.union(src.geometry.boundingBox);
+    }
+    prototypeBounds.expandByScalar(1);
+    const placedBounds = new THREE.Box3();
     const withCell = k.list.map((i) => {
       const o = i * 8;
       return { i, cell: cellOf(data[o + 1] / 20, data[o + 3] / 20, placementSectors[i]) };
@@ -428,10 +435,11 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       const z = data[i * 8 + 3] / 20;
       const top = y + (data[i * 8 + 5] / 100) * k.box[1] * 2 + r;
       if (!run || run.cell !== cell) {
-        run = { cell, ci: cellIndex(cell), start: j, end: j };
+        run = { cell, ci: cellIndex(cell), sector: placementSectors[i], box: new THREE.Box3(), start: j, end: j };
         runs.push(run);
       }
       run.end = j + 1;
+      run.box.union(placedBounds.copy(prototypeBounds).applyMatrix4(_m));
       cellList[run.ci].expandByPoint(_p.set(x - r, y - r, z - r)).expandByPoint(_p.set(x + r, top, z + r));
     });
     const instance = (src) => {
@@ -560,6 +568,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   // if that set of cells changed since last time.
   let cellVis = new Uint8Array(cellList.length);
   let cellDist = new Float32Array(cellList.length);
+  const runVisible = (run, reach) => cellVis[run.ci] && cellDist[run.ci] <= reach && (!visibleBox || visibleBox(run.box, run.sector));
   let frames = 0;
   let stale = false;
   let lastCamera = null;
@@ -589,7 +598,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       // The set of cells it is drawn in, as a hash.
       let sig = 2166136261;
       for (const run of set.runs) {
-        if (cellVis[run.ci] && cellDist[run.ci] <= reach) sig = Math.imul(sig ^ run.ci, 16777619) >>> 0;
+        if (runVisible(run, reach)) sig = Math.imul(sig ^ run.ci, 16777619) >>> 0;
       }
       if (sig === set.sig) continue;
       set.sig = sig;
@@ -597,7 +606,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       const dst = set.instanced[0]?.instanceMatrix.array;
       const dealt = set.aDeal;
       for (const run of set.runs) {
-        if (!cellVis[run.ci] || cellDist[run.ci] > reach) continue;
+        if (!runVisible(run, reach)) continue;
         dst?.set(set.matrices.subarray(run.start * 16, run.end * 16), c * 16);
         if (dealt.length) dealt[0].array.set(set.deals.subarray(run.start, run.end), c);
         c += run.end - run.start;
@@ -797,7 +806,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
           // Where it is in what is drawn: the runs in sight before its own.
           let c = 0;
           for (const run of set.runs) {
-            if (!cellVis[run.ci] || cellDist[run.ci] > set.reach) continue;
+            if (!runVisible(run, set.reach)) continue;
             if (j < run.end && j >= run.start) {
               for (const a of set.aDeal) {
                 a.array[c + j - run.start] = value;

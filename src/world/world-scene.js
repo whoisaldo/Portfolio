@@ -48,7 +48,7 @@ import { createTraffic, makeTrafficAhead } from "./traffic.js";
 import { createCar } from "./car.js";
 import { createClearance } from "./clearance.js";
 import { createShafts } from "./shafts.js";
-import { createGarageVisit, createGarageCollision, createGaragePresentation, createGarageUploadPump, garageLights } from "./garage.js";
+import { createGarageVisit, createGarageCollision, createGaragePresentation, createGarageUploadPump, cullGarageObjects, garageLights } from "./garage.js";
 import { LIGHT_BOUNDS } from "./spill.js";
 import { cars as carModels, preloadCar } from "../three/car/object.js";
 import { getGarageView } from "../lib/garage3d.js";
@@ -994,6 +994,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       if (drawScene === scene && city.visibility.exteriorVisible) {
         skyline?.update(drawCamera, renderer.getPixelRatio(), city.visibility);
         crowd?.update(drawCamera);
+        if (city.visibility.inside) traffic?.prepare(drawCamera, city.visibility.testSphere);
       }
     }
     // Exterior systems use shader-positioned batches, so their ordinary
@@ -1008,8 +1009,19 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         node.visible = false;
       }
     }
+    let restore = null;
+    const automatic = drawScene.matrixWorldAutoUpdate;
+    if (city && drawScene === scene && city.visibility.inside) {
+      if (automatic) drawScene.updateMatrixWorld();
+      restore = cullGarageObjects(drawScene, city.visibility, { car: car?.car });
+      drawScene.matrixWorldAutoUpdate = false;
+    }
     try { return renderScene.call(this, drawScene, drawCamera); }
-    finally { for (const node of hidden) node.visible = true; }
+    finally {
+      restore?.();
+      drawScene.matrixWorldAutoUpdate = automatic;
+      for (const node of hidden) node.visible = true;
+    }
   };
   const draw = (dt, moonView = null, flow = dt) => {
     renderer.info.reset();
@@ -1020,6 +1032,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     shared.uCam.value.copy(camera.position);
     const env = drive(dt);
     applyGarageState(dt);
+    camera.updateMatrixWorld();
+    city?.visibility.prepare(camera);
     if (moonView) moon.renderShadows();
     if (moonView !== "only") {
       rain?.update(flow, camera, env.wet);
