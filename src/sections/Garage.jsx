@@ -120,7 +120,7 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
   };
   const missingS6 = worldState.models?.s6 === false;
   return <div ref={root} data-garage-car-missing={cinematic && missingS6 && activeCar === "s6" ? "true" : undefined} data-garage-ready={cinematic && availability === "ready" ? "true" : "false"}>
-    {cinematic && missingS6 && <p className="garage-model-note">The S6 model is being rebuilt. Its build details are available in Parts.</p>}
+    {cinematic && missingS6 && <p className="garage-model-note">The S6 model is unavailable. Its build details are available in Parts.</p>}
     {cinematic ? <GarageControls {...common} station={station} stations={GARAGE_STATIONS} hood={worldState.hood} stance={worldState.lowering ? "lowered" : "normal"} override={worldState.override} status={worldState.status ?? ""} onLayout={(layout) => adapter()?.setPinLayout?.(layout)} registerPin={(key, el) => adapter()?.registerPin?.(key, el)} partsOpen={partsOpen} onPartsOpen={setPartsOpen} onHood={(id, open) => adapter()?.setHood?.(id, open)} onStance={(value) => adapter()?.setStance?.(value)} onResumeTour={() => adapter()?.resumeTour?.()} />
       : GARAGE_PHOTOS_ENABLED && ArchivedPhotos ? <Suspense fallback={<GarageText {...common} />}><ArchivedPhotos {...common} /></Suspense> : <GarageText {...common} />}
   </div>;

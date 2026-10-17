@@ -66,16 +66,17 @@ const check = (name, fn) => {
   }
 };
 
-check("the provisional S6 stays on the development test path until review", () => {
+check("the approved S6 is available on every visitor path", () => {
   const asset = "/models/ali-s6.glb?v=review";
-  assert.equal(policyModule.garageS6Policy(asset).url, null);
-  assert.equal(policyModule.garageS6Policy(asset, { search: "?garage-test-s6=1" }).url, null);
-  assert.equal(policyModule.garageS6Policy(asset, { development: true }).url, null);
+  assert.deepEqual(policyModule.garageS6Policy(asset), { url: asset, unavailable: null });
+  assert.equal(policyModule.garageS6Policy(asset, { search: "?garage-test-s6=1" }).url, asset);
+  assert.equal(policyModule.garageS6Policy(asset, { development: true }).url, asset);
   assert.deepEqual(policyModule.garageS6Policy(asset, { development: true, search: "?garage-test-s6=1" }), { url: asset, unavailable: null });
   assert.equal(policyModule.garageS6Policy(null).url, null);
   assert.ok(carSpecs.s4.url);
   assert.equal(carSpecs.s4.unavailable, null);
-  assert.equal(carSpecs.s6.url, null);
+  assert.ok(carSpecs.s6.url);
+  assert.equal(carSpecs.s6.unavailable, null);
 });
 
 // ---- the timeline -------------------------------------------------------------
