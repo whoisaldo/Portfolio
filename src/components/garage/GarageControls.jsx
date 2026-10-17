@@ -329,7 +329,7 @@ export default function GarageControls({
             className="gw-tab"
             aria-expanded={listOpen}
             aria-controls={listId}
-            onClick={() => setListOpen((v) => !v)}
+            onClick={() => setListOpen(!listOpen)}
             {...{ [CONTROL]: "parts" }}
           >
             Parts
