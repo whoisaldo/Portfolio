@@ -73,10 +73,11 @@ GARAGE_STATIONS = [
     # size: 8 m back and some 25 degrees off square, as that view stood to
     # its back wall, the benches running away under the amber strip, the
     # moon's screen and AFTERLIFE AUTO over them, the jacket on its chair in
-    # front, Guts and the Smasher print either side; a phone nearly square
-    # and wide, holding the middle bench, the jacket, the screen and the
-    # sign in one column over its card.
-    ("shop", 1.0, ((467.6, 2.5, -212.2), (475.1, 2.35, -215.6), 60), ((467.6, 2.1, -215.0), (475.1, 2.15, -216.2), 72)),
+    # front, Guts and the Smasher print either side; a phone nearly square,
+    # wide and at a standing eye's height, holding the middle bench, the
+    # jacket on its stool, the screen and the sign in one column over its
+    # card.
+    ("shop", 1.0, ((467.6, 2.5, -212.2), (475.1, 2.35, -215.6), 60), ((467.6, 1.6, -215.0), (475.1, 1.75, -216.2), 74)),
 ]
 GARAGE_POSES = [
     # Inspection poses the tour and the parts reach between stations.

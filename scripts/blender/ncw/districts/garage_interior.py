@@ -1,6 +1,6 @@
 from ncw.kit import *  # noqa: F401,F403 (the shared kit: primitives, materials, street constants)
 from ncw import props as NP
-from ncw.districts.garage import GX0, GX1, GZ0, GZ1, GH, DOOR_Z0, DOOR_Z1, DOOR_H, BAY, OFFICE_WIN, SCREEN_FOOT, SCREEN_Z, SCREEN_SCALE, SCREEN_AT, SCREEN_WH
+from ncw.districts.garage import GX0, GX1, GZ0, GZ1, GH, DOOR_Z0, DOOR_Z1, DOOR_H, BAY, OFFICE_WIN, SCREEN_FOOT, SCREEN_Z, SCREEN_SCALE, SCREEN_AT, SCREEN_WH, SCREEN_PROTO, SCREEN_WALL
 # The garage's prop kit (ncw/garage, its own builder's): importing it
 # registers its prototypes, which this layout places and nothing redraws.
 from ncw.garage import shop as GS, bench as GB, lounge as GL  # noqa: F401
@@ -676,9 +676,21 @@ for fid, zt in (("office_n", -205.8), ("office_s", -202.6)):
 # wall and cyan down the north (S6), upright tubes on steel backplates with
 # their cables to switch boxes, and a long line of each high under the
 # deck; the bench's amber over the pegboards. The cars stay under white.
-NEON_UPRIGHTS = (("cyan", Z0, 1, (457.5, 462.0, 466.5, 471.0)), ("pink", Z1, -1, (463.55, 468.85, 472.85)))
+# The kit's wall tubes (ncw/garage/identity.py) when it has them, else the
+# same drawn here.
+KIT_TUBES = "garage_wall_tube_cyan" in NP.PROTOS
+TUBE_FOOT = 1.25
+NEON_UPRIGHTS = (("cyan", Z0, 1, (457.5, 462.0, 466.5, 471.0)), ("pink", Z1, -1, (463.55, 469.15, 472.85)))
 for hue, zf, nz, xs in NEON_UPRIGHTS:
     for i, x in enumerate(xs):
+        if KIT_TUBES:
+            from ncw.garage.identity import WALL_TUBE
+            (_tx, _ty, _tz), _tl, _tr = WALL_TUBE
+            NP.place(f"garage_wall_tube_{hue}", x, TUBE_FOOT, zf + nz * (PROUD + 0.003), 0.0 if nz > 0 else math.pi, district=sector(x, zf + nz))
+            light(f"{'north' if nz > 0 else 'south'}_{hue}_{i + 1}", "tube", f"garage_wall_tube_{hue}",
+                  [{"at": [x, TUBE_FOOT + _ty, zf + nz * (PROUD + 0.003 + _tz)], "length": _tl, "width": 2 * _tr, "normal": (0, 0, nz), "axis": [0, 1, 0]}],
+                  (x, 1.0, zf + nz * 3.0), NEON[hue], "room", intensity=0.7)
+            continue
         z0, z1 = sorted((zf + nz * PROUD, zf + nz * (PROUD + 0.13)))
         sbox("steel", x - 0.09, x + 0.09, 1.8, 4.0, z0, z1, col=STEEL_DARK)
         zt = zf + nz * (PROUD + 0.2)
@@ -699,10 +711,21 @@ for aid, hue, (xa, xb), y, zf, nz in HIGH_LINES:
 # them (the old bench light), its centre the working centre (BENCH_Z).
 BENCH_Z = -215.5
 BENCHES = (BENCH_Z - 2.4, BENCH_Z, BENCH_Z + 2.4)
-sbox("tube", X1 - 0.12, X1 - 0.05, 2.36, 2.42, BENCH_Z - 3.6, BENCH_Z + 3.6, col=TUBE["amber"])
-sbox("steel", X1 - 0.22, X1 - PROUD, 2.42, 2.5, BENCH_Z - 3.7, BENCH_Z + 3.7, col=STEEL_DARK)
-light("bench_amber", "tube", None, [{"at": [X1 - 0.085, 2.39, BENCH_Z], "length": 7.2, "width": 0.07, "normal": (-1, 0, 0), "axis": [0, 0, 1]}],
-      (X1 - 1.0, 0.9, BENCH_Z), NEON["amber"], "shop", intensity=0.8)
+if "garage_bench_strip" in NP.PROTOS:
+    # The kit's strip over each bench, its face tilted down at the bench.
+    from ncw.garage.identity import BENCH_STRIP_FACE
+    (_fx, _fy, _fz), _fl, _fw, (_nx, _ny, _nz) = BENCH_STRIP_FACE
+    STRIP_Y = 2.32
+    faces = []
+    for z in BENCHES:
+        NP.place("garage_bench_strip", X1 - PROUD - 0.003, STRIP_Y, z, -math.pi / 2, district=SHOP)
+        faces.append({"at": [X1 - PROUD - 0.003 - _fz, STRIP_Y + _fy, z + _fx], "length": _fl, "width": _fw, "normal": (-_nz, _ny, 0.0), "axis": [0, 0, 1]})
+    light("bench_amber", "tube", "garage_bench_strip", faces, (X1 - 1.0, 0.9, BENCH_Z), NEON["amber"], "shop", intensity=0.8)
+else:
+    sbox("tube", X1 - 0.12, X1 - 0.05, 2.36, 2.42, BENCH_Z - 3.6, BENCH_Z + 3.6, col=TUBE["amber"])
+    sbox("steel", X1 - 0.22, X1 - PROUD, 2.42, 2.5, BENCH_Z - 3.7, BENCH_Z + 3.7, col=STEEL_DARK)
+    light("bench_amber", "tube", None, [{"at": [X1 - 0.085, 2.39, BENCH_Z], "length": 7.2, "width": 0.07, "normal": (-1, 0, 0), "axis": [0, 0, 1]}],
+          (X1 - 1.0, 0.9, BENCH_Z), NEON["amber"], "shop", intensity=0.8)
 # Work lights on their tripods between the bays, by each car's nose, aimed
 # into its bay for the open engine.
 for car, at, aim, sec in (("s4", (465.3, -217.55), (463.3, 0.95, -215.0), S4), ("s6", (465.3, -219.45), (463.3, 0.95, -222.0), S6)):
@@ -731,18 +754,18 @@ for car, at, aim, sec in (("s4", (465.3, -217.55), (463.3, 0.95, -215.0), S4), (
 xa_ = X1 - PROUD
 # The sign's foot (the kit's sign hangs 0.3 m under it) clear over the
 # monitor's bezel.
-SIGN_Y = 4.55
+SIGN_Y = 4.65 if SCREEN_PROTO == "garage_bd_monitor" else 4.55
 ART_W, ART_H = 2.0, 2.7
 ART_Z, ART_Y0 = BENCH_Z + 3.0, 2.65
 # The kit's frame for the print, if it has one, says where the picture sits
 # in it; else the print is on a dark board of its own, taped at its corners.
 SMASHER_FRAME = "garage_smasher_frame" if "garage_smasher_frame" in NP.PROTOS else None
 if SMASHER_FRAME:
+    from ncw.garage.identity import smasher_art
     NP.place(SMASHER_FRAME, xa_ - 0.003, ART_Y0, ART_Z, -math.pi / 2, district=SHOP)
-    (_ax, _ay, _az), ART_W, ART_H = getattr(GL, "SMASHER_ART", ((0.0, ART_H / 2, 0.06), ART_W, ART_H))
-    xp = xa_ - 0.003 - _az
-    ART_Y0 += _ay - ART_H / 2
-    ART_Z += _ax
+    xp, _ay, ART_Z, ART_W, ART_H, _ = smasher_art(xa_ - 0.003, ART_Y0, ART_Z, -math.pi / 2)
+    xp -= 0.0005
+    ART_Y0 = _ay - ART_H / 2
 else:
     sbox("dark", xa_ - 0.05, xa_, ART_Y0 - 0.06, ART_Y0 + ART_H + 0.06, ART_Z - ART_W / 2 - 0.06, ART_Z + ART_W / 2 + 0.06)
     xp = xa_ - 0.052
@@ -911,7 +934,7 @@ GB.place_parts_washer(X1 - 0.4, -208.45, -math.pi / 2, district=SHOP)
 NP.place("garage_parts_table", 473.4, 0.0, -206.0, -math.pi / 2, district=SHOP)
 # The monitor over the middle bench, at the old room's screen's size (the
 # street's garage_screen sits in it: districts/garage.py, SCREEN_*).
-NP.place("garage_monitor", X1 - ON_WALL, SCREEN_FOOT, SCREEN_Z, -math.pi / 2, sy=SCREEN_SCALE, sxz=SCREEN_SCALE, district=SHOP)
+NP.place(SCREEN_PROTO, SCREEN_WALL, SCREEN_FOOT, SCREEN_Z, -math.pi / 2, sy=SCREEN_SCALE, sxz=SCREEN_SCALE, district=SHOP)
 # Oxblood chests either end of the benches, two a side, a top box on each.
 for z in (CLUE_CHEST_Z, CLUE_CHEST_Z - 1.12, BENCHES[2] + 1.8, BENCHES[2] + 2.92):
     NP.place("garage_tool_cab", X1 - 0.27, 0.0, z, -math.pi / 2, district=SHOP)
@@ -974,7 +997,7 @@ for L in LIGHTS_G:
             props["kelvin"] = L["kelvin"]
         oriented(name, tuple(f["at"]), f["axis"], tuple(-v for v in f["normal"]), props=props)
 # The moon's monitor is a light in the room too.
-LIGHTS_G.append({"id": "screen", "kind": "screen", "proto": "garage_monitor", "aim": [X1 - 4.0, 1.6, SCREEN_Z], "color": "c8d2ff",
+LIGHTS_G.append({"id": "screen", "kind": "screen", "proto": SCREEN_PROTO, "aim": [X1 - 4.0, 1.6, SCREEN_Z], "color": "c8d2ff",
                  "kelvin": None, "intensity": 0.4, "bay": "shop", "sector": SHOP,
                  "faces": [{"at": [round(v, 3) for v in SCREEN_AT], "length": round(SCREEN_WH[0], 3), "width": round(SCREEN_WH[1], 3),
                             "normal": (-1, 0, 0), "axis": (0, 0, 1), "anchor": "anchor_garage_light_screen"}]})
@@ -1030,9 +1053,11 @@ for zt in (-212.0, -225.0):
 # The shop wall's pieces drawn here: the print's board, the monitor round
 # the moon, the sign over it, the amber strip's housing.
 solid("art_smasher", X1 - 0.08, X1, ART_Y0 - 0.1, ART_Y0 + ART_H + 0.1, ART_Z - ART_W / 2 - 0.1, ART_Z + ART_W / 2 + 0.1, nav=False)
-solid("monitor", X1 - 0.3, X1, SCREEN_FOOT - 0.05, SCREEN_FOOT + 0.98 * SCREEN_SCALE + 0.05, SCREEN_Z - 0.76 * SCREEN_SCALE, SCREEN_Z + 0.76 * SCREEN_SCALE, nav=False)
+if SCREEN_PROTO == "garage_monitor":
+    solid("monitor", X1 - 0.3, X1, SCREEN_FOOT - 0.05, SCREEN_FOOT + 0.98 * SCREEN_SCALE + 0.05, SCREEN_Z - 0.76 * SCREEN_SCALE, SCREEN_Z + 0.76 * SCREEN_SCALE, nav=False)
 solid("sign", X1 - 0.14, X1, SIGN_Y - 0.32, SIGN_Y + 1.0, BENCH_Z - 1.78, BENCH_Z + 1.78, nav=False)
-solid("bench_strip", X1 - 0.24, X1, 2.34, 2.52, BENCH_Z - 3.7, BENCH_Z + 3.7, nav=False)
+if "garage_bench_strip" not in NP.PROTOS:
+    solid("bench_strip", X1 - 0.24, X1, 2.34, 2.52, BENCH_Z - 3.7, BENCH_Z + 3.7, nav=False)
 
 # The props' own: what of each stands in the way. The kit says so where a
 # prototype is mostly air inside its box (`solids`, in its own frame: the
@@ -1042,6 +1067,7 @@ solid("bench_strip", X1 - 0.24, X1, 2.34, 2.52, BENCH_Z - 3.7, BENCH_Z + 3.7, na
 # car), turned with the instance; the rest are their boxes, turned as they
 # stand (the kit's boxes are its honest bounds).
 FIXTURE_PROTOS = ("garage_task_light", "garage_led_batten", "garage_fluoro", "garage_cable_tray", "garage_conduit", "garage_monitor",
+                  "garage_bd_monitor", "garage_bench_strip", "garage_wall_tube_",
                   "garage_shop_sign", "garage_neon_", "garage_junction_box", "garage_work_light")
 PROP_SOLIDS = []
 for n_, x, y, z, yaw, sy, sxz, d in NP.INSTANCES:

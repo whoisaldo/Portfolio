@@ -66,18 +66,29 @@ for z in (DOOR_Z0 - 1.1, DOOR_Z1 + 1.1):
 named_quad("garage_door", "door_panel", GX0 + 0.12, DOOR_H / 2, (DOOR_Z0 + DOOR_Z1) / 2,
            DOOR_Z1 - DOOR_Z0 + 0.1, DOOR_H, -math.pi / 2, double=True)
 # High on the shop wall over the middle bench, the monitor the garage's own
-# room has, facing the door: the site plays the intro's moon on it. Its
-# screen is the kit's monitor's (ncw/garage/lounge.py, MONITOR_SCREEN: where
-# in the bezel, how big), whose bezel the workshop hangs round it; the
-# screen is the street's, so the moon is there first.
+# room has, facing the door: the site plays the intro's moon on it. The
+# kit's braindance monitor (ncw/garage/identity.py, garage_bd_monitor: the
+# old room's housing at its 2.43 by 1.367 m, BD_SCREEN where its screen
+# sits) when the kit has it, else its 65-inch monitor (lounge.py,
+# MONITOR_SCREEN) set at SCREEN_SCALE to the same size; the workshop hangs
+# it round this screen, which is the street's, so the moon is there first.
+# Either is clear over the benches' amber strips (to y 2.42).
 from ncw.garage.lounge import MONITOR_SCREEN  # noqa: E402
-# The bezel is set at SCREEN_SCALE, so the screen is the old garage room's
-# own (2.43 m by 1.36), over the working centre of the shop wall, its bezel
-# clear of the bench's amber strip (to y 2.5).
-SCREEN_FOOT, SCREEN_Z, SCREEN_SCALE = 2.55, -215.5, 1.7
-(_sx, _sy, _sz), _sw, _sh = MONITOR_SCREEN
+try:
+    from ncw.garage.identity import BD_SCREEN  # noqa: E402
+except ImportError:
+    BD_SCREEN = None
+SCREEN_Z, SCREEN_WALL = -215.5, GX1 - 0.5 - 0.023
+if BD_SCREEN:
+    SCREEN_PROTO, SCREEN_FOOT, SCREEN_SCALE = "garage_bd_monitor", 2.45, 1.0
+    (_sx, _sy, _sz), _sw, _sh = BD_SCREEN
+    _sz += 0.0005
+else:
+    SCREEN_PROTO, SCREEN_FOOT, SCREEN_SCALE = "garage_monitor", 2.55, 1.7
+    (_sx, _sy, _sz), _sw, _sh = MONITOR_SCREEN
+    _sz += 0.002 / SCREEN_SCALE
 # Its centre and size, world metres (its mesh is written in world space).
-SCREEN_AT = (GX1 - 0.5 - 0.023 - _sz * SCREEN_SCALE - 0.002, SCREEN_FOOT + _sy * SCREEN_SCALE, SCREEN_Z + _sx * SCREEN_SCALE)
+SCREEN_AT = (SCREEN_WALL - _sz * SCREEN_SCALE, SCREEN_FOOT + _sy * SCREEN_SCALE, SCREEN_Z + _sx * SCREEN_SCALE)
 SCREEN_WH = (_sw * SCREEN_SCALE, _sh * SCREEN_SCALE)
 named_quad("garage_screen", "screen", *SCREEN_AT, *SCREEN_WH, -math.pi / 2, props={"assetKind": "identity-art"})
 empty("anchor_garage_bay", BAY, yaw=math.pi / 2)
