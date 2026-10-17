@@ -67,14 +67,25 @@ function shapesOf(box) {
  * "S6 PLACEHOLDER (DEV)" written on its flanks, hood and boot. The same
  * userData as object.js's roots.
  */
-function placeholderS6() {
+function* placeholderS6Steps() {
+  const owned = { geometries: [], materials: [], textures: [] };
+  const dispose = () => {
+    owned.geometries.forEach((g) => g.dispose());
+    owned.materials.forEach((m) => m.dispose());
+    owned.textures.forEach((t) => t.dispose());
+  };
+  let car;
+  try { car = yield* buildPlaceholderS6(owned, dispose); return car; }
+  finally { if (!car) dispose(); }
+}
+
+function* buildPlaceholderS6(owned, dispose) {
   const spec = cars.s6;
   const [, height, length] = spec.size;
   const r = spec.wheelRadius;
   const half = 0.93; // half the body's width without mirrors
   const track = 0.815;
   const zf = spec.wheelbase / 2;
-  const owned = { geometries: [], materials: [], textures: [] };
   const mat = (o) => {
     const m = new THREE.MeshPhysicalMaterial(o);
     owned.materials.push(m);
@@ -88,6 +99,7 @@ function placeholderS6() {
   const bay = mat({ color: 0x2a2b2e, roughness: 0.6, metalness: 0.3 });
   const red = mat({ color: 0x8a1010, emissive: 0x400404, roughness: 0.3 });
   const white = mat({ color: 0xdfe6ef, emissive: 0x404850, roughness: 0.2 });
+  yield;
   const box = (name, parent, material, [w, h, d], [x, y, z]) => {
     const g = new THREE.BoxGeometry(w, h, d);
     owned.geometries.push(g);
@@ -119,6 +131,7 @@ function placeholderS6() {
     box("overhang_front", body, paint, [half - inner, 0.56, front - zf - r - 0.06], [s * (inner + half) / 2, 0.46, (front + zf + r + 0.06) / 2]);
     box("overhang_rear", body, paint, [half - inner, 0.56, front - zf - r - 0.06], [s * (inner + half) / 2, 0.46, -(front + zf + r + 0.06) / 2]);
     for (const z of [zf, -zf]) box("arch", body, paint, [half - inner, 0.8 - (2 * r + 0.045), 2 * r + 0.12], [s * (inner + half) / 2, (0.8 + 2 * r + 0.045) / 2, z]);
+    yield;
   }
   // The bay is open above the middle, in front of the windscreen.
   box("cabin", body, glass, [half * 2 - 0.34, height - 0.78, length * 0.42], [0, (height + 0.74) / 2, -length * 0.08]);
@@ -139,6 +152,7 @@ function placeholderS6() {
   box("charge_pipe_silicone", engine, black, [0.6, 0.08, 0.08], [0, 0.16, 0.45]);
   box("front_cast_box", engine, silver, [0.7, 0.18, 0.4], [0, 0.1, -0.15]);
   box("coolant_expansion_tank", engine, white, [0.16, 0.14, 0.22], [-0.55, 0.12, -0.45]);
+  yield;
   // The hood on a hinge at its back edge, two struts from the fenders.
   const hinge = node("hood_hinge", body, [0, 0.83, front - 1.72]);
   box("opening_hood", hinge, paint, [half * 2 - 0.1, 0.04, 1.62], [0, 0.02, 0.81]);
@@ -151,6 +165,7 @@ function placeholderS6() {
       owned.geometries.push(g);
       holder.add(new THREE.Mesh(g, part === "tube" ? black : silver));
     }
+    yield;
   }
   // The anchors, inside the body.
   node("mod_ie_ecu_tune", engine, [0.5, 0.18, 0.35]);
@@ -166,20 +181,28 @@ function placeholderS6() {
     const pivot = node(holder, car, [s * track, r, z]);
     const wheel = node(`wheel_${name}`, pivot);
     wheel.add(new THREE.Mesh(tyre, rubber), new THREE.Mesh(rim, silver));
+    yield;
   }
-  // The label.
-  const canvas = document.createElement("canvas");
-  canvas.width = 1024;
-  canvas.height = 128;
-  const c2d = canvas.getContext("2d");
-  c2d.fillStyle = "#ffd400";
-  c2d.fillRect(0, 0, 1024, 128);
-  c2d.fillStyle = "#000";
-  c2d.font = "bold 76px sans-serif";
-  c2d.textAlign = "center";
-  c2d.textBaseline = "middle";
-  c2d.fillText("S6 PLACEHOLDER (DEV)", 512, 66);
-  const label = new THREE.CanvasTexture(canvas);
+  // A small bitmap keeps the development warning readable without a cold
+  // browser font rasterization blocking an otherwise sliced creation job.
+  const glyphs = {
+    S: [31,16,16,31,1,1,31], "6": [15,16,16,30,17,17,14],
+    P: [30,17,17,30,16,16,16], L: [16,16,16,16,16,16,31],
+    A: [14,17,17,31,17,17,17], C: [15,16,16,16,16,16,15],
+    E: [31,16,16,30,16,16,31], H: [17,17,17,31,17,17,17],
+    O: [14,17,17,17,17,17,14], D: [30,17,17,17,17,17,30],
+    R: [30,17,17,30,20,18,17], V: [17,17,17,17,17,10,4],
+    "(": [6,8,16,16,16,8,6], ")": [12,2,1,1,1,2,12],
+  };
+  const pixels = new Uint8Array(128 * 16 * 4);
+  for (let i = 0; i < pixels.length; i += 4) pixels.set([255, 212, 0, 255], i);
+  [..."S6 PLACEHOLDER (DEV)"].forEach((letter, i) => {
+    glyphs[letter]?.forEach((row, y) => {
+      for (let x = 0; x < 5; x++) if (row & (1 << (4 - x))) pixels.set([0, 0, 0, 255], ((11 - y) * 128 + 5 + i * 6 + x) * 4);
+    });
+  });
+  const label = new THREE.DataTexture(pixels, 128, 16);
+  label.needsUpdate = true;
   label.colorSpace = THREE.SRGBColorSpace;
   owned.textures.push(label);
   const labelMat = new THREE.MeshBasicMaterial({ map: label, side: THREE.DoubleSide });
@@ -229,11 +252,7 @@ function placeholderS6() {
   car.userData.setLowering = (metres) => {
     body.position.y = -metres;
   };
-  car.userData.dispose = () => {
-    owned.geometries.forEach((g) => g.dispose());
-    owned.materials.forEach((m) => m.dispose());
-    owned.textures.forEach((t) => t.dispose());
-  };
+  car.userData.dispose = dispose;
   return car;
 }
 
@@ -241,6 +260,10 @@ function placeholderS6() {
 // the city's uniform set; it is not a second car controller. All preparation
 // stays in B5's idle readiness job and may be cancelled by dispose().
 export function createGarageCars(ctx) {
+  let sliceStart = performance.now();
+  let sliceKind = null;
+  let measuring = true;
+  const callerSlices = [];
   const { scene, renderer, road = ctx.shared?.car, anchors, tier = "high", reduced = false, between = () => Promise.resolve(), placeholder = import.meta.env.DEV } = ctx;
   if (!road?.setInspection) throw new TypeError("createGarageCars requires ctx.road, the existing S4 controller.");
   const lighting = road.lighting;
@@ -249,7 +272,7 @@ export function createGarageCars(ctx) {
   const resources = new Set();
   const hood = { s4: 0, s6: 0 };
   const asked = { s4: 0, s6: 0 };
-  const stats = { tier, provisionalLighting: true };
+  const stats = { tier, provisionalLighting: true, callerSlices };
   let attached = false;
   let disposed = false;
   let lowering = 0;
@@ -264,7 +287,39 @@ export function createGarageCars(ctx) {
   const abort = new AbortController();
   const flashes = new Map();
   const check = () => { if (disposed) throw Object.assign(new Error("Garage preparation was disposed."), { code: "garage-disposed" }); };
-  const slice = async () => { await between(); check(); };
+  // Include creation and the complete continuation around preparation, not
+  // just the helper's inner loops. Loader and worker waits are excluded.
+  const resume = () => { sliceStart = performance.now(); };
+  const slice = async () => {
+    if (measuring) callerSlices.push({ kind: sliceKind, ms: performance.now() - sliceStart });
+    await between();
+    resume();
+    check();
+  };
+  const instantiate = async (kind) => {
+    sliceKind = kind;
+    await slice();
+    let root;
+    if (kind === "s6" && cars.s6.unavailable) {
+      stats.s6CreationSliced = true;
+      const steps = placeholderS6Steps();
+      try {
+        let step;
+        do { step = steps.next(); if (!step.done) await slice(); } while (!step.done);
+        root = step.value;
+      } finally { steps.return(); }
+    } else {
+      // A1's optional sliced handoff preserves all synchronous loader callers.
+      // Older loaders still work; creationSliced reports that scheduling limit.
+      const instance = createObject(kind, { between: slice, signal: abort.signal });
+      stats[`${kind}CreationSliced`] = Boolean(instance?.then);
+      root = await instance;
+    }
+    // Track before the cancellation point so a returned root cannot leak.
+    const r = track(root);
+    await slice();
+    return r;
+  };
   const clamp = (v) => THREE.MathUtils.clamp(Number.isFinite(v) ? v : 0, 0, 1);
   const bytesOf = (url) => {
     const e = url && performance.getEntriesByType("resource").find((r) => r.name.includes(url.split("?")[0]));
@@ -313,7 +368,7 @@ export function createGarageCars(ctx) {
       await slice();
     }
     const phone = tier === "phone";
-    const prepared = await prepareInspection(root, { cacheKey: `${kind}:${cars[kind].url ?? "development-v1"}`, tier, target: (phone ? PHONE_TRIANGLES : HIGH_TRIANGLES)[kind], between: slice, signal: abort.signal, workerFactory: () => new Worker(new URL("../three/car/inspect.js", import.meta.url), { type: "module" }) });
+    const prepared = await prepareInspection(root, { cacheKey: `${kind}:${cars[kind].url ?? "development-v1"}`, tier, target: (phone ? PHONE_TRIANGLES : HIGH_TRIANGLES)[kind], between: slice, resume, signal: abort.signal, workerFactory: () => new Worker(new URL("../three/car/inspect.js", import.meta.url), { type: "module" }) });
     prepared.geometries.forEach((g) => r.geometries.add(g));
     prepared.materials.forEach((m) => r.materials.add(m));
     const { source, room, wallTriangles, geometry } = prepared;
@@ -359,19 +414,22 @@ export function createGarageCars(ctx) {
     stats.lighting = lighting.stats;
   };
   const ready = (async () => {
+    await slice();
     await preloadCar("s4");
+    resume();
     check();
-    let s6;
     if (cars.s6.unavailable) {
       if (!placeholder) throw Object.assign(new Error(cars.s6.unavailable), { code: "car-unavailable", kind: "s6" });
-      s6 = track(placeholderS6());
     } else {
       await preloadCar("s6");
+      resume();
       check();
-      s6 = track(createObject("s6"));
     }
-    await slice();
-    made.s4 = await prepare("s4", track(createObject("s4")), Object.fromEntries(S4_MODS.map((m) => [m.id, m.anchor])));
+    const s6 = await instantiate("s6");
+    const s4 = await instantiate("s4");
+    sliceKind = "s4";
+    made.s4 = await prepare("s4", s4, Object.fromEntries(S4_MODS.map((m) => [m.id, m.anchor])));
+    sliceKind = "s6";
     made.s6 = await prepare("s6", s6, S6_ANCHORS);
     check();
     drop = Math.min(MAX_DROP, made.s6.room.limit);
@@ -388,6 +446,7 @@ export function createGarageCars(ctx) {
     setHoods();
     made.s6.root.userData.setLowering(lowering * drop);
     await slice();
+    measuring = false;
     captureProbe();
     if (renderer.compileAsync && ctx.camera) {
       for (const m of Object.values(made)) {
@@ -460,17 +519,17 @@ export function createGarageCars(ctx) {
     setDriving(on) {
       if (disposed) return;
       driving = Boolean(on);
-      if (driving) { departure = { active: false, cameraClear: true, liftDown: true }; closing = 0; asked.s4 = 0; setHoods(); road.setInside(null); }
+      if (driving) { closing = 0; setHoods(); road.setInside(null); }
       if (made.s4) road.setInspection(made.s4.root, attached && !driving && road.mode !== "free" && road.atBay);
     },
     // Apply recording/seek state synchronously BEFORE B5/B6 collision
-    // queries. No update(dt), tween or rendered frame is needed. A seek
-    // cancels a prior exit hold, and bounds() reads the new hood geometry.
-    applyState(state = {}) {
+    // queries. Continuous state updates preserve physical departure gates.
+    // A deliberate seek can explicitly cancel the previous owner's exit.
+    applyState(state = {}, { seek = false } = {}) {
       if (disposed) return;
-      api.setDeparture({ active: false, cameraClear: true, liftDown: true });
+      if (seek) api.setDeparture({ active: false, cameraClear: true, liftDown: true });
       api.setDriving(state.driving ?? false);
-      closing = driving ? 0 : 1;
+      closing = driving || road.mode === "free" ? 0 : departure.active ? closing : 1;
       for (const carId of ["s4", "s6"]) if (state.hood?.[carId] != null) asked[carId] = clamp(state.hood[carId]);
       setHoods();
       if (state.lowering != null) api.setLowering(state.lowering);
@@ -487,7 +546,7 @@ export function createGarageCars(ctx) {
     setDeparture(state = {}) {
       if (state.active && !departure.active) departure = { active: true, cameraClear: false, liftDown: false };
       departure = { ...departure, ...state };
-      if (!departure.active) { closing = 1; setHoods(); }
+      if (!departure.active) { closing = driving || road.mode === "free" ? 0 : 1; setHoods(); }
     },
     holdS4(fn) { externalHold = fn; },
     update(dt = 0) {
@@ -574,6 +633,9 @@ export function createGarageCars(ctx) {
       contact = null;
     },
   };
+  // The initial async slot yields before the API object below is returned.
+  // Include that remaining synchronous setup in the first caller sample.
+  callerSlices[0].ms = performance.now() - sliceStart;
   return api;
 }
 

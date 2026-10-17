@@ -376,7 +376,7 @@ export function validateAttributes(root) {
   return values;
 }
 
-export async function prepareInspection(root, { cacheKey, tier, target, between = () => Promise.resolve(), signal, workerFactory } = {}) {
+export async function prepareInspection(root, { cacheKey, tier, target, between = () => Promise.resolve(), resume = () => {}, signal, workerFactory } = {}) {
   await between();
   const mainSlices = [];
   let mainStart = performance.now();
@@ -406,7 +406,7 @@ export async function prepareInspection(root, { cacheKey, tier, target, between 
     try { await between(); } catch (error) { worker.terminate(); throw error; }
     plan = await new Promise((resolve, reject) => {
       const start = performance.now();
-      const finish = (error, value) => { worker.terminate(); signal?.removeEventListener("abort", abort); error ? reject(error) : resolve(value); };
+      const finish = (error, value) => { resume(); worker.terminate(); signal?.removeEventListener("abort", abort); error ? reject(error) : resolve(value); };
       const abort = () => finish(Object.assign(new Error("Garage preparation was disposed."), { code: "garage-disposed" }));
       signal?.addEventListener("abort", abort, { once: true });
       worker.onmessage = ({ data }) => data.error ? finish(Object.assign(new Error(data.error.message), { code: data.error.code })) : finish(null, data);
