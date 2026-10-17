@@ -435,11 +435,24 @@ bpy.ops.object.select_all(action='DESELECT')
 for obj in [car] + list(car.children_recursive):
     obj.select_set(True)
 WRITE = globals().get('WRITE_OUTPUTS', bpy.app.background)
+# The lamp strengths above are matched to Ali's photos under Blender's
+# exposure. The site blooms anything past a luminance of about 0.9
+# (src/world/post.js), so the GLB carries strengths that sit just past it:
+# the lit DRL band and tail guides still glow, but keep their shapes, like
+# the S4's lamps. The .blend keeps the photo-matched values.
+WEB_EMISSION = {'S6_DRL_LED': 1.6, 'S6_tail_light_guide': 7.0}
 if WRITE:
     import contextlib, io
+    photo_matched = {}
+    for name, strength in WEB_EMISSION.items():
+        p = bsdf(bpy.data.materials[name]).inputs['Emission Strength']
+        photo_matched[name] = p.default_value
+        p.default_value = strength
     with contextlib.redirect_stdout(io.StringIO()):
         bpy.ops.export_scene.gltf(filepath=str(ROOT / 'design/audi-s6/ali-s6-source.glb'), export_format='GLB', use_selection=True,
                                   export_apply=True, export_yup=True, export_extras=True, export_cameras=False, export_lights=False,
                                   export_animations=False, export_image_format='AUTO')
+    for name, strength in photo_matched.items():
+        bsdf(bpy.data.materials[name]).inputs['Emission Strength'].default_value = strength
     bpy.data.libraries.write(str(ROOT / 'design/audi-s6/ali-s6.blend'), {scene}, path_remap='RELATIVE_ALL', fake_user=True, compress=True)
     print('S6 source exported. Run npm run car:assets to publish the optimized asset.')
