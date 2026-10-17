@@ -81,7 +81,7 @@ def grain(x, y):
 dimples = lambda tint: pattern('S6_dimpled_' + tint[0], 32, lambda x, y: tuple(
     c * (.72 + .28 * math.cos((x % 8 - 3.5) / 4 * math.pi) * math.cos((y % 8 - 3.5 + 4 * ((x // 8) % 2)) / 4 * math.pi)) for c in tint[1]) + (1,))
 # The gold shields are dimpled sheet like the foil, formed over the hot side.
-gold = textured(material('S6_turbo_heat_wrap', 'c8ad7c', .95, .3), dimples(('gold', (.6, .49, .31))))
+gold = textured(material('S6_turbo_heat_wrap', 'd8bd8a', .95, .32), dimples(('gold', (.72, .58, .36))))
 foil = textured(material('S6_heat_shield_foil', 'c9c9c4', .9, .34), dimples(('foil', (.55, .55, .52))))
 # Black textured plastic: a fine grain about 2.5 cm a tile, so the ducts,
 # the airbox and the covers read as moulded plastic, not paint.
@@ -136,6 +136,7 @@ paper = material('S6_pipe_label_paper', 'c9b27a', 0, .6)
 cap_blue = material('S6_reservoir_cap_blue', '2a73b6', .03, .4)
 orange = material('S6_oil_cap_marking', 'd9861a', 0, .5)
 shadow = material('S6_bay_shadow', '060607', 0, .95)
+adapter = material('S6_throttle_adapter', '3d4044', .15, .36)
 
 
 def place(objects, matrix):
@@ -342,11 +343,12 @@ def shield_point(sign, c, s, t):
 
 
 for sign, c in TURBO.items():
-    # Gold shields: a broad dimpled sheet formed over the turbine and the
-    # manifold, wrapping the compressor's back and shoulder, its edges rolled
-    # under and studded where it bolts down; a shielded downpipe drops away
-    # outboard of the compressor.
-    nx, ny = 12, 9
+    # Gold shields: a dimpled sheet formed over the turbine behind the
+    # compressor, its edges rolled under and studded where it bolts down, and
+    # the broad shoulder of shield that sweeps from high behind the compressor
+    # round its outboard side and down in front of it, over the manifold and
+    # the downpipe. The shoulder is what reads in Ali's photo.
+    nx, ny = 8, 6
     vs = []
     for j in range(ny + 1):
         for i in range(nx + 1):
@@ -358,8 +360,10 @@ for sign, c in TURBO.items():
             vs.append(tuple(p))
     fs = [(j * (nx + 1) + i, j * (nx + 1) + i + 1, (j + 1) * (nx + 1) + i + 1, (j + 1) * (nx + 1) + i) for j in range(ny) for i in range(nx)]
     crumple(mesh('turbo_heat_wrap', vs, fs if sign > 0 else [f[::-1] for f in fs], gold, engine, True, 40), .006, 26, sign)
-    leg = smooth_path([(sign * .215, c.y + .03, -.115), (sign * .25, c.y - .03, -.175), (sign * .262, c.y - .1, -.235)], 4)
-    crumple(duct('turbo_heat_wrap', leg, [.058, .058, .056, .054, .052, .05, .05, .05, .05], [.046] * 9, gold, 12), .005, 26, 2 + sign)
+    sweep = resample_path(smooth_path([(sign * .05, c.y + .15, c.z + .05), (sign * .13, c.y + .13, c.z + .07), (sign * .2, c.y + .07, c.z + .055), (sign * .228, c.y - .01, c.z + .015), (sign * .236, c.y - .08, c.z - .04), (sign * .24, c.y - .14, c.z - .1)], 4), 18)
+    widths = [.06 + .02 * math.sin(math.pi * min(1, i / 12)) for i in range(18)]
+    heights = [.042 + .006 * math.sin(math.pi * i / 17) for i in range(18)]
+    crumple(duct('turbo_heat_wrap', sweep, widths, heights, gold, 14), .006, 24, 2 + sign, .5)
     for s, t in [(.22, .3), (.5, .22), (.3, .72), (.62, .62)]:
         p = shield_point(sign, c, s, t)
         cylinder('shield_stud', tuple(p + Vector((0, 0, -.004))), .009, .012, head, engine, 6)
@@ -387,15 +391,20 @@ for sign, c in TURBO.items():
     tube('charge_pipe_silicone', path, .04, silicone, engine, sides=18)
     clamp(path[2], path[3], .04)
     clamp(path[-3], path[-1], .04)
-    # The black adapter under the clamp: wide at the top with a bolted ear
-    # each side, narrowing to its stem on the silver throttle casting.
+    # The black adapter under the clamp, upright between the coupler and the
+    # passage: a socket for the coupler, a raised ear each side with its
+    # bolt, and a body whose face slopes forward and down to the passage
+    # with a rib down its middle.
     x = sign * .062
-    vs = [(x + a * w, -.145 + b * d, z) for z, w, d in [(-.185, .03, .026), (-.126, .054, .034)] for a, b in [(-1, -1), (1, -1), (1, 1), (-1, 1)]]
-    mesh('throttle_adapter', vs, [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)], black, engine)
-    box('throttle_adapter_ears', (x, -.152, -.138), (.14, .036, .018), black, engine, .005)
-    box('throttle_adapter_rib', (x, -.18, -.155), (.026, .014, .05), black, engine, .003)
-    for dx in [-.058, .058]:
-        cylinder('throttle_bolt', (x + dx, -.152, -.129), .008, .007, steel, engine, 6)
+    cylinder('throttle_adapter_socket', (x, -.14, -.152), .046, .024, adapter, engine, 16)
+    box('throttle_adapter_ears', (x, -.14, -.138), (.165, .04, .03), adapter, engine, .008)
+    for dx in [-.068, .068]:
+        cylinder('throttle_bolt', (x + dx, -.14, -.123), .009, .008, steel, engine, 6)
+    vs = [(x + a * w, y, z) for y, z, w in [(-.115, -.128, .058), (-.182, -.128, .058), (-.218, -.19, .04), (-.13, -.205, .04)] for a in (-1, 1)]
+    mesh('throttle_adapter', vs, [(0, 2, 4, 6), (1, 7, 5, 3), (0, 1, 3, 2), (2, 3, 5, 4), (4, 5, 7, 6), (6, 7, 1, 0)], adapter, engine)
+    rib = box('throttle_adapter_rib', (0, 0, 0), (.016, .012, .072), adapter, engine, .003)
+    rib.location = (x, -.203, -.16)
+    rib.rotation_euler = (-.5, 0, 0)
     # The high-pressure fuel pump on the front of each bank: a big round
     # silver cap tilted up toward the hood on a champagne cast body with its
     # bolted ears, brass fittings and the lines leaving them.
@@ -420,15 +429,15 @@ for sign, c in TURBO.items():
     tube('fuel_high_pressure_line', smooth_path([ends[0], ends[0] + Vector((inboard * .03, .0, -.04)), (sign * .3, .04, -.22)], 4), .006, steel, engine, sides=6)
     tube('fuel_feed_hose', smooth_path([ends[1], ends[1] + Vector((inboard * .04, -.02, .01)), (sign * .2, -.26, -.19)], 4), .011, hose, engine, sides=8)
 
-# Bent steel lines in distinct loops: from each turbo's bearing housing up,
-# across to the valley between the shields and back along it; one up and out
-# in front of its shield to the bank; and two that bridge the turbos.
+# Bent steel lines in a compact raised cluster over the housings: on each
+# turbo two arches across it and one up from its bearing housing and back
+# over into the shield; two that bridge the turbos across the middle.
 for sign, c in TURBO.items():
-    bent([(c.x - sign * .015, c.y + .0, c.z + .05), (c.x - sign * .015, c.y + .0, c.z + .11), (sign * .03, c.y + .0, c.z + .11), (sign * .03, c.y + .2, c.z + .11), (sign * .03, c.y + .22, -.16)])
-    bent([(c.x + sign * .01, c.y + .02, c.z + .05), (c.x + sign * .01, c.y + .02, c.z + .095), (sign * .045, c.y + .03, c.z + .095), (sign * .045, c.y + .17, c.z + .095), (sign * .05, c.y + .2, -.17)])
-    bent([(c.x + sign * .04, c.y - .025, c.z + .06), (c.x + sign * .04, c.y - .025, c.z + .092), (sign * .2, c.y - .025, c.z + .092), (sign * .23, c.y - .01, -.16)])
-bent([(-.07, .14, -.075), (-.07, .14, -.03), (.07, .14, -.03), (.07, .14, -.075)])
-bent([(-.05, .18, -.09), (-.05, .18, -.042), (.05, .18, -.042), (.05, .2, -.1)])
+    bent([(c.x - .05, c.y - .005, c.z + .05), (c.x - .05, c.y - .005, c.z + .105), (c.x + .05, c.y - .005, c.z + .105), (c.x + .05, c.y - .005, c.z + .05)])
+    bent([(c.x - .035, c.y + .035, c.z + .06), (c.x - .035, c.y + .035, c.z + .118), (c.x + .035, c.y + .035, c.z + .118), (c.x + .035, c.y + .035, c.z + .06)])
+    bent([(c.x - sign * .02, c.y + .015, c.z + .05), (c.x - sign * .02, c.y + .015, c.z + .12), (c.x - sign * .02, c.y + .075, c.z + .12), (c.x - sign * .01, c.y + .1, c.z + .07)])
+bent([(-.07, .12, -.075), (-.07, .12, -.025), (.07, .12, -.025), (.07, .12, -.075)])
+bent([(-.05, .15, -.09), (-.05, .15, -.04), (.05, .15, -.04), (.05, .16, -.1)])
 # The valley between the turbos behind them: the dark castings of the
 # turbos' supports and the coolant manifold under the loops.
 box('valley_casting', (0, .24, -.19), (.13, .2, .07), head, engine, .012)
@@ -453,47 +462,52 @@ for obj, (v0, v1) in zip(parts[-2:], [(.5, 1.), (0., .5)]):
 # front; the black transverse passage above the cooler, flanged at each end
 # into the recirculation valves, a fitting at its centre; the throttle
 # module on the car's left.
-box('throttle_casting', (0, -.168, -.18), (.32, .066, .09), dull_cast, engine, .012)
-for x in [-.15, -.11, -.015, .015, .11, .15]:
-    cylinder('throttle_casting_bolt', (x, -.208, -.15), .007, .007, steel, engine, 6, 'Y')
+box('throttle_casting', (0, -.16, -.19), (.31, .09, .08), dull_cast, engine, .016)
+box('throttle_casting_boss', (0, -.15, -.142), (.05, .06, .02), dull_cast, engine, .008)
+for x, y, z in [(-.015, -.135, -.132), (.015, -.135, -.132), (-.14, -.13, -.15), (.14, -.13, -.15), (-.14, -.19, -.15), (.14, -.19, -.15)]:
+    cylinder('throttle_casting_bolt', (x, y, z), .007, .007, steel, engine, 6)
 for sign in [-1, 1]:
     tube('transverse_passage', [(sign * .215, -.215, -.18), (sign * .03, -.215, -.18)], .027, black, engine, sides=14)
     cylinder('transverse_passage_flange', (sign * .215 - (.014 if sign > 0 else 0), -.215, -.18), .036, .014, black, engine, 14, 'X')
     cylinder('recirculation_valve_body', (sign * .245, -.2, -.2), .027, .06, black, engine, 14)
 box('transverse_passage_fitting', (0, -.215, -.175), (.06, .05, .062), black, engine, .008)
 cylinder('breather_nipple', (0, -.215, -.144), .01, .012, black, engine, 8)
-box('throttle_actuator', (.18, -.17, -.14), (.07, .055, .06), black, engine, .008)
+box('throttle_actuator', (.19, -.16, -.15), (.075, .065, .07), dull_cast, engine, .01)
+box('throttle_actuator_plug', (.19, -.2, -.14), (.03, .02, .025), black, engine, .003)
 # The brown braided breather hose comes in from the right bank, arcs across
 # the front of the couplers' adapters and turns down into the fitting.
 tube('breather_hose', smooth_path([(-.4, -.13, -.17), (-.27, -.18, -.11), (-.13, -.195, -.098), (-.035, -.197, -.1), (0, -.205, -.115), (0, -.215, -.138)], 5), .017, braid, engine, sides=8)
 
 # ---- The intake: airbox, ducts, bellows and aluminium pipes ----
 
-# One airbox at the car's right front. Its outlet rises into a single
-# moulding that forks into the two smooth ducts: broad and flattened where
-# they leave the fork, tapering round into ribbed bellows, then aluminium
-# pipes turning into the compressors (the rear one into the right turbo,
-# the front one under the couplers into the left).
+# One airbox at the car's right front. A low trunk runs back from it under
+# the ducts to the fork against the inner wing, where a single moulding
+# splits into the two smooth ducts: broad, flattened and pointed where they
+# leave the fork, spreading diagonally and tapering round into ribbed
+# bellows, then aluminium pipes turning into the compressors (the rear one
+# into the right turbo, the front one under the couplers into the left).
 box('airbox', (-.5, -.4, -.22), (.26, .24, .17), plastic, engine, .05)
 box('airbox_lid_seam', (-.5, -.4, -.18), (.275, .255, .012), plastic, engine, .006)
 routes = {
-    -1: [(-.6, -.04, -.155), (-.6, .05, -.105), (-.55, .11, -.086), (-.47, .132, -.085), (-.3, .12, -.097), (-.22, .07, -.11), (-.14, .0, -.12), (-.105, .02, -.12), (-.105, .045, -.115)],
-    1: [(-.55, -.29, -.19), (-.6, -.1, -.15), (-.56, -.02, -.122), (-.47, .0, -.125), (-.3, -.022, -.147), (-.15, -.035, -.18), (.03, -.035, -.2), (.09, -.02, -.165), (.105, .01, -.125), (.105, .045, -.115)],
+    -1: [(-.645, .075, -.112), (-.6, .1, -.1), (-.53, .125, -.088), (-.47, .132, -.085), (-.3, .12, -.097), (-.22, .07, -.11), (-.14, .0, -.12), (-.105, .02, -.12), (-.105, .045, -.115)],
+    1: [(-.645, .05, -.122), (-.6, .03, -.124), (-.53, .008, -.125), (-.47, .0, -.125), (-.3, -.022, -.147), (-.15, -.035, -.18), (.03, -.035, -.2), (.09, -.02, -.165), (.105, .01, -.125), (.105, .045, -.115)],
 }
 for sign, points in routes.items():
     fork = 4
     branch = resample_path(smooth_path(points[:fork], 6), 12)
-    widths = [lerp(.095 if sign > 0 else .09, .056, (i / 11) ** 1.2) for i in range(12)]
-    heights = [lerp(.05 if sign > 0 else .045, .056, (i / 11) ** 1.2) for i in range(12)]
+    widths = [lerp(.082, .056, (i / 11) ** .8) for i in range(12)]
+    heights = [lerp(.036, .056, (i / 11) ** .8) for i in range(12)]
     clear_wheel_well(duct('intake_tract', branch, widths, heights, plastic, 16))
-    boot = resample_path([points[fork - 1], points[fork]], 25)
-    ribbed('intake_boot_corrugated', boot, .054, .01, 12, plastic)
+    boot = resample_path([points[fork - 1], points[fork]], 23)
+    ribbed('intake_boot_corrugated', boot, .054, .01, 11, plastic)
     pipe = resample_path(smooth_path(points[fork:], 5), 18)
     tube('intake_pipe_aluminium', pipe, .042, alu_pipe, engine, sides=18, radii=[.044 - .006 * i / 17 for i in range(18)])
     for at, toward, radius in [(boot[0], boot[1], .056), (boot[-1], boot[-2], .056), (pipe[-1], pipe[-2], .04)]:
         clamp(at, toward, radius)
     p = pipe[3]
     box('intake_pipe_label', tuple(p + Vector((0, 0, .043))), (.045, .035, .002), paper, engine, 0)
+trunk = resample_path(smooth_path([(-.635, .065, -.135), (-.57, .0, -.2), (-.54, -.12, -.235), (-.52, -.27, -.2)], 4), 10)
+clear_wheel_well(duct('intake_tract', trunk, [.07, .066, .06, .056, .054, .054, .054, .054, .054, .054], [.04] * 10, plastic, 14))
 
 # ---- The left bank and the car's left ----
 
@@ -532,15 +546,12 @@ def tank_point(p):
     q = p / (abs(p.x) ** k + abs(p.y) ** k + abs(p.z) ** k) ** (1 / k)
     flare = 1 - .22 * max(0., -q.z) ** 2 + .05 * math.exp(-((q.z - SEAM) / .05) ** 2)
     z = TANK_MID + q.z * TANK_HALF.z
-    top, back = smoothstep((q.z - .45) / .45), smoothstep((q.y - .02) / .15)
-    z += top * (back * (.016 + .02 * smoothstep((.1 - q.x) / .15)) - .016 * math.exp(-(q.y / .1) ** 2)
-                - .014 * math.exp(-((q.x - .12) / .1) ** 2) * (1 - back))
     return Vector((TANK.x + q.x * TANK_HALF.x * flare, TANK.y + q.y * TANK_HALF.y * flare, z))
 
 
 bm = bmesh.new()
 bmesh.ops.create_cube(bm, size=2)
-bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=11, use_grid_fill=True)
+bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=7, use_grid_fill=True)
 bm.verts.index_update()
 tank_verts = [tank_point(v.co.copy()) for v in bm.verts]
 faces = [tuple(v.index for v in f.verts) for f in bm.faces]
@@ -552,16 +563,18 @@ for poly in shell.data.polygons:
         poly.material_index = 1
 
 
-def tank_height(x, y):
-    return max(v.z for v in tank_verts if abs(v.x - TANK.x - x) < .025 and abs(v.y - TANK.y - y) < .025)
-
-
-cap = TANK + Vector((-.045, .1, tank_height(-.045, .1) - .011))
+# The moulded top: a raised back tier carrying the cap, ending in a sharp
+# step across the tank, and four raised panels ahead of it split by grooves.
+box('coolant_expansion_tank', (TANK.x - .004, TANK.y + .1, TANK_TOP + .012), (.21, .15, .044), tank, engine, .02)
+for dx in [-.052, .052]:
+    for dy, dz in [(-.03, .004), (-.118, -.006)]:
+        box('coolant_expansion_tank', (TANK.x + dx, TANK.y + dy, TANK_TOP + dz), (.096, .082, .024), tank, engine, .013)
+cap = TANK + Vector((-.045, .1, TANK_TOP + .027))
 cylinder('coolant_tank_neck', tuple(cap), .036, .015, tank, engine, 20)
 cap.z += .013
 lathe('coolant_blue_cap', [(0, 0), (0, .047), (.008, .049), (.022, .046), (.026, .03), (.027, 0)], cap_blue, engine, 24, 'Z').location = cap
 box('coolant_cap_grip', tuple(cap + Vector((0, 0, .03))), (.06, .012, .008), cap_blue, engine, .003)
-fitting = TANK + Vector((-.09, .0, tank_height(-.09, .0) - .004))
+fitting = TANK + Vector((-.098, .0, TANK_TOP + .002))
 cylinder('coolant_tank_fitting', tuple(fitting), .011, .018, head, engine, 8)
 tube('coolant_tank_hose', smooth_path([fitting + Vector((0, 0, .018)), TANK + Vector((-.04, -.04, TANK_TOP + .035)), TANK + Vector((.07, -.12, TANK_TOP + .028)), TANK + Vector((.12, -.2, -.17))], 4), .006, hose, engine, sides=6)
 box('relay_carrier', (.6, -.27, -.2), (.15, .13, .08), black, engine, .01)
@@ -593,7 +606,7 @@ for points, r in [
     ([(-.3, .24, -.15), (-.4, .2, -.11), (-.5, .22, -.1), (-.6, .25, -.12)], .015),
     ([(-.36, .3, -.12), (-.46, .32, -.09), (-.56, .3, -.1)], .011),
 ]:
-    tube('coolant_hose', smooth_path(points, 4), r, hose, engine, sides=8)
+    tube('coolant_hose', smooth_path(points, 3), r, hose, engine, sides=8)
 for sign in [-1, 1]:
     tube('bay_wire_harness', smooth_path([(sign * .22, .3, -.17), (sign * .24, .05, -.17), (sign * .25, -.2, -.18), (sign * .32, -.36, -.2)], 4), .01, black, engine, sides=6)
 for p in [(-.24, -.06, -.165), (.24, .12, -.16), (-.22, .24, -.15), (.33, -.2, -.155), (-.4, -.14, -.16)]:
