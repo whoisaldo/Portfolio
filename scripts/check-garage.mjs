@@ -14,6 +14,7 @@
 //   portrait screen (no step larger than a glide makes), lands exactly on
 //   each hold, and under reduced motion only ever shows a hold;
 //   the flights in and out cross the real door's opening;
+//   the exported room solids clear every desired camera and near plane;
 //   where the kit has a garage camera it has all four of its names.
 //
 // And it reports which poses and paths are still the plan's stand-ins: a
@@ -31,12 +32,14 @@ let garage;
 let three;
 let propsModule;
 let materialModule;
+let scrollModule;
+let mergeModule;
 let inspectionModule;
 let s4Mods;
 let GLTFLoader;
 let carDecoder;
 try {
-  [world, garage, three, propsModule, materialModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js")]);
+  [world, garage, three, propsModule, materialModule, scrollModule, mergeModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js"), vite.ssrLoadModule("/src/world/scroll-stage.js"), vite.ssrLoadModule("/src/world/merge.js")]);
   [inspectionModule, { mods: s4Mods }, { GLTFLoader }, { MeshoptDecoder: carDecoder }] = await Promise.all([vite.ssrLoadModule("/src/three/car/inspect.js"), vite.ssrLoadModule("/src/data/garage.js"), vite.ssrLoadModule("three/addons/loaders/GLTFLoader.js"), vite.ssrLoadModule("three/addons/libs/meshopt_decoder.module.js")]);
 } finally {
   await vite.close();
@@ -104,16 +107,39 @@ await MeshoptDecoder.ready;
 const assetsSrc = readFileSync("src/data/world-assets.js", "utf8");
 const coreOf = (tier) => `public${assetsSrc.match(new RegExp(`${tier}: "(/scenes/world/world-${tier}\\.glb)`))[1]}`;
 const anchorSets = {};
+const roomSolids = {};
 for (const tier of ["high", "phone"]) {
   const doc = await io.read(coreOf(tier));
+  const pack = await io.read(`public/scenes/world/world-${tier}-garage.glb`);
   const anchors = new Map();
-  for (const node of doc.getRoot().listNodes()) {
+  for (const node of [...doc.getRoot().listNodes(), ...pack.getRoot().listNodes()]) {
     const name = node.getName();
     if (!/^(cam_|anchor_)garage/.test(name)) continue;
     const m = node.getWorldMatrix();
     anchors.set(name, { position: new Vector3(m[12], m[13], m[14]), quaternion: new Quaternion(), extras: node.getExtras() });
   }
   anchorSets[tier] = anchors;
+  // Decode normalized positions before applying the full node transform,
+  // just as GLTFLoader does. Layout metadata cannot certify the exported
+  // collision boxes used by the runtime.
+  roomSolids[tier] = pack.getRoot().listNodes().filter((node) => node.getName().startsWith("collide_garage_")).map((node) => {
+    const box = new three.Box3();
+    const matrix = new three.Matrix4().fromArray(node.getWorldMatrix());
+    const point = new Vector3(), element = [];
+    for (const primitive of node.getMesh()?.listPrimitives() ?? []) {
+      const positions = primitive.getAttribute("POSITION");
+      if (!positions) continue;
+      for (let i = 0; i < positions.getCount(); i++) {
+        positions.getElement(i, element);
+        box.expandByPoint(point.fromArray(element).applyMatrix4(matrix));
+      }
+    }
+    return { name: node.getName(), ...node.getExtras(), box };
+  });
+  check(`${tier} exported camera solids exist`, () => {
+    assert.ok(roomSolids[tier].length > 0);
+    assert.ok(roomSolids[tier].every((row) => !row.box.isEmpty()), "collision meshes must contain positions");
+  });
 }
 check("kit cameras are whole", () => {
   for (const [tier, anchors] of Object.entries(anchorSets)) {
@@ -132,6 +158,23 @@ for (const [tier, anchors] of Object.entries(anchorSets)) {
   visit.placeholders.forEach((p) => placeholders.add(`${tier}:${p}`));
   for (const aspect of [16 / 10, 390 / 844]) {
     const tag = `${tier} ${aspect < 1 ? "portrait" : "landscape"}`;
+    const collision = createGarageCollision({ solids: () => roomSolids[tier] });
+    const clearPose = (pose, label) => {
+      const eye = collision.clearance(pose.position);
+      const near = collision.nearPlane(pose, aspect, .1);
+      assert.ok(eye >= .45 && near >= .15, `${label}: eye ${eye.toFixed(6)}m / near ${near.toFixed(6)}m`);
+    };
+    check(`${tag} exported timeline clearance`, () => {
+      for (let i = 0; i <= 1000; i++) clearPose(visit.at(i / 1000, aspect), `p=${(i / 1000).toFixed(3)}`);
+    });
+    check(`${tag} exported inspection graph clearance`, () => {
+      const pose = visit.at(0, aspect);
+      for (const edge of visit.segments(aspect)) {
+        const count = Math.ceil(edge.length / .01);
+        for (let i = 0; i <= count; i++) clearPose(visit.sample(edge.id, edge.from, edge.into, i / count, aspect, pose), `${edge.id} ${i}/${count}`);
+      }
+      for (const id of ["s4_cabin", "s6_cabin"]) clearPose(visit.pose(id, aspect), id);
+    });
     check(`${tag} continuity`, () => {
       // A route that is continuous takes half the step at twice the
       // samples; a break, or a turn on the spot, takes the same step
@@ -362,6 +405,38 @@ check("late garage prop placements", () => {
   const bad = wire({ protos: [{ name: "garage_test", box: [1, 1, 1] }], count: 1, sectorRuns: [] }, [[0, 9240, 0, -4300, 0, 100, 1000, 0]]);
   assert.throws(() => system.addPlacements([pack], bad), /sectors/);
   system.dispose();
+  const sharedTarget = new three.WebGLRenderTarget(1, 1);
+  const plantMaterial = new ShaderMaterial({ uniforms: { uSpill: { value: sharedTarget.texture } } });
+  plantMaterial.name = "baked_test";
+  const plant = new Mesh(new BoxGeometry(1, 1, 1), plantMaterial);
+  plant.userData.proto = "native_test";
+  const warn = console.warn;
+  let cloneWarnings = 0;
+  let native;
+  try {
+    console.warn = (...args) => {
+      if (args.some((arg) => String(arg).includes("Textures of render targets cannot be cloned"))) cloneWarnings++;
+      else warn(...args);
+    };
+    native = propsModule.createProps([plant], wire({ protos: [{ name: "native_test", box: [1, 1, 1] }], count: 1 }, [[0, 9240, 0, -4300, 0, 100, 1000, 0]]));
+  } finally {
+    console.warn = warn;
+  }
+  assert.equal(cloneWarnings, 0);
+  const baked = native.group.children.find((mesh) => mesh.isBaked);
+  assert.ok(baked, "small props exercise batching and geometry disposal");
+  assert.equal(baked._indirectTexture.type, three.UnsignedIntType);
+  assert.equal(baked.material.uniforms.uSpill.value, sharedTarget.texture);
+  let released = 0;
+  let sharedReleased = false;
+  sharedTarget.texture.addEventListener("dispose", () => { sharedReleased = true; });
+  baked._indirectTexture.addEventListener("dispose", () => released++);
+  native.dispose();
+  assert.equal(released, 1);
+  assert.equal(sharedReleased, false, "prop disposal keeps borrowed render targets alive");
+  sharedTarget.dispose();
+  plant.geometry.dispose();
+  plantMaterial.dispose();
   core.geometry.dispose();
   pack.geometry.dispose();
   material.dispose();
@@ -450,6 +525,154 @@ check("floor normal recovery updates sampler presence and clears stale slots", (
   assert.equal(material.uniforms.uMap.value, null);
   assert.equal(material.uniforms.uRough.value, null);
   registry.dispose(); source.dispose();
+});
+
+check("world-space batching supplies typed identity textures and releases them", () => {
+  const geometry = new three.BoxGeometry();
+  const material = new three.MeshStandardMaterial();
+  const runs = { cell: Int32Array.of(-1, -1), start: Int32Array.of(0, 3), count: Int32Array.of(3, 3) };
+  const mesh = new mergeModule.Tiled(geometry, material, mergeModule.createCells(48), runs);
+  const twin = new three.Mesh(geometry, material);
+  mergeModule.asOneRun(twin);
+  assert.equal(mesh._matricesTexture, twin._matricesTexture);
+  assert.equal(mesh._indirectTexture, twin._indirectTexture);
+  assert.equal(mesh._matricesTexture.type, three.FloatType);
+  assert.deepEqual([...mesh._matricesTexture.image.data], new three.Matrix4().elements);
+  const original = mesh._indirectTexture;
+  let released = 0;
+  original.addEventListener("dispose", () => released++);
+  mergeModule.identityBatching(mesh, 17);
+  assert.equal(released, 1);
+  assert.equal(mesh._indirectTexture, twin._indirectTexture);
+  assert.equal(mesh._indirectTexture.format, three.RedIntegerFormat);
+  assert.equal(mesh._indirectTexture.type, three.UnsignedIntType);
+  assert.ok(mesh._indirectTexture.image.data instanceof Uint32Array);
+  assert.ok(mesh._indirectTexture.image.data.length >= 17);
+  assert.ok(mesh._indirectTexture.image.data.every((id) => id === 0));
+  mesh._matricesTexture.addEventListener("dispose", () => released++);
+  mesh._indirectTexture.addEventListener("dispose", () => released++);
+  geometry.dispose();
+  assert.equal(released, 3);
+  assert.equal(mesh._matricesTexture, null);
+  assert.equal(twin._indirectTexture, null);
+  material.dispose();
+});
+
+check("resting garage preparation uploads once per frame without drawing", () => {
+  const callbacks = new Map(), jobs = [1, 2, 3, 4], completed = [];
+  let id = 0, allowed = true;
+  const pump = garage.createGarageUploadPump({
+    run: () => completed.push(jobs.shift()), pending: () => jobs.length > 0, canRun: () => allowed,
+    schedule: (fn) => { callbacks.set(++id, fn); return id; }, cancel: (key) => callbacks.delete(key),
+  });
+  const frame = () => {
+    const next = [...callbacks.values()];
+    callbacks.clear();
+    next.forEach((fn) => fn());
+  };
+  pump.wake(); pump.wake();
+  assert.equal(callbacks.size, 1, "parallel uploads share one preparation frame");
+  frame();
+  assert.deepEqual(completed, [1], "only one upload runs per frame");
+  allowed = false;
+  frame();
+  assert.deepEqual(completed, [1], "an active renderer or sampling retains its queue");
+  assert.equal(callbacks.size, 0, "ineligible preparation does not keep a frame loop");
+  allowed = true;
+  pump.wake(); frame(); frame(); frame();
+  assert.deepEqual(completed, [1, 2, 3, 4]);
+  assert.equal(callbacks.size, 0, "settled preparation has no recurring frame");
+  jobs.push(5);
+  pump.wake();
+  const stale = [...callbacks.values()][0];
+  pump.dispose();
+  assert.equal(callbacks.size, 0);
+  stale(); pump.wake();
+  assert.deepEqual(completed, [1, 2, 3, 4], "disposal cancels pending and stale callbacks");
+});
+
+check("portal visibility keeps real openings for main and reflected cameras", () => {
+  const anchors = new Map([["anchor_garage_portal_door", { position: new Vector3(452, 2.3, -215), quaternion: new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2), extras: { width: 6, height: 4.6 } }]]);
+  const visibility = garage.createGarageVisibility(anchors);
+  const camera = new three.PerspectiveCamera(60, 1.6, .1, 2000);
+  const box = (x, y, z) => new three.Box3(new Vector3(x - .1, y - .1, z - .1), new Vector3(x + .1, y + .1, z + .1));
+  camera.position.set(462, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
+  assert.ok(visibility.test(box(440, 1, -215)), "street through the doorway");
+  assert.ok(!visibility.test(box(440, 1, -150)), "street hidden by the side wall");
+  assert.ok(visibility.test(box(467, 1, -225), "garage_s6"), "open room remains visible");
+  camera.position.y = -2; camera.updateMatrixWorld(); visibility.prepare(camera);
+  assert.ok(visibility.test(box(440, 1, -215)), "reflected aperture keeps street light");
+  camera.position.set(440, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
+  assert.ok(visibility.test(box(462, 2, -215), "garage_s4"));
+  assert.ok(!visibility.test(box(462, 2, -225), "garage_s6"), "outside cannot see through a closed wall");
+  assert.ok(visibility.test(box(440, 1, -150)), "exterior culling is unchanged outdoors");
+});
+
+check("immersive Arrival fits its sticky controls and has an inverse mapping", () => {
+  const shots = [{ id: "stack", top: 1000, height: 1000 }, { id: "garage", top: 3000, height: 7000 }, { id: "contact", top: 11000, height: 1000 }];
+  const [start, end] = scrollModule.holdRange(shots, 1, 1000, 11000);
+  assert.equal(start, 3000);
+  assert.equal(scrollModule.holdRange(shots, 0, 1000, 11000)[1], 1000);
+  assert.equal(scrollModule.positionAt(shots, start, 1000, 11000), 1);
+  for (const p of [0, .2, .4, .6, .8, 1]) {
+    const y = scrollModule.garageScrollFor(p, shots, 1000, 11000);
+    assert.ok(Math.abs(scrollModule.garageProgressAt(shots, y, 1000, 11000) - p) < 1e-10);
+    assert.ok(y >= start && y <= end);
+  }
+  shots[1].height = 2500;
+  assert.equal(scrollModule.holdRange(shots, 1, 1000, 11000)[0], 2800, "text keeps the ordinary mapping");
+});
+
+check("Smasher art keeps its declared clamped map and neutral base", () => {
+  const registry = materialModule.createGarageMaterials({});
+  const source = new three.MeshStandardMaterial();
+  source.name = "NCW_garage_identity_poster";
+  source.side = three.DoubleSide;
+  source.map = new three.Texture();
+  source.userData = { runtime: "painted_wall", slots: '["baseColor"]', wrap: "clamp", params: { baseTint: "#ffffff", uvScale: [1, 1] } };
+  assert.ok(registry.owns(source));
+  const material = registry.forName(source);
+  assert.equal(material.uniforms.uMap.value, source.map);
+  assert.equal(source.map.colorSpace, three.SRGBColorSpace);
+  assert.equal(source.map.wrapS, three.ClampToEdgeWrapping);
+  assert.equal(source.map.wrapT, three.ClampToEdgeWrapping);
+  assert.equal(material.uniforms.uBase.value.getHex(), 0xffffff);
+  assert.equal(material.side, three.DoubleSide, "the thin print stays visible from the room");
+  assert.deepEqual(registry.missing, []);
+  registry.dispose(); source.dispose();
+});
+
+// Exercise the car adapter boundary, including another camera and a query
+// after the owner attaches its rig. Child visibility must never expose it.
+const presentationScene = new three.Scene();
+let pendingRoot, pendingShadow, pendingContext, pendingDisposed = false;
+const pendingCars = garage.createGaragePresentation((context) => {
+  pendingContext = context;
+  pendingRoot = new three.Group(); pendingShadow = new three.Group();
+  context.scene.add(pendingRoot, pendingShadow);
+  const rows = [{ carId: "s4" }, { carId: "s6" }];
+  return { ready: Promise.resolve(), stats: { s6: { placeholder: true } },
+    bounds: () => rows, anchors: () => rows, occluders: () => rows,
+    attach: () => { pendingRoot.visible = pendingShadow.visible = true; },
+    pick: () => pendingRoot.visible ? { carId: "s6" } : { carId: "s4" },
+    flash: (id) => id, dispose: () => { pendingDisposed = true; },
+  };
+}, { scene: presentationScene }, { s6Available: false });
+await pendingCars.ready;
+check("unavailable S6 stays invisible and absent from physical queries", () => {
+  pendingCars.attach();
+  assert.equal(pendingContext.placeholder, true);
+  assert.equal(pendingRoot.parent.visible, false);
+  assert.equal(pendingShadow.parent.visible, false);
+  for (const query of ["bounds", "anchors", "occluders"]) assert.deepEqual(pendingCars[query]().map((r) => r.carId), ["s4"]);
+  assert.equal(pendingCars.pick({}).carId, "s4");
+  assert.equal(pendingRoot.visible, true, "query restores the owner's child state");
+  assert.equal(pendingCars.flash("s6"), null);
+  assert.equal(pendingCars.flash("s4"), "s4");
+  assert.equal(pendingCars.stats.s6.visitorOmitted, true);
+  pendingCars.dispose();
+  assert.ok(pendingDisposed);
+  assert.equal(presentationScene.children.length, 0);
 });
 
 // Rig geometry needs no texture pixels. Resolve before phone preparation and
