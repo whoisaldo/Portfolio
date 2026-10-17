@@ -67,14 +67,14 @@
    "name": "anchor_garage_art_smasher",
    "kind": "anchor",
    "at": [
-    475.42,
-    4.0,
+    475.43,
+    4.13,
     -212.5
    ],
    "yaw": -1.5708,
    "district": "afterlife",
    "extras": {
-    "width": 2.0,
+    "width": 1.8,
     "height": 2.7,
     "mesh": "garage_identity_poster",
     "pack": "garage",
@@ -122,8 +122,7 @@
     "what": "Rebecca's Guts on its wall pegs",
     "proto": "garage_guts_pegs",
     "pack": "garage",
-    "visibilitySector": "garage_shop",
-    "pending": "G1"
+    "visibilitySector": "garage_shop"
    }
   },
   {
@@ -140,8 +139,7 @@
     "what": "David's yellow jacket draped on its rolling chair",
     "proto": "garage_jacket_chair",
     "pack": "garage",
-    "visibilitySector": "garage_shop",
-    "pending": "G1"
+    "visibilitySector": "garage_shop"
    }
   },
   {
@@ -369,19 +367,73 @@
    }
   },
   {
-   "name": "anchor_garage_light_bench_amber",
+   "name": "anchor_garage_light_bench_amber_1",
    "kind": "anchor",
    "at": [
-    475.42,
-    2.39,
+    475.39,
+    2.35,
+    -217.9
+   ],
+   "yaw": -1.5708,
+   "district": "afterlife",
+   "extras": {
+    "kind": "tube",
+    "length": 2.3,
+    "width": 0.03,
+    "color": "#ffb254",
+    "intensity": 0.8,
+    "bay": "shop",
+    "aim": [
+     474.5,
+     0.9,
+     -215.5
+    ],
+    "fixture": "bench_amber",
+    "pack": "garage",
+    "visibilitySector": "garage_shop"
+   }
+  },
+  {
+   "name": "anchor_garage_light_bench_amber_2",
+   "kind": "anchor",
+   "at": [
+    475.39,
+    2.35,
     -215.5
    ],
    "yaw": -1.5708,
    "district": "afterlife",
    "extras": {
     "kind": "tube",
-    "length": 7.2,
-    "width": 0.07,
+    "length": 2.3,
+    "width": 0.03,
+    "color": "#ffb254",
+    "intensity": 0.8,
+    "bay": "shop",
+    "aim": [
+     474.5,
+     0.9,
+     -215.5
+    ],
+    "fixture": "bench_amber",
+    "pack": "garage",
+    "visibilitySector": "garage_shop"
+   }
+  },
+  {
+   "name": "anchor_garage_light_bench_amber_3",
+   "kind": "anchor",
+   "at": [
+    475.39,
+    2.35,
+    -213.1
+   ],
+   "yaw": -1.5708,
+   "district": "afterlife",
+   "extras": {
+    "kind": "tube",
+    "length": 2.3,
+    "width": 0.03,
     "color": "#ffb254",
     "intensity": 0.8,
     "bay": "shop",
@@ -428,14 +480,14 @@
    "at": [
     457.5,
     2.9,
-    -229.28
+    -229.38
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
     "kind": "tube",
     "length": 1.8,
-    "width": 0.064,
+    "width": 0.06,
     "color": "#27dcf2",
     "intensity": 0.7,
     "bay": "room",
@@ -455,14 +507,14 @@
    "at": [
     462.0,
     2.9,
-    -229.28
+    -229.38
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
     "kind": "tube",
     "length": 1.8,
-    "width": 0.064,
+    "width": 0.06,
     "color": "#27dcf2",
     "intensity": 0.7,
     "bay": "room",
@@ -482,14 +534,14 @@
    "at": [
     466.5,
     2.9,
-    -229.28
+    -229.38
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
     "kind": "tube",
     "length": 1.8,
-    "width": 0.064,
+    "width": 0.06,
     "color": "#27dcf2",
     "intensity": 0.7,
     "bay": "room",
@@ -509,14 +561,14 @@
    "at": [
     471.0,
     2.9,
-    -229.28
+    -229.38
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
     "kind": "tube",
     "length": 1.8,
-    "width": 0.064,
+    "width": 0.06,
     "color": "#27dcf2",
     "intensity": 0.7,
     "bay": "room",
@@ -870,16 +922,16 @@
    "name": "anchor_garage_light_screen",
    "kind": "anchor",
    "at": [
-    475.37,
-    3.48,
+    475.4,
+    3.57,
     -215.5
    ],
    "yaw": -1.5708,
    "district": "afterlife",
    "extras": {
     "kind": "screen",
-    "length": 2.431,
-    "width": 1.36,
+    "length": 2.43,
+    "width": 1.367,
     "color": "#c8d2ff",
     "intensity": 0.4,
     "bay": "shop",
@@ -1202,14 +1254,14 @@
    "at": [
     463.55,
     2.9,
-    -200.72
+    -200.62
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
     "kind": "tube",
     "length": 1.8,
-    "width": 0.064,
+    "width": 0.06,
     "color": "#ff2e88",
     "intensity": 0.7,
     "bay": "room",
@@ -1229,14 +1281,14 @@
    "at": [
     469.15,
     2.9,
-    -200.72
+    -200.62
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
     "kind": "tube",
     "length": 1.8,
-    "width": 0.064,
+    "width": 0.06,
     "color": "#ff2e88",
     "intensity": 0.7,
     "bay": "room",
@@ -1256,14 +1308,14 @@
    "at": [
     472.85,
     2.9,
-    -200.72
+    -200.62
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
     "kind": "tube",
     "length": 1.8,
-    "width": 0.064,
+    "width": 0.06,
     "color": "#ff2e88",
     "intensity": 0.7,
     "bay": "room",
@@ -1291,8 +1343,7 @@
     "what": "Maine's arm cannon in its service cradle, on the bench",
     "proto": "garage_maine_cradle",
     "pack": "garage",
-    "visibilitySector": "garage_shop",
-    "pending": "G1"
+    "visibilitySector": "garage_shop"
    }
   },
   {
