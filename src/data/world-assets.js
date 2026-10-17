@@ -17,7 +17,7 @@ export const worldPackUrl = {
     santo: "/scenes/world/world-high-santo.glb?v=393081436fea",
     japantown: "/scenes/world/world-high-japantown.glb?v=c9f95a9610c9",
     mega: "/scenes/world/world-high-mega.glb?v=869e25e56028",
-    garage: "/scenes/world/world-high-garage.glb?v=de4230332255",
+    garage: "/scenes/world/world-high-garage.glb?v=c5a9413e7210",
   },
   phone: {
     south: "/scenes/world/world-phone-south.glb?v=e666bdc87936",
@@ -29,7 +29,7 @@ export const worldPackUrl = {
     santo: "/scenes/world/world-phone-santo.glb?v=d4a786dc2c05",
     japantown: "/scenes/world/world-phone-japantown.glb?v=741dad9fec5a",
     mega: "/scenes/world/world-phone-mega.glb?v=1f22aae9a915",
-    garage: "/scenes/world/world-phone-garage.glb?v=ad6a5655cb34",
+    garage: "/scenes/world/world-phone-garage.glb?v=74266a22ea6a",
   },
 };
 export const worldMoonUrl = "/scenes/world/moon.webp?v=96aaeaea7d25";
@@ -66,11 +66,11 @@ export const worldShopsUrl = {
 // its layout (cameras, paths, lights, sectors, portals, collision) for the
 // tools and the braindance.
 export const worldPackPropsUrl = {
-  high: { garage: "/scenes/world/props-high-garage.bin.gz?v=6f6d9e4d2a18" },
-  phone: { garage: "/scenes/world/props-phone-garage.bin.gz?v=9e1adeeaa598" },
+  high: { garage: "/scenes/world/props-high-garage.bin.gz?v=16ec37dd8976" },
+  phone: { garage: "/scenes/world/props-phone-garage.bin.gz?v=7fd9d24d5e5f" },
 };
 // No worldGarageBoardsUrl: the garage's photographs are off.
-export const worldGarageLayoutUrl = "/scenes/world/garage-layout.json?v=82e8e4fdeb7c";
+export const worldGarageLayoutUrl = "/scenes/world/garage-layout.json?v=11a792e0a6c7";
 export const worldPropsUrl = {
   high: "/scenes/world/props-high.bin.gz?v=abefd9862fd2",
   phone: "/scenes/world/props-phone.bin.gz?v=84f3394e4785",
