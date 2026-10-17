@@ -460,17 +460,17 @@ export function createGarageCars(ctx) {
     setDriving(on) {
       if (disposed) return;
       driving = Boolean(on);
-      if (driving) { departure = { active: false, cameraClear: true, liftDown: true }; closing = 0; asked.s4 = 0; setHoods(); road.setInside(null); }
+      if (driving) { closing = 0; setHoods(); road.setInside(null); }
       if (made.s4) road.setInspection(made.s4.root, attached && !driving && road.mode !== "free" && road.atBay);
     },
     // Apply recording/seek state synchronously BEFORE B5/B6 collision
-    // queries. No update(dt), tween or rendered frame is needed. A seek
-    // cancels a prior exit hold, and bounds() reads the new hood geometry.
-    applyState(state = {}) {
+    // queries. Continuous state updates preserve physical departure gates.
+    // A deliberate seek can explicitly cancel the previous owner's exit.
+    applyState(state = {}, { seek = false } = {}) {
       if (disposed) return;
-      api.setDeparture({ active: false, cameraClear: true, liftDown: true });
+      if (seek) api.setDeparture({ active: false, cameraClear: true, liftDown: true });
       api.setDriving(state.driving ?? false);
-      closing = driving ? 0 : 1;
+      closing = driving || road.mode === "free" ? 0 : departure.active ? closing : 1;
       for (const carId of ["s4", "s6"]) if (state.hood?.[carId] != null) asked[carId] = clamp(state.hood[carId]);
       setHoods();
       if (state.lowering != null) api.setLowering(state.lowering);
@@ -487,7 +487,7 @@ export function createGarageCars(ctx) {
     setDeparture(state = {}) {
       if (state.active && !departure.active) departure = { active: true, cameraClear: false, liftDown: false };
       departure = { ...departure, ...state };
-      if (!departure.active) { closing = 1; setHoods(); }
+      if (!departure.active) { closing = driving || road.mode === "free" ? 0 : 1; setHoods(); }
     },
     holdS4(fn) { externalHold = fn; },
     update(dt = 0) {
