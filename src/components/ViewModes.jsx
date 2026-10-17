@@ -54,14 +54,12 @@ export default function ViewModes() {
     const preparation = getWorld()?.garage?.prepare();
     if (!preparation) { cancel(); return; }
     preparation.then((complete) => {
-      if (!complete) return;
+      if (!complete) { cleanup(); return; }
       requestAnimationFrame(() => requestAnimationFrame(() => {
         if (!cancelled && pendingMode.current === token && stage.section === "garage" && stage.view === "page" && stage.garageVisit) setView(view);
+        cleanup();
       }));
-    }).catch(() => {}).finally(() => {
-      if (cancelled) cleanup();
-      else requestAnimationFrame(cleanup);
-    });
+    }).catch(cleanup);
   }, [view, section]);
   useEffect(() => () => pendingMode.current?.cancel(), []);
   // The film stays mounted a moment after it ends, so its bars can lift as

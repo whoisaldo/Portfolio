@@ -1448,14 +1448,16 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let manual = { selection: null, hood: { s4: null, s6: null }, lowering: null };
   const applyGarageState = () => {
     if (!garageCars || flight?.garage) return;
-    const state = garageState();
-    const indoors = camera.position.x > 451.5 && camera.position.x < 476 && camera.position.z > -230 && camera.position.z < -200;
+    const tape = directed?.garage;
+    const defaults = tape?.p != null ? visit.stateAt(tape.p, reduced) : { hood: { s4: 0, s6: 0 }, lowering: 0 };
+    const state = tape ? { ...garageState(), hood: tape.hood ?? defaults.hood, lowering: tape.lowering ?? defaults.lowering } : garageState();
+    const indoors = tape ? Boolean(tape.active) : camera.position.x > 451.5 && camera.position.x < 476 && camera.position.z > -230 && camera.position.z < -200;
     if (indoors && garageAvailable === "ready") garageCars.attach();
     else garageCars.detach();
     garageCars.setHood("s4", state.hood.s4);
     garageCars.setHood("s6", state.hood.s6);
     garageCars.setLowering(state.lowering);
-    garageCars.setInside(clamp((camera.position.x - 451.5) / 4, 0, 1));
+    garageCars.setInside(tape ? Number(Boolean(tape.active)) : clamp((camera.position.x - 451.5) / 4, 0, 1));
     const endpoint = (v) => v <= 0 ? 0 : v >= 1 ? 1 : "moving";
     const signature = `${state.station}|${endpoint(state.hood.s4)}|${endpoint(state.hood.s6)}|${endpoint(state.lowering)}`;
     if (signature !== lastGarageSignature) {
@@ -2019,7 +2021,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       pixelRatio: renderer.getPixelRatio(),
       adapt: { shed: [...adapt.shed], p95: adapt.p95, sampling: adapt.sampling },
       packs: [...packsIn],
-      packsTotal: PACKS.length,
+      packsTotal: PACKS.length + Number(hasGaragePack(tier)),
     };
   };
 
@@ -2095,8 +2097,16 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         saveState: () => ({ ...manual, hood: { ...manual.hood } }),
         restoreState(saved) { if (saved) { manual = { ...saved, hood: { ...saved.hood } }; publishGarage(); } },
         select(selection) { manual.selection = selection; publishGarage(); },
-        setHood(id, value) { if (id in manual.hood) { manual.hood[id] = value == null ? null : Number(value); publishGarage(); } },
-        setStance(value) { manual.lowering = value == null ? null : value === "lowered" ? 1 : 0; publishGarage(); },
+        setHood(id, value) { if (id in manual.hood) {
+          manual.hood[id] = value == null ? null : Number(value);
+          garageCars?.setHood(id, manual.hood[id] ?? visit.stateAt(stage.garageProgress, reduced).hood[id]);
+          publishGarage();
+        } },
+        setStance(value) {
+          manual.lowering = value == null ? null : value === "lowered" ? 1 : 0;
+          garageCars?.setLowering(manual.lowering ?? visit.stateAt(stage.garageProgress, reduced).lowering);
+          publishGarage();
+        },
         resumeTour() { manual = { selection: null, hood: { s4: null, s6: null }, lowering: null }; publishGarage(); },
         /** The room's pack, built in (resolves false with none to build). */
         prepare: prepareGarage,

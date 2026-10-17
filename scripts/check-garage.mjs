@@ -301,6 +301,10 @@ check("camera collision is independent of visibility", () => {
   assert.equal(clear.ok, true);
   const pose = { position: new Vector3(1.8, 1, 0), target: new Vector3(3, 1, 0), fov: 60 };
   assert.equal(collision.nearPlane(pose, 16 / 10, .25), 0);
+  const rolled = createGarageCollision({ solids: () => [{ box: new Box3(new Vector3(2.5, -.1, -1.1), new Vector3(3.5, .1, -.9)) }] });
+  const view = { position: new Vector3(), target: new Vector3(0, 0, -1), fov: 90 };
+  assert.equal(rolled.nearPlane(view, 4, 1), 0);
+  assert.ok(rolled.nearPlane({ ...view, roll: Math.PI / 2 }, 4, 1) > 1, "near plane follows camera roll");
   collision.solids[0].box.min.x = -50;
   assert.equal(collision.clearance(new Vector3(0, 1, 0)), 2, "read-only snapshots do not mutate collision");
 });

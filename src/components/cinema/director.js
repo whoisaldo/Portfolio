@@ -25,8 +25,8 @@
 // the page pans through the section's visit at an even pace, so the camera
 // makes the same route the reader's scroll makes (src/world/garage.js),
 // with a caption at each station. If the reader was looking at the
-// photographs, the film holds the visit's layout for its pass and gives
-// the photographs back as they were when it ends (src/routes/Home.jsx).
+// text fallback, the film waits for a complete room and restores the
+// saved content and manual state when it ends (src/routes/Home.jsx).
 // Without the visit the garage holds as it always has.
 import { stage, getWorld, setActiveProject, setActiveRole } from "../../world/stage";
 import { setView } from "../../world/modes";
@@ -41,9 +41,7 @@ import { sections } from "../../data/site";
 import { GARAGE_STATIONS, GARAGE_TIMELINE } from "../../data/world";
 import { filmCanVisit, setGarageView } from "../../lib/garage3d";
 
-// The S6's facts (src/data/garage-s6.js) once that file is: a glob, so its
-// absence is no error, and the S6's captions are its station's names.
-const S6 = Object.values(import.meta.glob("../../data/garage-s6.js", { eager: true }))[0]?.car ?? null;
+import { car as S6 } from "../../data/garage-s6";
 
 // The visit's pass: how long the page takes over it, and where each
 // station's caption comes up, at the start of the stretch that arrives at
@@ -95,7 +93,7 @@ function visitCaption(st, label) {
 }
 
 /** What each shot does while it holds. Unknown shots hold six seconds. */
-function sceneFor(id, { visit = false } = {}) {
+function sceneFor(id) {
   const label = labelOf(id);
   switch (id) {
     case "hero":
@@ -149,25 +147,16 @@ function sceneFor(id, { visit = false } = {}) {
       };
     }
     case "garage":
-      if (visit) {
-        return {
-          id,
-          label,
-          hold: VISIT_HOLD,
-          flight: VISIT_FLIGHT,
-          pan: true,
-          beats: GARAGE_STATIONS.map((st) => ({
-            at: Math.max(0.4, arrivesAt(st.id === "s6" ? "s6_rear" : st.pose) * VISIT_HOLD),
-            caption: visitCaption(st, label),
-          })),
-        };
-      }
       return {
         id,
         label,
-        hold: 6.5,
-        flight: 5,
-        beats: [{ at: 0.4, caption: { label, title: `${car.year} ${car.name}`, line: `${car.engine} · ${car.output}` } }],
+        hold: VISIT_HOLD,
+        flight: VISIT_FLIGHT,
+        pan: true,
+        beats: GARAGE_STATIONS.map((st) => ({
+          at: Math.max(0.4, arrivesAt(st.id === "s6" ? "s6_rear" : st.pose) * VISIT_HOLD),
+          caption: visitCaption(st, label),
+        })),
       };
     case "contact":
       return { id, label, hold: 5, flight: 0, credits: true, beats: [{ at: 0.4, caption: { label, title: primaryEmail, line: profile.base } }] };
@@ -183,10 +172,9 @@ function sceneFor(id, { visit = false } = {}) {
  */
 export function createDirector({ onChange = () => {} } = {}) {
   const ids = stage.shots.map((s) => s.id);
-  // The garage's visit, if it is ready now; held in its layout until the
-  // film is done with it.
-  const visit = true;
-  const scenes = ids.map((id) => sceneFor(id, { visit }));
+  // The workshop chapter always uses the visit. Its readiness gate keeps
+  // the readable text available if the room cannot yet be drawn.
+  const scenes = ids.map(sceneFor);
   // Each scene's start on the film's clock: its hold, then its flight out.
   let at = 0;
   for (const s of scenes) {
@@ -349,7 +337,7 @@ export function createDirector({ onChange = () => {} } = {}) {
     },
     /** The film has the page: from the top, the reader's wheel held. */
     begin() {
-      if (visit) setGarageView({ film: true });
+      setGarageView({ film: true });
       getWorld()?.garage?.prepare().catch(() => {});
       holdScroll("cinema", true);
       director.goto(0);
@@ -366,7 +354,7 @@ export function createDirector({ onChange = () => {} } = {}) {
       setActiveRole(saved.roles);
       getWorld()?.garage?.restoreState?.(saved.garage);
       holdScroll("cinema", false);
-      if (visit) setGarageView({ film: false });
+      setGarageView({ film: false });
     },
   };
   return director;

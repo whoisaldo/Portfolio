@@ -37,10 +37,8 @@ import { isPlaying, startAmbient } from "../../lib/ambient";
 import { CRUISE_GAIN, DROP } from "../../lib/cues";
 import "./cinema.css";
 
-// The S6 and the models' credits, once their files are (src/data/garage-s6.js,
-// src/data/garage-credits.js): globs, so their absence is no error.
-const S6 = Object.values(import.meta.glob("../../data/garage-s6.js", { eager: true }))[0]?.car ?? null;
-const CREDITS = Object.values(import.meta.glob("../../data/garage-credits.js", { eager: true }))[0]?.garageCredits ?? [];
+import { car as S6 } from "../../data/garage-s6";
+import { garageCredits as CREDITS } from "../../data/garage-credits";
 
 const FPS = 24;
 const pad = (n, w = 2) => String(Math.floor(n)).padStart(w, "0");

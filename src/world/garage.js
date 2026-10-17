@@ -665,10 +665,15 @@ export function createGarageCollision({ solids = () => [], cars = () => [] } = {
       }
       return { ok: t >= 1, t: clamp(t, 0, 1), point: a.clone().lerp(b, clamp(t, 0, 1)) };
     },
-    nearPlane(pose, aspect, near = .25) {
+    nearPlane(pose, aspect, near = .1) {
       const forward = new THREE.Vector3().subVectors(pose.target, pose.position).normalize();
       const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
       const up = new THREE.Vector3().crossVectors(right, forward);
+      if (pose.roll) {
+        const rotation = new THREE.Quaternion().setFromAxisAngle(forward, -pose.roll);
+        right.applyQuaternion(rotation);
+        up.applyQuaternion(rotation);
+      }
       const height = near * Math.tan(pose.fov * Math.PI / 360);
       const center = pose.position.clone().addScaledVector(forward, near).addScaledVector(up, -(pose.shift ?? 0) * height);
       const bounds = new THREE.Box3();

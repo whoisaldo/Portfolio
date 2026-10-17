@@ -14,10 +14,10 @@ import { GARAGE_PHOTOS_ENABLED } from "../components/garage/features";
 import { ackGarageRequest, latestGarageRequest, subscribeGarageRequests } from "../lib/garage";
 import { getGarageView, setGarageView } from "../lib/garage3d";
 import { getWorld, useStage } from "../world/stage";
+import { garageCredits as credits } from "../data/garage-credits";
 import { GARAGE_STATIONS } from "../data/world";
 
 const ArchivedPhotos = lazy(() => import("../components/garage/GaragePhotos"));
-const credits = Object.values(import.meta.glob("../data/garage-credits.js", { eager: true }))[0]?.garageCredits ?? [];
 const cars = Object.fromEntries(CARS.map((car) => [car.id, car]));
 const stationOf = ({ carId, modId }) => findMod(carId, modId)?.station ?? carId;
 
@@ -30,6 +30,7 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
   const [partsOpen, setPartsOpen] = useState(false);
   const [previousLayout, setPreviousLayout] = useState(cinematic);
   const [applied, setApplied] = useState(null);
+  const savedOverrides = useRef(null);
   if (cinematic !== previousLayout) {
     setPreviousLayout(cinematic);
     if (cinematic && restoreAnchor?.startsWith("part:")) setPartsOpen(true);
@@ -39,6 +40,7 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     if (next && !cars[next.carId]?.mods.some((mod) => mod.id === next.modId)) return false;
     setSelection(next);
     setGarageView({ selection: next });
+    if (savedOverrides.current) savedOverrides.current.selection = next;
     if (next) {
       setActiveCar(next.carId);
       setGarageView({ textStation: stationOf(next) });
@@ -50,13 +52,23 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     if (!GARAGE_STATIONS.some((item) => item.id === id)) return;
     setStation(id);
     setSelection(null);
+    savedOverrides.current = null;
     if (id.startsWith("s4") || id.startsWith("s6")) setActiveCar(id.slice(0, 2));
     setGarageView({ textStation: id });
     adapter()?.goStation(id);
   }, []);
+  useLayoutEffect(() => {
+    if (!cinematic) return;
+    const g = adapter();
+    if (savedOverrides.current) g?.restoreState?.({ ...savedOverrides.current, selection });
+    else g?.select?.(selection);
+  }, [cinematic, context, selection]);
   useEffect(() => {
     if (!cinematic) return undefined;
-    return adapter()?.subscribe?.((state) => {
+    const g = adapter();
+    savedOverrides.current = g?.saveState?.() ?? savedOverrides.current;
+    return g?.subscribe?.((state) => {
+      savedOverrides.current = g.saveState?.() ?? savedOverrides.current;
       if (state.station) setStation(state.station);
       if (state.selection !== undefined) setSelection(state.selection);
     });
