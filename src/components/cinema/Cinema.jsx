@@ -37,6 +37,11 @@ import { isPlaying, startAmbient } from "../../lib/ambient";
 import { CRUISE_GAIN, DROP } from "../../lib/cues";
 import "./cinema.css";
 
+// The S6 and the models' credits, once their files are (src/data/garage-s6.js,
+// src/data/garage-credits.js): globs, so their absence is no error.
+const S6 = Object.values(import.meta.glob("../../data/garage-s6.js", { eager: true }))[0]?.car ?? null;
+const CREDITS = Object.values(import.meta.glob("../../data/garage-credits.js", { eager: true }))[0]?.garageCredits ?? [];
+
 const FPS = 24;
 const pad = (n, w = 2) => String(Math.floor(n)).padStart(w, "0");
 const timecode = (t) => `${pad(t / 3600)}:${pad((t / 60) % 60)}:${pad(t % 60)}:${pad((t % 1) * FPS)}`;
@@ -286,11 +291,32 @@ function Credits({ onDone }) {
           </p>
         ))}
 
-        <h3>The car</h3>
+        <h3>{S6 ? "The cars" : "The car"}</h3>
         <p>
           {car.year} {car.name}
           <span>{car.engine}</span>
         </p>
+        {S6 && (
+          <p>
+            {S6.year} {S6.name}
+            <span>{S6.engine}</span>
+          </p>
+        )}
+
+        {CREDITS.length > 0 && (
+          <>
+            <h3>Models</h3>
+            {CREDITS.map((c) => (
+              <p key={c.id}>
+                {c.url ? <a href={c.url} target="_blank" rel="noreferrer">{c.title}</a> : c.title}
+                <span>
+                  {c.authorUrl ? <a href={c.authorUrl} target="_blank" rel="noreferrer">{c.author}</a> : c.author} · {c.licenseUrl ? <a href={c.licenseUrl} target="_blank" rel="noreferrer">{c.license}</a> : c.license}
+                  {c.changes ? ` · ${c.changes}` : ""}
+                </span>
+              </p>
+            ))}
+          </>
+        )}
 
         <h3>Contact</h3>
         <p>{primaryEmail}</p>

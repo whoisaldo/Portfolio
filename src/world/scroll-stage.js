@@ -33,8 +33,8 @@
 import Lenis from "lenis";
 import { attachLenis } from "../lib/scroll";
 import { prepareGarageSection } from "../lib/garage3d";
-import { stage, setStage, setHolding, garageCovers, subscribeStage } from "./stage";
-import { shotDim, routeDim, COVER_DIM } from "../data/world";
+import { stage, setStage, setHolding, subscribeStage } from "./stage";
+import { shotDim, routeDim } from "../data/world";
 import { sections as SECTIONS } from "../data/site";
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -163,6 +163,20 @@ export function chapterLabel(id) {
   return i < 0 ? null : { num: String(i).padStart(2, "0"), name: SECTIONS[i].label };
 }
 
+// The running stage, for a layout change that has to be measured before
+// the browser paints it (resyncScrollStage).
+let running = null;
+
+/**
+ * The page changed height under the reader on purpose (the garage switching
+ * between its photographs and its visit, src/routes/Home.jsx): measure it
+ * now, and tell Lenis, so a scroll position set straight after lands where
+ * it is meant to rather than where the old page's limits clamp it.
+ */
+export function resyncScrollStage() {
+  running?.resync();
+}
+
 /**
  * Start measuring and, unless `smooth` is false, smoothing. Returns the
  * teardown. `scrim` is the element whose `--world-dim` this writes;
@@ -217,7 +231,8 @@ export function startScrollStage({ scrim = null, chapter = null, smooth: useLeni
     const shots = stage.shots;
     stage.position = positionAt(shots, y, vh, maxScroll);
     localsAt(shots, y, vh, stage.locals);
-    stage.garageProgress = garageProgressAt(shots, y, vh, maxScroll);
+    // Over the garage's photographs the visit holds at their station.
+    stage.garageProgress = stage.garageHold ?? garageProgressAt(shots, y, vh, maxScroll);
 
     // The section under the middle of the viewport, for anything that wants
     // a name rather than a number.
@@ -242,7 +257,6 @@ export function startScrollStage({ scrim = null, chapter = null, smooth: useLeni
     // study, darker still while the garage's viewer has the screen. Damped,
     // so an overlay arriving or a route changing fades rather than cuts.
     let goal = stage.route.kind === "home" ? dimAt(shots, stage.position) : routeDim(stage.route);
-    if (garageCovers()) goal = Math.max(goal, COVER_DIM.garage);
     // With the page put away (Look, Cinema) there is nothing to read over
     // the city and nothing to dim it for.
     if (stage.view !== "page") goal = 0;
@@ -331,7 +345,7 @@ export function startScrollStage({ scrim = null, chapter = null, smooth: useLeni
   // Dev only: `window.__stage` is the live stage, for checking the maths.
   if (import.meta.env.DEV) window.__stage = stage;
 
-  return {
+  const self = {
     measure,
     lenis,
     /** After a route change: Lenis forgets any glide it was in the middle
@@ -355,6 +369,9 @@ export function startScrollStage({ scrim = null, chapter = null, smooth: useLeni
       scrim?.style.removeProperty("--world-dim");
       chapter?.style.removeProperty("--chapter");
       for (const s of sections) s.el.style.removeProperty("--yield");
+      if (running === self) running = null;
     },
   };
+  running = self;
+  return self;
 }

@@ -1261,6 +1261,11 @@ html[data-world="on"] .group\/panel:focus-within > .stack-chip { background-colo
 .world-canvas.is-live { opacity: 1; }
 .world-scrim { background: #000; opacity: var(--world-dim, 0); }
 html[data-world="on"] .world-clear { background-color: transparent; }
+/* The garage's city alone, under reduced motion (WorldMount.jsx): out of
+   sight until the garage's visit is on screen and a frame of it drawn,
+   then there at once, without a fade. */
+html[data-world-garage="on"] .world-layer { visibility: hidden; }
+html[data-world-garage] .world-canvas { transition: none; }
 /* The chapter card (WorldMount.jsx, driven by scroll-stage.js): the number
    of the section a flight is headed for, in outline at the size of the
    frame, a hairline and the section's own label beside it. It lives on the

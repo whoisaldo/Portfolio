@@ -92,15 +92,6 @@ export const SHOTS = {
 };
 
 /**
- * Where the garage flight ends: GarageModel's `front` preset and lens
- * (PRESETS.front and the 48 degree camera in src/lib/garage-scene.js), in the
- * car's own space. Copied rather than imported, because importing that
- * module would pull the whole interactive garage into the city's chunk;
- * check:world fails if the two ever disagree.
- */
-export const GARAGE_FRONT = { position: [3.6, 1.75, 5.8], target: [0, 1.4, -1], fov: 48 };
-
-/**
  * The visit inside the garage: six stations the camera moves between as the
  * reader scrolls through the section, and the order it takes them in. The
  * section's own progress `p` (0 at the arrival, 1 at the shop wall) is the
@@ -120,7 +111,7 @@ export const GARAGE_STATIONS = [
   { id: "s4-bay", p: 0.4, pose: "s4_bay", label: "S4 engine bay" },
   { id: "s6", p: 0.6, pose: "s6", label: "S6" },
   { id: "s6-bay", p: 0.8, pose: "s6_bay", label: "S6 engine bay" },
-  { id: "shop", p: 1, pose: "shop", label: "Also in the shop" },
+  { id: "shop", p: 1, pose: "shop", label: "Afterlife workbench" },
 ];
 
 /** The beats inside the S6's visit, where its rear and its stance hold. */
@@ -196,12 +187,6 @@ export const GARAGE_STATES = {
  *  anchors in the GLB. */
 export const shotIds = sections.map((s) => s.id);
 
-/** The scrim while something the world makes way for holds the screen. */
-export const COVER_DIM = {
-  // The garage's own 3D viewer: the city steps back to about 15% and stops.
-  garage: 0.85,
-};
-
 /** A case study is the long read: its city is held at about 45%, behind
  *  panes of glass like the home page's. */
 export const ROUTE_DIM = 0.55;
@@ -254,6 +239,7 @@ export const WORLD_SIGNS = {
   afterlife: { draw: "wordmark", lines: ["AFTERLIFE"], color: "#ff2e88", flicker: true },
   ripperdoc: { draw: "ripperdoc", lines: ["RIPPERDOC"], color: "#eceae4", flicker: true },
   // Over the garage's door: the bay's number, as the Garage section labels it.
+  bay_02: { draw: "wordmark", lines: ["BAY 02"], color: "#fcee0a" },
   bay: { draw: "wordmark", lines: ["BAY 01"], color: "#fcee0a" },
   // On its corner, the shop's name as the garage viewer's room carries it.
   garage_blade: { draw: "vertical", lines: ["AFTERLIFE AUTO"], color: "#39dcec", latin: true },

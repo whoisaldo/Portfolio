@@ -13,6 +13,7 @@
 // The old event still goes out with every request, so anything that
 // listened for `{ mod }` keeps working.
 import { scrollToSection } from "./scroll";
+import { prepareGarageSection } from "./garage3d";
 
 export const GARAGE_EVENT = "aly:garage";
 
@@ -27,6 +28,7 @@ const subs = new Set();
  * Returns the request's id.
  */
 export function requestGarage({ carId = "s4", modId = null, station = null, focus = false } = {}) {
+  prepareGarageSection();
   serial += 1;
   latest = { id: serial, carId, modId, station, focus };
   subs.forEach((fn) => fn(latest));
@@ -57,4 +59,18 @@ export function subscribeGarageRequests(fn) {
  *  has replaced it in the meantime. */
 export function ackGarageRequest(id) {
   if (latest && latest.id === id) latest = null;
+}
+
+// Numbered events are emitted by this store. Unnumbered events are older
+// callers, including requests made before the lazy section has mounted.
+if (typeof window !== "undefined") {
+  window.addEventListener(GARAGE_EVENT, ({ detail }) => {
+    if (!detail || detail.id != null) return;
+    requestGarage({
+      carId: detail.carId ?? "s4",
+      modId: detail.modId ?? detail.mod ?? null,
+      station: detail.station ?? null,
+      focus: detail.focus === true,
+    });
+  });
 }

@@ -7,16 +7,8 @@
 // moves the Work shot on the site. What a position cannot say lives in
 // src/data/world.js: the lens, the dim, how the shot moves while it holds.
 //
-// One shot is not an anchor: the garage is GarageModel's `front` preset,
-// re-expressed in the car's bay, so the flight ends where the interactive
-// viewer begins. Or, with the visit inside the garage on (`visit`, src/world/
-// garage.js createGarageVisit), wherever the visit's own route stands at the
-// section's progress: the flight in ends on its arrival, crossing the real
-// door on the visit's entry path, and the flight out leaves from the shop
-// wall along its exit path, out of the door before it rises. The hero is an anchor like the rest, a low camera looking
-// up the avenue; the intro's drift has its own camera (driftPose, the
-// formula drift-scene.js always used) and glides into the hero's during the
-// handoff.
+// The garage follows its authored indoor route. Entry and exit cross the
+// real doorway before joining a street or roof flight.
 //
 // Between two shots the camera flies. In the open it goes up, across and
 // down: a cubic whose inner control points stand above the two shots, so it
@@ -32,7 +24,7 @@
 // the middle of the flight, where the glitch peaks, is the middle of the
 // scroll.
 import * as THREE from "three";
-import { SHOTS, GARAGE_FRONT } from "../data/world.js";
+import { SHOTS } from "../data/world.js";
 
 const DEG = Math.PI / 180;
 const APEX_Z = 5.6;
@@ -133,27 +125,6 @@ const _q = new THREE.Quaternion();
 const _one = new THREE.Vector3(1, 1, 1);
 
 /**
- * GarageModel's front preset, in the world: the preset is in car space (the
- * car faces +Z, rests on y = 0), so it is carried by the bay anchor's
- * position and heading. On a portrait screen garage-scene.js looks at the
- * car's middle and stands 1.2 times further back; so does this.
- */
-export function garagePose(bay, aspect, out = makePose()) {
-  out.position.fromArray(GARAGE_FRONT.position);
-  out.target.fromArray(GARAGE_FRONT.target);
-  if (aspect < 1) {
-    out.target.z = 0;
-    out.position.sub(out.target).multiplyScalar(1.2).add(out.target);
-  }
-  _m.compose(bay.position, bay.quaternion, _one);
-  out.position.applyMatrix4(_m);
-  out.target.applyMatrix4(_m);
-  out.fov = GARAGE_FRONT.fov;
-  out.shift = 0;
-  return out;
-}
-
-/**
  * Shot poses from anchors. `anchors` maps a node name to
  * { position: Vector3, quaternion: Quaternion }; `clearance` is the city's
  * height field (optional); `visit()` the garage's visit while it is on, else
@@ -205,7 +176,7 @@ export function createShots(anchors, clearance = null, { visit = () => null, red
     if (id === "garage") {
       const v = visit();
       if (v) return v.at(local, aspect, out, reduced);
-      return garagePose(anchors.get("anchor_garage_bay"), aspect, out);
+      return anchored("garage", 0, aspect, out);
     }
     return anchored(id, local, aspect, out);
   };

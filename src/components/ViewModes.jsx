@@ -16,19 +16,20 @@
 // a PNG (./photo/postcard.js, also its own chunk), with a note that it was.
 //
 // In Look the city answers back (LookTouch): each shot's own subject can be
-// pointed at and clicked. The S4 at the hero's curb and in the garage blinks
-// its lamps as a key fob makes it; the plaza's big board runs on to the next
+// pointed at and clicked. The S4 at the hero's curb and in the garage, and
+// the S6 parked beside it, blink their lamps as a key fob makes them; the plaza's big board runs on to the next
 // entry of the Work deck; a tower on corpo row lights for its role and the
 // row's dolly goes to it. Pointing at one tags it with what it is, from the
 // data files. Enter does the same for the shot's subject. What Look changed
 // on the board and the row is put back when the page comes back.
-import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Camera, Eye, X } from "lucide-react";
 import { getWorld, setActiveProject, setActiveRole, stage, useStage } from "../world/stage";
 import { featuredProjects } from "../data/projects";
 import { experiences } from "../data/experience";
 import { chapterLabel } from "../world/scroll-stage";
 import { canPutAway, nudgeLook, pageIfGone, PHOTO_EVENT, setView, takePhoto, toggleView } from "../world/modes";
+import { getGarageView } from "../lib/garage3d";
 import { shutterClick } from "../lib/ui-sfx";
 
 const Cinema = lazy(() => import("./cinema/Cinema"));
@@ -36,7 +37,33 @@ const Cinema = lazy(() => import("./cinema/Cinema"));
 const typing = (t) => Boolean(t?.closest?.("input, textarea, select, [contenteditable='true'], [contenteditable='']"));
 
 export default function ViewModes() {
-  const { view, status } = useStage();
+  const { view, status, section } = useStage();
+  const pendingMode = useRef(null);
+  useLayoutEffect(() => {
+    if (section !== "garage") pendingMode.current?.cancel();
+    if (section !== "garage" || view === "page" || getGarageView().availability === "ready") return;
+    pendingMode.current?.cancel();
+    let cancelled = false;
+    const events = ["keydown", "pointerdown", "wheel", "touchstart"];
+    const cleanup = () => events.forEach((name) => window.removeEventListener(name, cancel));
+    const cancel = () => { cancelled = true; cleanup(); };
+    const token = { cancel };
+    pendingMode.current = token;
+    events.forEach((name) => window.addEventListener(name, cancel, { once: true, passive: true }));
+    setView("page");
+    const preparation = getWorld()?.garage?.prepare();
+    if (!preparation) { cancel(); return; }
+    preparation.then((complete) => {
+      if (!complete) return;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (!cancelled && pendingMode.current === token && stage.section === "garage" && stage.view === "page" && stage.garageVisit) setView(view);
+      }));
+    }).catch(() => {}).finally(() => {
+      if (cancelled) cleanup();
+      else requestAnimationFrame(cleanup);
+    });
+  }, [view, section]);
+  useEffect(() => () => pendingMode.current?.cancel(), []);
   // The film stays mounted a moment after it ends, so its bars can lift as
   // the page fades back in rather than vanish under it.
   const [film, setFilm] = useState(false);
@@ -172,18 +199,27 @@ const sectionOf = (id) => {
   return c ? `${c.num} // ${c.name}` : "";
 };
 
-// The garage's data, for the car's tag: fetched as Look starts, because it
-// rides in the garage's lazy chunk and not in the page's entry.
-let CAR = null;
+// The garage's data, for a car's tag: fetched as Look starts, because it
+// rides in the garage's lazy chunk and not in the page's entry. A tag is
+// the car that was picked, the S4 or, parked beside it in the garage, the
+// S6 (whose facts are in src/data/garage-s6.js once that file is: a glob,
+// so its absence is no error).
+let CARS = null;
+const S6_FACTS = Object.values(import.meta.glob("../data/garage-s6.js"))[0] ?? null;
 const loadCar = () =>
-  CAR
-    ? Promise.resolve(CAR)
-    : import("../data/garage").then((m) => (CAR = m.car)).catch(() => null);
+  CARS
+    ? Promise.resolve(CARS)
+    : Promise.all([import("../data/garage").then((m) => m.car), S6_FACTS ? S6_FACTS().then((m) => m.car) : null])
+        .then(([s4, s6]) => (CARS = { s4, s6 }))
+        .catch(() => null);
 
 /** What a tag says about a thing, in the data's own words. The board shows
  *  the Work deck's entries and corpo row has a tower per role, in order. */
 function describe(target) {
-  if (target.kind === "car") return { label: sectionOf("garage"), title: CAR ? `${CAR.year} ${CAR.name}` : "", line: CAR?.engine ?? null, hint: "Click: the lamps" };
+  if (target.kind === "car") {
+    const c = CARS?.[target.slug ?? "s4"];
+    return { label: sectionOf("garage"), title: c ? `${c.year} ${c.name}` : "", line: c?.engine ?? null, hint: "Click: the lamps" };
+  }
   if (target.kind === "board") {
     const p = featuredProjects[stage.activeProject] ?? featuredProjects[0];
     return { label: sectionOf("projects"), title: p?.title ?? "", line: null, hint: "Click: the next one" };
@@ -221,7 +257,7 @@ function LookTouch() {
     };
     const act = (t) => {
       touched = t.kind !== "car" || touched;
-      if (t.kind === "car") getWorld()?.flashCar?.();
+      if (t.kind === "car") getWorld()?.flashCar?.(t.slug ?? "s4");
       else if (t.kind === "board") setActiveProject((stage.activeProject + 1) % featuredProjects.length);
       else if (stage.activeRoles.length === 1 && stage.activeRoles[0] === t.slug) setActiveRole(null);
       else setActiveRole(t.slug);
