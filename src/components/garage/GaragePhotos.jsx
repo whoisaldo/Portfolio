@@ -28,7 +28,6 @@ import PartCard from "./PartCard";
 import PartList from "./PartList";
 import PhotoBay from "./PhotoBay";
 import Shop from "./Shop";
-import Credits from "./Credits";
 import GarageText from "./GarageText";
 import { GARAGE_PHOTOS_ENABLED } from "./features";
 import { CARS, findCar, findMod, photoForStation, resolveRequest, stationForPhoto } from "./cars";
@@ -87,7 +86,6 @@ function PhotoLayout({
   reason,
   reduced = false,
   showPrices,
-  credits,
   onSelect,
   onCar,
   onEnter3d,
@@ -387,7 +385,6 @@ function PhotoLayout({
       <div ref={shopRef}><Shop reduced={reduced} still={still} /></div>
 
       <div className="mt-16 flex flex-wrap items-center justify-between gap-x-8 gap-y-4 pt-6 border-t border-ink-line">
-        <Credits credits={credits} />
         <a
           href={contactHref}
           onClick={(e) => {

@@ -14,7 +14,6 @@ import { GARAGE_PHOTOS_ENABLED } from "../components/garage/features";
 import { ackGarageRequest, latestGarageRequest, subscribeGarageRequests } from "../lib/garage";
 import { getGarageView, setGarageView } from "../lib/garage3d";
 import { getWorld, useStage } from "../world/stage";
-import { garageCredits as credits } from "../data/garage-credits";
 import { s6ModelUrl } from "../data/s6";
 import { GARAGE_STATIONS } from "../data/world";
 
@@ -116,7 +115,7 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     ackGarageRequest(applied.id);
   }, [applied, cinematic, partsOpen, selection]);
   const common = {
-    selection, activeCar, availability, reason: availability === "failed" ? null : reason, reduced, fallback, still, showPrices: SHOW_PRICES, credits,
+    selection, activeCar, availability, reason: availability === "failed" ? null : reason, reduced, fallback, still, showPrices: SHOW_PRICES,
     onSelect: select, onCar: setActiveCar, onRetry, contactHref: "#contact", request: applied,
     onStation: cinematic ? goStation : (id) => setGarageView({ textStation: id }),
   };
