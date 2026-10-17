@@ -1089,7 +1089,8 @@ def surface_tree(objs):
 def on_body(tree, x, y, z, along):
     """The body surface hit from outside along an axis ('x' or 'y', sign of the approach): (point, normal)."""
     if along == 'y':
-        o, d = Vector((x, y - 2 * math.copysign(1, y), z)), Vector((0, math.copysign(1, y), 0))
+        # From y (outside the nose or tail) toward the car.
+        o, d = Vector((x, y, z)), Vector((0, -math.copysign(1, y), 0))
     else:
         o, d = Vector((x + 2 * math.copysign(1, x), y, z)), Vector((-math.copysign(1, x), 0, 0))
     hit, normal, _, _ = tree.ray_cast(o, d, 4)
@@ -1168,8 +1169,6 @@ def build_bumper_features(parent, tree):
         if hit is not None and abs(normal.y) > .55:
             lip.append(Vector((x, hit.y - .003, hit.z)))
     made.append(tube('lower_lip_edge', lip, .0028, paint, parent, sides=6))
-    # The long dark opening along the lip under the grille (his photo).
-    made.append(decal('lower_centre_slot', tree, 0, .247, 1.08, .03, .0008, satin_black, parent, 2, 32))
     # The dark line that separates the lip from the bumper above it, across the nose.
     groove = []
     for k in range(41):
@@ -1289,7 +1288,27 @@ def build_intake_pockets(shell, parent, tree):
         top = [Vector((x, nose_y(x, z) - .003, z + .005)) for x, z in outline if z > .43 and .43 < abs(x) < .82]
         top.sort(key=lambda p: abs(p.x))
         made.append(tube('intake_ledge', smooth_path(top, 3), .0065, paint, parent, sides=8))
+    # The long narrow opening along the lip under the grille (his photo): a real
+    # cut with a recessed black floor, not an overlay on the curved lip.
+    w, z0, z1 = CENTRE_SLOT
+    corners = ccw(rounded([(-w, z0, .011), (w, z0, .011), (w, z1, .011), (-w, z1, .011)], 4))
+    # Points every 2 cm along the long edges, so the cut follows the curved lip
+    # (with only its corners it would miss the centre, which stands further forward).
+    outline = []
+    for a, b in zip(corners, corners[1:] + corners[:1]):
+        n = max(1, int(math.dist(a, b) / .02))
+        outline += [(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n) for k in range(n)]
+    cut_opening(shell, [Vector((x, nose_y(x, z), z)) for x, z in outline], 0, -1)
+    made.append(surface('lower_centre_slot', offset(outline, -.003), lambda x, z: nose_y(x, z) + .022, matte_black, parent,
+                        (0, -1, 0), 1, 0, -.022))
+    # Its thin dividers (his photo shows the opening in a few long segments).
+    for x in (-.36, -.18, 0, .18, .36):
+        y = nose_y(x, (z0 + z1) / 2)
+        made.append(box('lower_centre_slot_divider', (x, y + .012, (z0 + z1) / 2), (.006, .02, z1 - z0), satin_black, parent, 0))
     return made
+
+
+CENTRE_SLOT = (.54, .234, .262)   # half-width, bottom and top of the lip's centre opening
 
 
 # The early S6's diffuser opening: a bright surround that rises in a rounded
