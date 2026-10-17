@@ -46,7 +46,7 @@ import { RULES, deal } from "./prop-deal.js";
 import { createPropSurfaces } from "./prop-surfaces.js";
 import { identityBatching } from "./merge.js";
 
-const CELL = 48;
+const CELL = 12;
 // The most vertices a part may have in the whole city and be written out.
 const BAKED = 6000;
 // three draws a list of runs of an index in one call for its own
@@ -298,7 +298,9 @@ export function opaqueOrder(a, b) {
  * sources (for the light bake), dispose }.
  */
 export function createProps(protoMeshes, buffer, { phone = false, reflectLayer = 0, visibleBox = null } = {}) {
-  const { protos, data, count } = parseProps(buffer);
+  const { protos, data, count, sectorRuns = [] } = parseProps(buffer);
+  const placementSectors = new Array(count).fill("exterior");
+  for (const { sector, start, count: n } of sectorRuns) placementSectors.fill(sector, start, start + n);
   const attachments = [];
   const lastPosition = new THREE.Vector3(1e9, 0, 0);
   const lastDirection = new THREE.Vector3();
@@ -333,15 +335,22 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const [first] = members;
     const shapes = kinds.map((k) => ({ k, v: k.name.startsWith(first.name) && SHAPE.exec(k.name.slice(first.name.length))?.[1] }))
       .filter((s) => s.v).sort((a, b) => a.v - b.v).map((s) => s.k);
-    const dealt = deal(data, list, rule, shapes.length + 1);
-    list.forEach((i, j) => {
-      deals[i] = dealt.deal[j];
-    });
-    if (!shapes.length) continue;
-    first.list = [];
-    list.forEach((i, j) => (dealt.shape[j] ? shapes[dealt.shape[j] - 1] : first).list.push(i));
+    const partitions = new Map();
+    for (const i of list) {
+      const sector = placementSectors[i];
+      if (!partitions.has(sector)) partitions.set(sector, []);
+      partitions.get(sector).push(i);
+    }
+    if (shapes.length) first.list = [];
+    for (const indices of partitions.values()) {
+      const dealt = deal(data, indices, rule, shapes.length + 1);
+      indices.forEach((i, j) => {
+        deals[i] = dealt.deal[j];
+        if (shapes.length) (dealt.shape[j] ? shapes[dealt.shape[j] - 1] : first).list.push(i);
+      });
+    }
   }
-  const cellOf = (x, z) => `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
+  const cellOf = (x, z, sector) => `${Math.floor(x / CELL)},${Math.floor(z / CELL)},${sector}`;
   const decoded = (i, out) => {
     const o = i * 8;
     _p.set(data[o + 1] / 20, data[o + 2] / 50, data[o + 3] / 20);
@@ -359,7 +368,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   const cellIndex = (key) => {
     if (!cellAt.has(key)) {
       cellAt.set(key, cellList.length);
-      cellList.push(new THREE.Box3());
+      cellList.push(Object.assign(new THREE.Box3(), { sector: key.split(",")[2] }));
     }
     return cellAt.get(key);
   };
@@ -401,9 +410,16 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     built.add(k.name);
     const mine = [];
     // Sort by cell, and note each cell's run.
+    const prototypeBounds = new THREE.Box3();
+    for (const src of [...meshes, ...(parts.get(k.name + NEAR) ?? [])]) {
+      if (!src.geometry.boundingBox) src.geometry.computeBoundingBox();
+      prototypeBounds.union(src.geometry.boundingBox);
+    }
+    prototypeBounds.expandByScalar(1);
+    const placedBounds = new THREE.Box3();
     const withCell = k.list.map((i) => {
       const o = i * 8;
-      return { i, cell: cellOf(data[o + 1] / 20, data[o + 3] / 20) };
+      return { i, cell: cellOf(data[o + 1] / 20, data[o + 3] / 20, placementSectors[i]) };
     });
     withCell.sort((a, b) => (a.cell < b.cell ? -1 : a.cell > b.cell ? 1 : 0));
     const n = withCell.length;
@@ -419,17 +435,24 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       const z = data[i * 8 + 3] / 20;
       const top = y + (data[i * 8 + 5] / 100) * k.box[1] * 2 + r;
       if (!run || run.cell !== cell) {
-        run = { cell, ci: cellIndex(cell), start: j, end: j };
+        run = { cell, ci: cellIndex(cell), sector: placementSectors[i], box: new THREE.Box3(), start: j, end: j };
         runs.push(run);
       }
       run.end = j + 1;
+      run.box.union(placedBounds.copy(prototypeBounds).applyMatrix4(_m));
       cellList[run.ci].expandByPoint(_p.set(x - r, y - r, z - r)).expandByPoint(_p.set(x + r, top, z + r));
     });
     const instance = (src) => {
       const mine = own.forName(src.material.name);
       const material = mine ?? src.material;
-      if (!mine && !material.transparent && n * src.geometry.attributes.position.count <= BAKED) {
-        const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}|${src.userData.assetKind ?? ""}`;
+      const reflected = /^(neon_|glow|lantern)/.test(material.name) || own.light(material.name, k.name);
+      const layerMask = 1 | (reflected ? 1 << reflectLayer : 0);
+      // The workshop is a small static pack. Write all of its opaque kit
+      // parts into the shared material batches, including detailed tools.
+      // The city keeps its size limit so thousands of street instances
+      // still share their prototype vertices.
+      if (!mine && !material.transparent && (sectorRuns.length || n * src.geometry.attributes.position.count <= BAKED)) {
+        const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}|${src.userData.assetKind ?? ""}|${layerMask}`;
         if (!baked.has(key)) {
           const mesh = new Baked(twin(material, "baked", src.geometry));
           // (load: one a streamed district brings is hidden until its parts
@@ -437,7 +460,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
           if (hold) mesh.visible = false;
           mesh.name = `props_small_${material.name}`;
           if (src.userData.assetKind) mesh.userData.assetKind = src.userData.assetKind;
-          if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name)) mesh.layers.enable(reflectLayer);
+          mesh.layers.mask = layerMask;
           group.add(mesh);
           baked.set(key, mesh);
         }
@@ -483,7 +506,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       if (src.userData.assetKind) im.userData.assetKind = src.userData.assetKind;
       // Light in the air draws after the steam, as the lamps' shafts do.
       if (material.transparent) im.renderOrder = 7;
-      if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name)) im.layers.enable(reflectLayer);
+      im.layers.mask = layerMask;
       group.add(im);
       return im;
     };
@@ -513,7 +536,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   };
   const ranks = () => {
     const rank = new Int32Array(cellList.length);
-    const rows = [...cellAt].map(([key, ci]) => [ci, ...key.split(",").map(Number)]);
+    const rows = [...cellAt].map(([key, ci]) => [ci, ...key.split(",").slice(0, 2).map(Number)]);
     rows.sort((a, b) => a[2] - b[2] || a[1] - b[1]).forEach(([ci], r) => {
       rank[ci] = r;
     });
@@ -547,6 +570,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   // if that set of cells changed since last time.
   let cellVis = new Uint8Array(cellList.length);
   let cellDist = new Float32Array(cellList.length);
+  const runVisible = (run, reach) => cellVis[run.ci] && cellDist[run.ci] <= reach && (!visibleBox || visibleBox(run.box, run.sector));
   let frames = 0;
   let stale = false;
   let lastCamera = null;
@@ -569,14 +593,14 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const cam = camera.position;
     for (let c = 0; c < cellList.length; c++) {
       cellDist[c] = cellList[c].distanceToPoint(cam);
-      cellVis[c] = _frustum.intersectsBox(cellList[c]) && (!visibleBox || visibleBox(cellList[c])) ? 1 : 0;
+      cellVis[c] = _frustum.intersectsBox(cellList[c]) && (!visibleBox || visibleBox(cellList[c], cellList[c].sector)) ? 1 : 0;
     }
     for (const set of sets) {
       const reach = set.reach;
       // The set of cells it is drawn in, as a hash.
       let sig = 2166136261;
       for (const run of set.runs) {
-        if (cellVis[run.ci] && cellDist[run.ci] <= reach) sig = Math.imul(sig ^ run.ci, 16777619) >>> 0;
+        if (runVisible(run, reach)) sig = Math.imul(sig ^ run.ci, 16777619) >>> 0;
       }
       if (sig === set.sig) continue;
       set.sig = sig;
@@ -584,7 +608,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       const dst = set.instanced[0]?.instanceMatrix.array;
       const dealt = set.aDeal;
       for (const run of set.runs) {
-        if (!cellVis[run.ci] || cellDist[run.ci] > reach) continue;
+        if (!runVisible(run, reach)) continue;
         dst?.set(set.matrices.subarray(run.start * 16, run.end * 16), c * 16);
         if (dealt.length) dealt[0].array.set(set.deals.subarray(run.start, run.end), c);
         c += run.end - run.start;
@@ -619,7 +643,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       if (set.near) continue;
       for (const im of [...set.instanced, ...set.small]) {
         const name = im.material.name;
-        const face = own.light(name);
+        const face = own.light(name, set.name);
         if (!/^(neon_|glow|lantern)/.test(name) && !face) continue;
         const g = im.geometry;
         const pos = g.attributes.position;
@@ -665,6 +689,13 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     return sources;
   };
   const sources = sourcesOf(sets);
+  if (sectorRuns.length) {
+    group.name = "props_garage_room";
+    group.traverse((node) => {
+      node.userData.sector = "garage_room";
+      node.userData.sectorRuns = sectorRuns.map((run) => ({ ...run }));
+    });
+  }
 
   return {
     group,
@@ -673,50 +704,25 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       for (const child of attachments) child.update(camera);
     },
     sources,
-    /** A pack has its own placement stream. Partition it before batching,
-     *  so neither baked geometry nor instances erase a visibility sector. */
+    /** A pack shares material and prototype draws across its open room.
+     *  Sector labels stay on the cell runs, so each camera can still cull
+     *  them independently without drawing the same material per sector. */
     addPlacements(meshes, buffer, { hold = false } = {}) {
       const parsed = parseProps(buffer);
       const { protos, data, count, sectorRuns } = parsed;
       if (!Number.isInteger(count) || count <= 0 || !Array.isArray(sectorRuns) || !sectorRuns.length) throw new Error("garage placements are empty or have no sectors");
       const covered = new Uint8Array(count);
-      const sectors = new Map();
       for (const { sector, start, count: n } of sectorRuns) {
         if (!/^garage_(apron|s4|s6|shop|mezzanine)$/.test(sector) || !Number.isInteger(start) || !Number.isInteger(n) || start < 0 || n <= 0 || start + n > count) throw new Error("invalid garage sector run");
-        if (!sectors.has(sector)) sectors.set(sector, []);
         for (let i = start; i < start + n; i++) {
           if (covered[i]++) throw new Error("overlapping garage sector runs");
           if (!protos[data[i * 8]]) throw new Error("unknown garage placement prototype");
-          sectors.get(sector).push(i);
         }
       }
       if (covered.some((n) => n !== 1)) throw new Error("garage placements lack sector coverage");
       const available = new Set(meshes.map((mesh) => mesh.userData.proto ?? mesh.name.replace(/^proto_/, "").replace(/_[a-z]+(_[a-z]+)?$/, "")));
       for (let i = 0; i < count; i++) if (!available.has(protos[data[i * 8]].name)) throw new Error(`missing garage prototype ${protos[data[i * 8]].name}`);
-      const children = [];
-      try {
-        for (const [sector, indices] of sectors) {
-          // The existing decoder consumes the same wire format for each
-          // sector. Pad the JSON header so the Int16 records stay aligned.
-          const text = JSON.stringify({ protos, count: indices.length });
-          const raw = new TextEncoder().encode(text);
-          const encoded = new Uint8Array(raw.length + raw.length % 2);
-          encoded.fill(32);
-          encoded.set(raw);
-          const next = new ArrayBuffer(4 + encoded.length + indices.length * 16);
-          new DataView(next).setUint32(0, encoded.length, true);
-          new Uint8Array(next, 4, encoded.length).set(encoded);
-          const records = new Int16Array(next, 4 + encoded.length);
-          indices.forEach((i, j) => records.set(data.subarray(i * 8, i * 8 + 8), j * 8));
-          const child = createProps(meshes, next, { phone, reflectLayer, visibleBox });
-          child.group.name = `props_${sector}`;
-          child.group.traverse((object) => { object.userData.sector = sector; });
-          children.push(child);
-        }
-      } catch (err) {
-        children.forEach((child) => child.dispose());
-        throw err;
-      }
+      const children = [createProps(meshes, buffer, { phone, reflectLayer, visibleBox })];
       let committed = false;
       const commit = () => {
         if (committed) return;
@@ -802,7 +808,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
           // Where it is in what is drawn: the runs in sight before its own.
           let c = 0;
           for (const run of set.runs) {
-            if (!cellVis[run.ci] || cellDist[run.ci] > set.reach) continue;
+            if (!runVisible(run, set.reach)) continue;
             if (j < run.end && j >= run.start) {
               for (const a of set.aDeal) {
                 a.array[c + j - run.start] = value;

@@ -519,7 +519,7 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
   const last = new Float64Array(24).fill(NaN);
   return {
     mesh,
-    update(frustum, eye) {
+    update(frustum, eye, visibleSphere) {
       let moved = false;
       for (let i = 0; i < 6; i++) {
         const { normal, constant } = frustum.planes[i];
@@ -548,6 +548,7 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
         const dz = z - ez;
         if (dx * dx + dy * dy + dz * dz > cull[c + 4]) continue;
         const r = -cull[c + 3];
+        if (visibleSphere && !visibleSphere(x, y, z, -r)) continue;
         for (let p = 0; p < 24; p += 4) if (last[p] * x + last[p + 1] * y + last[p + 2] * z + last[p + 3] < r) continue boxes;
         if (order[k] !== i) {
           order[k] = i;

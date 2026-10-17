@@ -14,10 +14,9 @@
 //
 // The integration (src/world/world-scene.js) makes this once the garage's
 // room is wanted and calls it every frame; agents/B5/CONTRACT.md section
-// 2.6 and agents/B4/NOTES.md give the contract. While the S6's model is not
-// built (cars.s6.unavailable) a development build parks a labelled
-// placeholder with the S6's nodes in its place; a production build reports
-// the S6 unavailable and B5 keeps the text fallback.
+// 2.6 and agents/B4/NOTES.md give the contract. Availability controls each
+// real GLB. An explicitly unavailable asset can use an isolated development
+// placeholder, which the presentation excludes from visitors and queries.
 import * as THREE from "three";
 import { cars, preloadCar, createObject } from "../three/car/object.js";
 import { resolveAnchor, localBounds, triangles, prepareInspection } from "../three/car/inspect.js";

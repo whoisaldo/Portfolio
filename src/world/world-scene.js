@@ -48,7 +48,7 @@ import { createTraffic, makeTrafficAhead } from "./traffic.js";
 import { createCar } from "./car.js";
 import { createClearance } from "./clearance.js";
 import { createShafts } from "./shafts.js";
-import { createGarageVisit, createGarageCollision, createGaragePresentation, createGarageUploadPump, garageLights } from "./garage.js";
+import { createGarageVisit, createGarageCollision, createGaragePresentation, createGarageUploadPump, createGarageBuildQueue, cullGarageObjects, garageLights } from "./garage.js";
 import { LIGHT_BOUNDS } from "./spill.js";
 import { cars as carModels, preloadCar } from "../three/car/object.js";
 import { getGarageView } from "../lib/garage3d.js";
@@ -335,6 +335,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       elevated: c.anchors.get("anchor_traffic")?.extras?.paths ?? [],
       deckCars: tier === "phone" ? 1 : 2,
       props: c.props,
+      visibleSphere: c.visibility.testTrafficSphere,
     });
     // (load: the S4's model, if it is not in yet; see preloadWorld. When it
     // is, the city goes on being made in the same breath, as it did.)
@@ -344,7 +345,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (disposed) return c;
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier, reduced });
     shafts = createShafts(scene, c.anchors, shared);
-    crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER, walks: c.anchors.get("anchor_crowd")?.extras?.walks ?? [], standers: c.anchors.get("anchor_people")?.extras?.stand ?? [], cover, traffic });
+    crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER, walks: c.anchors.get("anchor_crowd")?.extras?.walks ?? [], standers: c.anchors.get("anchor_people")?.extras?.stand ?? [], cover, traffic, visibleSphere: c.visibility.testSphere });
     steam = createSteam(scene, shared, c.anchors, { reduced });
     steam?.setLights(c.roofLights);
     resize();
@@ -983,16 +984,46 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // runs it backwards while rewinding (the rain, the traffic, the koi, every
   // flicker). Smoothing everywhere else stays on the frame's dt.
   // Three invokes this for every scene pass, including the reflected
-  // camera and the temporary room-probe scene. Each pass builds its own
-  // instance lists and portal visibility before projectObject sees them.
+  // camera and the temporary room-probe scene. Each pass prepares its
+  // room-prop lists and portal visibility before projectObject sees them.
   const renderScene = renderer.render;
   renderer.render = function (drawScene, drawCamera) {
     if (city && (drawScene === scene || city.root.parent === drawScene)) {
       drawCamera.updateMatrixWorld();
       city.visibility.prepare(drawCamera);
       city.props.update(drawCamera);
+      if (drawScene === scene && city.visibility.exteriorVisible) {
+        // Skyline meshes use layer 0. The mirror draws layers 2/3 and
+        // must not repack thousands of buildings it cannot submit.
+        if (drawCamera.layers.isEnabled(0)) skyline?.update(drawCamera, renderer.getPixelRatio(), city.visibility);
+        crowd?.update(drawCamera);
+      }
     }
-    return renderScene.call(this, drawScene, drawCamera);
+    // Exterior systems use shader-positioned batches, so their ordinary
+    // geometry bounds cannot describe a room portal. If every aperture is
+    // outside the view, none of those batches can contribute a pixel.
+    const hidden = [];
+    if (city && drawScene === scene && !city.visibility.exteriorVisible) {
+      for (const node of scene.children) {
+        if (!node.visible || node === city.root || node === car?.car || /^(ali_s6|garage_)/.test(node.name)) continue;
+        if (node.isLight || /lights/.test(node.name) || (node.isGroup && !node.name)) continue;
+        hidden.push(node);
+        node.visible = false;
+      }
+    }
+    let restore = null;
+    const automatic = drawScene.matrixWorldAutoUpdate;
+    if (city && drawScene === scene && city.visibility.inside) {
+      if (automatic) drawScene.updateMatrixWorld();
+      restore = cullGarageObjects(drawScene, city.visibility, { car: car?.car });
+      drawScene.matrixWorldAutoUpdate = false;
+    }
+    try { return renderScene.call(this, drawScene, drawCamera); }
+    finally {
+      restore?.();
+      drawScene.matrixWorldAutoUpdate = automatic;
+      for (const node of hidden) node.visible = true;
+    }
   };
   const draw = (dt, moonView = null, flow = dt) => {
     renderer.info.reset();
@@ -1003,10 +1034,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     shared.uCam.value.copy(camera.position);
     const env = drive(dt);
     applyGarageState(dt);
+    camera.updateMatrixWorld();
+    city?.visibility.prepare(camera);
     if (moonView) moon.renderShadows();
     if (moonView !== "only") {
-      skyline?.update(camera, renderer.getPixelRatio());
-      city?.props?.update(camera);
       rain?.update(flow, camera, env.wet);
       rain?.setCameraVelocity(shutter.fresh ? motion.vel : ZERO);
       bolt?.update();
@@ -1034,6 +1065,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       // is not drawn. How far either has taken it is k.
       // (And it is the deck's own while the eye is up on the deck, going
       // out and coming back in round the change of plane: mirror.js.)
+      camera.updateMatrixWorld();
+      city?.visibility.prepare(camera);
+      const roadVisible = city?.visibility.roadVisible ?? true;
       const deck = mirror ? deckShare(camera.position) : 0;
       const k = mirror ? 1 - (1 - Math.max(1 - roadShown(), adapt.reflectK)) * Math.abs(2 * deck - 1) : 1;
       const mirrorY = deck > 0.5 ? DECK_Y : 0;
@@ -1044,7 +1078,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           r.uniforms.uMirrorY.value = mirrorY;
         }
       }
-      if (mirror && city && env.wet && k < 1) {
+      if (mirror && city && env.wet && k < 1 && roadVisible) {
         city.setOccluders(!!directed && (directed.occluders ?? 1) > 0);
         camera.updateMatrixWorld();
         const drew = mirror.render(scene, camera, mirrorY);
@@ -1545,6 +1579,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // far blocks there, as it did before the rebuild.
   const idle = () => new Promise((resolve) => (window.requestIdleCallback ? window.requestIdleCallback(resolve, { timeout: 1500 }) : setTimeout(resolve, 50)));
   const packsIn = [];
+  const construction = createGarageBuildQueue();
   const streamPacks = async () => {
     // All fetched at once, built in one at a time in the streaming order.
     const loads = PACKS.map((name) => preloadPack(tier, name).then((s) => ({ s }), (err) => ({ err })));
@@ -1553,6 +1588,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         const { s: packScene, err } = await loads[i];
         if (err) throw err;
         if (disposed) return;
+        await construction.run(async () => {
         await idle();
         if (disposed || !city) return;
         // (load: built a few milliseconds at a time between the page's frames,
@@ -1565,17 +1601,19 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         if (disposed) return;
         cover?.render(city.root);
         packsIn.push(name);
+        });
+        if (disposed) return;
       } catch (err) {
         if (disposed) return;
         if (import.meta.env.DEV) console.warn(`[world] the ${name} districts did not load`, err);
       }
     }
     streamed = true;
-    streamedNow?.();
-    // The light bake's working arrays and the warm-up kit go once the last
-    // pack is in: the garage's room, if there is one, comes after the
-    // districts and bakes its light into the same maps.
-    if (!hasGaragePack(tier)) releaseStreaming();
+    // The room can open before distant districts finish. Refresh its probe
+    // against the completed world before releasing the shared bake buffers.
+    if (garageAvailable === "ready") garageCars?.captureProbe?.(city.root);
+    // The room and districts use the same bake. Keep it until both are in.
+    if (!hasGaragePack(tier) || garageAvailable === "ready") releaseStreaming();
   };
   const releaseStreaming = () => {
     city?.releaseBake();
@@ -1587,12 +1625,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // Not streamed with the districts: the garage asks for it (the adapter's
   // prepare, from the section once the hero is up and sooner as the reader
   // heads for it). Fetched at once when asked; built, like a district, in
-  // slices between the page's frames once the districts are in, since they
-  // share the light bake; and the bake let go after it. A failure lets a
-  // later ask try again.
+  // slices between frames on the same serialized construction queue as the
+  // districts. It gets the next turn and leaves the remaining districts to
+  // resume afterwards. A failure lets a later ask try again.
   let streamed = false;
-  let streamedNow = null;
-  const afterStreaming = new Promise((resolve) => (streamedNow = resolve));
   let garageRoom = null;
   let roomCommitted = false;
   let boardTexture = null;
@@ -1648,7 +1684,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       if (!missingModel && mod.pose === "stance" && !options?.preserveState) manual.lowering = 0;
       const leavingCabin = inspectionCursor?.snapshot().node?.endsWith("_cabin");
       inspectionLabel = mod.pose === "cabin" ? `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} cabin view. Camera cut.` : `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} ${mod.pose} view.`;
-      if (missingModel) inspectionLabel = `${mod.name ?? mod.title ?? mod.id} selected. The S6 model is being built; its bay is empty.`;
+      if (missingModel) inspectionLabel = `${mod.name ?? mod.title ?? mod.id} selected. The S6 model is unavailable. The part details remain available.`;
       if (leavingCabin && mod.pose !== "cabin") inspectionLabel += " Exterior camera cut.";
       if (!requestInspection(key, options)) inspectionLabel = `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} ${mod.pose} view is unavailable. The part details remain available.`;
     } else {
@@ -1734,10 +1770,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       })) : Promise.reject(new Error("The workshop placements are unavailable."));
       const boardsUrl = GARAGE_PHOTOS_ENABLED ? Reflect.get(worldAssets, "worldGarageBoardsUrl")?.[tier] : null;
       const atlasLoad = boardsUrl && !boardTexture ? new THREE.TextureLoader().loadAsync(boardsUrl).then((texture) => (boardTexture = texture)) : Promise.resolve(boardTexture);
-      garageRoom = (async () => {
+      garageRoom = construction.run(async () => {
         const [packScene, placements, atlas, runtime, registry] = await Promise.all([fetching, placementLoad, atlasLoad, carRuntime(), garageData()]);
         findMod = registry.findMod;
-        if (!streamed) await afterStreaming;
         if (disposed || !city) return false;
         await idle();
         if (disposed) return false;
@@ -1865,11 +1900,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         cover?.render(city.root);
         // The job has supplied every draw before it releases the shared
         // bake. Readiness never precedes maps, placements or car warm-up.
-        releaseStreaming();
+        if (streamed) releaseStreaming();
         garageAvailable = "ready";
         publishGarage();
         return true;
-      })().catch((err) => {
+      }, { priority: true }).catch((err) => {
         if (disposed) return false;
         garageRoom = null;
         garageCars?.dispose();

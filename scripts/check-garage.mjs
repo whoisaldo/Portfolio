@@ -36,11 +36,15 @@ let materialModule;
 let scrollModule;
 let mergeModule;
 let inspectionModule;
+let policyModule;
+let carSpecs;
 let s4Mods;
 let GLTFLoader;
 let carDecoder;
 try {
   [world, garage, three, propsModule, materialModule, scrollModule, mergeModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js"), vite.ssrLoadModule("/src/world/scroll-stage.js"), vite.ssrLoadModule("/src/world/merge.js")]);
+  policyModule = await vite.ssrLoadModule("/src/world/garage-policy.js");
+  ({ cars: carSpecs } = await vite.ssrLoadModule("/src/three/car/object.js"));
   [inspectionModule, { mods: s4Mods }, { GLTFLoader }, { MeshoptDecoder: carDecoder }] = await Promise.all([vite.ssrLoadModule("/src/three/car/inspect.js"), vite.ssrLoadModule("/src/data/garage.js"), vite.ssrLoadModule("three/addons/loaders/GLTFLoader.js"), vite.ssrLoadModule("three/addons/libs/meshopt_decoder.module.js")]);
 } finally {
   await vite.close();
@@ -58,7 +62,40 @@ const check = (name, fn) => {
   }
 };
 
+check("the provisional S6 stays on the development test path until review", () => {
+  const asset = "/models/ali-s6.glb?v=review";
+  assert.equal(policyModule.garageS6Policy(asset).url, null);
+  assert.equal(policyModule.garageS6Policy(asset, { search: "?garage-test-s6=1" }).url, null);
+  assert.equal(policyModule.garageS6Policy(asset, { development: true }).url, null);
+  assert.deepEqual(policyModule.garageS6Policy(asset, { development: true, search: "?garage-test-s6=1" }), { url: asset, unavailable: null });
+  assert.equal(policyModule.garageS6Policy(null).url, null);
+  assert.ok(carSpecs.s4.url);
+  assert.equal(carSpecs.s4.unavailable, null);
+  assert.equal(carSpecs.s6.url, null);
+});
+
 // ---- the timeline -------------------------------------------------------------
+{
+  const queue = garage.createGarageBuildQueue();
+  const order = [];
+  let release;
+  const first = queue.run(async () => {
+    order.push("current district");
+    await new Promise((resolve) => { release = resolve; });
+    order.push("current district committed");
+  });
+  const later = queue.run(() => order.push("later district"));
+  const room = queue.run(() => order.push("requested garage"), { priority: true });
+  release();
+  await Promise.all([first, later, room]);
+  check("a cold garage waits only for the current shared build", () => {
+    assert.deepEqual(order, ["current district", "current district committed", "requested garage", "later district"]);
+  });
+  await assert.rejects(queue.run(() => { throw new Error("failed pack"); }));
+  await queue.run(() => order.push("retry"));
+  check("a failed shared build does not strand queued construction", () => assert.equal(order.at(-1), "retry"));
+}
+
 check("stations", () => {
   assert.deepEqual(GARAGE_STATIONS.map((s) => s.id), ["arrival", "s4", "s4-bay", "s6", "s6-bay", "shop"]);
   assert.deepEqual(GARAGE_STATIONS.map((s) => s.p), [0, 0.2, 0.4, 0.6, 0.8, 1]);
@@ -386,7 +423,8 @@ check("late garage prop placements", () => {
   };
   const core = proto("core_test");
   const pack = proto("garage_test");
-  const system = propsModule.createProps([core], wire({ protos: [{ name: "core_test", box: [1, 1, 1] }], count: 0 }, []));
+  const culledSectors = new Set();
+  const system = propsModule.createProps([core], wire({ protos: [{ name: "core_test", box: [1, 1, 1] }], count: 0 }, []), { visibleBox: (box, sector) => { culledSectors.add(sector); return sector !== "garage_s6"; } });
   const buffer = wire({ protos: [{ name: "garage_test", box: [1, 1, 1] }], count: 2, sectorRuns: [{ sector: "garage_s4", start: 0, count: 1 }, { sector: "garage_s6", start: 1, count: 1 }] }, [[0, 9240, 0, -4300, 0, 100, 1000, 0], [0, 9240, 0, -4440, 0, 100, 1000, 0]]);
   const held = system.addPlacements([pack], buffer, { hold: true });
   assert.equal(held.count, 2);
@@ -394,15 +432,33 @@ check("late garage prop placements", () => {
   const steps = held.prepare();
   let result;
   while (!(result = steps.next()).done);
-  assert.equal(result.value.length, 2);
+  assert.equal(result.value.length, 1, "one material batch serves both sectors");
   held.commit();
   held.commit();
-  assert.equal(system.group.children.length, 2, "idempotent commit");
-  for (const sector of ["garage_s4", "garage_s6"]) {
-    const group = system.group.getObjectByName(`props_${sector}`);
-    assert.ok(group);
-    group.traverse((mesh) => { if (mesh.isMesh) assert.equal(mesh.userData.sector, sector); });
-  }
+  assert.equal(system.group.children.length, 1, "idempotent commit");
+  const room = system.group.getObjectByName("props_garage_room");
+  assert.ok(room);
+  room.traverse((mesh) => {
+    if (!mesh.isMesh) return;
+    assert.equal(mesh.userData.sector, "garage_room");
+    assert.deepEqual(mesh.userData.sectorRuns.map((run) => run.sector), ["garage_s4", "garage_s6"]);
+  });
+  const camera = new three.PerspectiveCamera(90, 1.6, .1, 100);
+  camera.position.set(470, 4, -219); camera.lookAt(462, 1, -219); camera.updateMatrixWorld();
+  system.update(camera);
+  const batched = room.children.find((node) => node.isBaked);
+  assert.ok(culledSectors.has("garage_s4") && culledSectors.has("garage_s6"), "both sectors reach the pass culler");
+  assert.equal(Array.from(batched._multiDrawCounts).slice(0, batched._multiDrawCount).reduce((sum, n) => sum + n, 0), 36, "only the visible sector's box is submitted");
+  const detailA = proto("garage_detail_a"), detailB = proto("garage_detail_b");
+  detailA.geometry.dispose(); detailB.geometry.dispose();
+  detailA.geometry = new three.BoxGeometry(1, 1, 1, 24, 24, 24);
+  detailB.geometry = detailA.geometry;
+  const detailBuffer = wire({ protos: [{ name: "garage_detail_a", box: [1, 1, 1] }, { name: "garage_detail_b", box: [1, 1, 1] }], count: 4, sectorRuns: [{ sector: "garage_s4", start: 0, count: 2 }, { sector: "garage_s6", start: 2, count: 2 }] }, [[0, 9240, 0, -4300, 0, 100, 1000, 0], [0, 9240, 0, -4310, 0, 100, 1000, 0], [1, 9240, 0, -4440, 0, 100, 1000, 0], [1, 9240, 0, -4450, 0, 100, 1000, 0]]);
+  const detailed = system.addPlacements([detailA, detailB], detailBuffer, { hold: true });
+  const detailSteps = detailed.prepare(); let prepared; while (!(prepared = detailSteps.next()).done);
+  assert.equal(prepared.value.length, 1, "detailed static props share one material draw");
+  assert.equal(prepared.value[0].geometry.index.count, detailA.geometry.index.count * 4, "batching keeps every detail triangle");
+  detailed.dispose(); detailA.geometry.dispose();
   const bad = wire({ protos: [{ name: "garage_test", box: [1, 1, 1] }], count: 1, sectorRuns: [] }, [[0, 9240, 0, -4300, 0, 100, 1000, 0]]);
   assert.throws(() => system.addPlacements([pack], bad), /sectors/);
   system.dispose();
@@ -442,6 +498,48 @@ check("late garage prop placements", () => {
   pack.geometry.dispose();
   material.dispose();
 });
+check("the three amber bench strip faces enter the prop bake without adding side-wall light", () => {
+  const material = new three.ShaderMaterial({ uniforms: { uSpill: { value: null } } });
+  material.name = "tube";
+  const proto = new three.Mesh(new three.PlaneGeometry(2.3, .03), material);
+  proto.userData.proto = "garage_bench_strip";
+  const color = new three.Color("#ffb45e");
+  proto.geometry.setAttribute("color", new three.Float32BufferAttribute(Array.from({ length: 4 }, () => color.toArray()).flat(), 3));
+  const make = (name) => {
+    let text = JSON.stringify({ protos: [{ name, box: [1.22, .05, .11] }], count: 3 });
+    if (text.length % 2) text += " ";
+    const bytes = new TextEncoder().encode(text);
+    const buffer = new ArrayBuffer(4 + bytes.length + 48);
+    new DataView(buffer).setUint32(0, bytes.length, true);
+    new Uint8Array(buffer, 4, bytes.length).set(bytes);
+    const data = new Int16Array(buffer, 4 + bytes.length);
+    for (let i = 0; i < 3; i++) data.set([0, 9300, 150, -4200 - i * 48, 0, 100, 1000, 0], i * 8);
+    proto.userData.proto = name;
+    return propsModule.createProps([proto], buffer);
+  };
+  const bench = make("garage_bench_strip");
+  assert.equal(bench.sources.length, 1);
+  assert.equal(bench.sources[0].mesh.geometry.attributes.position.count, 18, "all six authored triangles light the bench");
+  assert.ok(bench.sources[0].color.toArray().every((v, i) => Math.abs(v - color.toArray()[i]) < 1e-6));
+  assert.equal(bench.sources[0].intensity, .8);
+  const side = make("garage_wall_tube");
+  assert.equal(side.sources.length, 0, "existing magenta and cyan bake is unchanged");
+  const benchProto = proto.clone(), wallProto = proto.clone();
+  benchProto.userData.proto = "garage_bench_strip"; wallProto.userData.proto = "garage_wall_tube";
+  let text = JSON.stringify({ protos: [{ name: "garage_bench_strip", box: [1.22, .05, .11] }, { name: "garage_wall_tube", box: [1.22, .05, .11] }], count: 2, sectorRuns: [{ sector: "garage_shop", start: 0, count: 2 }] });
+  if (text.length % 2) text += " ";
+  const header = new TextEncoder().encode(text), buffer = new ArrayBuffer(4 + header.length + 32);
+  new DataView(buffer).setUint32(0, header.length, true); new Uint8Array(buffer, 4, header.length).set(header);
+  new Int16Array(buffer, 4 + header.length).set([0, 9300, 150, -4200, 0, 100, 1000, 0, 1, 9300, 150, -4240, 0, 100, 1000, 0]);
+  const mixed = propsModule.createProps([benchProto, wallProto], buffer, { reflectLayer: 2 });
+  const batches = mixed.group.children.filter((mesh) => mesh.isBaked);
+  assert.equal(batches.length, 2, "different reflection eligibility cannot share a static batch");
+  assert.equal(batches.find((mesh) => mesh.parts.some((part) => part.set.name === "garage_bench_strip")).layers.isEnabled(2), true);
+  assert.equal(batches.find((mesh) => mesh.parts.some((part) => part.set.name === "garage_wall_tube")).layers.isEnabled(2), false, "amber eligibility cannot change the side-wall neon balance");
+  mixed.dispose();
+  bench.dispose(); side.dispose(); proto.geometry.dispose(); material.dispose();
+});
+
 check("camera collision is independent of visibility", () => {
   const { Box3, Vector3 } = three;
   const box = new Box3(new Vector3(2, 0, -1), new Vector3(3, 3, 1));
@@ -641,20 +739,129 @@ check("resting frames draw effective manual car state and layout once", () => {
   assert.equal(drawn.length, 9, "normal frames retain their existing draw schedule");
 });
 
+check("room and exterior triangles sharing a tile keep independent visibility", () => {
+  const anchors = new Map([["anchor_garage_portal_door", { position: new Vector3(452, 2.3, -215), quaternion: new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2), extras: { width: 6, height: 4.6 } }]]);
+  const visibility = garage.createGarageVisibility(anchors);
+  const room = new three.Mesh(new three.BoxGeometry(.2, .2, .2));
+  const street = new three.Mesh(new three.BoxGeometry(.2, .2, .2));
+  room.position.set(458, 2, -215); street.position.set(440, 2, -207);
+  room.updateMatrixWorld(); street.updateMatrixWorld();
+  const geometry = mergeModule.mergeMeshes([room, street]);
+  const cells = mergeModule.createCells(48);
+  cells.partition = garage.garageCellSector;
+  cells.visibleBox = visibility.test;
+  const steps = mergeModule.cutSteps(geometry, cells);
+  let result; while (!(result = steps.next()).done);
+  const tile = new mergeModule.Tiled(geometry, new three.MeshBasicMaterial(), cells, result.value);
+  const camera = new three.PerspectiveCamera(60, 1.6, .1, 2000);
+  camera.position.set(462, 2, -215); camera.lookAt(440, 2, -215); camera.updateMatrixWorld();
+  visibility.prepare(camera);
+  tile.onBeforeRender({ info: { render: { frame: 1 } } }, null, camera);
+  assert.deepEqual(cells.list.map((cell) => cell.sector).sort(), ["exterior", "garage_shell"]);
+  assert.equal(Array.from(tile._multiDrawCounts).slice(0, tile._multiDrawCount).reduce((sum, n) => sum + n, 0), 36, "the wall-hidden street box cannot borrow the room's tile exemption");
+  geometry.dispose(); tile.material.dispose(); room.geometry.dispose(); street.geometry.dispose();
+});
+
+check("street props use each prototype's bounds within a shared tile", () => {
+  const material = new three.ShaderMaterial({ transparent: true, uniforms: { uSpill: { value: null } } }); material.name = "test_glass";
+  const a = new three.Mesh(new three.BoxGeometry(.2, .2, .2), material), b = a.clone();
+  a.userData.proto = "visible_prop"; b.userData.proto = "hidden_prop";
+  let header = JSON.stringify({ protos: [{ name: "visible_prop", box: [1, 1, 1] }, { name: "hidden_prop", box: [1, 1, 1] }], count: 2 });
+  if (header.length % 2) header += " ";
+  const bytes = new TextEncoder().encode(header), buffer = new ArrayBuffer(4 + bytes.length + 32);
+  new DataView(buffer).setUint32(0, bytes.length, true); new Uint8Array(buffer, 4, bytes.length).set(bytes);
+  new Int16Array(buffer, 4 + bytes.length).set([0, 8800, 100, -4300, 0, 100, 1000, 0, 1, 8800, 100, -4120, 0, 100, 1000, 0]);
+  const anchors = new Map([["anchor_garage_portal_door", { position: new Vector3(452, 2.3, -215), quaternion: new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2), extras: { width: 6, height: 4.6 } }]]);
+  const visibility = garage.createGarageVisibility(anchors), camera = new three.PerspectiveCamera(60, 1.6, .1, 2000);
+  camera.position.set(462, 2, -215); camera.lookAt(440, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
+  const props = propsModule.createProps([a, b], buffer, { visibleBox: visibility.test }); props.update(camera);
+  assert.equal(props.group.getObjectByName("props_visible_prop_test_glass").count, 1);
+  assert.equal(props.group.getObjectByName("props_hidden_prop_test_glass").count, 0);
+  props.dispose(); a.geometry.dispose(); material.dispose();
+});
+
+check("ordinary exterior meshes keep independent portal visibility across passes", () => {
+  const scene = new three.Scene();
+  const outside = new three.Mesh(new three.BoxGeometry(), new three.MeshBasicMaterial());
+  outside.position.set(440, 1, -207);
+  const room = outside.clone(); room.position.set(462, 1, -215);
+  const parked = new three.Group(); parked.name = "ali_s4_world";
+  const car = outside.clone(); parked.add(car);
+  scene.add(outside, room, parked); scene.updateMatrixWorld();
+  const visibility = { testSphere: (x) => x > 452 };
+  const restore = garage.cullGarageObjects(scene, visibility, { car: parked });
+  assert.equal(outside.visible, false); assert.equal(room.visible, true); assert.equal(car.visible, true);
+  restore(); assert.equal(outside.visible, true);
+  const streetPass = garage.cullGarageObjects(scene, { testSphere: () => true }, { car: parked });
+  assert.equal(outside.visible, true); streetPass();
+  outside.geometry.dispose(); outside.material.dispose();
+});
+
+check("the road mirror does not repack the unreflected skyline", () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const renderScene = renderer.render;"), to = source.indexOf("  const draw =", from);
+  const scene = { children: [], matrixWorldAutoUpdate: true }, skylineCameras = [], crowdCameras = [];
+  const city = { root: {}, visibility: { exteriorVisible: true, inside: false, prepare() {} }, props: { update() {} } };
+  const renderer = { render() {}, getPixelRatio: () => 1 };
+  const skyline = { update: (camera) => skylineCameras.push(camera) }, crowd = { update: (camera) => crowdCameras.push(camera) };
+  const main = new three.PerspectiveCamera(), reflected = new three.PerspectiveCamera();
+  main.layers.enable(2); reflected.layers.set(2); reflected.layers.enable(3);
+  runInNewContext(source.slice(from, to), { renderer, city, scene, car: null, skyline, crowd });
+  renderer.render(scene, reflected); renderer.render(scene, main);
+  assert.deepEqual(skylineCameras, [main]);
+  assert.deepEqual(crowdCameras, [reflected, main], "reflected crowd visibility remains prepared");
+});
+
+check("per-pass exterior culling restores visibility and keeps room lights and car shadows", () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const renderScene = renderer.render;");
+  const to = source.indexOf("  const draw =", from);
+  const room = { visible: true }, carRoot = { visible: true };
+  const light = { visible: true, name: "car_lights" };
+  const contact = { visible: true, name: "", isGroup: true };
+  const outside = { visible: true, name: "traffic" };
+  const alreadyHidden = { visible: false, name: "rain" };
+  const scene = { children: [room, carRoot, light, contact, outside, alreadyHidden] };
+  const city = { root: room, visibility: { exteriorVisible: false, prepare() {} }, props: { update() {} } };
+  const camera = { updateMatrixWorld() {} };
+  const renderer = { render() {
+    assert.equal(outside.visible, false);
+    for (const node of [room, carRoot, light, contact]) assert.equal(node.visible, true);
+    throw new Error("render failed");
+  } };
+  runInNewContext(source.slice(from, to), { renderer, city, scene, car: { car: carRoot } });
+  assert.throws(() => renderer.render(scene, camera), /render failed/);
+  assert.equal(outside.visible, true, "the next pass can see the exterior again");
+  assert.equal(alreadyHidden.visible, false, "culling cannot revive a hidden system");
+});
+
 check("portal visibility keeps real openings for main and reflected cameras", () => {
   const anchors = new Map([["anchor_garage_portal_door", { position: new Vector3(452, 2.3, -215), quaternion: new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2), extras: { width: 6, height: 4.6 } }]]);
   const visibility = garage.createGarageVisibility(anchors);
   const camera = new three.PerspectiveCamera(60, 1.6, .1, 2000);
   const box = (x, y, z) => new three.Box3(new Vector3(x - .1, y - .1, z - .1), new Vector3(x + .1, y + .1, z + .1));
-  camera.position.set(462, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
+  camera.position.set(462, 2, -215); camera.lookAt(440, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
   assert.ok(visibility.test(box(440, 1, -215)), "street through the doorway");
+  assert.equal(visibility.testSphere(440, 1, -215, .1), true);
+  assert.equal(visibility.testTrafficSphere(440, 1, -215, .1), true);
+  assert.equal(visibility.testTrafficSphere(440, 1, -150, .1), false);
+  assert.equal(visibility.testTrafficSphere(440, 40, -215, .1), true, "one traffic list conservatively covers both direct and reflected sight");
+  assert.equal(visibility.testSphere(440, 1, -150, .1), false, "shader-positioned batches use the same portal");
   assert.ok(!visibility.test(box(440, 1, -150)), "street hidden by the side wall");
   assert.ok(visibility.test(box(467, 1, -225), "garage_s6"), "open room remains visible");
-  camera.position.y = -2; camera.updateMatrixWorld(); visibility.prepare(camera);
+  camera.lookAt(475, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
+  assert.equal(visibility.exteriorVisible, false, "solid wall has no visible portal");
+  assert.equal(visibility.roadVisible, false, "no road mirror behind the wall");
+  assert.equal(visibility.testSphere(440, 1, -215, .1), false);
+  assert.equal(visibility.test(box(440, 1, -215)), false, "opening behind camera submits no street");
+  camera.position.y = -2; camera.lookAt(440, -2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
   assert.ok(visibility.test(box(440, 1, -215)), "reflected aperture keeps street light");
-  camera.position.set(440, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
+  assert.equal(visibility.testTrafficSphere(440, 1, -215, .1), true);
+  assert.equal(visibility.testTrafficSphere(440, 1, -150, .1), false);
+  camera.position.set(440, 2, -215); camera.lookAt(462, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
   assert.ok(visibility.test(box(462, 2, -215), "garage_s4"));
   assert.ok(!visibility.test(box(462, 2, -225), "garage_s6"), "outside cannot see through a closed wall");
+  assert.equal(visibility.test(box(462, 2, -225), "garage_shell"), true, "the workshop's outer walls and roof stay visible from the street");
   assert.ok(visibility.test(box(440, 1, -150)), "exterior culling is unchanged outdoors");
 });
 

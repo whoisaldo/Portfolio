@@ -381,7 +381,7 @@ function look(cells, renderer, camera) {
   if (cells.frame === frame) return frame;
   cells.frame = frame;
   _frustum.setFromProjectionMatrix(_view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-  for (const cell of cells.list) if (_frustum.intersectsBox(cell.box) && (!cells.visibleBox || cells.visibleBox(cell.box))) cell.seen = frame;
+  for (const cell of cells.list) if (_frustum.intersectsBox(cell.box) && (!cells.visibleBox || cells.visibleBox(cell.box, cell.sector))) cell.seen = frame;
   return frame;
 }
 
@@ -405,6 +405,7 @@ export function* cutSteps(geometry, cells, min = 0) {
   const runOf = new Int32Array(tris);
   const runAt = new Map();
   const runs = [];
+  const bounds = new THREE.Box3();
   for (let t = 0; t < tris; t++) {
     if (t % 4096 === 4095) yield;
     const a = index[t * 3] * 3;
@@ -412,12 +413,15 @@ export function* cutSteps(geometry, cells, min = 0) {
     const c = index[t * 3 + 2] * 3;
     const cx = Math.floor((pos[a] + pos[b] + pos[c]) / 3 / cells.size);
     const cz = Math.floor((pos[a + 2] + pos[b + 2] + pos[c + 2]) / 3 / cells.size);
-    const key = cx * 65536 + cz;
+    bounds.min.set(Math.min(pos[a], pos[b], pos[c]), Math.min(pos[a + 1], pos[b + 1], pos[c + 1]), Math.min(pos[a + 2], pos[b + 2], pos[c + 2]));
+    bounds.max.set(Math.max(pos[a], pos[b], pos[c]), Math.max(pos[a + 1], pos[b + 1], pos[c + 1]), Math.max(pos[a + 2], pos[b + 2], pos[c + 2]));
+    const sector = cells.partition?.(bounds) ?? "";
+    const key = `${cx},${cz},${sector}`;
     let id = cells.ids.get(key);
     if (id === undefined) {
       id = cells.list.length;
       cells.ids.set(key, id);
-      cells.list.push({ id, cx, cz, box: new THREE.Box3(), seen: -1 });
+      cells.list.push({ id, cx, cz, sector, box: new THREE.Box3(), seen: -1 });
     }
     let r = runAt.get(id);
     if (r === undefined) {
@@ -487,7 +491,7 @@ export class Tiled extends THREE.Mesh {
 
   onBeforeRender(renderer, scene, camera) {
     if (!MULTI_DRAW) return;
-    if (this.userData.sector && this.cells.visibleBox && !this.cells.visibleBox(this.geometry.boundingBox, this.userData.sector)) {
+    if (this.cells.visibleBox && !this.cells.visibleBox(this.geometry.boundingBox, this.userData.sector)) {
       this._multiDrawCount = 0;
       return;
     }

@@ -198,7 +198,7 @@ function GarageShell({ onMounted, onLayout }) {
       const from = visible ? box.top : (heading?.getBoundingClientRect().top ?? r.top);
       anchor = { kind: "element", key, offset: from };
     }
-    pending.current = { anchor, focus: focusKey, y: window.scrollY, changingLayout };
+    pending.current = { anchor, focus: focusKey, y: window.scrollY, changingLayout, layout: want, availability, reason };
     document.documentElement.style.overflowAnchor = "none";
     if (want === "text" && layout === "cinematic") {
       savedP.current = stage.garageProgress;
@@ -235,8 +235,12 @@ function GarageShell({ onMounted, onLayout }) {
 
   useLayoutEffect(() => {
     const t = pending.current;
-    pending.current = null;
     if (!t) return undefined;
+    // The preceding layout effect requests the replacement. Its state
+    // updates commit afterwards; measuring this old DOM consumes the scroll
+    // correction too early and puts Arrival's controls below the viewport.
+    if (layout !== t.layout || presentation.availability !== t.availability || presentation.reason !== t.reason) return undefined;
+    pending.current = null;
     const el = sectionRef.current;
     const visible = (node) => node && node.getClientRects().length > 0 && getComputedStyle(node).visibility !== "hidden";
     const target = (key) => (key === "detail" ? [...el.querySelectorAll(".gw-card-title")].find(visible) : null)
