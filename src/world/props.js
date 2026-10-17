@@ -437,7 +437,11 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const instance = (src) => {
       const mine = own.forName(src.material.name);
       const material = mine ?? src.material;
-      if (!mine && !material.transparent && n * src.geometry.attributes.position.count <= BAKED) {
+      // The workshop is a small static pack. Write all of its opaque kit
+      // parts into the shared material batches, including detailed tools.
+      // The city keeps its size limit so thousands of street instances
+      // still share their prototype vertices.
+      if (!mine && !material.transparent && (sectorRuns.length || n * src.geometry.attributes.position.count <= BAKED)) {
         const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}|${src.userData.assetKind ?? ""}`;
         if (!baked.has(key)) {
           const mesh = new Baked(twin(material, "baked", src.geometry));

@@ -421,6 +421,16 @@ check("late garage prop placements", () => {
   const batched = room.children.find((node) => node.isBaked);
   assert.ok(culledSectors.has("garage_s4") && culledSectors.has("garage_s6"), "both sectors reach the pass culler");
   assert.equal(Array.from(batched._multiDrawCounts).slice(0, batched._multiDrawCount).reduce((sum, n) => sum + n, 0), 36, "only the visible sector's box is submitted");
+  const detailA = proto("garage_detail_a"), detailB = proto("garage_detail_b");
+  detailA.geometry.dispose(); detailB.geometry.dispose();
+  detailA.geometry = new three.BoxGeometry(1, 1, 1, 24, 24, 24);
+  detailB.geometry = detailA.geometry;
+  const detailBuffer = wire({ protos: [{ name: "garage_detail_a", box: [1, 1, 1] }, { name: "garage_detail_b", box: [1, 1, 1] }], count: 4, sectorRuns: [{ sector: "garage_s4", start: 0, count: 2 }, { sector: "garage_s6", start: 2, count: 2 }] }, [[0, 9240, 0, -4300, 0, 100, 1000, 0], [0, 9240, 0, -4310, 0, 100, 1000, 0], [1, 9240, 0, -4440, 0, 100, 1000, 0], [1, 9240, 0, -4450, 0, 100, 1000, 0]]);
+  const detailed = system.addPlacements([detailA, detailB], detailBuffer, { hold: true });
+  const detailSteps = detailed.prepare(); let prepared; while (!(prepared = detailSteps.next()).done);
+  assert.equal(prepared.value.length, 1, "detailed static props share one material draw");
+  assert.equal(prepared.value[0].geometry.index.count, detailA.geometry.index.count * 4, "batching keeps every detail triangle");
+  detailed.dispose(); detailA.geometry.dispose();
   const bad = wire({ protos: [{ name: "garage_test", box: [1, 1, 1] }], count: 1, sectorRuns: [] }, [[0, 9240, 0, -4300, 0, 100, 1000, 0]]);
   assert.throws(() => system.addPlacements([pack], bad), /sectors/);
   system.dispose();
