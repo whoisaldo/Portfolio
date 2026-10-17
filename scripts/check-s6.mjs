@@ -89,10 +89,31 @@ for (const accessor of root.listAccessors()) {
   assert.ok(array && array.every(Number.isFinite), `Invalid geometry: ${accessor.getName()}`);
 }
 for (const texture of root.listTextures()) assert.ok(texture.getImage()?.byteLength, "Missing embedded texture.");
+// The cabin stays inside the closed car: above the floor, inside the door
+// cards, between the dash and the parcel shelf, under the roof. In glTF's
+// frame: x across, y up, z forward (the modelling frame's -y).
+const cabin = find("cabin");
+assert.ok(cabin, "Missing cabin.");
+let cabinVertices = 0;
+for (const node of root.listNodes().filter((n) => n.getMesh() && within(n, cabin))) {
+  const m = node.getWorldMatrix();
+  const v = [];
+  for (const primitive of node.getMesh().listPrimitives()) {
+    const position = primitive.getAttribute("POSITION");
+    for (let i = 0; i < position.getCount(); i++) {
+      const [x, y, z] = position.getElement(i, v);
+      const p = [m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]];
+      assert.ok(p[1] >= 0.28 && p[1] <= 1.4 && Math.abs(p[0]) <= 0.86 && p[2] >= -1.9 && p[2] <= 1.0,
+        `${node.getName()} leaves the cabin at (${p.map((c) => c.toFixed(3)).join(", ")}).`);
+      cabinVertices++;
+    }
+  }
+}
+
 // None of the shape reference's geometry ships (scripts/s6-reference-check.mjs).
 const checked = assertNoReferenceGeometry(root);
 
 let triangles = 0;
 for (const mesh of root.listMeshes()) for (const primitive of mesh.listPrimitives()) triangles += (primitive.getIndices()?.getCount() ?? 0) / 3;
 assert.ok(triangles <= 155000, `Over the desktop budget: ${triangles} triangles.`);
-console.log(`S6 OK. ${triangles.toLocaleString()} triangles, ${root.listTextures().length} embedded textures. Rig, body drop, hood, hot V, grille, mirrors, tips and mod anchors verified; none of ${checked} meshes reproduces the shape reference.`);
+console.log(`S6 OK. ${triangles.toLocaleString()} triangles, ${root.listTextures().length} embedded textures. Rig, body drop, hood, hot V, grille, mirrors, tips and mod anchors verified; ${cabinVertices.toLocaleString()} cabin vertices inside the car; none of ${checked} meshes reproduces the shape reference.`);
