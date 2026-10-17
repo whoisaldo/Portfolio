@@ -39,7 +39,7 @@ import Markers from "./Markers";
 import Credits from "./Credits";
 import { ShopCard } from "./Shop";
 import { CARS, STATIONS, findCar, findMod, findStation, resolveRequest } from "./cars";
-import { CONTROL, restoreFocus } from "./focus";
+import { ANCHOR, CONTROL, restoreFocus } from "./focus";
 import { useAnnouncer, useControllable, useGarageRequest } from "./state";
 import "./garage.css";
 
@@ -76,6 +76,8 @@ export default function GarageControls({
   status,
   shopGroup,
   onShopGroup,
+  partsOpen,
+  onPartsOpen,
   onLayout,
   request = null,
   onRequestApplied,
@@ -84,6 +86,7 @@ export default function GarageControls({
   const phone = !useMediaQuery("(min-width: 768px)");
   const [station, setStation] = useControllable(stationProp, onStation, "arrival");
   const [selection, setSelection] = useControllable(selectionProp, onSelect, null);
+  const [board, setBoard] = useControllable(shopGroup, onShopGroup, "bmw");
   const [said, announce] = useAnnouncer();
   useEffect(() => {
     if (status) announce(status);
@@ -102,7 +105,8 @@ export default function GarageControls({
   const activator = useRef(null);
   const lastKey = useRef(null);
   const parts = useRef({});
-  const [listOpen, setListOpen] = useState(false);
+  // B5 may keep Parts open while restoring a photo-row anchor into 3D.
+  const [listOpen, setListOpen] = useControllable(partsOpen, onPartsOpen, false);
   const [cardOpen, setCardOpen] = useState(false);
   const pendingHood = useRef(null);
   const pendingStance = useRef(null);
@@ -253,8 +257,8 @@ export default function GarageControls({
     announce("That marker is out of view. Focus is on Parts.");
   }, [announce]);
 
-  const stationTabs = list.map((s) => ({ ...s, key: `station:${s.id}` }));
-  const carTabs = CARS.map((c) => ({ id: c.id, label: c.label, key: `car:${c.id}` }));
+  const stationTabs = list.map((s) => ({ ...s, key: `station:${s.id}`, anchor: `station:${s.id}` }));
+  const carTabs = CARS.map((c) => ({ id: c.id, label: c.label, key: `car:${c.id}`, anchor: `car:${c.id}` }));
   const hoodOpen = car ? amount(hood?.[car.id]) >= 0.5 : false;
   const listId = `${idBase}-parts`;
   const cardDetails = `${idBase}-card-details`;
@@ -380,7 +384,7 @@ export default function GarageControls({
       {/* The card, the list, or the shop wall's captions. */}
       <div ref={part("side")} className="gw-area-side">
         {listOpen ? (
-          <Panel glass innerClassName="gw-panel" id={listId}>
+          <Panel glass innerClassName="gw-panel" id={listId} data-lenis-prevent>
             <div className="flex items-center justify-between gap-3">
               <p className="mono-label text-volt">{car ? `${car.label} parts` : "Parts, both cars"}</p>
               <button
@@ -408,7 +412,7 @@ export default function GarageControls({
             </div>
           </Panel>
         ) : mod ? (
-          <Panel glass innerClassName="gw-panel">
+          <Panel glass innerClassName="gw-panel" data-lenis-prevent>
             <PartCard
               mod={mod}
               viewId={null}
@@ -424,8 +428,8 @@ export default function GarageControls({
             />
           </Panel>
         ) : atShop ? (
-          <Panel glass innerClassName="gw-panel">
-            <ShopCard group={shopGroup} onGroup={(g) => onShopGroup?.(g)} idBase={idBase} compact={phone} />
+          <Panel glass innerClassName="gw-panel" data-lenis-prevent>
+            <ShopCard group={board} onGroup={setBoard} idBase={idBase} compact={phone} />
           </Panel>
         ) : null}
       </div>
@@ -434,7 +438,7 @@ export default function GarageControls({
       <div ref={part("util")} className="gw-area-util">
         {onMode && (
           <Panel glass size="sm" innerClassName="gw-bar">
-            <button type="button" className="gw-tab" onClick={() => onMode("photos")} {...{ [CONTROL]: "use-photos" }}>
+            <button type="button" className="gw-tab" onClick={() => onMode("photos")} {...{ [CONTROL]: "use-photos", [ANCHOR]: "mode" }}>
               <Images className="w-4 h-4" aria-hidden="true" />
               <span className="gw-long">Photographs</span>
               <span className="gw-short">Photos</span>

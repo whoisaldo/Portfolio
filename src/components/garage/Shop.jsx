@@ -17,6 +17,7 @@ import { teardown } from "../../data/life";
 import Panel from "../ui/Panel";
 import Picture from "../Picture";
 import Tabs from "./Tabs";
+import { ANCHOR } from "./focus";
 
 const reveal = {
   initial: { opacity: 0, y: 18 },
@@ -38,14 +39,15 @@ function ShopLink({ link }) {
   );
 }
 
-export default function Shop({ reduced = false, headingLevel = 3 }) {
+export default function Shop({ reduced = false, still = false, headingLevel = 3 }) {
   const H = `h${headingLevel}`;
   const G = `h${headingLevel + 1}`;
-  const item = reduced ? {} : reveal;
+  // A layout replacement must paint its final content before B5 restores its anchor.
+  const item = reduced || still ? { initial: false, animate: { opacity: 1, y: 0 } } : reveal;
   return (
     <div className="mt-20 md:mt-24">
       <motion.header {...item} transition={{ duration: 0.6 }} className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-2 pb-5 border-b border-ink-line">
-        <H className="font-display uppercase text-display-2 text-primary">{teardown.title}</H>
+        <H {...{ [ANCHOR]: "shop" }} tabIndex={-1} className="font-display uppercase text-display-2 text-primary">{teardown.title}</H>
         <p className="prose-dark text-[0.9375rem]">{teardown.lede}</p>
       </motion.header>
 

@@ -217,6 +217,8 @@
 
 /* ---- the photographs ----------------------------------------------------- */
 .gw-frame { isolation: isolate; }
+/* Deliberate card focus and opener restoration stay below the fixed site header. */
+.gw-photos :is(.gw-card-title, .gw-row, .gw-pin) { scroll-margin-block: 5.5rem 1rem; }
 
 .gw-car-tab {
   position: relative;

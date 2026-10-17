@@ -14,6 +14,21 @@
 // station took away, a closed card's buttons) falls back to Parts, the S4's
 // tab or the first station.
 export const CONTROL = "data-garage-control";
+// B5 saves this key and the element's viewport offset in its layout transaction.
+// Keep it separate from CONTROL, which also names layout-specific actions.
+export const ANCHOR = "data-garage-anchor";
+
+/** Deliberate photo actions may move to a card or back to its row. Reveal
+ *  only an offscreen target, without a smooth flight or an extra Tab stop. */
+export function focusInView(el) {
+  if (!el) return;
+  el.focus({ preventScroll: true });
+  const r = el.getBoundingClientRect();
+  const css = getComputedStyle(el);
+  const top = parseFloat(css.scrollMarginTop) || 0;
+  const bottom = parseFloat(css.scrollMarginBottom) || 0;
+  if (r.top < top || r.bottom > window.innerHeight - bottom) el.scrollIntoView({ block: "nearest", behavior: "instant" });
+}
 
 /** The key of the garage control holding focus inside `root`, or null. */
 export function focusedControl(root) {

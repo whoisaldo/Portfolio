@@ -9,7 +9,7 @@
 // that has no marker in the current view, or no photograph at all, is still
 // here: the list is the one place every part can always be reached.
 import React from "react";
-import { CONTROL } from "./focus";
+import { ANCHOR, CONTROL } from "./focus";
 import { modsIn, priceLabel } from "./cars";
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -40,7 +40,7 @@ export default function PartList({ car, selected, onPick, columns = true, showPr
                           type="button"
                           aria-pressed={on}
                           onClick={(e) => onPick(m, e.currentTarget)}
-                          {...{ [CONTROL]: `row:${car.id}:${m.id}` }}
+                          {...{ [CONTROL]: `row:${car.id}:${m.id}`, [ANCHOR]: `part:${car.id}:${m.id}` }}
                           className={`gw-row w-full flex items-baseline gap-3 py-2 text-left transition-colors
                                       ${on ? "text-volt" : "text-muted hover:text-primary"}`}
                         >

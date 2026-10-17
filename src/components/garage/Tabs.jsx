@@ -11,7 +11,7 @@
 // room, and walking past four stations with the arrow keys should not fly
 // four times.
 import React, { useRef } from "react";
-import { CONTROL } from "./focus";
+import { ANCHOR, CONTROL } from "./focus";
 import { nextIndex } from "./state";
 
 export default function Tabs({
@@ -55,7 +55,7 @@ export default function Tabs({
             aria-selected={on}
             aria-controls={controls}
             tabIndex={i === stop ? 0 : -1}
-            {...{ [CONTROL]: t.key }}
+            {...{ [CONTROL]: t.key, [ANCHOR]: t.anchor }}
             onClick={() => onChange(t.id, { source: "pointer" })}
             className={`${tabClassName} ${on ? "is-on" : ""}`}
           >

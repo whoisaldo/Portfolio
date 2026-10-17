@@ -39,9 +39,9 @@ import { s6Photo } from "./garage-s6-photos";
 
 export const car = {
   id: "s6",
-  name: "Audi S6 C7",
-  year: "2013",
-  engine: "4.0 TFSI V8, twin-turbo",
+  name: "Audi S6",
+  year: 2013,
+  engine: "4.0 TFSI twin-turbo V8",
   drivetrain: "S tronic, quattro",
   lede:
     "The second car. A pre-facelift C7 S6 in grey, the 4.0 twin-turbo V8 with S tronic and quattro. Five things on it are not stock, and one of them is Virtual Link, the lowering module I am lead engineer on at Pinnatec.",

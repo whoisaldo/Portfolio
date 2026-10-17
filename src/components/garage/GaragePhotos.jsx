@@ -17,7 +17,7 @@
 // plain words, and offers the one action that applies: enter it once it is
 // ready, retry it if it failed, resume it after a lost context. It never
 // switches by itself; whoever owns the layout decides that.
-import React, { useCallback, useEffect, useId, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { ArrowDownRight } from "lucide-react";
 import { scrollToSection } from "../../lib/scroll";
 import { useMediaQuery } from "../../hooks";
@@ -28,8 +28,8 @@ import PartList from "./PartList";
 import PhotoBay from "./PhotoBay";
 import Shop from "./Shop";
 import Credits from "./Credits";
-import { CARS, findCar, findMod, resolveRequest } from "./cars";
-import { CONTROL } from "./focus";
+import { CARS, findCar, findMod, photoForStation, resolveRequest, stationForPhoto } from "./cars";
+import { ANCHOR, CONTROL, focusInView } from "./focus";
 import { useAnnouncer, useControllable, useGarageRequest } from "./state";
 import "./garage.css";
 
@@ -65,7 +65,7 @@ function Availability({ availability, reason, canEnter3d, onEnter3d, onRetry, re
       <span className="hazard h-1.5 w-8 opacity-40 shrink-0" aria-hidden="true" />
       <p className="text-[0.9375rem] text-muted">{text}</p>
       {action && (
-        <button type="button" onClick={action.onClick} className="gw-action" {...{ [CONTROL]: action.key }}>
+        <button type="button" onClick={action.onClick} className="gw-action" {...{ [CONTROL]: action.key, [ANCHOR]: "mode" }}>
           {action.label}
         </button>
       )}
@@ -87,6 +87,9 @@ export default function GaragePhotos({
   onRetry,
   canEnter3d = false,
   resume = false,
+  fallback = null,
+  still = false,
+  onStation,
   contactHref = "#contact",
   request = null,
   onRequestApplied,
@@ -104,7 +107,7 @@ export default function GaragePhotos({
   );
   const { focusTarget, onFocused, carHint } = useGarageRequest(request, onRequestApplied, select, resolveRequest);
   const wide = useMediaQuery("(min-width: 768px)");
-  const [ownCar, setOwnCar] = useState(activeCar ?? selection?.carId ?? "s4");
+  const [ownCar, setOwnCar] = useState(photoForStation(fallback)?.carId ?? activeCar ?? selection?.carId ?? "s4");
   const carId = activeCar ?? ownCar;
   const setCarId = useCallback(
     (id) => {
@@ -113,8 +116,16 @@ export default function GaragePhotos({
     },
     [activeCar, onCar],
   );
-  const [viewIds, setViewIds] = useState(() => Object.fromEntries(CARS.map((c) => [c.id, c.views[0].id])));
+  const [viewIds, setViewIds] = useState(() => {
+    const photo = photoForStation(fallback);
+    return Object.fromEntries(CARS.map((c) => [c.id, c.id === photo?.carId ? photo.viewId : c.views[0].id]));
+  });
+  const root = useRef(null);
+  const shopRef = useRef(null);
   const titleRef = useRef(null);
+  const activator = useRef(null);
+  const pendingFocus = useRef(null);
+  const returnFocus = useRef(null);
   const car = findCar(carId);
   const view = car.views.find((v) => v.id === viewIds[carId]) ?? car.views[0];
   const mod = selection?.carId === carId ? findMod(carId, selection.modId) : null;
@@ -125,13 +136,22 @@ export default function GaragePhotos({
   // not undone; the setter is read through a ref for the same reason.
   const setCar = useRef(setCarId);
   setCar.current = setCarId;
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!selection?.carId) return;
     setCar.current(selection.carId);
     const m = findMod(selection.carId, selection.modId);
     if (!m?.pins.length) return;
     setViewIds((v) => (m.pins.some((p) => p.view === v[m.carId]) ? v : { ...v, [m.carId]: m.pins[0].view }));
   }, [selection?.carId, selection?.modId]);
+
+  // Apply a new handoff before the parent's layout transaction measures the
+  // replacement. It is an input, not a station callback to echo back to B5.
+  useLayoutEffect(() => {
+    const photo = photoForStation(fallback);
+    if (!photo) return;
+    setCar.current(photo.carId);
+    setViewIds((v) => ({ ...v, [photo.carId]: photo.viewId }));
+  }, [fallback]);
 
   useEffect(() => {
     if (carHint?.carId) setCar.current(carHint.carId);
@@ -141,34 +161,94 @@ export default function GaragePhotos({
   // goes to the card's heading once the card exists.
   useEffect(() => {
     if (!focusTarget || !mod || focusTarget.carId !== mod.carId || focusTarget.modId !== mod.id) return;
-    titleRef.current?.focus({ preventScroll: false });
+    focusInView(titleRef.current);
     onFocused?.();
   }, [focusTarget, mod, onFocused]);
 
-  const setView = (id) => setViewIds((v) => ({ ...v, [carId]: id }));
-  const pick = (m) => select({ carId: m.carId, modId: m.id }, { source: "photos" });
+  const setView = (id) => {
+    setViewIds((v) => ({ ...v, [carId]: id }));
+    onStation?.(stationForPhoto(carId, id));
+  };
+  const pick = (m, el, source = "marker") => {
+    if (el) activator.current = el;
+    if (source === "list") pendingFocus.current = `${m.carId}:${m.id}`;
+    select({ carId: m.carId, modId: m.id }, { source });
+    const nextView = m.pins.some((p) => p.view === viewIds[m.carId]) ? viewIds[m.carId] : m.pins[0]?.view ?? viewIds[m.carId];
+    onStation?.(stationForPhoto(m.carId, nextView));
+  };
+  useLayoutEffect(() => {
+    if (!mod || pendingFocus.current !== `${mod.carId}:${mod.id}`) return;
+    pendingFocus.current = null;
+    focusInView(titleRef.current);
+  });
+  useLayoutEffect(() => {
+    const back = returnFocus.current;
+    if (!back || mod) return;
+    returnFocus.current = null;
+    const row = root.current?.querySelector(`[${ANCHOR}="part:${back.part}"]`);
+    focusInView(back.el?.isConnected && back.el.getClientRects().length ? back.el : row);
+  });
+  const closeCard = () => {
+    const back = activator.current;
+    // A card's Next action can replace the photograph and remove its opener.
+    // The original part still has a row even if its marker no longer exists.
+    const opener = back?.getAttribute(CONTROL)?.replace(/^(mod|row):/, "") ?? `${mod.carId}:${mod.id}`;
+    returnFocus.current = { el: back, part: opener };
+    pendingFocus.current = null;
+    select(null, { source: "card" });
+    activator.current = null;
+  };
   const step = (dir) => {
     const i = mod ? mod.index : dir > 0 ? -1 : 0;
     const next = car.mods[(i + dir + car.mods.length) % car.mods.length];
-    pick(next);
+    pick(next, null, "card");
   };
   const markers = car.mods.reduce((n, m) => n + m.pins.length, 0);
   const viewMarkers = car.mods.filter((m) => m.pins.some((p) => p.view === view.id)).length;
 
-  const carTabs = CARS.map((c) => ({ id: c.id, label: c.label, key: `car:${c.id}`, title: c.title }));
+  // The shop reports when it reaches the upper half of the viewport. Scrolling
+  // back above it restores the station shown by the current photograph.
+  const reportStation = useRef(onStation);
+  reportStation.current = onStation;
+  const currentPhoto = useRef(null);
+  currentPhoto.current = stationForPhoto(carId, view.id);
+  useEffect(() => {
+    if (!shopRef.current || !window.IntersectionObserver) return undefined;
+    let atShop = false;
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !atShop) {
+        atShop = true;
+        reportStation.current?.("shop");
+      } else if (atShop && entry.boundingClientRect.top > window.innerHeight / 2) {
+        atShop = false;
+        reportStation.current?.(currentPhoto.current);
+      }
+    }, { rootMargin: "0px 0px -50% 0px" });
+    io.observe(shopRef.current);
+    return () => io.disconnect();
+  }, []);
+
+  const carTabs = CARS.map((c) => ({ id: c.id, label: c.label, key: `car:${c.id}`, anchor: `car:${c.id}`, title: c.title }));
   const viewTabs = car.views.map((v) => ({ id: v.id, label: v.label, key: `view:${carId}:${v.id}` }));
   const bayId = `${idBase}-bay`;
   const viewPanel = `${idBase}-view`;
 
   return (
-    <div className="gw-photos" data-garage-layout="photos">
+    <div ref={root} className="gw-photos" data-garage-layout="photos" onKeyDown={(e) => {
+      if (e.key !== "Escape" || !mod) return;
+      e.stopPropagation();
+      closeCard();
+    }}>
       <Availability availability={availability} reason={reason} canEnter3d={canEnter3d} onEnter3d={onEnter3d} onRetry={onRetry} resume={resume} />
 
       <div className="mt-8 flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
         <Tabs
           items={carTabs}
           value={carId}
-          onChange={setCarId}
+          onChange={(id) => {
+            setCarId(id);
+            onStation?.(stationForPhoto(id, viewIds[id]));
+          }}
           label="Cars in the garage"
           idBase={`${idBase}-car`}
           controls={bayId}
@@ -234,6 +314,7 @@ export default function GaragePhotos({
                   showPrices={showPrices}
                   viewId={view.id}
                   onStep={step}
+                  onClose={closeCard}
                   onPin={setView}
                   titleRef={titleRef}
                   className="flex flex-col grow"
@@ -276,7 +357,7 @@ export default function GaragePhotos({
           </div>
 
           <div className="border-t border-ink-line px-4 md:px-6 py-6">
-            <PartList car={car} selected={selection} onPick={pick} showPrices={showPrices} />
+            <PartList car={car} selected={selection} onPick={(m, el) => pick(m, el, "list")} showPrices={showPrices} />
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 md:px-5 py-2.5 border-t border-ink-line">
@@ -296,7 +377,7 @@ export default function GaragePhotos({
 
       {car.footnote && <p className="mt-5 prose-dark text-[0.9375rem] text-dim">{car.footnote}</p>}
 
-      <Shop reduced={reduced} />
+      <div ref={shopRef}><Shop reduced={reduced} still={still} /></div>
 
       <div className="mt-16 flex flex-wrap items-center justify-between gap-x-8 gap-y-4 pt-6 border-t border-ink-line">
         <Credits credits={credits} />

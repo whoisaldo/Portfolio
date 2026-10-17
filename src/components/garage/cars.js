@@ -101,6 +101,23 @@ export const priceLabel = (mod, { show, ...opts } = {}) => (show === false ? nul
 /** The car a station belongs to, or null for the arrival and the shop wall. */
 export const carAt = (stationId) => findStation(stationId)?.carId ?? null;
 
+// Photo browsing and a failed 3D visit share the same station identities.
+// The rear hold is a beat within the S6 visit, not a seventh station button.
+export const photoForStation = (station) => ({
+  arrival: { carId: "s4", viewId: "rear" },
+  s4: { carId: "s4", viewId: "front" },
+  "s4-bay": { carId: "s4", viewId: "bay" },
+  s6: { carId: "s6", viewId: "front" },
+  "s6-rear": { carId: "s6", viewId: "rear" },
+  "s6-bay": { carId: "s6", viewId: "bay" },
+}[station] ?? null);
+
+export function stationForPhoto(carId, viewId) {
+  if (viewId === "bay") return `${carId}-bay`;
+  if (viewId === "rear") return carId === "s6" ? "s6-rear" : "arrival";
+  return carId;
+}
+
 /** A request from anywhere, as `{ carId, modId }`, or null if it names
  *  nothing real. `{ mod }` and a bare string are the S4's legacy forms. */
 export function resolveRequest(req) {
