@@ -399,6 +399,17 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   let safeTime = 0;
   const hooks = new Set();
 
+  // Close the hood before moving the S4, then refresh the rig at its new
+  // road pose. directed updates its world matrices as well as animation.
+  // The draw must not advance that controller again after collision checks.
+  const applyDirectedFrame = (dt) => {
+    const state = { ...spec.garage, free: false };
+    const applied = world.garage?.applyDirectedState?.(state);
+    if (!spec.car || !parts.car?.directed) return applied;
+    parts.car.directed(dt, spec.car);
+    return world.garage?.applyDirectedState?.(state);
+  };
+
   const intervals = new Float32Array(300);
   let nIntervals = 0;
   const frame = (now) => {
@@ -445,7 +456,8 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     if (!gate.pending || !recording.needsGarage(t)) recording.evaluate(t, spec);
     // Live car bounds must describe this sought frame before either the
     // authored camera or the final edit/photo proposal queries collision.
-    let carStateApplied = !free && world.garage?.applyDirectedState?.({ ...spec.garage, free: false });
+    const carPlaced = !free && Boolean(spec.car && parts.car?.directed);
+    let carStateApplied = !free && applyDirectedFrame(dt);
     if (!free && spec.garage.active && garageIsReady(world.garage)) {
       const collision = world.garage.collision;
       if (carStateApplied !== true || !(spec.pose.position.distanceToSquared(spec.pose.target) > 1e-6 && collision.clearance(spec.pose.position) >= 0.45 && collision.nearPlane(spec.pose, camera.aspect) >= 0.15)) {
@@ -455,7 +467,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
         set({ playing: false });
         t = clock.t = bd.time = safeTime;
         recording.evaluate(t, spec);
-        carStateApplied = world.garage.applyDirectedState({ ...spec.garage, free: false });
+        carStateApplied = applyDirectedFrame(0);
         edit.ready = false;
         edit.accepted = null;
       } else safeTime = t;
@@ -584,10 +596,10 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     layers.setOverdrive(bd.overdrive, spec.levels?.bass ?? 0);
     for (const fn of hooks) fn(dt, t, spec, shown);
     layers.update(dt, { rewind: playing && dir < 0 ? 1 : 0, paused: playing || free ? 0 : 1 });
-    // While the player has the car the world is not told where it is on
-    // the road: roam has put it where it is.
+    // Roam or the pre-query application already placed the S4. Preserve
+    // the recording spec for consumers without advancing the car at draw.
     const carOnRoad = spec.car;
-    if (free) spec.car = null;
+    if (free || carPlaced) spec.car = null;
     world.renderDirected(dt, spec);
     spec.car = carOnRoad;
     spec.pose = recordingPose;

@@ -330,9 +330,31 @@ def _scissor_up(k):
 
 # Down, the runways and their ramps are a step a walker takes and a car
 # drives up; up, the runways, the legs and rams under them, and the stops.
-solid("garage_scissor_down",
-      (-1.08, -0.52, 0.0, SCISSOR_TOP["down"], -SCISSOR_RUN / 2, SCISSOR_RUN / 2),
-      (0.52, 1.08, 0.0, SCISSOR_TOP["down"], -SCISSOR_RUN / 2, SCISSOR_RUN / 2))
+# A box cannot slope, so each ramp is published as SCISSOR_STEPS treads
+# under its drawn slope, each SCISSOR_TOP / (n + 1) higher than the last:
+# with the roam's 0.25 m columns no column rises more than two treads
+# (0.06 m) over its neighbour, inside a car's 0.09 m step, so wheels climb
+# onto the runways from either end and come down again.
+SCISSOR_STEPS = 3
+SCISSOR_RAMP = 0.42
+
+
+def _scissor_ramp_solids():
+    out = []
+    top = SCISSOR_TOP["down"]
+    R = SCISSOR_RUN / 2
+    run = SCISSOR_RAMP / SCISSOR_STEPS
+    for x0, x1 in ((-1.08, -0.52), (0.52, 1.08)):
+        out.append((x0, x1, 0.0, top, -R, R))
+        for e in (-1, 1):
+            for i in range(SCISSOR_STEPS):
+                h = top * (SCISSOR_STEPS - i) / (SCISSOR_STEPS + 1)
+                za, zb = e * (R + run * i), e * (R + run * (i + 1))
+                out.append((x0, x1, 0.0, h, min(za, zb), max(za, zb)))
+    return out
+
+
+solid("garage_scissor_down", *_scissor_ramp_solids())
 solid("garage_scissor_up",
       (-1.08, -0.52, 0.0, SCISSOR_TOP["up"] + 0.39, -SCISSOR_RUN / 2 - 0.11, SCISSOR_RUN / 2 + 0.11),
       (0.52, 1.08, 0.0, SCISSOR_TOP["up"] + 0.39, -SCISSOR_RUN / 2 - 0.11, SCISSOR_RUN / 2 + 0.11))

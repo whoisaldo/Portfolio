@@ -56,8 +56,20 @@ near by only, and never on a phone, which is how the city's phone tier lightens 
   its laptop and OBD lead, a parts table, a welder, a drip tray.
 - `lounge.py`: the couch, a fridge, a side table, the coffee; extinguisher, first aid, floor and
   trench drains, oil stains, tyre marks, BAY 01 and BAY 02, a cable ramp; the AFTERLIFE AUTO sign
-  in neon, neon OPEN, neon spanners, posters and a lightbox (the city's own adverts), the
-  monitor's bezel.
+  in neon (with WATSON / BAY 01 as the old room's sign had it), neon OPEN, neon spanners, posters
+  and a lightbox (the city's own adverts), the monitor's bezel.
+- `identity.py`: the old Explore-garage room's signature pieces, rebuilt from this folder's
+  `night-city-garage.blend` and `scripts/blender/build_night_city_garage.py` as kit prototypes:
+  David's yellow jacket draped over its rolling stool (`garage_jacket_chair`), Maine's arm cannon
+  in its service cradle (`garage_maine_cradle`), Rebecca's Guts on its pegs (`garage_guts_pegs`),
+  the Adam Smasher print's frame and taped backing (`garage_smasher_frame`), the braindance
+  monitor at the old screen's size with its label and deck (`garage_bd_monitor`), the amber bench
+  strip and the pink and cyan wall tubes, and `place_workbench`, which sets the old back wall down
+  as one composition. The art is not in the kit: the frame and the monitor leave `SMASHER_ART`
+  and `BD_SCREEN` for the layout's named, UV-mapped `garage_identity_poster` and `garage_screen`
+  (`smasher_art()` and `monitor_screen()` give them placed), which take `textures/adam-smasher.jpg`
+  and `textures/moon.jpg`. These are fictional display props of Cyberpunk: Edgerunners characters,
+  set dressing as they were in the old room, and they keep their shapes and colours on a phone.
 
 The preview builds headless from the repository root:
 
@@ -69,7 +81,9 @@ whole extent `box`, measured `bounds`, collision `solids`, whether a phone drops
 assembly's extent; the lifts' measured fit against `public/models/ali-s4.glb`) and
 `garage-props.blend` (every prop in rows by kind beside a 1.75 m figure). It stops if a
 prototype's geometry leaves its box. The second also renders a front three-quarter tile of each
-prop, the lifts with the S4 on them, the published solids as red boxes, and an overview under the
+prop (the old room's pieces also with only their phone geometry), the old back wall composed
+from the Afterlife workbench station's views, the lifts with the S4 on them, the published solids
+as red boxes, and an overview under the
 garage's kind of light, cool strips overhead and a warm practical low at the side. The Blender
 materials are previews drawn front faces only, as the site draws them: the site draws `worn`,
 `print` and `face` with its own shaders.

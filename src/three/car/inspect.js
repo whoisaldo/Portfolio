@@ -36,9 +36,10 @@ export function ownerOf(node, car) {
  *
  *   { node }               an empty or part of the model, at its origin
  *                          (the S6's mod_* anchors)
- *   { part, offset? }      the centre of a named part (an empty's
+ *   { part, offset?, carrier? } the centre of a named part (an empty's
  *                          origin), plus a car-space offset (the S4's,
- *                          from src/data/garage.js)
+ *                          from src/data/garage.js). An explicit rig
+ *                          carrier can keep suspension above a spinning tyre.
  *   { at: [x, y, z] }      a point in car space, carried by the body
  *   { box: [fx, fy, fz] }  a fraction of the car's bounds, carried by the
  *                          body: a development stand-in, reported as
@@ -60,7 +61,7 @@ export function resolveAnchor(car, anchor = {}) {
     _box.setFromObject(part);
     const p = car.worldToLocal(_box.isEmpty() ? part.getWorldPosition(new THREE.Vector3()) : _box.getCenter(new THREE.Vector3()));
     if (anchor.offset) p.add(_v.fromArray(anchor.offset));
-    const owner = ownerOf(part, car);
+    const owner = named(car, anchor.carrier) ?? ownerOf(part, car);
     return { owner, local: owner.worldToLocal(car.localToWorld(p)), fallback: null };
   }
   if (anchor.at) return { owner: body, local: body.worldToLocal(car.localToWorld(new THREE.Vector3(...anchor.at))), fallback: null };

@@ -64,6 +64,7 @@ for module in (
     "districts.corpo",
     "districts.rooftop",
     "districts.garage",
+    "districts.garage_interior",
     "districts.sky",
     "districts.japantown",
     "districts.mega",

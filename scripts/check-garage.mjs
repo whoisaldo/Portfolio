@@ -31,8 +31,13 @@ let garage;
 let three;
 let propsModule;
 let materialModule;
+let inspectionModule;
+let s4Mods;
+let GLTFLoader;
+let carDecoder;
 try {
   [world, garage, three, propsModule, materialModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js")]);
+  [inspectionModule, { mods: s4Mods }, { GLTFLoader }, { MeshoptDecoder: carDecoder }] = await Promise.all([vite.ssrLoadModule("/src/three/car/inspect.js"), vite.ssrLoadModule("/src/data/garage.js"), vite.ssrLoadModule("three/addons/loaders/GLTFLoader.js"), vite.ssrLoadModule("three/addons/libs/meshopt_decoder.module.js")]);
 } finally {
   await vite.close();
 }
@@ -274,6 +279,27 @@ for (const [tier, anchors] of Object.entries(anchorSets)) {
         assert.ok(state.done && state.pose.position.distanceTo(visit.pose("s4_rear", aspect).position) < 1e-8);
       }
     });
+    check(`${tag} completed exits preserve independent indoor snapshots`, () => {
+      for (const destination of ["s4_rear", "s6_bay", "s6_stance", "s6_cabin"].filter((name) => visit.pose(name, aspect))) {
+        const cursor = visit.navigator(.4, aspect);
+        cursor.request(destination, { cut: true });
+        const saved = cursor.snapshot();
+        const exit = visit.transition(.4, aspect, cursor);
+        let state;
+        for (let n = 0; n < 2400; n++) { state = exit.sample(1 / 240); if (state.done) break; }
+        assert.ok(state.done && state.pose.position.x < 450);
+        assert.equal(cursor.snapshot().node, "outside");
+        assert.equal(saved.node, destination, "departure cannot mutate the saved indoor location");
+        const incoming = visit.transition(.4, aspect, visit.navigator(.4, aspect, saved));
+        incoming.seekOutside();
+        incoming.reverse(true);
+        state = incoming.sample(1 / 240);
+        assert.ok(state.pose.position.x < 450, "cabin restoration must also start outside");
+        for (let n = 0; n < 2400 && !state.done; n++) state = incoming.sample(1 / 240);
+        const rejoin = destination.endsWith("_cabin") ? destination.slice(0, 2) : destination;
+        assert.ok(state.done && state.pose.position.distanceTo(visit.pose(rejoin, aspect).position) < 1e-8);
+      }
+    });
     check(`${tag} door`, () => {
       const inside = (pt) => pt.z > OPENING.z0 && pt.z < OPENING.z1 && pt.y > 0 && pt.y < OPENING.height;
       const entry = visit.entry(aspect);
@@ -425,6 +451,29 @@ check("floor normal recovery updates sampler presence and clears stale slots", (
   assert.equal(material.uniforms.uRough.value, null);
   registry.dispose(); source.dispose();
 });
+
+// Rig geometry needs no texture pixels. Resolve before phone preparation and
+// retain the same carrier through wheel phases, as the runtime does.
+await carDecoder.ready;
+const carBytes = readFileSync("public/models/ali-s4.glb");
+const s4 = (await new GLTFLoader().setMeshoptDecoder(carDecoder).register(() => ({ name: "CheckRigGeometry", loadTexture: () => Promise.resolve(new three.Texture()) })).parseAsync(carBytes.buffer.slice(carBytes.byteOffset, carBytes.byteOffset + carBytes.byteLength), "")).scene;
+check("S4 suspension follows its steering carrier without tyre spin", () => {
+  const wheel = s4.getObjectByName("wheel_fl");
+  const steering = s4.getObjectByName("steer_fl");
+  const suspension = inspectionModule.resolveAnchor(s4, s4Mods.find((m) => m.id === "suspension").anchor);
+  const wheelPin = inspectionModule.resolveAnchor(s4, s4Mods.find((m) => m.id === "wheels").anchor);
+  assert.equal(suspension.owner, steering);
+  assert.equal(wheelPin.owner, wheel, "wheel-centred pins keep their rolling owner");
+  const original = suspension.owner.localToWorld(suspension.local.clone());
+  for (const angle of [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2, 2 * Math.PI]) {
+    wheel.rotation.x = angle;
+    s4.updateMatrixWorld(true);
+    const point = suspension.owner.localToWorld(suspension.local.clone());
+    assert.ok(point.distanceTo(original) < 1e-8, `suspension moved at wheel phase ${angle}`);
+    assert.ok(point.y > .6, "suspension marker stays above the wheel centre and floor");
+  }
+});
+s4.traverse((node) => { node.geometry?.dispose(); for (const material of [].concat(node.material ?? [])) material.dispose(); });
 
 if (placeholders.size) {
   console.log(`check:garage: ${placeholders.size} pose/path stand-ins still from the plan, not the kit:`);

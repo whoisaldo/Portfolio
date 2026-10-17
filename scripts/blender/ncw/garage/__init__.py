@@ -15,8 +15,12 @@ and its tyres).
                oil, shelving, cable runs, the overhead lights, the tune cart
   lounge.py    the lounge corner, the dressing, the floor's marks, the
                shop's sign, its posters and its neon
+  identity.py  the old Explore-garage room's signature pieces: David's
+               jacket on its stool, Maine's arm cannon, Rebecca's Guts, the
+               Adam Smasher frame, the braindance monitor, the amber bench
+               strip and the pink and cyan wall tubes
 
 The preview (scripts/blender/build_garage_props.py) lays every one out in
 rows beside a scale figure and renders the contact sheet.
 """
-from ncw.garage import shop, bench, lounge  # noqa: F401 (each registers its prototypes)
+from ncw.garage import shop, bench, lounge, identity  # noqa: F401 (each registers its prototypes)
