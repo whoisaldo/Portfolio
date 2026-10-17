@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { getBounds, NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { MeshoptDecoder } from "meshoptimizer";
+import { assertNoReferenceGeometry } from "./s6-reference-check.mjs";
 
 await MeshoptDecoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.decoder": MeshoptDecoder });
-const document = await io.read("public/models/ali-s6.glb");
+const document = await io.read(process.argv[2] ?? "public/models/ali-s6.glb");
 const root = document.getRoot();
 const find = (name) => root.listNodes().find((node) => node.getName() === name);
 const within = (node, ancestor) => {
@@ -88,7 +89,10 @@ for (const accessor of root.listAccessors()) {
   assert.ok(array && array.every(Number.isFinite), `Invalid geometry: ${accessor.getName()}`);
 }
 for (const texture of root.listTextures()) assert.ok(texture.getImage()?.byteLength, "Missing embedded texture.");
+// None of the shape reference's geometry ships (scripts/s6-reference-check.mjs).
+const checked = assertNoReferenceGeometry(root);
+
 let triangles = 0;
 for (const mesh of root.listMeshes()) for (const primitive of mesh.listPrimitives()) triangles += (primitive.getIndices()?.getCount() ?? 0) / 3;
 assert.ok(triangles <= 155000, `Over the desktop budget: ${triangles} triangles.`);
-console.log(`S6 OK. ${triangles.toLocaleString()} triangles, ${root.listTextures().length} embedded textures. Rig, body drop, hood, hot V, grille, mirrors, tips and mod anchors verified.`);
+console.log(`S6 OK. ${triangles.toLocaleString()} triangles, ${root.listTextures().length} embedded textures. Rig, body drop, hood, hot V, grille, mirrors, tips and mod anchors verified; none of ${checked} meshes reproduces the shape reference.`);
