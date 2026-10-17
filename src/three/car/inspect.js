@@ -103,9 +103,14 @@ function eachPoint(root, car, fn) {
  * body's lowest point and the floor, less a margin for each (1 cm to a
  * tyre, 5 cm to the floor). The wheels are measured as they are drawn: a
  * tyre is the cylinder its wheel node's bounds describe, and any point of
- * the body over that tyre's tread counts. Call on the unlowered rig, before
- * slim(). `{ limit, tyre, floor }`; `limit` is never negative.
+ * the body over that tyre's tread counts. A surface already more than
+ * BURIED inside a tyre at rest is hidden inside the car (the S6's rear door
+ * card, behind its arch): the tyre passes through it before anything
+ * moves, so it is reported as `buried` and does not limit the drop. Call on
+ * the unlowered rig, before slim(). `{ limit, tyre, floor, buried }`;
+ * `limit` is never negative.
  */
+const BURIED = 0.02;
 export function loweringRoom(car) {
   car.updateMatrixWorld(true);
   const body = car.getObjectByName("body");
@@ -116,6 +121,7 @@ export function loweringRoom(car) {
     return { x0: b.min.x, x1: b.max.x, y: (b.min.y + b.max.y) / 2, z: (b.min.z + b.max.z) / 2, r: (b.max.y - b.min.y) / 2 };
   });
   let tyre = Infinity;
+  let buried = 0;
   let floor = Infinity;
   eachPoint(body, car, (p) => { floor = Math.min(floor, p.y); });
   // Clip each body triangle to the tread's vertical prism. Along every
@@ -147,20 +153,25 @@ export function loweringRoom(car) {
         let poly = tri;
         for (const [axis, value, sign] of [["x", t.x0, 1], ["x", t.x1, -1], ["z", t.z - t.r, 1], ["z", t.z + t.r, -1], ["y", t.y, 1]]) poly = clip(poly, axis, value, sign);
         const gap = (p) => p.y - t.y - Math.sqrt(Math.max(0, t.r * t.r - (p.z - t.z) ** 2));
+        let least = Infinity;
         for (let j = 0; j < poly.length; j++) {
           const a = poly[j], b = poly[(j + 1) % poly.length];
-          tyre = Math.min(tyre, gap(a));
+          least = Math.min(least, gap(a));
           if (Math.abs(b.z - a.z) < 1e-9) continue;
           const slope = (b.y - a.y) / (b.z - a.z);
           const z = t.z - slope * t.r / Math.sqrt(1 + slope * slope);
           const u = (z - a.z) / (b.z - a.z);
-          if (u > 0 && u < 1) tyre = Math.min(tyre, gap(a.clone().lerp(b, u)));
+          if (u > 0 && u < 1) least = Math.min(least, gap(a.clone().lerp(b, u)));
         }
+        // A triangle partly buried in the tyre is buried as a whole: its
+        // clipped corners on the tyre's own outline mean nothing.
+        if (least < -BURIED) buried = Math.min(buried, least);
+        else tyre = Math.min(tyre, least);
       }
     }
   });
   const limit = tyres.length === 4 && Number.isFinite(floor) ? Math.max(0, Math.min(tyre - 0.01, floor - 0.05)) : 0;
-  return { limit, tyre, floor };
+  return { limit, tyre, floor, buried };
 }
 
 /** The triangles `root` draws (visible meshes only). */
@@ -449,7 +460,7 @@ if (typeof document === "undefined" && typeof self !== "undefined" && typeof sel
       const geometry = await prepareTier(root, { target, errors: tier === "phone" ? undefined : [0.00025, 0.0005, 0.001] });
       if (room) {
         const prepared = loweringRoom(root);
-        for (const k of ["limit", "tyre", "floor"]) room[k] = Math.min(room[k], prepared[k]);
+        for (const k of ["limit", "tyre", "floor", "buried"]) room[k] = Math.min(room[k], prepared[k]);
       }
       const finiteValues = validateAttributes(root);
       root.traverse((o) => { if (o.isMesh) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); } });
