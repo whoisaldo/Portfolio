@@ -409,12 +409,19 @@ HEAD_DRL = [(.035, .56), (.09, .625), (.14, .71), (.19, .8), (.23, .865), (.268,
             (.945, .62), (.945, .52), (.935, .36), (.92, .2), (.895, .07)]
 
 
+# Where the lamp's lens sits along the car, by half-breadth, and its lean.
+HEAD_WRAP = [(.40, -2.365), (.55, -2.345), (.70, -2.29), (.80, -2.22), (.86, -2.15), (.875, -2.10)]
+
+
+def head_surface(x, z):
+    return interp(HEAD_WRAP, abs(x)) + (z - .72) * .35
+
+
 def headlight(sign):
     tag = 'l' if sign > 0 else 'r'
     unit = lambda pts: from_unit(pts, *HEAD_X, *HEAD_Z, sign)
     shape = ccw(closed_spline(unit(HEAD_LENS), 3))
-    wrap = [(.40, -2.365), (.55, -2.345), (.70, -2.29), (.80, -2.22), (.86, -2.15), (.875, -2.10)]
-    yf = lambda x, z: interp(wrap, abs(x)) + (z - .72) * .35
+    yf = lambda x, z: head_surface(x, z)
     parts = [surface('headlamp_lens_' + tag, shape, yf, lens_clear, PARTS_ROOT, (0, -1, 0), 3, .007)]
     parts.append(ribbon('headlamp_bezel_' + tag, shape, offset(shape, .008), lambda x, z: yf(x, z) + .004,
                         gloss_black, PARTS_ROOT, (0, -1, 0), .05, .01))

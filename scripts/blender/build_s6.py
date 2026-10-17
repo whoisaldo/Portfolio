@@ -1,16 +1,20 @@
-"""Build Ali's 2013 S6 from the CC-BY A6 C7. Run through Blender MCP or --python.
+"""Build Ali's 2013 S6: body, parts, cabin, engine bay, rig, .blend and GLB.
 
-Blender coordinates: X left, -Y forward, Z up. glTF converts this to X left,
-+Z forward, Y up. All dimensions are metres. See design/audi-s6/README.md.
+Run headless (blender -b --factory-startup --python scripts/blender/build_s6.py)
+to rebuild design/audi-s6/ali-s6.blend and design/audi-s6/ali-s6-source.glb, or
+through Blender MCP to rebuild the live Ali_S6_Final scene (which writes
+nothing unless WRITE_OUTPUTS is set). Blender coordinates: X left, -Y forward,
+Z up. glTF converts this to X left, +Z forward, Y up. All dimensions are
+metres. See design/audi-s6/README.md.
 """
 import bpy
 import bmesh
 import math
 from pathlib import Path
-from mathutils import Vector
+from mathutils import Matrix, Vector
+from mathutils.bvhtree import BVHTree
 
-ROOT = Path(globals().get('PROJECT_ROOT', '/Users/aldo/Desktop/Portfolio'))
-SOURCE = ROOT / 'design/audi-s6/source'
+ROOT = Path(globals().get('PROJECT_ROOT', Path(__file__).resolve().parents[2] if '__file__' in globals() else '/Users/aldo/Desktop/Portfolio'))
 SCENE_NAME = globals().get('SCENE_NAME', 'Ali_S6_Final')
 
 old = bpy.data.scenes.get(SCENE_NAME)
@@ -315,6 +319,127 @@ def build_wheel(code, side, pivot, mats):
     return wheel
 
 
-# Until the CC-BY base is in design/audi-s6/source/, the build stops at the
-# S6's own parts on their provisional sockets (s6_parts.py).
+# ---- assembly ----
+
+# The rig is the S4's (src/three/car/object.js): ali_s6 holds the body, which
+# carries everything that rides on the air suspension, and beside it the four
+# wheel pivots, so Virtual Link's drop is one translation of the body.
+car = empty('ali_s6')
+car['wheelRadius'] = WHEEL_R
+car['wheelbase'] = WHEELBASE
+car['forwardAxis'] = '+Z after glTF export'
+body = empty('body', (0, 0, 0), car)
+PARTS_ROOT = body
 exec((ROOT / 'scripts/blender/s6_parts.py').read_text())
+exec((ROOT / 'scripts/blender/s6_body.py').read_text())
+by_base = {key.split('.')[0]: root for key, root in PARTS.items()}
+for name in ('steer_fl', 'steer_fr', 'axle_rl', 'axle_rr'):
+    by_base[name].parent = car
+move_sockets(PARTS)
+
+shell, columns, sections = build_side_band(body)
+conform_headlamps(PARTS, surface_tree([shell]))
+lid = build_lid(body)
+# Tinted as in his photos.
+window_glass = glass('S6_window_glass_tint', '101316', .8, .02)
+greenhouse, windows = build_greenhouse(body, window_glass, gloss_black)
+build_pillar_trims(body)
+build_underbody(body, columns, sections, matte_black)
+build_wheel_wells(body, matte_black)
+cut_openings(shell, lid, PARTS)
+build_plate_recess(lid, body)
+build_details(body)
+painted = surface_tree([shell, lid])
+build_bumper_features(body, painted)
+build_shut_lines(body, painted)
+# The cowl cover closes the slot between the hood's rear edge and the windscreen.
+cowl = []
+for k in range(25):
+    x = -.86 + 1.72 * k / 24
+    z_front = hood_height(x, COWL_Y) - .012 if abs(x) < .82 else table(BELT, -.95, 2) - .01
+    cowl += [(x, COWL_Y - .006, z_front), (x, GLASS_BASE_Y + .004, interp(CENTRE_TOP, GLASS_BASE_Y) - .004 - .02 * (x / .86) ** 2)]
+mesh('cowl_cover', cowl, [(2 * k, 2 * k + 2, 2 * k + 3, 2 * k + 1) for k in range(24)], satin_black, body, True)
+for name, group in (('headlights', ('headlight_l', 'headlight_r')), ('taillights', ('taillight_l', 'taillight_r'))):
+    node = empty(name, (0, 0, 0), body)
+    for part in group:
+        by_base[part].parent = node
+
+# The hood opens on its own hinge at the cowl; its liner rides with it.
+HINGE = Vector((0, COWL_Y - .012, interp(HOOD_CROWN_Z, COWL_Y) - .012))
+hinge = empty('hood_hinge', HINGE, body)
+hinge['openAngle'] = -1.10
+hood = build_hood(hinge)
+hood.name = hood.data.name = 'opening_hood'
+hood.data.transform(Matrix.Translation(-HINGE))
+liner = bpy.data.objects.new('hood_acoustic_liner', hood.data.copy())
+scene.collection.objects.link(liner)
+liner.parent = hinge
+liner.data.materials.clear()
+liner.data.materials.append(material('S6_hood_acoustic_liner', '17191b', 0, .97))
+for v in liner.data.vertices:
+    v.co.x *= .9
+    v.co.y = (v.co.y + .62) * .88 - .62
+    v.co.z -= .02
+liner.data.flip_normals()
+
+# The engine bay sits under the hood, its frame's z = 0 just under the hood's
+# seam; it is pitched to follow the hood, which rises about 11 cm to the cowl.
+ENGINE_AT = (0, -1.52, .91)
+exec((ROOT / 'scripts/blender/s6_engine_bay.py').read_text())
+engine.rotation_euler.x = math.radians(6.3)
+
+# Two gas struts, as the S4's: a base on the body, a mount on the hood, and a
+# telescoping tube and rod the loader sets between them as the hood turns.
+strut_black = material('S6_hood_strut_black', '121314', .3, .4)
+for sign, suffix in ((1, ''), (-1, '_r')):
+    base = Vector((sign * .62, -1.17, .80))
+    mount = Vector((sign * .60, -1.50, .925))
+    empty('hood_strut_base' + suffix, base, body)
+    empty('hood_strut_mount' + suffix, mount - HINGE, hinge)
+    delta = mount - base
+    for part, r, share, mat in (('tube', .011, .58, strut_black), ('rod', .0055, .55, chrome)):
+        node = empty('hood_strut_%s%s' % (part, suffix), base, body)
+        cylinder('hood_strut_%s%s_mesh' % (part, suffix), (0, 0, 0), r, 1, mat, node, 16)
+        node.rotation_euler = delta.to_track_quat('Z', 'Y').to_euler()
+        node.scale.z = delta.length * share
+        if part == 'rod':
+            node.location = base + delta * .45
+
+cabin, dash = build_cabin(body)
+
+# One anchor for each of the S6's mods, where the garage pins its marker.
+for name, location in [('mod_ie_ecu_tune', (-.52, -1.12, .86)),        # engine ECU, in the plenum by the cowl
+                       ('mod_ie_tcu_tune', (0, -.45, .33)),             # the S tronic's controller, under the tunnel
+                       ('mod_virtual_link', (0, .35, .24)),             # the air suspension the module lowers
+                       ('mod_rs_grille', tuple(by_base['RS_honeycomb_grille'].location)),
+                       ('mod_rsnav_head_unit', (0, -.73, 1.02))]:
+    empty(name, location, body)
+
+# Within each node, join the rigid meshes that share a material, so a part
+# costs one draw per material rather than one per piece. The engine bay is
+# already grouped, and the hood keeps its liner separate.
+nodes = [n for n in [car] + list(car.children_recursive) if n.type == 'EMPTY']
+for node in nodes:
+    if node == engine or node in engine.children_recursive:
+        continue
+    groups = {}
+    for child in node.children:
+        if child.type == 'MESH' and not child.children and len(child.data.materials) == 1:
+            groups.setdefault(child.data.materials[0], []).append(child)
+    for objects in groups.values():
+        if len(objects) > 1:
+            join(sorted(objects, key=lambda o: o.name))
+
+# Export the car only: the review camera and lights belong to the .blend.
+bpy.ops.object.select_all(action='DESELECT')
+for obj in [car] + list(car.children_recursive):
+    obj.select_set(True)
+WRITE = globals().get('WRITE_OUTPUTS', bpy.app.background)
+if WRITE:
+    import contextlib, io
+    with contextlib.redirect_stdout(io.StringIO()):
+        bpy.ops.export_scene.gltf(filepath=str(ROOT / 'design/audi-s6/ali-s6-source.glb'), export_format='GLB', use_selection=True,
+                                  export_apply=True, export_yup=True, export_extras=True, export_cameras=False, export_lights=False,
+                                  export_animations=False, export_image_format='AUTO')
+    bpy.data.libraries.write(str(ROOT / 'design/audi-s6/ali-s6.blend'), {scene}, path_remap='RELATIVE_ALL', fake_user=True, compress=True)
+    print('S6 source exported. Run npm run car:assets to publish the optimized asset.')
