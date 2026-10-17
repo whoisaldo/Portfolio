@@ -1173,8 +1173,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const stillKey = () => {
     const p = camera.position;
     const q = camera.quaternion;
-    const state = visit ? visit.stateAt(clamp(stage.garageProgress ?? 0, 0, 1), true) : null;
-    return `${[p.x, p.y, p.z, q.x, q.y, q.z, q.w, camera.fov].map((v) => v.toFixed(4)).join(",")}|${width}x${height}|${packsIn.length}|${stage.garageCut}|${state ? `${state.hood.s4}${state.hood.s6}${state.lowering}` : ""}`;
+    // A manual hood, selection, late room or panel layout can change a
+    // still view without moving its camera. Read the effective state so
+    // the physical car and pins follow the controls before drawing rests.
+    const state = visit ? garageState() : null;
+    const garageKey = state ? JSON.stringify([state.availability, state.hood.s4, state.hood.s6, state.lowering, state.selection, pinLayout]) : "";
+    return `${[p.x, p.y, p.z, q.x, q.y, q.z, q.w, camera.fov].map((v) => v.toFixed(4)).join(",")}|${width}x${height}|${packsIn.length}|${stage.garageCut}|${garageKey}`;
   };
 
   const frame = (now) => {
