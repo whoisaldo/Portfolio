@@ -832,20 +832,28 @@ def fit_grille(parts, shell):
 
 # The S6's intake pocket off Ali's daylight front photo (car's left, x, z,
 # corner radius): from beside the grille's lower side to the bumper's
-# corner, its bottom just above the lip. Its top is the base's own (the
-# bumper's edge over the facelift's intake), which carries the washer cover
-# above it where his car has it.
+# corner, its bottom just above the lip.
 POCKET = [(.41, .02), (.848, .045), (.295, .045), (.288, .025)]   # inner x, outer x, bottoms (outer, inner) with radii
+# The pocket's top edge rises toward the corner, as in his photo: (x, z) at
+# its grille end and at its outer end. It is the base's own edge, moved up.
+POCKET_TOP = ((.41, .415), (.83, .465))
 # The bright ledge: the pocket's top edge comes 4 mm forward, fading out 15 mm above it.
 LEDGE = (.015, .004)
 # The lip's centre slot (the base's) is split by thin dividers, as on his car.
 SLOT_DIVIDERS = (-.24, -.12, 0, .12, .24)
 
 
+def pocket_top(facelift):
+    """The S6 pocket's top over |x|: the line POCKET_TOP, never below the facelift opening's own top."""
+    now = loop_top([facelift])
+    (x0, z0), (x1, z1) = POCKET_TOP
+    return [(x, max(z, z0 + (z1 - z0) * min(1, max(0, (x - x0) / (x1 - x0))))) for x, z in now]
+
+
 def pocket_outline(sign, facelift):
     """The S6 pocket for one side, its top taken from the facelift opening's."""
     (xi, ri), (xo, ro), (zbo, rbo), (zbi, rbi) = POCKET
-    top = loop_top([facelift])
+    top = pocket_top(facelift)
     corners = [(xi, interp(top, xi + .02), ri), (xo, interp(top, xo - .03), ro), (xo, zbo, rbo), (xi, zbi, rbi)]
     return ccw(rounded([(sign * x, z, r) for x, z, r in corners], 4))
 
@@ -871,6 +879,9 @@ def fit_intakes(parts, shell, parent):
         span = (min(abs(x) for x, z in facelift) + .01, max(abs(x) for x, z in facelift) - .02)
         bottom = lambda poly: [(x, -z) for x, z in loop_top([[(p[0], -p[1]) for p in poly]])]
         shape_lamp_sill(shell, sign, bottom(pocket), bottom(facelift), span, -1, gap=0, reach=.14)
+        # Its top edge (with the return over the pocket) moves up to the S6's line.
+        signed = lambda rows: sorted((sign * x, z) for x, z in rows if span[0] <= x <= span[1])
+        lower_bumper_edge(shell, signed(loop_top([facelift])), signed(pocket_top(facelift)), -1, reach=.10)
         # The ledge: the pocket's top edge and its return come forward.
         top = loop_top([pocket])
         x0, x1 = min(abs(x) for x, z in pocket) + .02, max(abs(x) for x, z in pocket) - .04
