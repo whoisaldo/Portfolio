@@ -48,6 +48,7 @@ import { createTraffic, makeTrafficAhead } from "./traffic.js";
 import { createCar } from "./car.js";
 import { createClearance } from "./clearance.js";
 import { createShafts } from "./shafts.js";
+import { createGaragePaintBatch } from "./garage-paint-batch.js";
 import { createGarageVisit, createGarageCollision, createGaragePresentation, createGarageUploadPump, createGarageBuildQueue, cullGarageObjects, garageLights } from "./garage.js";
 import { LIGHT_BOUNDS } from "./spill.js";
 import { cars as carModels, preloadCar } from "../three/car/object.js";
@@ -254,6 +255,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // once the room is in: { pick(raycaster) -> { carId, point } | null,
   // flash(carId) -> Vector3 | null, ... }. Null until then.
   let garageCars = null;
+  let garagePaintBatch = null;
   let inspectionCursor = null;
   let inspectionTarget = null;
   let inspectionAspect = null;
@@ -1823,6 +1825,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         // lighting probe can now prepare against its actual surfaces.
         if (!garageCars) garageCars = createGaragePresentation(runtime.default ?? runtime.createGarageCars, { scene, renderer, shared, tier, reduced, anchors: city.anchors, fixtures, road: car, camera, between }, { s6Available: !carModels.s6.unavailable });
         await garageCars.ready;
+        if (!garagePaintBatch) {
+          let inspection = garageCars.anchors().find((anchor) => anchor.carId === "s4")?.owner;
+          while (inspection && inspection.parent !== car.car) inspection = inspection.parent;
+          if (inspection) garagePaintBatch = createGaragePaintBatch(inspection);
+          if (garagePaintBatch) await renderer.compileAsync?.(garagePaintBatch.mesh, camera, scene);
+        }
         if (disposed) return false;
         if (["s4", "s6"].some((id) => garageCars.stats?.[id]?.placeholder && !garageCars.stats[id].visitorOmitted)) throw new Error("A development car cannot be presented as a finished model.");
         if (diagnostics) await diagnostics.during("garage-probe", () => garageCars.captureProbe?.(city.root));
@@ -1931,6 +1939,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       }, { priority: true }).catch((err) => {
         if (disposed) return false;
         garageRoom = null;
+        garagePaintBatch?.dispose(); garagePaintBatch = null;
         garageCars?.dispose();
         garageCars = null;
         garageAvailable = "failed";
@@ -2348,6 +2357,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     idleUploads.dispose();
     garageAvailable = contextLost ? "lost" : "off";
     asks.splice(0).forEach((entry) => entry.run());
+    garagePaintBatch?.dispose(); garagePaintBatch = null;
     garageCars?.dispose();
     garageCars = null;
     garageSubscribers.clear();

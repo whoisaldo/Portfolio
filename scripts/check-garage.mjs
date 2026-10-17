@@ -36,6 +36,7 @@ let materialModule;
 let scrollModule;
 let mergeModule;
 let inspectionModule;
+let paintBatchModule;
 let policyModule;
 let videoModule;
 let carSpecs;
@@ -44,6 +45,7 @@ let GLTFLoader;
 let carDecoder;
 try {
   [world, garage, three, propsModule, materialModule, scrollModule, mergeModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js"), vite.ssrLoadModule("/src/world/scroll-stage.js"), vite.ssrLoadModule("/src/world/merge.js")]);
+  paintBatchModule = await vite.ssrLoadModule("/src/world/garage-paint-batch.js");
   policyModule = await vite.ssrLoadModule("/src/world/garage-policy.js");
   videoModule = await vite.ssrLoadModule("/src/world/garage-video.js");
   ({ cars: carSpecs } = await vite.ssrLoadModule("/src/three/car/object.js"));
@@ -1129,6 +1131,32 @@ check("undealt printed faces retain their zero design in shared prototype batche
   const mesh = props.group.children.find((node) => node.isBatchedMesh && !node.isBaked), color = new three.Vector4();
   assert.ok(mesh); for (let id = 0; id < 2; id++) { mesh.getColorAt(id, color); assert.equal(color.x, 0, "print reads a zero attribute even when its prototype receives random face designs"); }
   props.dispose(); a.geometry.dispose(); material.dispose();
+});
+
+check("paint batching preserves moving rig matrices, physical bounds, picking and resource lifetime", () => {
+  const root = new three.Group(), hood = new three.Group(), wheel = new three.Group(); root.add(hood, wheel);
+  const material = new three.MeshStandardMaterial(); material.name = "s4_paint";
+  const a = new three.Mesh(new three.BoxGeometry(2, .3, 3), material), b = new three.Mesh(new three.BoxGeometry(1, .1, .8), material), c = new three.Mesh(new three.BoxGeometry(.3, .6, .6), material);
+  root.add(a); hood.add(b); wheel.add(c); hood.position.set(0, .5, .8); wheel.position.set(.9, -.3, .9);
+  const camera = new three.PerspectiveCamera(50, 1.6, .1, 100), ray = new three.Raycaster();
+  root.position.set(463, 1, -215); root.rotation.y = .67; root.updateMatrixWorld(true);
+  const hitDistance = () => { camera.position.set(470, 1.2, -209); camera.lookAt(root.position); camera.updateMatrixWorld(); ray.setFromCamera(new three.Vector2(), camera); return ray.intersectObject(root, true)[0]?.distance; };
+  const sources = []; root.traverse(node => { if (node.isMesh) sources.push(node); });
+  const before = hitDistance(), batch = paintBatchModule.createGaragePaintBatch(root);
+  assert.ok(batch); assert.ok([a, b, c].every(n => n.layers.mask === 0));
+  assert.ok(Math.abs(hitDistance() - before) < 1e-7, "the same painted surface receives physical picks");
+  for (let step = 0; step <= 20; step++) {
+    batch.mesh.visible = false; const expected = inspectionModule.localBounds(root).clone(); batch.mesh.visible = true;
+    root.position.x = 463 + step / 10; root.rotation.y = .67 + step / 100; hood.rotation.x = -step / 20; wheel.rotation.x = step / 5;
+    batch.mesh.visible = false; const moved = inspectionModule.localBounds(root).clone(); batch.mesh.visible = true;
+    const actual = inspectionModule.localBounds(root);
+    assert.deepEqual(actual.toArray?.() ?? [actual.min.toArray(), actual.max.toArray()], [moved.min.toArray(), moved.max.toArray()]);
+    assert.ok(!expected.isEmpty());
+    const matrix = new three.Matrix4(); for (const [i, source] of sources.entries()) { batch.mesh.getMatrixAt(i, matrix); assert.deepEqual(matrix.elements, Array.from(Float32Array.from(source.matrixWorld.elements)), "GPU batch matrices equal the original model uniforms exactly"); }
+  }
+  root.updateMatrixWorld(true); const version = batch.mesh._matricesTexture.version; root.updateMatrixWorld(true); assert.equal(batch.mesh._matricesTexture.version, version, "a stationary rig does not upload the same matrix texture again");
+  let disposed = 0; batch.mesh._matricesTexture.addEventListener("dispose", () => disposed++); batch.dispose(); assert.equal(disposed, 1); assert.ok([a, b, c].every(n => n.layers.mask === 1));
+  for (const source of [a, b, c]) source.geometry.dispose(); material.dispose();
 });
 
 check("all six probe faces prepare their own portals and prop runs through the transform wrapper", () => {
