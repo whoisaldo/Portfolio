@@ -594,6 +594,10 @@ export function createGarageVisit(anchors) {
       return (lo + (d - distances[lo]) / Math.max(1e-9, distances[hi] - distances[lo])) / samples;
     };
     const points = [...entry(aspect), tierOf(aspect).poses.arrival.position].reverse();
+    // Outdoor arcs start at the graph's street node, beyond the facade,
+    // rather than immediately against the opening's exterior lip.
+    const outsideNode = anchors.get("anchor_garage_node_outside")?.position ?? exit(aspect).at(-1);
+    if (outsideNode && points.at(-1).distanceTo(outsideNode) > 1e-6) points.push(outsideNode);
     const outside = makePose();
     outside.position.copy(points[points.length - 1]);
     outside.target.copy(points[Math.max(0, points.length - 2)]);

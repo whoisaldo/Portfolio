@@ -192,6 +192,7 @@ for (const [tier, anchors] of Object.entries(anchorSets)) {
     check(`${tag} route interruption and doorway`, () => {
       for (const start of [0, .1, .2, .275, .4, .465, .515, .6, .67, .8, .9, 1]) {
         const route = visit.transition(start, aspect);
+        assert.ok(route.outside().position.x < 450, "outdoor flight begins at the street node, clear of the facade");
         let previous = visit.at(start, aspect);
         let crossed = false;
         for (let n = 0; n < 1000; n++) {
