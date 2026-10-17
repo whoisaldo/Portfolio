@@ -421,15 +421,15 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   // is the kit meshes' own program: its uniforms are its original's, read
   // through, with uProp 1 over them.)
   const twins = new Map();
-  const twin = (material, kind, geometry) => {
+  const twin = (material, kind, geometry, glow = null) => {
     const alphas = material.vertexColors && geometry.attributes.color?.itemSize === 4;
-    const key = `${material.uuid}|${kind}|${alphas}`;
+    const key = `${material.uuid}|${kind}|${alphas}|${glow ?? ""}`;
     if (!twins.has(key)) {
       // The world uniforms are shared below. Copying their render targets
       // first is unsupported by Three and would create unusable duplicates.
       const source = material.uniforms ? Object.create(material, { uniforms: { value: {} } }) : material;
       const copy = new material.constructor().copy(source);
-      if (material.uniforms) copy.uniforms = kind === "baked" ? Object.create(material.uniforms, { uProp: { value: { value: 1 }, enumerable: true } }) : material.uniforms;
+      if (material.uniforms) copy.uniforms = kind === "baked" ? Object.create(material.uniforms, { uProp: { value: { value: 1 }, enumerable: true }, ...(glow == null ? {} : { uIntensity: { value: { value: glow }, enumerable: true } }) }) : material.uniforms;
       copy.userData.sortId = material.id;
       twins.set(key, copy);
     }
@@ -490,9 +490,11 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       // The city keeps its size limit so thousands of street instances
       // still share their prototype vertices.
       if (!material.transparent && (sectorRuns.length || (!mine && n * src.geometry.attributes.position.count <= BAKED && (!batchInstances || !buildingCore || k.name === "traffic_light" && material.name === "glow")))) {
-        const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}|${src.userData.assetKind ?? ""}|${layerMask}`;
+        // The amber bench strip keeps its own brightness and material batch.
+        const glow = own.glow(material.name, k.name);
+        const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}|${src.userData.assetKind ?? ""}|${layerMask}|${glow ?? ""}`;
         if (!baked.has(key)) {
-          const shader = twin(material, mine ? "baked-local" : "baked", src.geometry);
+          const shader = twin(material, mine ? "baked-local" : "baked", src.geometry, glow);
           const mesh = new Baked(mine ? localBatchMaterial(shader) : shader);
           // (load: one a streamed district brings is hidden until its parts
           // are written and put in: shown empty, a frame made its program.)

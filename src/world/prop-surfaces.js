@@ -1186,7 +1186,12 @@ export function createPropSurfaces(dressed) {
   const DEALT = ["paper", "face"];
   const READS = ["paper", "face", "print"];
   // How strongly a lit face of the props' own lights the street (the bake).
-  const LIGHT = { face: 0.33, paper: 0.9, tube: 0.8 };
+  const LIGHT = { face: 0.33, paper: 0.9 };
+  // The amber strip over the workbench, the old room's organising light
+  // (B4's look pass, by the coordinator's exception for this strip only):
+  // its light in the bake, and how bright its diffuser draws against the
+  // tube material's own 2.4 that every other tube keeps.
+  const BENCH_STRIP = { prototype: "garage_bench_strip", light: 0.8, glow: 16 };
   const clean = (name) => name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
   return {
     forName(name) {
@@ -1200,8 +1205,13 @@ export function createPropSurfaces(dressed) {
       const n = clean(name);
       // Only the new amber bench strips join the bake. The side-wall
       // tubes keep the room balance already supplied by the city kit.
-      if (n === "tube" && prototype !== "garage_bench_strip") return 0;
+      if (n === "tube") return prototype === BENCH_STRIP.prototype ? BENCH_STRIP.light : 0;
       return LIGHT[n] ?? 0;
+    },
+    /** How bright a part of that material draws in that prototype, where
+     *  it differs from its material's own (the bench strip); else null. */
+    glow(name, prototype) {
+      return clean(name) === "tube" && prototype === BENCH_STRIP.prototype ? BENCH_STRIP.glow : null;
     },
     /**
      * And of an instance of it, by its deal: which light it is one of
