@@ -1527,7 +1527,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       garageCars.setHood("s6", flight?.garage ? 0 : state.hood.s6);
       garageCars.setLowering(flight?.garage ? 0 : state.lowering);
     }
-    garageCars.setInside(tape?.free || directed?.free ? null : clamp(((car?.car.position.x ?? 0) - 451.5) / 4, 0, 1));
+    // B4 evaluates the S4's actual X/Z doorway position, including roam.
+    garageCars.setInside(null);
     garageCars.update(tape ? 0 : dt);
     const endpoint = (v) => v <= 0 ? 0 : v >= 1 ? 1 : "moving";
     const signature = `${state.station}|${endpoint(state.hood.s4)}|${endpoint(state.hood.s6)}|${endpoint(state.lowering)}`;
@@ -1539,7 +1540,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       if (rect?.y > height / 2) view.bottom = Math.min(view.bottom, rect.y - 24);
     }
     const focused = [...pinElements].find(([, el]) => el === document.activeElement || el.contains(document.activeElement))?.[0];
-    const hidden = markers?.project(view, pinElements, { selected: manual.selection ? `${manual.selection.carId}:${manual.selection.modId}` : null, focused, cap: aspect < 1 ? 4 : Infinity });
+    const hidden = markers?.project(view, pinElements, { selected: manual.selection ? `${manual.selection.carId}:${manual.selection.modId}` : null, focused, cap: tier === "phone" || aspect < 1 ? 4 : Infinity });
     for (const key of hidden ?? []) garageSubscribers.forEach((fn) => fn({ type: "pin-hidden", key }));
   };
   const publishGarage = () => garageSubscribers.forEach((fn) => fn(garageState()));
