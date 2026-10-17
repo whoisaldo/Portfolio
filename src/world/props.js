@@ -46,7 +46,7 @@ import { RULES, deal } from "./prop-deal.js";
 import { createPropSurfaces } from "./prop-surfaces.js";
 import { identityBatching } from "./merge.js";
 
-const CELL = 48;
+const CELL = 12;
 // The most vertices a part may have in the whole city and be written out.
 const BAKED = 6000;
 // three draws a list of runs of an index in one call for its own
@@ -437,7 +437,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
           if (hold) mesh.visible = false;
           mesh.name = `props_small_${material.name}`;
           if (src.userData.assetKind) mesh.userData.assetKind = src.userData.assetKind;
-          if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name)) mesh.layers.enable(reflectLayer);
+          if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name, k.name)) mesh.layers.enable(reflectLayer);
           group.add(mesh);
           baked.set(key, mesh);
         }
@@ -483,7 +483,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       if (src.userData.assetKind) im.userData.assetKind = src.userData.assetKind;
       // Light in the air draws after the steam, as the lamps' shafts do.
       if (material.transparent) im.renderOrder = 7;
-      if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name)) im.layers.enable(reflectLayer);
+      if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name, k.name)) im.layers.enable(reflectLayer);
       group.add(im);
       return im;
     };
@@ -619,7 +619,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       if (set.near) continue;
       for (const im of [...set.instanced, ...set.small]) {
         const name = im.material.name;
-        const face = own.light(name);
+        const face = own.light(name, set.name);
         if (!/^(neon_|glow|lantern)/.test(name) && !face) continue;
         const g = im.geometry;
         const pos = g.attributes.position;

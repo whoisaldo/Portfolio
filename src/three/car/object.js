@@ -4,20 +4,20 @@ import { s4ModelUrl } from "../../data/s4";
 import { s6ModelUrl } from "../../data/s6";
 import { markBytes } from "../../world/progress";
 import { Vector3 } from "three";
+import { garageS6Policy } from "../../world/garage-policy.js";
 
 const PARTS = ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr", "steer_fl", "steer_fr", "body", "headlights", "taillights", "hood_hinge"];
 
 // Ali's two cars. Both GLBs share one rig (design/audi-s4, design/audi-s6):
 // metres, +Y up, +Z forward, steering pivots about Y, wheels spinning about
 // X, the hood on its hinge and the body as one node over the wheels. Until
-// scripts/optimize-s6.mjs writes the S6's revision into src/data/s6.js its
-// URL is null, and the S6 says why it is not available yet. The S6's size is
+// its confirming review, garage-policy.js withholds the S6 from visitors
+// and permits the real asset on a development test URL. The S6's size is
 // its exported bounds: 2,088 mm across the mirrors, 1,463 high, 4,939 long.
 export const cars = {
   s4: { url: s4ModelUrl, name: "ali_s4", title: "Ali's 2013 Audi S4", size: [2.02, 1.38, 4.74], wheelRadius: 0.34325, wheelbase: 2.811, unavailable: null },
   s6: {
-    url: s6ModelUrl, name: "ali_s6", title: "Ali's 2013 Audi S6", size: [2.088, 1.463, 4.939], wheelRadius: 0.3433, wheelbase: 2.912,
-    unavailable: s6ModelUrl ? null : "Ali's S6 is not available yet: its model has not been built.",
+    ...garageS6Policy(s6ModelUrl, { development: import.meta.env.DEV, search: typeof location === "undefined" ? "" : location.search }), name: "ali_s6", title: "Ali's 2013 Audi S6", size: [2.088, 1.463, 4.939], wheelRadius: 0.3433, wheelbase: 2.912,
   },
 };
 

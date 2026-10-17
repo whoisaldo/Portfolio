@@ -76,9 +76,9 @@ export function createGarageUploadPump({ run, pending, canRun, schedule = reques
   return { wake, dispose() { disposed = true; cancel(frame); frame = 0; } };
 }
 
-// Visibility is evaluated for the actual main, reflected or probe camera.
-// Keep mixed room/street cells conservatively. Only cells wholly beyond
-// the room must be visible through one of its authored openings.
+// Each pass clips the real openings to its own camera before building portal
+// cones. A street cell which overlaps the room stays conservative, but an
+// opening behind the camera cannot keep the entire exterior submitted.
 export function createGarageVisibility(anchors) {
   const room = new THREE.Box3(new THREE.Vector3(452.05, -8, -229.95), new THREE.Vector3(475.95, 8, -200.05));
   const portals = [...anchors].filter(([name]) => /^anchor_garage_portal_/.test(name)).map(([, anchor]) => {
@@ -86,39 +86,61 @@ export function createGarageVisibility(anchors) {
     if (!(width > 0 && height > 0)) return null;
     const u = new THREE.Vector3(width / 2, 0, 0).applyQuaternion(anchor.quaternion);
     const v = new THREE.Vector3(0, height / 2, 0).applyQuaternion(anchor.quaternion);
-    return { center: anchor.position, corners: [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => anchor.position.clone().addScaledVector(u, a).addScaledVector(v, b)) };
+    return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => anchor.position.clone().addScaledVector(u, a).addScaledVector(v, b));
   }).filter(Boolean);
   const eye = new THREE.Vector3();
-  const direction = new THREE.Vector3();
-  let inside = false, nearOpening = false, cones = [];
+  const view = new THREE.Frustum(), matrix = new THREE.Matrix4(), positive = new THREE.Vector3();
+  let inside = false, nearOpening = false, cones = [], roadVisible = true;
+  const clip = (polygon, plane) => {
+    const result = [];
+    for (let i = 0; i < polygon.length; i++) {
+      const a = polygon[i], b = polygon[(i + 1) % polygon.length];
+      const da = plane.distanceToPoint(a), db = plane.distanceToPoint(b);
+      if (da >= 0) result.push(a);
+      if ((da < 0) !== (db < 0)) result.push(a.clone().lerp(b, da / (da - db)));
+    }
+    return result;
+  };
   return {
+    get inside() { return inside; },
+    get exteriorVisible() { return !inside || nearOpening || cones.length > 0; },
+    get roadVisible() { return !inside || nearOpening || roadVisible; },
     prepare(camera) {
       eye.setFromMatrixPosition(camera.matrixWorld);
       inside = room.containsPoint(eye);
+      view.setFromProjectionMatrix(matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
       nearOpening = false;
-      cones = portals.map(({ center, corners }) => {
-        // The road mirror sees the reflection of the opening below its
-        // floor. Its conservative cone includes that reflected aperture.
-        const points = corners.map((p) => p.clone());
-        if (eye.y < 0) for (const p of points) p.y = -p.y;
-        const midpoint = center.clone(); if (eye.y < 0) midpoint.y *= -1;
-        direction.subVectors(midpoint, eye).normalize();
-        const through = midpoint.clone().add(direction);
-        const planes = points.map((point, i) => {
-          const plane = new THREE.Plane().setFromCoplanarPoints(eye, point, points[(i + 1) % 4]);
-          if (plane.distanceToPoint(through) < 0) plane.negate();
-          return plane;
+      roadVisible = false;
+      cones = [];
+      for (const corners of portals) {
+        // Reflect the aperture with the road, including its sill. The
+        // oblique mirror camera then clips this polygon to its real view.
+        const points = corners.map((p) => new THREE.Vector3(p.x, eye.y < 0 ? -p.y : p.y, p.z));
+        const opening = new THREE.Plane().setFromCoplanarPoints(...points.slice(0, 3));
+        if (Math.abs(opening.distanceToPoint(eye)) < .5) nearOpening = true;
+        let polygon = points;
+        for (const plane of view.planes) polygon = clip(polygon, plane);
+        if (polygon.length < 3) continue;
+        const center = polygon.reduce((sum, p) => sum.add(p), new THREE.Vector3()).multiplyScalar(1 / polygon.length);
+        const through = center.clone().add(center.clone().sub(eye).normalize());
+        const planes = polygon.map((p, i) => {
+          const plane = new THREE.Plane().setFromCoplanarPoints(eye, p, polygon[(i + 1) % polygon.length]);
+          return plane.distanceToPoint(through) < 0 ? plane.negate() : plane;
         });
-        const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(direction, midpoint);
-        if (Math.abs(new THREE.Plane().setFromCoplanarPoints(...points.slice(0, 3)).distanceToPoint(eye)) < .5) nearOpening = true;
-        return new THREE.Frustum(...planes, plane, new THREE.Plane(new THREE.Vector3(), 1));
-      });
+        if (opening.distanceToPoint(eye) > 0) opening.negate();
+        planes.push(opening);
+        cones.push(planes);
+        if (polygon.some((p) => p.y < eye.y && p.y >= -.01)) roadVisible = true;
+      }
     },
     test(box, sector = "") {
       if (!portals.length || nearOpening) return true;
-      if (inside && box.intersectsBox(room)) return true;
+      if (inside && box.intersectsBox(room) && sector !== "exterior") return true;
       if (!inside && !sector.startsWith("garage_") && !room.containsBox(box)) return true;
-      return cones.some((cone) => cone.intersectsBox(box));
+      return cones.some((planes) => planes.every((plane) => {
+        positive.set(plane.normal.x > 0 ? box.max.x : box.min.x, plane.normal.y > 0 ? box.max.y : box.min.y, plane.normal.z > 0 ? box.max.z : box.min.z);
+        return plane.distanceToPoint(positive) >= 0;
+      }));
     },
   };
 }

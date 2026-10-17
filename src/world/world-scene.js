@@ -992,7 +992,20 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       city.visibility.prepare(drawCamera);
       city.props.update(drawCamera);
     }
-    return renderScene.call(this, drawScene, drawCamera);
+    // Exterior systems use shader-positioned batches, so their ordinary
+    // geometry bounds cannot describe a room portal. If every aperture is
+    // outside the view, none of those batches can contribute a pixel.
+    const hidden = [];
+    if (city && drawScene === scene && !city.visibility.exteriorVisible) {
+      for (const node of scene.children) {
+        if (!node.visible || node === city.root || node === car?.car || /^(ali_s6|garage_)/.test(node.name)) continue;
+        if (node.isLight || /lights/.test(node.name) || (node.isGroup && !node.name)) continue;
+        hidden.push(node);
+        node.visible = false;
+      }
+    }
+    try { return renderScene.call(this, drawScene, drawCamera); }
+    finally { for (const node of hidden) node.visible = true; }
   };
   const draw = (dt, moonView = null, flow = dt) => {
     renderer.info.reset();
@@ -1006,7 +1019,6 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (moonView) moon.renderShadows();
     if (moonView !== "only") {
       skyline?.update(camera, renderer.getPixelRatio());
-      city?.props?.update(camera);
       rain?.update(flow, camera, env.wet);
       rain?.setCameraVelocity(shutter.fresh ? motion.vel : ZERO);
       bolt?.update();
@@ -1034,6 +1046,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       // is not drawn. How far either has taken it is k.
       // (And it is the deck's own while the eye is up on the deck, going
       // out and coming back in round the change of plane: mirror.js.)
+      camera.updateMatrixWorld();
+      city?.visibility.prepare(camera);
+      const roadVisible = city?.visibility.roadVisible ?? true;
       const deck = mirror ? deckShare(camera.position) : 0;
       const k = mirror ? 1 - (1 - Math.max(1 - roadShown(), adapt.reflectK)) * Math.abs(2 * deck - 1) : 1;
       const mirrorY = deck > 0.5 ? DECK_Y : 0;
@@ -1044,7 +1059,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           r.uniforms.uMirrorY.value = mirrorY;
         }
       }
-      if (mirror && city && env.wet && k < 1) {
+      if (mirror && city && env.wet && k < 1 && roadVisible) {
         city.setOccluders(!!directed && (directed.occluders ?? 1) > 0);
         camera.updateMatrixWorld();
         const drew = mirror.render(scene, camera, mirrorY);

@@ -1186,7 +1186,7 @@ export function createPropSurfaces(dressed) {
   const DEALT = ["paper", "face"];
   const READS = ["paper", "face", "print"];
   // How strongly a lit face of the props' own lights the street (the bake).
-  const LIGHT = { face: 0.33, paper: 0.9 };
+  const LIGHT = { face: 0.33, paper: 0.9, tube: 0.8 };
   const clean = (name) => name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
   return {
     forName(name) {
@@ -1196,8 +1196,12 @@ export function createPropSurfaces(dressed) {
       return made.get(n);
     },
     /** The light a part of that material gives the street, or 0. */
-    light(name) {
-      return LIGHT[clean(name)] ?? 0;
+    light(name, prototype) {
+      const n = clean(name);
+      // Only the new amber bench strips join the bake. The side-wall
+      // tubes keep the room balance already supplied by the city kit.
+      if (n === "tube" && prototype !== "garage_bench_strip") return 0;
+      return LIGHT[n] ?? 0;
     },
     /**
      * And of an instance of it, by its deal: which light it is one of
@@ -1205,6 +1209,7 @@ export function createPropSurfaces(dressed) {
      * the material's light it gives; null for none.
      */
     lightOf(name, deal) {
+      if (clean(name) === "tube") return ONE;
       if (clean(name) !== "paper") return FRONTS[Math.floor(deal)] ?? ONE;
       return PAPER_LIGHTS[Math.floor(deal)] ?? null;
     },

@@ -36,11 +36,13 @@ let materialModule;
 let scrollModule;
 let mergeModule;
 let inspectionModule;
+let policyModule;
 let s4Mods;
 let GLTFLoader;
 let carDecoder;
 try {
   [world, garage, three, propsModule, materialModule, scrollModule, mergeModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js"), vite.ssrLoadModule("/src/world/scroll-stage.js"), vite.ssrLoadModule("/src/world/merge.js")]);
+  policyModule = await vite.ssrLoadModule("/src/world/garage-policy.js");
   [inspectionModule, { mods: s4Mods }, { GLTFLoader }, { MeshoptDecoder: carDecoder }] = await Promise.all([vite.ssrLoadModule("/src/three/car/inspect.js"), vite.ssrLoadModule("/src/data/garage.js"), vite.ssrLoadModule("three/addons/loaders/GLTFLoader.js"), vite.ssrLoadModule("three/addons/libs/meshopt_decoder.module.js")]);
 } finally {
   await vite.close();
@@ -57,6 +59,13 @@ const check = (name, fn) => {
     failures.push(`${name}: ${err.message}`);
   }
 };
+
+check("S6 review policy keeps the real model on the development test path", () => {
+  const asset = "/models/ali-s6.glb?v=review";
+  for (const search of ["", "?garage-test-s6=1"]) assert.equal(policyModule.garageS6Policy(asset, { search }).url, null);
+  assert.equal(policyModule.garageS6Policy(asset, { development: true }).url, null);
+  assert.equal(policyModule.garageS6Policy(asset, { development: true, search: "?garage-test-s6=1" }).url, asset);
+});
 
 // ---- the timeline -------------------------------------------------------------
 check("stations", () => {
@@ -442,6 +451,35 @@ check("late garage prop placements", () => {
   pack.geometry.dispose();
   material.dispose();
 });
+check("the three amber bench strip faces enter the prop bake without adding side-wall light", () => {
+  const material = new three.ShaderMaterial({ uniforms: { uSpill: { value: null } } });
+  material.name = "tube";
+  const proto = new three.Mesh(new three.PlaneGeometry(2.3, .03), material);
+  proto.userData.proto = "garage_bench_strip";
+  const color = new three.Color("#ffb45e");
+  proto.geometry.setAttribute("color", new three.Float32BufferAttribute(Array.from({ length: 4 }, () => color.toArray()).flat(), 3));
+  const make = (name) => {
+    let text = JSON.stringify({ protos: [{ name, box: [1.22, .05, .11] }], count: 3 });
+    if (text.length % 2) text += " ";
+    const bytes = new TextEncoder().encode(text);
+    const buffer = new ArrayBuffer(4 + bytes.length + 48);
+    new DataView(buffer).setUint32(0, bytes.length, true);
+    new Uint8Array(buffer, 4, bytes.length).set(bytes);
+    const data = new Int16Array(buffer, 4 + bytes.length);
+    for (let i = 0; i < 3; i++) data.set([0, 9300, 150, -4200 - i * 48, 0, 100, 1000, 0], i * 8);
+    proto.userData.proto = name;
+    return propsModule.createProps([proto], buffer);
+  };
+  const bench = make("garage_bench_strip");
+  assert.equal(bench.sources.length, 1);
+  assert.equal(bench.sources[0].mesh.geometry.attributes.position.count, 18, "all six authored triangles light the bench");
+  assert.ok(bench.sources[0].color.toArray().every((v, i) => Math.abs(v - color.toArray()[i]) < 1e-6));
+  assert.equal(bench.sources[0].intensity, .8);
+  const side = make("garage_wall_tube");
+  assert.equal(side.sources.length, 0, "existing magenta and cyan bake is unchanged");
+  bench.dispose(); side.dispose(); proto.geometry.dispose(); material.dispose();
+});
+
 check("camera collision is independent of visibility", () => {
   const { Box3, Vector3 } = three;
   const box = new Box3(new Vector3(2, 0, -1), new Vector3(3, 3, 1));
@@ -646,13 +684,17 @@ check("portal visibility keeps real openings for main and reflected cameras", ()
   const visibility = garage.createGarageVisibility(anchors);
   const camera = new three.PerspectiveCamera(60, 1.6, .1, 2000);
   const box = (x, y, z) => new three.Box3(new Vector3(x - .1, y - .1, z - .1), new Vector3(x + .1, y + .1, z + .1));
-  camera.position.set(462, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
+  camera.position.set(462, 2, -215); camera.lookAt(440, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
   assert.ok(visibility.test(box(440, 1, -215)), "street through the doorway");
   assert.ok(!visibility.test(box(440, 1, -150)), "street hidden by the side wall");
   assert.ok(visibility.test(box(467, 1, -225), "garage_s6"), "open room remains visible");
-  camera.position.y = -2; camera.updateMatrixWorld(); visibility.prepare(camera);
+  camera.lookAt(475, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
+  assert.equal(visibility.exteriorVisible, false, "solid wall has no visible portal");
+  assert.equal(visibility.roadVisible, false, "no road mirror behind the wall");
+  assert.equal(visibility.test(box(440, 1, -215)), false, "opening behind camera submits no street");
+  camera.position.y = -2; camera.lookAt(440, -2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
   assert.ok(visibility.test(box(440, 1, -215)), "reflected aperture keeps street light");
-  camera.position.set(440, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
+  camera.position.set(440, 2, -215); camera.lookAt(462, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
   assert.ok(visibility.test(box(462, 2, -215), "garage_s4"));
   assert.ok(!visibility.test(box(462, 2, -225), "garage_s6"), "outside cannot see through a closed wall");
   assert.ok(visibility.test(box(440, 1, -150)), "exterior culling is unchanged outdoors");

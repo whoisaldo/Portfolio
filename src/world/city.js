@@ -74,8 +74,8 @@ function piecesOf(mesh) {
 const bytesOf = (geometry) => Object.values(geometry.attributes).reduce((n, a) => n + a.array.byteLength, geometry.index?.array.byteLength ?? 0);
 // The cells the kit is drawn by, metres on a side, and the fewest triangles
 // a material needs before it is cut to them (see the merge below).
-const CELL = 48;
-const CELL_MIN_TRIS = 3000;
+const CELL = 12;
+const CELL_MIN_TRIS = 0;
 
 // The signs across the rooftop's roof, which its puddles hold and its steam
 // is lit by.

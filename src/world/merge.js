@@ -487,7 +487,7 @@ export class Tiled extends THREE.Mesh {
 
   onBeforeRender(renderer, scene, camera) {
     if (!MULTI_DRAW) return;
-    if (this.userData.sector && this.cells.visibleBox && !this.cells.visibleBox(this.geometry.boundingBox, this.userData.sector)) {
+    if (this.cells.visibleBox && !this.cells.visibleBox(this.geometry.boundingBox, this.userData.sector)) {
       this._multiDrawCount = 0;
       return;
     }
