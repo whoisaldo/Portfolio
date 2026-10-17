@@ -152,6 +152,14 @@ function GarageShell({ onMounted, onLayout }) {
   const [restoreAnchor, setRestoreAnchor] = useState(null);
   const [still, setStill] = useState(false);
   const savedP = useRef(null);
+  const selectionKey = garage.selection ? `${garage.selection.carId}:${garage.selection.modId}` : "";
+  const previousSelection = useRef(selectionKey);
+  useLayoutEffect(() => {
+    // A deliberate text selection during recovery replaces the old pose.
+    // Incidental layout/availability changes keep the saved in-flight p.
+    if (!cinematic && previousSelection.current !== selectionKey) savedP.current = null;
+    previousSelection.current = selectionKey;
+  }, [selectionKey, cinematic]);
   useEffect(() => {
     const r = sectionRef.current?.getBoundingClientRect();
     setAuto(can && (layout === "cinematic" || Boolean(r && r.bottom > 0)));
