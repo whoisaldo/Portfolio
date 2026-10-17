@@ -1643,10 +1643,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       if (!missingModel && mod.pose === "bay" && !options?.preserveState) commandHood(selection.carId, 1);
       if (!missingModel && mod.pose === "stance" && !options?.preserveState) manual.lowering = 0;
       const leavingCabin = inspectionCursor?.snapshot().node?.endsWith("_cabin");
-      inspectionLabel = mod.pose === "cabin" ? `${selection.carId.toUpperCase()} cabin view. Camera cut.` : `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} ${mod.pose} view.`;
+      inspectionLabel = mod.pose === "cabin" ? `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} cabin view. Camera cut.` : `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} ${mod.pose} view.`;
       if (missingModel) inspectionLabel = `${mod.name ?? mod.title ?? mod.id} selected. The S6 model is being built; its bay is empty.`;
       if (leavingCabin && mod.pose !== "cabin") inspectionLabel += " Exterior camera cut.";
-      if (!requestInspection(key, options)) inspectionLabel = `${selection.carId.toUpperCase()} ${mod.pose} view is unavailable. The part details remain available.`;
+      if (!requestInspection(key, options)) inspectionLabel = `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} ${mod.pose} view is unavailable. The part details remain available.`;
     } else {
       inspectionTarget = null;
       if (garageDeparture) garageDeparture.target = null;
