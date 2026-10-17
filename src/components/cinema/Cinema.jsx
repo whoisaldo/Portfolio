@@ -37,6 +37,9 @@ import { isPlaying, startAmbient } from "../../lib/ambient";
 import { CRUISE_GAIN, DROP } from "../../lib/cues";
 import "./cinema.css";
 
+import { car as S6 } from "../../data/garage-s6";
+import { garageCredits as CREDITS } from "../../data/garage-credits";
+
 const FPS = 24;
 const pad = (n, w = 2) => String(Math.floor(n)).padStart(w, "0");
 const timecode = (t) => `${pad(t / 3600)}:${pad((t / 60) % 60)}:${pad(t % 60)}:${pad((t % 1) * FPS)}`;
@@ -55,6 +58,7 @@ export default function Cinema({ leaving = false }) {
 
   // The director, from the top, with the music if the reader wants it.
   useEffect(() => {
+    if (leaving) return undefined;
     const d = createDirector({ onChange: setUi });
     director.current = d;
     if (soundEnabled()) {
@@ -67,7 +71,7 @@ export default function Cinema({ leaving = false }) {
       d.dispose();
       director.current = null;
     };
-  }, []);
+  }, [leaving]);
 
   // On the way out (the page is coming back while the bars lift), the film
   // lets go of the page at once rather than when it unmounts.
@@ -286,11 +290,32 @@ function Credits({ onDone }) {
           </p>
         ))}
 
-        <h3>The car</h3>
+        <h3>{S6 ? "The cars" : "The car"}</h3>
         <p>
           {car.year} {car.name}
           <span>{car.engine}</span>
         </p>
+        {S6 && (
+          <p>
+            {S6.year} {S6.name}
+            <span>{S6.engine}</span>
+          </p>
+        )}
+
+        {CREDITS.length > 0 && (
+          <>
+            <h3>Models</h3>
+            {CREDITS.map((c) => (
+              <p key={c.id}>
+                {c.url ? <a href={c.url} target="_blank" rel="noreferrer">{c.title}</a> : c.title}
+                <span>
+                  {c.authorUrl ? <a href={c.authorUrl} target="_blank" rel="noreferrer">{c.author}</a> : c.author} · {c.licenseUrl ? <a href={c.licenseUrl} target="_blank" rel="noreferrer">{c.license}</a> : c.license}
+                  {c.changes ? ` · ${c.changes}` : ""}
+                </span>
+              </p>
+            ))}
+          </>
+        )}
 
         <h3>Contact</h3>
         <p>{primaryEmail}</p>

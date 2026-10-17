@@ -20,14 +20,34 @@
 // scene jumps the page straight to it (the city glitches on a long jump,
 // as it does for any deep link). The reader's own wheel does nothing while
 // the film has the page (holdScroll), and gets the page back with it.
-import { stage, setActiveProject, setActiveRole } from "../../world/stage";
+//
+// The garage, when its visit is ready, is a thirty-second pass through it:
+// the page pans through the section's visit at an even pace, so the camera
+// makes the same route the reader's scroll makes (src/world/garage.js),
+// with a caption at each station. If the reader was looking at the
+// text fallback, the film waits for a complete room and restores the
+// saved content and manual state when it ends (src/routes/Home.jsx).
+// Without the visit the garage holds as it always has.
+import { stage, getWorld, setActiveProject, setActiveRole } from "../../world/stage";
+import { setView } from "../../world/modes";
 import { holdRange } from "../../world/scroll-stage";
 import { glideToY, holdScroll, jumpToY } from "../../lib/scroll";
 import { featuredProjects } from "../../data/projects";
 import { experiences } from "../../data/experience";
 import { profile, skills, emails } from "../../data/profile";
 import { car } from "../../data/garage";
+import { teardown } from "../../data/life";
 import { sections } from "../../data/site";
+import { GARAGE_STATIONS, GARAGE_TIMELINE } from "../../data/world";
+import { filmCanVisit, setGarageView } from "../../lib/garage3d";
+
+import { car as S6 } from "../../data/garage-s6";
+
+// The visit's pass: how long the page takes over it, and where each
+// station's caption comes up, at the start of the stretch that arrives at
+// it (the S6's at its rear, where its visit begins).
+const VISIT_HOLD = 30;
+const VISIT_FLIGHT = 5;
 
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const linear = (t) => t;
@@ -39,6 +59,38 @@ export function labelOf(id) {
 }
 
 const primaryEmail = emails.find((e) => e.primary)?.value ?? emails[0]?.value ?? "";
+
+/** Where the stretch arriving at a pose begins, 0..1 (GARAGE_TIMELINE). */
+function arrivesAt(pose) {
+  let start = 0;
+  for (const s of GARAGE_TIMELINE) {
+    if (s.hold === pose || s.into === pose) return start;
+    start = s.to;
+  }
+  return 0;
+}
+
+/** Each station's caption, in the data's own words. */
+function visitCaption(st, label) {
+  const s4 = `${car.year} ${car.name}`;
+  const s6 = S6 ? `${S6.year} ${S6.name}` : null;
+  switch (st.id) {
+    case "arrival":
+      return { label, title: st.label, line: s6 ? `${s4} · ${s6}` : s4 };
+    case "s4":
+      return { label, title: s4, line: `${car.engine} · ${car.output}` };
+    case "s4-bay":
+      return { label, title: st.label, line: car.engine };
+    case "s6":
+      return { label, title: s6 ?? st.label, line: S6?.engine ?? null };
+    case "s6-bay":
+      return { label, title: st.label, line: S6?.engine ?? null };
+    case "shop":
+      return { label, title: teardown.title, line: teardown.lede };
+    default:
+      return { label, title: st.label, line: null };
+  }
+}
 
 /** What each shot does while it holds. Unknown shots hold six seconds. */
 function sceneFor(id) {
@@ -98,9 +150,13 @@ function sceneFor(id) {
       return {
         id,
         label,
-        hold: 6.5,
-        flight: 5,
-        beats: [{ at: 0.4, caption: { label, title: `${car.year} ${car.name}`, line: `${car.engine} · ${car.output}` } }],
+        hold: VISIT_HOLD,
+        flight: VISIT_FLIGHT,
+        pan: true,
+        beats: GARAGE_STATIONS.map((st) => ({
+          at: Math.max(0.4, arrivesAt(st.id === "s6" ? "s6_rear" : st.pose) * VISIT_HOLD),
+          caption: visitCaption(st, label),
+        })),
       };
     case "contact":
       return { id, label, hold: 5, flight: 0, credits: true, beats: [{ at: 0.4, caption: { label, title: primaryEmail, line: profile.base } }] };
@@ -116,6 +172,8 @@ function sceneFor(id) {
  */
 export function createDirector({ onChange = () => {} } = {}) {
   const ids = stage.shots.map((s) => s.id);
+  // The workshop chapter always uses the visit. Its readiness gate keeps
+  // the readable text available if the room cannot yet be drawn.
   const scenes = ids.map(sceneFor);
   // Each scene's start on the film's clock: its hold, then its flight out.
   let at = 0;
@@ -125,7 +183,7 @@ export function createDirector({ onChange = () => {} } = {}) {
   }
   const total = at;
 
-  const saved = { project: stage.activeProject, roles: stage.activeRoles.slice() };
+  const saved = { project: stage.activeProject, roles: stage.activeRoles.slice(), garage: getWorld()?.garage?.saveState?.() };
   const state = { time: 0, playing: false, scene: -1, segment: null, caption: null, ended: false };
   let raf = 0;
   let last = 0;
@@ -175,6 +233,15 @@ export function createDirector({ onChange = () => {} } = {}) {
     const s = scenes[i];
     const local = state.time - s.start;
     const kind = local < s.hold ? "hold" : "flight";
+    // An unfinished workshop keeps its text available. Do not pan through
+    // an empty room while the film hides its loading or Retry controls.
+    if ((s.id === "garage" || (kind === "flight" && scenes[i + 1]?.id === "garage")) && !filmCanVisit()) {
+      state.playing = false;
+      jumpToY(rangeOf(s.id === "garage" ? i : i + 1)[0]);
+      setView("page");
+      emit();
+      return;
+    }
     if (i !== state.scene) {
       scenes[state.scene]?.end?.();
       state.scene = i;
@@ -270,6 +337,8 @@ export function createDirector({ onChange = () => {} } = {}) {
     },
     /** The film has the page: from the top, the reader's wheel held. */
     begin() {
+      setGarageView({ film: true });
+      getWorld()?.garage?.prepare().catch(() => {});
       holdScroll("cinema", true);
       director.goto(0);
       director.play();
@@ -283,7 +352,9 @@ export function createDirector({ onChange = () => {} } = {}) {
       scenes[state.scene]?.end?.();
       setActiveProject(saved.project);
       setActiveRole(saved.roles);
+      getWorld()?.garage?.restoreState?.(saved.garage);
       holdScroll("cinema", false);
+      setGarageView({ film: false });
     },
   };
   return director;

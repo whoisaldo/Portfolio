@@ -19,7 +19,7 @@
 //
 //   It loads something real, and says so. On a first open the screen is a
 //   loading screen (Preloader): the city's downloads and its build, the car
-//   on the door, the garage, the music, a bar by the bytes, a few seconds on
+//   on the door, the music, a bar by the bytes, a few seconds on
 //   a good connection. Every line is a real download or a real step, done
 //   when it is done; nothing is scripted. It holds nobody past thirty
 //   seconds, and the way out is on it from the first frame.
@@ -49,7 +49,7 @@
 //   screen too.
 //
 // The loading screen is also what keeps the door smooth: the city's build,
-// the garage's, the car's are long frames, and they all land behind it,
+// the car's are long frames, and they all land behind it,
 // where nothing moves but a bar drawn by a transform. A reader who clicks
 // before the city is in anyway (the screen gave up after thirty seconds, or
 // the door was put back up from the footer) is held after the click, with
@@ -79,7 +79,6 @@ import {
 } from "../lib/audio";
 import { prefetchTrack, startAmbient, stopAmbient } from "../lib/ambient";
 import { loadDrift } from "../lib/drift";
-import { garageExpected, garageWarm } from "../lib/garage3d";
 import { prefetchWorld } from "../world/load";
 import { coverWorld, stage, subscribeStage, useStage } from "../world/stage";
 import { LOAD_STEPS, markBytes, useBytes, useLoaded } from "../world/progress";
@@ -160,13 +159,12 @@ const ASSETS = {
   moon: "Garage monitor",
   build: "Building the city",
   doorCar: "The S4 on the door",
-  garage: "The garage",
   music: "The music",
 };
 // What each weighs on the bar, in kB: the files' sizes (a download's own
 // total takes over once it reports one), and for the two builds about the
 // download they take as long as.
-const ASSET_KB = { code: 440, city: 3400, car: 2040, voxel: 80, holo: 150, ads: 230, koi: 80, moon: 70, build: 1200, doorCar: 835, garage: 3500, music: 3900 };
+const ASSET_KB = { code: 440, city: 3400, car: 2040, voxel: 80, holo: 150, ads: 230, koi: 80, moon: 70, build: 1200, doorCar: 835, music: 3900 };
 
 // What the door waits on, as a sentence names it (src/world/progress.js says
 // what each key is).
@@ -593,20 +591,18 @@ export default function EntryGate({ onEnter }) {
   const cityBuilding = cityStatus === "loading" && city.left.length === 0;
 
   // The loading screen: on the door's first opening, while the city, the
-  // door's car, the garage and the music arrive. "on", then "leaving" (it
-  // fades as the door's words come up), then "off". A door put back up later
-  // has its city cached and goes without it.
+  // door's car and the music arrive. "on", then "leaving" (it fades as the
+  // door's words come up), then "off". A door put back up later has its city
+  // cached and goes without it. Not the garage: it is a lazy section that
+  // prepares itself once the hero is up (src/lib/garage3d.js), and the door
+  // never waits for it.
   const [preload, setPreload] = useState(() => (open ? "on" : "off"));
   const [doorCarReady, setDoorCarReady] = useState(false);
   const [musicReady, setMusicReady] = useState(false);
-  const [garageReady, setGarageReady] = useState(false);
-  const [garageWanted, setGarageWanted] = useState(false);
   useEffect(() => {
-    garageWarm.then(() => setGarageReady(true));
-    // After every effect of the first commit: the garage says it is coming
-    // as it mounts. And a city that is off leaves nothing to wait for.
+    // After every effect of the first commit: a city that is off leaves
+    // nothing to wait for.
     const id = window.setTimeout(() => {
-      setGarageWanted(garageExpected());
       if (document.documentElement.dataset.world !== "on") setPreload("off");
     }, 0);
     return () => window.clearTimeout(id);
@@ -620,7 +616,6 @@ export default function EntryGate({ onEnter }) {
     ...LOAD_STEPS.map((key) => ({ key, done: !city.left.includes(key) })),
     { key: "build", done: cityStatus === "ready" },
     ...(hasGpuAcceleration() ? [{ key: "doorCar", done: doorCarReady }] : []),
-    ...(garageWanted ? [{ key: "garage", done: garageReady }] : []),
     { key: "music", done: musicReady },
   ].map((a) => {
     const b = bytes[a.key];
