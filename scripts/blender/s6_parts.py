@@ -396,8 +396,8 @@ sensor_face = material('S6_sensor_face', '1a1c1f', .3, .2, .6)
 # Traced off Ali's daylight photo, both lamps agreeing, as (u, v): u from the
 # inboard tip (0) to the outer edge (1), v from the top (0) to the bottom (1).
 HEAD_X, HEAD_Z = (.405, .872), (.805, .64)
-HEAD_LENS = [(0, .52), (.1, .45), (.3, .34), (.5, .23), (.7, .13), (.85, .05), (.92, .015), (.97, .07), (1, .3), (1, .55),
-             (.99, .74), (.965, .87), (.925, .935), (.88, .955), (.84, .96), (.77, .935), (.66, .9), (.58, .915), (.5, .94),
+HEAD_LENS = [(0, .52), (.1, .45), (.3, .34), (.5, .23), (.7, .13), (.85, .05), (.92, .015), (.97, .07), (1, .3), (.995, .5),
+             (.98, .66), (.955, .78), (.92, .86), (.88, .91), (.84, .935), (.77, .93), (.66, .9), (.58, .915), (.5, .94),
              (.42, .965), (.25, 1), (.19, .95), (.12, .82), (.05, .64)]
 # The DRL band, from a brightness scan of the vehicle-right lamp: the diagonal
 # return down from the grille end to its lowest point, the rise through the
@@ -619,12 +619,19 @@ INTAKE_BLADE = [(.71, .63), (.6, .65), (.45, .685), (.3, .72), (.15, .765), (.06
 INTAKE_BLADE_T = [.02, .017, .014, .011, .008, .005, .001]
 
 
+# Where the intake sits along the car, by half-breadth.
+INTAKE_WRAP = [(.44, -2.40), (.60, -2.385), (.75, -2.35), (.80, -2.32), (.87, -2.25)]
+
+
+def intake_surface(x, z):
+    return interp(INTAKE_WRAP, abs(x))
+
+
 def intake(sign):
     tag = 'l' if sign > 0 else 'r'
     unit = lambda pts: from_unit(pts, *INTAKE_X, *INTAKE_Z, sign)
     shape = ccw(closed_spline(unit(INTAKE), 3))
-    wrap = [(.44, -2.40), (.60, -2.385), (.75, -2.35), (.80, -2.32), (.87, -2.25)]
-    yf = lambda x, z: interp(wrap, abs(x))
+    yf = lambda x, z: intake_surface(x, z)
     surround = [(0, .02), (.002, .005), (.005, 0), (.009, .001), (.012, .007), (.013, .03)]
     parts = [rolled_frame('intake_surround_' + tag, shape, yf, surround, gloss_black, PARTS_ROOT)]
     opening = offset(shape, .013)

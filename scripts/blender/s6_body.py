@@ -38,7 +38,7 @@ ARCH_Y = {'f': -WHEELBASE / 2, 'r': WHEELBASE / 2}
 # Nose: the bumper face on the centreline, y by height, and how square the
 # plan's corner is at each height (superellipse exponent).
 NOSE_Y = [(.205, -2.335), (.24, -2.36), (.30, -2.372), (.40, -2.375), (.50, -2.371), (.60, -2.36), (.70, -2.338), (.80, -2.305)]
-NOSE_N = [(.2, 2.6), (.3, 2.9), (.45, 2.9), (.6, 2.5), (.72, 2.0), (.82, 1.9)]
+NOSE_N = [(.2, 2.4), (.3, 2.6), (.45, 2.65), (.6, 2.5), (.72, 2.0), (.82, 1.9)]
 # Tail: the bumper face on the centreline and above it the lid face.
 TAIL_FACE = [(.20, 2.50), (.24, 2.532), (.30, 2.542), (.40, 2.548), (.50, 2.550), (.62, 2.546), (.73, 2.534), (.80, 2.515), (.90, 2.493), (1.0, 2.474)]
 TAIL_N = [(.25, 3.4), (.4, 3.4), (.6, 3.3), (.8, 4.0), (.95, 4.4)]
@@ -63,18 +63,20 @@ HOOD_EDGE_Z = [(-2.30, .785), (-2.27, .787), (-2.225, .80), (-2.14, .84), (-2.03
 HOOD_CROWN_Z = [(-2.30, .79), (-2.22, .826), (-2.10, .866), (-1.95, .895), (-1.80, .918), (-1.60, .942), (-1.40, .962), (-1.20, .978), (-0.985, .99)]
 COWL_Y = -0.985
 # The beltline under the side glass: (y, half-breadth, height).
-BELT = [(-0.95, .872, .983), (-0.6, .874, .992), (0, .874, 1.000), (0.6, .872, 1.007), (1.2, .868, 1.020), (1.6, .862, 1.033), (1.78, .84, 1.047)]
+BELT = [(-0.95, .872, .983), (-0.6, .874, .992), (0, .874, 1.000), (0.6, .872, 1.007), (1.2, .868, 1.020), (1.6, .862, 1.033)]
 # The top edge, rear: the boot lid's shut lines, (y, half-breadth, height).
 DECK_EDGE = [(1.92, .725, 1.098), (2.1, .72, 1.083), (2.3, .705, 1.066), (2.40, .69, 1.055)]
 DECK_Y = 1.92        # the rear window's base, where the lid begins
 LID_SEAM_X = .621    # the lid's sides on the rear face, at the tail lamps' split
-LID_BOTTOM_Z = .735  # the lid's lower edge over the bumper
+LID_BOTTOM_Z = .675  # the lid's lower edge over the bumper (Audi's 659 mm loading edge just below)
 LID_LOW_X = .50      # below the lamps the lid's sides turn in to a rounded lower edge
 LAMP_LOW_Z = .85     # the tail lamps' lower edge, where the lid's sides start to turn
 # Feature lines that need a crisp edge, as (height, step): the S6's lower door
 # light-catcher rising toward the tail (set in below it), the rear bumper's
 # crease under the plate, the front bumper's lower lip.
-DOOR_LINE_Z = [(-1.0, .425), (1.05, .47)]
+# Past the arches the line's rows run on to the bumpers' own features, so the
+# rows stay continuous into the nose and tail fans (its step is only on the doors).
+DOOR_LINE_Z = [(-1.85, .285), (-1.45, .40), (-1.0, .425), (1.05, .47), (1.5, .50), (1.85, .56)]
 LID_TOP = [(1.92, 1.122), (2.0, 1.112), (2.2, 1.088), (2.36, 1.068), (2.43, 1.062), (2.455, 1.05), (2.47, 1.03)]
 
 # Greenhouse: windscreen base, header, rear window top and base on the centreline.
@@ -213,7 +215,7 @@ def half_breadth(y, z):
 
 def feature_z(kind, y):
     """The height of a column's feature line: door light-catcher, rear bumper crease or front lower lip."""
-    return {'m': interp(DOOR_LINE_Z, y), 'r': .60, 'f': .285}[kind]
+    return {'m': interp(DOOR_LINE_Z, y), 'r': .56, 'f': .285}[kind]
 
 
 def nose(z):
@@ -429,7 +431,12 @@ def column_section(column):
     rc = r(zc)
     re = column.radial(edge)
     up = Vector((-.42, 1)).normalized()
-    inward = {'hood': Vector((-1, .32)), 'deck': Vector((-1, .22)), 'cowl': Vector((-.7, .7)), 'belt': Vector((-.42, 1))}[kind].normalized()
+    inward = {'hood': Vector((-1, .32)), 'deck': Vector((-1, .22)), 'cowl': Vector((-.7, .7)), 'belt': Vector((-.42, 1))}[kind]
+    if kind in ('belt', 'deck'):
+        # Behind the doors the beltline hands over to the boot lid's shut line
+        # gradually, so the quarter reads as one panel.
+        inward = Vector((-.42, 1)).lerp(Vector((-1, .22)), smoothstep((y - 1.5) / .45))
+    inward = inward.normalized()
     span = (Vector((re, edge.z)) - Vector((rc, zc))).length
     curve = hermite((rc, zc), (re, edge.z), up * span * 1.1, inward * span * 1.1, SIDE_ROWS['shoulder'] + 1)
     for q in curve[1:]:
@@ -629,8 +636,10 @@ def build_hood(parent, gap=.003):
 
 
 def lid_face_y(x, z):
-    """The lid's rear face: the tail's centreline face, curving forward toward the lamps."""
-    return interp(TAIL_FACE, z) - .036 * (abs(x) / LID_SEAM_X) ** 3
+    """The lid's rear face: the tail's own plan outline at that height, so the
+    lid and the quarters beside it share one surface across the seam."""
+    a, b, n = interp(TAIL_FACE, z) - CR, half_breadth(CR, z), interp(TAIL_N, z)
+    return CR + a * max(0., 1 - min(1., abs(x) / b) ** n) ** (1 / n)
 
 
 def build_lid(parent, gap=.003):
@@ -667,7 +676,7 @@ def build_lid(parent, gap=.003):
     return lid
 
 
-PLATE_RECESS = (.235, .745, .915)   # half-width, bottom and top of the lid's stamped plate recess
+PLATE_RECESS = (.235, .69, .86)   # half-width, bottom and top of the lid's stamped plate recess
 
 
 def build_plate_recess(lid, parent):
@@ -923,7 +932,7 @@ def cut_openings(shell, lid, parts):
                  ('headlight_' + t, 'headlamp_lens', .004, -1, [shell]),
                  ('taillight_' + t, 'taillamp_lens_outer', .003, 1, [shell]),
                  ('taillight_' + t, 'taillamp_lens_inner', .003, 1, [lid])]
-    jobs.append(('rear_diffuser', 'diffuser_insert', .004, 1, [shell]))
+    jobs.append(('rear_diffuser', 'diffuser_insert', -.009, 1, [shell]))
     for name, prefix, margin, ahead, targets in jobs:
         loop = boundary_loop(part_mesh(by_base[name], prefix))
         for target in targets:
@@ -1074,14 +1083,16 @@ def on_body(tree, x, y, z, along):
 
 
 def conform_headlamps(parts, tree):
-    """Lay each headlamp's surfaces on the body's own nose, keeping their relief and outline.
+    """Lay the headlamps and intakes on the body's own nose, keeping their relief and outline.
 
-    The lamp was built on head_surface(); every vertex keeps its depth from
-    that surface but measured from the body instead, so the housing folds into
-    the wing and hood corner instead of standing proud of it.
+    Each was built on its own surface (head_surface(), intake_surface()); every
+    vertex keeps its depth from that surface but measured from the body
+    instead, so the lamp housing folds into the wing and hood corner and the
+    intakes sit in the rounder lower corners instead of standing proud.
     """
     by_base = {key.split('.')[0]: root for key, root in parts.items()}
-    for name in ('headlight_l', 'headlight_r'):
+    for name, surface_y in (('headlight_l', head_surface), ('headlight_r', head_surface),
+                            ('lower_intake_l', intake_surface), ('lower_intake_r', intake_surface)):
         root = by_base[name]
         dy = SOCKET_MOVES[name][0][1]
         for obj in [o for o in root.children_recursive if o.type == 'MESH']:
@@ -1091,10 +1102,40 @@ def conform_headlamps(parts, tree):
                 p = world @ v.co
                 hit, _ = on_body(tree, p.x, -3, p.z, 'y')
                 if hit is not None:
-                    base = head_surface(p.x, p.z) + dy
+                    base = surface_y(p.x - SOCKET_MOVES[name][0][0], p.z - SOCKET_MOVES[name][0][2]) + dy
                     p.y = hit.y + (p.y - base)
                     v.co = inv @ p
             obj.data.update()
+
+
+def decal(name, tree, x0, z0, w, h, lift, mat, parent, rings=3, sides=24):
+    """A rounded panel laid on the nose: every vertex is cast onto the body and
+    lifted along the surface's normal, so it follows the cheek's curve."""
+    vs, fs = [], []
+    for k in range(rings + 1):
+        f = 1 - k / (rings + 1)
+        for i in range(sides):
+            t = 2 * math.pi * i / sides
+            c, s_ = math.cos(t), math.sin(t)
+            x = x0 + f * w / 2 * math.copysign(abs(c) ** .5, c)
+            z = z0 + f * h / 2 * math.copysign(abs(s_) ** .5, s_)
+            vs.append((x, z))
+    vs.append((x0, z0))
+    for k in range(rings):
+        for i in range(sides):
+            a, b = k * sides, (k + 1) * sides
+            fs.append((a + i, a + (i + 1) % sides, b + (i + 1) % sides, b + i))
+    centre = len(vs) - 1
+    fs += [(rings * sides + i, rings * sides + (i + 1) % sides, centre) for i in range(sides)]
+    pts = []
+    for x, z in vs:
+        hit, normal = on_body(tree, x, -3, z, 'y')
+        if hit is None:
+            return None
+        if normal.y > 0:
+            normal = -normal
+        pts.append(tuple(hit + normal * lift))
+    return facing(mesh(name, pts, fs, mat, parent, True), (0, -1, 0))
 
 
 def build_bumper_features(parent, tree):
@@ -1123,18 +1164,19 @@ def build_bumper_features(parent, tree):
             lip.append(Vector((x, hit.y - .003, hit.z)))
     made.append(tube('lower_lip_edge', lip, .006, paint, parent, sides=8))
     hit, _ = on_body(tree, 0, -3, .245, 'y')
-    made.append(rounded_box('lower_centre_slot', (0, hit.y - .002, .245), (.72, .016, .026), satin_black, parent, .006, 1))
+    made.append(rounded_box('lower_centre_slot', (0, hit.y - .002, .247), (.88, .016, .034), satin_black, parent, .008, 1))
+    # The dark line that separates the lip from the bumper above it, across the nose.
+    groove = []
+    for k in range(41):
+        x = -.84 + 1.68 * k / 40
+        hit, normal = on_body(tree, x, -3, feature_z('f', 0) + .01, 'y')
+        if hit is not None:
+            groove.append(hit - normal * .0012)
+    made.append(tube('lower_lip_line', groove, .0035, satin_black, parent, sides=6))
     outline = material('S6_cover_shut_line', '202224', 0, .6)
     for name, x, z, w, h in covers:
-        hit, normal = on_body(tree, x, -3, z, 'y')
-        if hit is None:
-            continue
-        back = rounded_box(name + '_line', (0, 0, 0), (w + .006, .002, h + .006), outline, parent, min(w, h) * .3, 1)
-        cover = rounded_box(name, (0, 0, 0), (w, .002, h), paint, parent, min(w, h) * .3, 1)
-        for obj, lift in ((back, .0004), (cover, .0018)):
-            obj.location = hit + normal * lift
-            obj.rotation_euler.z = math.atan2(-normal.x, -normal.y)
-        made += [back, cover]
+        made.append(decal(name + '_line', tree, x, z, w + .006, h + .006, .0005, outline, parent))
+        made.append(decal(name, tree, x, z, w, h, .0016, paint, parent))
     for sign in (1, -1):
         hit, normal = on_body(tree, sign * .74, 3, .44, 'y')
         if hit is not None:
