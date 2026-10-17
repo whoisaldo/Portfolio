@@ -18,6 +18,7 @@ import Panel from "../ui/Panel";
 import Picture from "../Picture";
 import Tabs from "./Tabs";
 import { ANCHOR } from "./focus";
+import { GARAGE_PHOTOS_ENABLED } from "./features";
 
 const reveal = {
   initial: { opacity: 0, y: 18 },
@@ -40,6 +41,7 @@ function ShopLink({ link }) {
 }
 
 export default function Shop({ reduced = false, still = false, headingLevel = 3 }) {
+  if (!GARAGE_PHOTOS_ENABLED) return <ShopText headingLevel={headingLevel} />;
   const H = `h${headingLevel}`;
   const G = `h${headingLevel + 1}`;
   // A layout replacement must paint its final content before B5 restores its anchor.
@@ -100,6 +102,7 @@ export default function Shop({ reduced = false, still = false, headingLevel = 3 
 
 /** The wall's three boards as a tablist and the chosen board's captions. */
 export function ShopCard({ group, onGroup, idBase, compact = false }) {
+  if (!GARAGE_PHOTOS_ENABLED) return <ShopText compact={compact} />;
   const current = teardown.groups.find((g) => g.id === group) ?? teardown.groups[0];
   const photos = teardown.photos.filter((p) => p.group === current.id);
   const items = teardown.groups.map((g) => ({ id: g.id, label: g.label, key: `shop:${g.id}` }));
@@ -135,6 +138,38 @@ export function ShopCard({ group, onGroup, idBase, compact = false }) {
             </li>
           ))}
         </ul>
+      </div>
+    </div>
+  );
+}
+
+/** The same shop facts remain readable without photographs or board tabs. */
+export function ShopText({ compact = false, headingLevel = 3 }) {
+  const H = `h${headingLevel}`;
+  const G = `h${headingLevel + 1}`;
+  return (
+    <div className={compact ? "gw-card" : "mt-16"}>
+      <H {...{ [ANCHOR]: "shop" }} tabIndex={-1} className={`font-display uppercase text-primary ${compact ? "text-display-3" : "text-display-2"}`}>
+        {teardown.title}
+      </H>
+      <p className="mt-3 prose-dark text-[0.9375rem]">{teardown.lede}</p>
+      <div className={compact ? "mt-5 space-y-6" : "mt-8 grid gap-8 lg:grid-cols-3"}>
+        {teardown.groups.map((group) => (
+          <section key={group.id} aria-label={group.label}>
+            <G className="font-display uppercase text-primary text-[1.125rem]">{group.label}</G>
+            <p className="mt-2 text-[0.875rem] text-dim">{group.note}</p>
+            <ul className="mt-4 space-y-5">
+              {teardown.photos.filter((p) => p.group === group.id).map((p) => (
+                <li key={p.slug}>
+                  <p className="font-display uppercase text-primary text-[1rem]">{p.title}</p>
+                  {p.date && <p className="mono-micro text-dim mt-1">{p.date}</p>}
+                  {p.body && <p className="mt-2 prose-dark text-[0.9375rem]">{p.body}</p>}
+                  {p.link && <ShopLink link={p.link} />}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
       </div>
     </div>
   );

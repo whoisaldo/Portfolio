@@ -1,5 +1,6 @@
 // src/components/garage/GaragePhotos.jsx: the garage as photographs, at its
-// natural height.
+// natural height. The preserved layout is behind GARAGE_PHOTOS_ENABLED;
+// with that switch off this export renders GarageText.
 //
 // This is what the garage is whenever the 3D workshop is not: while it loads,
 // when the device has no WebGL or the city is off, when a GPU context is lost,
@@ -28,6 +29,8 @@ import PartList from "./PartList";
 import PhotoBay from "./PhotoBay";
 import Shop from "./Shop";
 import Credits from "./Credits";
+import GarageText from "./GarageText";
+import { GARAGE_PHOTOS_ENABLED } from "./features";
 import { CARS, findCar, findMod, photoForStation, resolveRequest, stationForPhoto } from "./cars";
 import { ANCHOR, CONTROL, focusInView } from "./focus";
 import { useAnnouncer, useControllable, useGarageRequest } from "./state";
@@ -73,7 +76,11 @@ function Availability({ availability, reason, canEnter3d, onEnter3d, onRetry, re
   );
 }
 
-export default function GaragePhotos({
+export default function GaragePhotos(props) {
+  return GARAGE_PHOTOS_ENABLED ? <PhotoLayout {...props} /> : <GarageText {...props} />;
+}
+
+function PhotoLayout({
   activeCar,
   selection: selectionProp,
   availability,

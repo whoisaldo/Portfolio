@@ -23,6 +23,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import Panel from "../ui/Panel";
 import { CONTROL } from "./focus";
 import { cropFor, findCar, groupOf, priceLabel } from "./cars";
+import { GARAGE_PHOTOS_ENABLED } from "./features";
 
 const pad = (n) => String(n).padStart(2, "0");
 // A pin label after a comma: first letter down, the rest as written.
@@ -39,6 +40,7 @@ function centred(p, k) {
 }
 
 export function Crop({ mod, viewId, className = "" }) {
+  if (!GARAGE_PHOTOS_ENABLED) return null;
   const found = cropFor(mod, viewId);
   if (!found) return null;
   const { pin, view } = found;
@@ -84,7 +86,9 @@ export default function PartCard({
   stance,
   showPrices,
   className = "",
+  headingLevel = 3,
 }) {
+  const Heading = `h${headingLevel}`;
   const car = findCar(mod.carId);
   const group = groupOf(mod);
   const price = priceLabel(mod, { show: showPrices });
@@ -105,14 +109,14 @@ export default function PartCard({
           </button>
         )}
       </div>
-      <h3
+      <Heading
         ref={titleRef}
         id={titleId}
         tabIndex={-1}
         className="gw-card-title mt-2 font-display uppercase text-display-3 text-primary focus-visible:outline-none"
       >
         {mod.name}
-      </h3>
+      </Heading>
 
       <div id={detailsId} hidden={!showBody} className={compact ? "gw-card-scroll" : ""}>
         <dl className="mt-3 grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-4 gap-y-2 items-start">
@@ -128,7 +132,7 @@ export default function PartCard({
               <dd className="text-[0.9375rem] text-muted tabular-nums">{price}</dd>
             </>
           )}
-          <dt className="mono-micro text-dim pt-0.5">Pinned</dt>
+          {GARAGE_PHOTOS_ENABLED && <><dt className="mono-micro text-dim pt-0.5">Pinned</dt>
           <dd className="text-[0.9375rem] text-muted">
             {pinned
               ? mod.pins.map((p, i) => {
@@ -152,13 +156,13 @@ export default function PartCard({
                   );
                 })
               : "Not in a photograph"}
-          </dd>
+          </dd></>}
         </dl>
 
         <p className="mt-3 prose-dark text-[0.9375rem] leading-[1.6]">{mod.note}</p>
         {mod.demoNote && stance && <p className="mt-2 text-[0.8125rem] leading-[1.5] text-dim">{mod.demoNote}</p>}
 
-        <Crop mod={mod} viewId={viewId} className="mt-4 max-w-[13rem]" />
+        {GARAGE_PHOTOS_ENABLED && <Crop mod={mod} viewId={viewId} className="mt-4 max-w-[13rem]" />}
       </div>
 
       {onStep && (

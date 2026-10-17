@@ -37,7 +37,8 @@ import PartCard from "./PartCard";
 import PartList from "./PartList";
 import Markers from "./Markers";
 import Credits from "./Credits";
-import { ShopCard } from "./Shop";
+import { ShopCard, ShopText } from "./Shop";
+import { GARAGE_PHOTOS_ENABLED } from "./features";
 import { CARS, STATIONS, findCar, findMod, findStation, resolveRequest } from "./cars";
 import { ANCHOR, CONTROL, restoreFocus } from "./focus";
 import { useAnnouncer, useControllable, useGarageRequest } from "./state";
@@ -429,14 +430,16 @@ export default function GarageControls({
           </Panel>
         ) : atShop ? (
           <Panel glass innerClassName="gw-panel" data-lenis-prevent>
-            <ShopCard group={board} onGroup={setBoard} idBase={idBase} compact={phone} />
+            {GARAGE_PHOTOS_ENABLED
+              ? <ShopCard group={board} onGroup={setBoard} idBase={idBase} compact={phone} />
+              : <ShopText compact />}
           </Panel>
         ) : null}
       </div>
 
       {/* Photographs instead, and the credits. */}
       <div ref={part("util")} className="gw-area-util">
-        {onMode && (
+        {GARAGE_PHOTOS_ENABLED && onMode && (
           <Panel glass size="sm" innerClassName="gw-bar">
             <button type="button" className="gw-tab" onClick={() => onMode("photos")} {...{ [CONTROL]: "use-photos", [ANCHOR]: "mode" }}>
               <Images className="w-4 h-4" aria-hidden="true" />

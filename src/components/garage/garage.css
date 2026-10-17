@@ -1,7 +1,7 @@
 /* ===========================================================================
    src/components/garage/garage.css: the garage's controls, and nothing else.
    ---------------------------------------------------------------------------
-   Imported by GarageUI.jsx, so it ships in the garage's lazy chunk and never
+   Imported by the garage components, so it ships in the garage's lazy chunk and never
    in the entry the rest of the site (and /recruiters) shares. Every rule is
    under a `gw-` class; nothing here restyles a global element, a token or
    another section.
@@ -218,7 +218,8 @@
 /* ---- the photographs ----------------------------------------------------- */
 .gw-frame { isolation: isolate; }
 /* Deliberate card focus and opener restoration stay below the fixed site header. */
-.gw-photos :is(.gw-card-title, .gw-row, .gw-pin) { scroll-margin-block: 5.5rem 1rem; }
+.gw-photos :is(.gw-card-title, .gw-row, .gw-pin),
+.gw-text :is(.gw-card-title, .gw-row, [data-garage-anchor]) { scroll-margin-block: 5.5rem 1rem; }
 
 .gw-car-tab {
   position: relative;
