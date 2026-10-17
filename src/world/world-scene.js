@@ -1663,6 +1663,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }
   };
   const prepareGarage = () => {
+    if (disposed) return Promise.resolve(false);
     if (!hasGaragePack(tier) || !carRuntime) return Promise.resolve(false);
     if (!garageRoom) {
       garageAvailable = "loading";
@@ -2212,8 +2213,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const dispose = ({ contextLost = false } = {}) => {
     if (disposed) return;
     disposed = true;
+    garageAvailable = contextLost ? "lost" : "off";
     asks.splice(0).forEach((entry) => entry.run());
     garageCars?.dispose();
+    garageCars = null;
     garageSubscribers.clear();
     markers?.dispose?.();
     pinElements.clear();
