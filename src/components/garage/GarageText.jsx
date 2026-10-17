@@ -112,7 +112,7 @@ export default function GarageText({
             <h3 id={`garage-text-${car.id}`} {...{ [ANCHOR]: `car:${car.id}`, [CONTROL]: `car:${car.id}` }} tabIndex={-1} className="mt-2 font-display uppercase text-display-3 text-primary">
               {car.title}
             </h3>
-            <p className="mt-4 prose-dark">{car.car.lede}</p>
+            <p className="mt-4 prose-dark">{car.textLede ?? car.car.lede}</p>
             <p className="mt-4 mono-ui mono-cased text-dim">{car.car.engine} · {car.output ?? car.car.drivetrain}</p>
             {mod?.carId === car.id && <div className="mt-6 border-t border-ink-line pt-5">
               <PartCard mod={mod} headingLevel={4} showPrices={showPrices} onClose={close} onStep={step} titleRef={(el) => { titles.current[car.id] = el; }} />
