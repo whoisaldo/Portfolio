@@ -125,9 +125,8 @@ def _path_points():
     pts += [(cy + (CREST[0] - cy) * i / 30, zf) for i in range(1, 31)]
     pts += [(CREST[0] + CREST_R * math.sin(b), CREST[1] + CREST_R * math.cos(b)) for b in (math.radians(180 - 180 * i / 24) for i in range(1, 25))]
     zb = CREST[1] + CREST_R
-    # Down the rest's back, then plumb below it, drawn in a little to its bar.
-    pts += [(CREST[0] + (0.78 - CREST[0]) * i / 30, zb + 0.006 * i / 30) for i in range(1, 31)]
-    pts += [(0.78 + (0.1 - 0.78) * i / 40, zb + 0.006 - 0.012 * math.sin(math.pi / 2 * i / 40)) for i in range(1, 41)]
+    pts += [(CREST[0] + (0.62 - CREST[0]) * i / 30, zb + 0.013 * i / 30) for i in range(1, 31)]
+    pts += [(0.62 + (0.1 - 0.62) * i / 40, zb + 0.013 + 0.07 * i / 40) for i in range(1, 41)]
     return pts
 
 
@@ -158,44 +157,23 @@ def path_at(s):
 
 
 def _half_width(d):
-    return 0.245 + 0.03 * (1.0 - math.exp(-d / 0.3))
-
-
-def _smoothstep(e0, e1, v):
-    f = min(1.0, max(0.0, (v - e0) / (e1 - e0)))
-    return f * f * (3.0 - 2.0 * f)
-
-
-def _wrap(e, r):
-    """Cloth carried e past an edge and let fall round it, radius r: how
-    far it comes back in (<= 0) and how far it has dropped."""
-    if e <= 0.0:
-        return 0.0, 0.0
-    th = e / r
-    if th < math.pi / 2:
-        return r * math.sin(th) - e, r * (1.0 - math.cos(th))
-    return r - e, r + e - r * math.pi / 2
+    return 0.245 + 0.03 * min(1.0, d / 0.5)
 
 
 def _fold(u, s):
-    """How far out along its normal the cloth stands at (u, s): broad folds
-    that hang from the crest and deepen toward the hems, a crumple where the
-    front comes down onto the seat, the edges curling in to the rest, the
-    back hem rolled. Gentle enough that no fold is sharper than the
-    export's smoothing angle."""
+    """How far out along its normal the cloth stands at (u, s): folds that
+    hang from the crest and deepen toward the hems, a crumple where the
+    front comes down onto the seat, the edges curling in to the rest."""
     d = abs(s)
     front = s < 0
-    hem = FRONT_LEN if front else BACK_LEN
-    amp = 0.002 + 0.028 * min(1.0, d / hem) ** 1.4
+    amp = 0.003 + 0.026 * min(1.0, d / 0.55) ** 1.3
     ph = 0.7 if front else 2.1
-    off = amp * (0.66 * math.sin(4.0 * u + ph + 1.1 * d) + 0.34 * math.sin(7.0 * u + 2.0 * ph - 1.9 * d))
+    off = amp * (0.62 * math.sin(5.6 * u + ph + 1.4 * d) + 0.38 * math.sin(11.3 * u + 2.0 * ph - 2.6 * d))
     if front:
-        off += 0.015 * math.exp(-((d - 0.43) / 0.05) ** 2) * (0.75 + 0.25 * math.sin(3.0 * u))
-    else:
-        off += 0.005 * _smoothstep(hem - 0.035, hem - 0.008, d)
-    off -= 0.022 * _smoothstep(0.55, 1.0, abs(u)) ** 2 * (1.0 - math.exp(-(s / 0.11) ** 2))
-    lim = 0.006 if front and d > 0.44 else 0.012
-    return off if off >= 0 else -lim * (1.0 - math.exp(off / lim))
+        off += 0.017 * math.exp(-((d - 0.43) / 0.045) ** 2) * (0.75 + 0.25 * math.sin(4.0 * u))
+    off -= 0.022 * max(0.0, abs(u) - 0.78) / 0.22 * min(1.0, d / 0.15)
+    on_seat = front and d > 0.44
+    return max(off, -0.006 if on_seat else -0.012)
 
 
 def cloth_at(u, s):
@@ -205,33 +183,21 @@ def cloth_at(u, s):
     x = u * _half_width(d)
     off = _fold(u, s)
     y, z = y + ny * off, z + nz * off
-    # The shoulders: over the crest, what is past the back rest's top rolls
-    # down round its corners, a soft slope that dies away down each side.
-    w = math.exp(-(s / 0.11) ** 2)
-    dx, dy = _wrap(abs(x) - 0.15, 0.075)
-    x += math.copysign(dx * w, x) if x else 0.0
-    y -= dy * w
-    # Where the front lies on the seat, what is past its rim falls over it.
-    if s < 0:
-        h = max(0.0, ny) ** 2 * _smoothstep(0.78, 0.72, y)
-        rho = math.hypot(x, z)
-        if h > 0 and rho > 0:
-            dr, dy = _wrap(rho - 0.185, 0.07)
-            x, z, y = x + x / rho * dr * h, z + z / rho * dr * h, y - dy * h
+    # The shoulders slope from the collar and drop over the back rest's sides.
+    y -= 0.075 * u * u * max(0.0, 1.0 - d / 0.3)
+    y -= 0.5 * max(0.0, abs(x) - 0.185) * max(0.0, 1.0 - d / 0.14)
     # The hems hang ragged.
     hem = FRONT_LEN if s < 0 else BACK_LEN
-    w = _smoothstep(hem - 0.06, hem, d)
+    w = max(0.0, 1.0 - (hem - d) / 0.06)
     shift = 0.012 * math.sin(6.0 * u + (1.0 if s < 0 else 2.5)) * w
     return Vector((x, y + ty * shift, z + tz * shift)), Vector((0.0, ny, nz))
 
 
 def _rows():
-    """The cloth's rows: about every 3 to 4 cm, closer round the crest and
-    through the front's bend onto the seat (where its corners fall over the
-    rim), and on each band's edges so a band is whole rows."""
-    out = sorted({-FRONT_LEN, 0.0, BACK_LEN, *EMBLEM_D, *(e * sg for band in BANDS for e in band for sg in (1, -1)),
-                  BACK_LEN - 0.025, *(-0.372 - 0.0165 * i for i in range(6))})
-    cand = [-FRONT_LEN + FRONT_LEN * (i / 17) ** 0.8 for i in range(18)] + [BACK_LEN * (i / 18) ** 1.3 for i in range(19)]
+    """The cloth's rows: about every 3 cm, closer round the crest, and on
+    each band's edges so a band is whole rows."""
+    out = sorted({-FRONT_LEN, 0.0, BACK_LEN, *EMBLEM_D, *(e * sg for band in BANDS for e in band for sg in (1, -1))})
+    cand = [-FRONT_LEN + FRONT_LEN * (i / 22) ** 0.85 for i in range(23)] + [BACK_LEN * (i / 26) ** 1.1 for i in range(27)]
     for v in cand:
         if all(abs(v - m) > 0.01 for m in out):
             out.append(v)
@@ -342,102 +308,19 @@ def _jacket(t, n):
                 _cloth_strokes(n, G, [((-hw, e * sgn), (hw, e * sgn))], 0.004, shade(BAND, 0.62), lift=0.0035, step=0.06)
     # The collar, rolled on the crest.
     cy, cz = CREST
-    col_pts = [(x, cy + CREST_R + 0.014 - 0.075 * (x / _half_width(0.0)) ** 2 - 0.03 * (x / 0.17) ** 2, cz - 0.004)
+    col_pts = [(x, cy + CREST_R + 0.02 - 0.075 * (x / _half_width(0.0)) ** 2 - 0.03 * (x / 0.17) ** 2, cz - 0.004)
                for x in (-0.17, -0.12, -0.06, 0.0, 0.06, 0.12, 0.17)]
-    sweep(t, col_pts, [0.018, 0.03, 0.034, 0.034, 0.034, 0.03, 0.018], [shade(JACKET, 0.88)] * 6, segs=12, flat=0.9)
-    for sleeve in SLEEVES:
-        _sleeve(t, *sleeve)
-
-
-# The sleeves, from inside the shoulder over the back rest's corner: the
-# left hangs down the stool's side with a little bow and bunches above its
-# cuff; the right falls, folds at the elbow and lies across the seat. Each:
-# its line, the axis it is pressed flat along (taken square to the line, so
-# the right's (1, 1, 0) is x where it hangs and y where it lies), and its
-# folds ((metres along, how much fuller)).
-SLEEVES = (
-    (((-0.205, 0.955, 0.2), (-0.268, 0.9, 0.205), (-0.306, 0.8, 0.212), (-0.322, 0.68, 0.222),
-      (-0.318, 0.58, 0.228), (-0.306, 0.46, 0.218), (-0.299, 0.36, 0.207)),
-     (1, 0, 0.25),
-     ((0.33, 0.006), (0.55, 0.012), (0.61, 0.01))),
-    (((0.205, 0.955, 0.2), (0.268, 0.9, 0.2), (0.308, 0.81, 0.192), (0.322, 0.76, 0.18),
-      (0.314, 0.705, 0.148), (0.284, 0.675, 0.085), (0.2, 0.69, 0.02), (0.08, 0.705, -0.034)),
-     (1, 1, 0),
-     ((0.36, 0.01), (0.45, 0.01), (0.6, 0.008))),
-)
-SLEEVE_BAND = (0.38, 0.44)   # along the sleeve from its shoulder, as the body's first band
-SLEEVE_CUFF = 0.05
-SLEEVE_SEGS = 14             # round enough that no side is sharper than the export's 35 degrees
-
-
-def _curve(ctrl, steps=16):
-    """A Catmull-Rom curve through ctrl, densely, and its length at each point."""
-    P = [Vector(c) for c in ctrl]
-    P = [P[0] * 2 - P[1]] + P + [P[-1] * 2 - P[-2]]
-    pts = []
-    for i in range(1, len(P) - 2):
-        p0, p1, p2, p3 = P[i - 1:i + 3]
-        for k in range(steps):
-            f = k / steps
-            pts.append(0.5 * (2 * p1 + (p2 - p0) * f + (2 * p0 - 5 * p1 + 4 * p2 - p3) * f * f + (3 * p1 - p0 - 3 * p2 + p3) * f ** 3))
-    pts.append(P[-2])
-    acc = [0.0]
-    for a, b in zip(pts, pts[1:]):
-        acc.append(acc[-1] + (b - a).length)
-    return pts, acc
-
-
-def _sleeve(t, ctrl, flat, folds):
-    """A sleeve through ctrl: round where it leaves the shoulder, tapering
-    to its cuff, pressed a little flat along `flat`, fuller where it folds
-    (`folds`), its reflective band and dark cuff whole rings, and its
-    opening a dark hollow."""
-    pts, acc = _curve(ctrl)
-    L = acc[-1]
-    at = sorted({0.0, 0.035, 0.07, *SLEEVE_BAND, L - SLEEVE_CUFF, L,
-                 *(0.07 + (L - SLEEVE_CUFF - 0.07) * i / 5 for i in range(1, 5))})
-    at = [v for i, v in enumerate(at) if i == 0 or v - at[i - 1] > 0.012]
-
-    def point(v):
-        i = max(j for j in range(len(acc)) if acc[j] <= v) if v < L else len(acc) - 2
-        f = (v - acc[i]) / (acc[i + 1] - acc[i])
-        return pts[i].lerp(pts[i + 1], min(1.0, f)), (pts[i + 1] - pts[i]).normalized()
-
-    # More rings where it bends, none turning more than 22 degrees.
-    for _ in range(4):
-        out = [at[0]]
-        for v0, v1 in zip(at, at[1:]):
-            if point(v0)[1].angle(point(v1)[1]) > math.radians(22) and v1 - v0 > 0.02:
-                out.append((v0 + v1) / 2)
-            out.append(v1)
-        at = out
-
-    def radius(v):
-        r = 0.045 + 0.025 * _smoothstep(0.0, 0.07, v) - 0.016 * max(0.0, v - 0.07) / (L - 0.07)
-        r -= 0.003 * _smoothstep(L - SLEEVE_CUFF, L - SLEEVE_CUFF + 0.01, v)
-        return r * (1.0 + sum(k * 7.0 * math.exp(-((v - c) / 0.032) ** 2) for c, k in folds))
-
-    rings = []
-    for v in at:
-        p, w = point(v)
-        a = Vector(flat)
-        b = (a - w * a.dot(w)).normalized()      # pressed flat along b
-        c = w.cross(b).normalized()
-        r = radius(v)
-        rings.append((v, p, w, [p + (b * 0.8 * math.cos(q) + c * math.sin(q)) * r
-                                for q in (n * math.tau / SLEEVE_SEGS for n in range(SLEEVE_SEGS))]))
-    for (v0, _, _, A), (v1, _, _, B) in zip(rings, rings[1:]):
-        m = (v0 + v1) / 2
-        col = CUFF if m > L - SLEEVE_CUFF else BAND if SLEEVE_BAND[0] <= m <= SLEEVE_BAND[1] else JACKET
-        for i in range(SLEEVE_SEGS):
-            j = (i + 1) % SLEEVE_SEGS
-            quad(t, tuple(A[i]), tuple(A[j]), tuple(B[j]), tuple(B[i]),
-                 ((i / SLEEVE_SEGS, v0), ((i + 1) / SLEEVE_SEGS, v0), ((i + 1) / SLEEVE_SEGS, v1), (i / SLEEVE_SEGS, v1)), col)
-    # The opening: a dark hollow up inside the cuff.
-    _, p, w, E = rings[-1]
-    deep = tuple(p - w * 0.05)
-    for i in range(SLEEVE_SEGS):
-        face(t, (tuple(E[i]), tuple(E[(i + 1) % SLEEVE_SEGS]), deep), w, GRIME)
+    sweep(t, col_pts, [0.018, 0.03, 0.034, 0.034, 0.034, 0.03, 0.018], [shade(JACKET, 0.88)] * 6, segs=8, flat=0.75)
+    # The sleeves hang clear of the back down the stool's sides, the left
+    # straight, the right swung toward the seat.
+    left = [(-0.24, 0.93, 0.2), (-0.33, 0.87, 0.225), (-0.37, 0.74, 0.255), (-0.378, 0.6, 0.265), (-0.372, 0.48, 0.255),
+            (-0.364, 0.4, 0.24), (-0.36, 0.35, 0.232), (-0.358, 0.325, 0.23)]
+    right = [(0.24, 0.93, 0.19), (0.33, 0.87, 0.2), (0.37, 0.75, 0.195), (0.38, 0.62, 0.17), (0.37, 0.5, 0.13),
+             (0.355, 0.42, 0.095), (0.35, 0.375, 0.08), (0.348, 0.35, 0.075)]
+    for pts, flat in ((left, 1.0), (right, 1.0)):
+        cols = [JACKET, JACKET, JACKET, JACKET, BAND, JACKET, CUFF]
+        radii = [0.062, 0.064, 0.062, 0.058, 0.055, 0.052, 0.05, 0.05]
+        sweep(t, pts, radii, cols, segs=8, flat=flat, cap=GRIME)
 
 
 def _stool(t, n):

@@ -843,7 +843,7 @@ BOARDS_OUT, PHOTO_ATLAS = photo_boards() if PHOTOS_ENABLED else ([], None)
 SIGNATURE = [
     ("jacket_chair", "garage_jacket_chair", (473.55, 0.0, -216.95), -1.25, "David's yellow jacket draped on its rolling chair"),
     ("maine_cradle", "garage_maine_cradle", (X1 - 0.45, 0.9, BENCH_Z + 0.5), -math.pi / 2, "Maine's arm cannon in its service cradle, on the bench"),
-    ("guts_pegs", "garage_guts_pegs", (X1 - PROUD - 0.003, 2.6, BENCH_Z - 2.35), -math.pi / 2, "Rebecca's Guts on its wall pegs"),
+    ("guts_pegs", "garage_guts_pegs", (X1 - PROUD - 0.003, 2.6, BENCH_Z - 2.7), -math.pi / 2, "Rebecca's Guts on its wall pegs"),
 ]
 SIGNATURE_OUT = []
 for sid, proto, (sx, sy_, sz), syaw, what in SIGNATURE:
@@ -897,12 +897,9 @@ for z in (-222.82, -221.18):
 TUNE_AT = (461.8, -222.45 - GB.TUNE_PLUG[2])
 NP.place("garage_tune_cart", TUNE_AT[0], 0.0, TUNE_AT[1], 0.0, district=S6)
 NP.place("garage_stain_c", 464.6, MARKS_Y, -222.3, 0.1, district=S6)
-# The drains sit on the finish, their dark sumps (the kit's at 2 mm) just
-# over it and the grates' bars over those, so the dark between the bars
-# reads from any eye; a floor cut would show the core's placeholder floor
-# under them. They are high-tier detail (the kit's): a phone's floor goes
-# on unbroken where they are left out.
-DRAIN_Y = FLOOR_Y
+# The drains' grates level with the finish (their bodies under it): they
+# are high-tier detail (the kit's), so the floor is not cut for them.
+DRAIN_Y = FLOOR_Y - 0.006 + 0.0008
 NP.place("garage_floor_drain", 469.6, DRAIN_Y, -218.5, 0.0, district=S6)
 NP.place("garage_trench_drain", THRESHOLD_X + 0.15, DRAIN_Y, (DOOR_Z0 + DOOR_Z1) / 2, math.pi / 2, sxz=1.95, district=APRON)
 # The city's shutter keeps its curtain (garage_door, which the site rolls

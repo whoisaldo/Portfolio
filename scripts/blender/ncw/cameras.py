@@ -73,11 +73,11 @@ GARAGE_STATIONS = [
     # size: 8 m back and some 25 degrees off square, as that view stood to
     # its back wall, the benches running away under the amber strip, the
     # moon's screen and AFTERLIFE AUTO over them, the jacket on its chair in
-    # front, Guts and the Smasher print either side; a phone from the aisle
-    # between the bays, square to the wall at a standing eye's height and
-    # looking down, so the whole of it (Guts to the print, the jacket to
-    # the sign) stands over the shop's text reader (from y 435 of 844).
-    ("shop", 1.0, ((467.6, 2.5, -212.2), (475.1, 2.35, -215.6), 60), ((466.0, 1.6, -218.5), (475.1, -0.22, -215.6), 87)),
+    # front, Guts and the Smasher print either side; a phone nearly square,
+    # wide and at a standing eye's height, holding the middle bench, the
+    # jacket on its stool, the screen and the sign in one column over its
+    # card.
+    ("shop", 1.0, ((467.6, 2.5, -212.2), (475.1, 2.35, -215.6), 60), ((467.6, 1.6, -215.0), (475.1, 1.75, -216.2), 74)),
 ]
 GARAGE_POSES = [
     # Inspection poses the tour and the parts reach between stations.
@@ -115,10 +115,8 @@ for gid, *rest in GARAGE_STATIONS + [(g, None, *r) for g, *r in GARAGE_POSES]:
 # portrait control of the same NN replaces the wide one on a phone), and
 # looks at its gaze anchors on the way (cam_garage_gaze_<route>_<NN>, each
 # fully weighted at arc fraction `u`; none: along the path, then the
-# destination's target; a third element (u, point) is a phone's own). The graph's junctions are anchor_garage_node_<id>:
+# destination's target). The graph's junctions are anchor_garage_node_<id>:
 # the camera leaves the room only by apron, door, outside.
-# The middle of the Smasher print (districts/garage_interior.py, ART).
-SMASHER_AT = (475.4, 4.13, -212.5)
 GARAGE_NODES = {
     "outside": (446.0, 2.3, -216.5),
     "door": (452.0, 2.4, -215.2),
@@ -140,13 +138,9 @@ GARAGE_ROUTES = {
                   [(0.0, "s6_rear"), (0.45, (461.6, 0.8, -223.4)), (1.0, "s6")]),
     "s6_stance": ("s6", "s6_stance", [], {}, []),
     "stance_s6bay": ("s6_stance", "s6_bay", [(466.4, 1.8, -224.8)], {}, [(0.0, "s6_stance"), (1.0, "s6_bay")]),
-    # (A phone swings up to the Smasher print, six metres off it, holds on
-    # it, and pulls back down the aisle to the whole wall.)
-    "s6bay_shop": ("s6_bay", "shop", [(467.3, 3.0, -221.0), (467.4, 2.6, -218.0), (467.5, 2.55, -215.0)],
-                   {1: (468.8, 3.1, -220.3), 2: (470.9, 2.6, -216.9), 3: (470.4, 2.3, -215.2)},
-                   [(0.0, "s6_bay"), (0.35, (475.0, 1.3, -220.4), (0.3, SMASHER_AT)), (0.65, (474.6, 2.7, -218.2), (0.62, SMASHER_AT)),
-                    (0.85, (473.6, 1.3, -216.9), (0.84, (475.1, 2.0, -215.4))), (1.0, "shop")]),
-    "exit": ("shop", "outside", [(466.6, 2.9, -218.4), (458.2, 3.0, -219.0), (455.0, 2.7, -216.5), (451.5, 2.4, -215.3)], {1: (465.2, 2.4, -218.6)},
+    "s6bay_shop": ("s6_bay", "shop", [(467.3, 3.0, -221.0), (467.4, 2.6, -218.0)], {1: (467.4, 3.1, -220.8), 2: (467.5, 2.5, -218.4)},
+                   [(0.0, "s6_bay"), (0.35, (475.0, 1.3, -220.4)), (0.65, (474.6, 2.7, -218.2)), (0.85, (473.6, 1.3, -216.9)), (1.0, "shop")]),
+    "exit": ("shop", "outside", [(466.6, 2.9, -218.4), (458.2, 3.0, -219.0), (455.0, 2.7, -216.5), (451.5, 2.4, -215.3)], {},
              [(0.0, "shop"), (0.4, (460.0, 1.6, -218.6)), (0.8, (447.0, 2.2, -216.4)), (1.0, (440.0, 2.6, -217.0))]),
     "apron_s4rear": ("apron", "s4_rear", [(455.6, 2.2, -213.4)], {}, [(1.0, "s4_rear")]),
     "apron_s6rear": ("apron", "s6_rear", [(455.4, 2.3, -222.6)], {}, [(1.0, "s6_rear")]),
@@ -195,13 +189,12 @@ for rid, (a, b, ctrl, portrait, gaze) in GARAGE_ROUTES.items():
         empty(f"cam_garage_path_{rid}_{i:02d}", c, props={"route": rid, "from": a, "to": b})
         if i in portrait:
             empty(f"cam_garage_path_{rid}_{i:02d}_portrait", portrait[i], props={"route": rid})
-    for i, (u, g, *own) in enumerate(gaze, 1):
+    for i, (u, g) in enumerate(gaze, 1):
         wide = g if not isinstance(g, str) else _POSE[g][0][1] if g in _POSE else GARAGE_NODES[g]
         tall = g if not isinstance(g, str) else _POSE[g][1][1] if g in _POSE else GARAGE_NODES[g]
-        ut, tall = own[0] if own else (u, tall)
         empty(f"cam_garage_gaze_{rid}_{i:02d}", wide, props={"u": float(u), "route": rid})
-        if tall != wide or ut != u:
-            empty(f"cam_garage_gaze_{rid}_{i:02d}_portrait", tall, props={"u": float(ut), "route": rid})
+        if tall != wide:
+            empty(f"cam_garage_gaze_{rid}_{i:02d}_portrait", tall, props={"u": float(u), "route": rid})
 
 empty("cam_garage_edge", (441.0, 35.5, -266.0))
 empty("cam_garage_street", (437.0, 4.5, -248.0))
