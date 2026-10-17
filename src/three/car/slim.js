@@ -58,14 +58,29 @@ export function paintMaterial(like) {
   // garage lowers it so a strong workshop probe sells the paint without
   // washing the engine bay or the blacks; the street keeps 1.
   material.userData.matte = { value: 1 };
+  // How much of the environment's colour the paint keeps facing the eye
+  // (1 all of it). Grazing edges always keep it, so a coloured room still
+  // rims the car; the garage lowers it for a pale metallic that would
+  // otherwise take a coloured wall across its whole door.
+  material.userData.envSat = { value: 1 };
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uMatte = material.userData.matte;
+    shader.uniforms.uEnvSat = material.userData.envSat;
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nattribute vec3 surface;\nvarying vec3 vSurface;")
       .replace("#include <begin_vertex>", "#include <begin_vertex>\n\tvSurface = surface;");
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nvarying vec3 vSurface;\nuniform float uMatte;")
-      .replace("#include <lights_fragment_maps>", "#include <lights_fragment_maps>\n\tfloat envShare = mix(uMatte, 1.0, smoothstep(0.35, 0.7, clearcoat * vSurface.z));\n\tradiance *= envShare;\n\tiblIrradiance *= envShare;")
+      .replace("#include <common>", "#include <common>\nvarying vec3 vSurface;\nuniform float uMatte;\nuniform float uEnvSat;")
+      .replace("#include <lights_fragment_maps>", `#include <lights_fragment_maps>
+\tfloat envShare = mix(uMatte, 1.0, smoothstep(0.35, 0.7, clearcoat * vSurface.z));
+\tradiance *= envShare;
+\tiblIrradiance *= envShare;
+\tfloat envSat = mix(uEnvSat, 1.0, pow(1.0 - saturate(dot(geometryNormal, geometryViewDir)), 3.0));
+\tradiance = mix(vec3(dot(radiance, vec3(0.2126, 0.7152, 0.0722))), radiance, envSat);
+\tiblIrradiance = mix(vec3(dot(iblIrradiance, vec3(0.2126, 0.7152, 0.0722))), iblIrradiance, envSat);
+\t#ifdef USE_CLEARCOAT
+\t\tclearcoatRadiance = mix(vec3(dot(clearcoatRadiance, vec3(0.2126, 0.7152, 0.0722))), clearcoatRadiance, envSat);
+\t#endif`)
       .replace("#include <roughnessmap_fragment>", "float roughnessFactor = roughness * vSurface.x;")
       .replace("#include <metalnessmap_fragment>", "float metalnessFactor = metalness * vSurface.y;")
       .replace(
