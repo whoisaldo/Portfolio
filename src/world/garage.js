@@ -22,10 +22,8 @@ import { preloadMoon } from "./moon.js";
 import { catmullRom, curveAt, easeInOut, makePose, copyPose, clamp } from "./shots.js";
 import { GARAGE_POSES, GARAGE_ROUTES, GARAGE_ROUTES_PORTRAIT, GARAGE_TIMELINE, GARAGE_STATES, GARAGE_STATIONS } from "../data/world.js";
 
-// The car owner keeps a development rig until the S6 asset exists. The
-// visitor room can still open: a hidden parent contains that entire rig
-// and its shadow, while the real S4 keeps its road-owned parent. No proxy
-// can draw in any camera pass, or masquerade as a physical car in queries.
+// A deliberately unavailable asset stays absent from every camera and
+// physical query, including its shadow and any development proxy.
 export function createGaragePresentation(createCars, context, { s6Available = true } = {}) {
   if (s6Available) return createCars(context);
   const parked = new THREE.Group();
@@ -54,7 +52,7 @@ export function createGaragePresentation(createCars, context, { s6Available = tr
   cars.dispose = () => { dispose(); parked.removeFromParent(); };
   cars.ready.then(() => {
     cars.stats.s6.visitorOmitted = true;
-    cars.stats.s6.reason = "The S6 model is being built. Its bay is empty.";
+    cars.stats.s6.reason = "The S6 model is unavailable.";
   }, () => {});
   return cars;
 }

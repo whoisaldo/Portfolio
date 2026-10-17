@@ -37,12 +37,14 @@ let scrollModule;
 let mergeModule;
 let inspectionModule;
 let policyModule;
+let carSpecs;
 let s4Mods;
 let GLTFLoader;
 let carDecoder;
 try {
   [world, garage, three, propsModule, materialModule, scrollModule, mergeModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js"), vite.ssrLoadModule("/src/world/scroll-stage.js"), vite.ssrLoadModule("/src/world/merge.js")]);
   policyModule = await vite.ssrLoadModule("/src/world/garage-policy.js");
+  ({ cars: carSpecs } = await vite.ssrLoadModule("/src/three/car/object.js"));
   [inspectionModule, { mods: s4Mods }, { GLTFLoader }, { MeshoptDecoder: carDecoder }] = await Promise.all([vite.ssrLoadModule("/src/three/car/inspect.js"), vite.ssrLoadModule("/src/data/garage.js"), vite.ssrLoadModule("three/addons/loaders/GLTFLoader.js"), vite.ssrLoadModule("three/addons/libs/meshopt_decoder.module.js")]);
 } finally {
   await vite.close();
@@ -60,11 +62,14 @@ const check = (name, fn) => {
   }
 };
 
-check("S6 review policy keeps the real model on the development test path", () => {
+check("the reviewed S6 is available to visitors without a test URL", () => {
   const asset = "/models/ali-s6.glb?v=review";
-  for (const search of ["", "?garage-test-s6=1"]) assert.equal(policyModule.garageS6Policy(asset, { search }).url, null);
-  assert.equal(policyModule.garageS6Policy(asset, { development: true }).url, null);
-  assert.equal(policyModule.garageS6Policy(asset, { development: true, search: "?garage-test-s6=1" }).url, asset);
+  assert.deepEqual(policyModule.garageS6Policy(asset), { url: asset, unavailable: null });
+  assert.equal(policyModule.garageS6Policy(null).url, null);
+  for (const id of ["s4", "s6"]) {
+    assert.ok(carSpecs[id].url, `${id} must have a real model URL`);
+    assert.equal(carSpecs[id].unavailable, null);
+  }
 });
 
 // ---- the timeline -------------------------------------------------------------

@@ -10,14 +10,13 @@ const PARTS = ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr", "steer_fl", "stee
 
 // Ali's two cars. Both GLBs share one rig (design/audi-s4, design/audi-s6):
 // metres, +Y up, +Z forward, steering pivots about Y, wheels spinning about
-// X, the hood on its hinge and the body as one node over the wheels. Until
-// its confirming review, garage-policy.js withholds the S6 from visitors
-// and permits the real asset on a development test URL. The S6's size is
+// X, the hood on its hinge and the body as one node over the wheels.
+// Both reviewed models are available to visitors. The S6's size is
 // its exported bounds: 2,088 mm across the mirrors, 1,463 high, 4,939 long.
 export const cars = {
   s4: { url: s4ModelUrl, name: "ali_s4", title: "Ali's 2013 Audi S4", size: [2.02, 1.38, 4.74], wheelRadius: 0.34325, wheelbase: 2.811, unavailable: null },
   s6: {
-    ...garageS6Policy(s6ModelUrl, { development: import.meta.env.DEV, search: typeof location === "undefined" ? "" : location.search }), name: "ali_s6", title: "Ali's 2013 Audi S6", size: [2.088, 1.463, 4.939], wheelRadius: 0.3433, wheelbase: 2.912,
+    ...garageS6Policy(s6ModelUrl), name: "ali_s6", title: "Ali's 2013 Audi S6", size: [2.088, 1.463, 4.939], wheelRadius: 0.3433, wheelbase: 2.912,
   },
 };
 
