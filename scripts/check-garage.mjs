@@ -990,16 +990,6 @@ check("ordinary exterior meshes keep independent portal visibility across passes
   outside.geometry.dispose(); outside.material.dispose();
 });
 
-check("opaque workshop sectors share material ownership without merging street or blended faces", () => {
-  const opaque = { transparent: false }, blended = { transparent: true };
-  for (const sector of ["garage_apron", "garage_s4", "garage_s6", "garage_shop", "garage_mezzanine"]) {
-    assert.equal(garage.garageBatchSector(opaque, sector), "garage_room");
-    assert.equal(garage.garageBatchSector(blended, sector), sector);
-  }
-  assert.equal(garage.garageBatchSector(opaque, "exterior"), "exterior");
-  assert.equal(garage.garageBatchSector(opaque, "garage_shell"), "garage_shell");
-});
-
 check("material runs sharing one world cell keep independent bounds for two cameras in one render frame", () => {
   const cells = mergeModule.createCells(12), material = new three.ShaderMaterial();
   cells.partition = garage.garageCellSector; cells.visibleBox = () => true;

@@ -106,12 +106,6 @@ export function createGarageUploadPump({ run, pending, canRun, schedule = reques
 const GARAGE_SHELL = new THREE.Box3(new THREE.Vector3(451.7, -.3, -230.3), new THREE.Vector3(476.3, 8.3, -199.7));
 export const garageCellSector = (box) => box.intersectsBox(GARAGE_SHELL) ? "garage_shell" : "exterior";
 
-// Opaque faces in this open workshop share one material draw. Street
-// faces and blended surfaces keep their own ownership and draw order.
-export function garageBatchSector(material, sector = "") {
-  return !material.transparent && /^garage_(apron|s4|s6|shop|mezzanine)$/.test(sector) ? "garage_room" : sector;
-}
-
 // Each pass clips the real openings to its own camera before building portal
 // cones. A street cell which overlaps the room stays conservative, but an
 // opening behind the camera cannot keep the entire exterior submitted.
