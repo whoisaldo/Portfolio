@@ -1155,6 +1155,20 @@ check("paint batching preserves moving rig matrices, physical bounds, picking an
     const matrix = new three.Matrix4(); for (const [i, source] of sources.entries()) { batch.mesh.getMatrixAt(i, matrix); assert.deepEqual(matrix.elements, Array.from(Float32Array.from(source.matrixWorld.elements)), "GPU batch matrices equal the original model uniforms exactly"); }
   }
   root.updateMatrixWorld(true); const version = batch.mesh._matricesTexture.version; root.updateMatrixWorld(true); assert.equal(batch.mesh._matricesTexture.version, version, "a stationary rig does not upload the same matrix texture again");
+  const shader = { uniforms: {}, vertexShader: "#include <common>\n#include <project_vertex>\n#include <defaultnormal_vertex>", fragmentShader: "" };
+  batch.mesh.material.onBeforeCompile(shader, {});
+  const render = view => batch.mesh.onBeforeRender({}, null, view, batch.mesh.geometry, batch.mesh.material);
+  render(camera);
+  const viewTexture = shader.uniforms.uGaragePaintView.value, normalTexture = shader.uniforms.uGaragePaintNormal.value;
+  for (const [id, source] of sources.entries()) {
+    const mv = new three.Matrix4().multiplyMatrices(camera.matrixWorldInverse, source.matrixWorld), normal = new three.Matrix3().getNormalMatrix(mv);
+    assert.deepEqual(Array.from(viewTexture.image.data.slice(id * 16, id * 16 + 16)), Array.from(Float32Array.from(mv.elements)));
+    for (let i = 0; i < 9; i++) assert.equal(normalTexture.image.data[id * 12 + Math.floor(i / 3) * 4 + i % 3], Math.fround(normal.elements[i]));
+  }
+  const viewVersion = viewTexture.version, normalVersion = normalTexture.version;
+  render(camera); assert.equal(viewTexture.version, viewVersion); assert.equal(normalTexture.version, normalVersion);
+  const reflected = camera.clone(); reflected.position.y *= -1; reflected.updateMatrixWorld(); render(reflected); render(camera);
+  assert.equal(shader.uniforms.uGaragePaintView.value, viewTexture); assert.equal(viewTexture.version, viewVersion, "a returning camera binds its original texture without reuploading it");
   let disposed = 0; batch.mesh._matricesTexture.addEventListener("dispose", () => disposed++); batch.dispose(); assert.equal(disposed, 1); assert.ok([a, b, c].every(n => n.layers.mask === 1));
   for (const source of [a, b, c]) source.geometry.dispose(); material.dispose();
 });
