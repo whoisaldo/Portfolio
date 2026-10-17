@@ -990,6 +990,45 @@ PORTALS = {
 for pid, p in PORTALS.items():
     p["corners"] = [[GX0, p["centre"][1] + sy * p["height"] / 2, p["centre"][2] + sz * p["width"] / 2] for sy, sz in ((-1, 1), (-1, -1), (1, -1), (1, 1))]
     oriented(f"anchor_garage_portal_{pid}", p["centre"], (0, 0, -1), (0, 1, 0), props={"width": p["width"], "height": p["height"], "inside": p["inside"]})
+
+# Whose a face of the city's own geometry is (finish.py labels every mesh
+# outside this pack with it, so the site never has to guess from a box
+# round the shell): the street's, "exterior", unless what it faces is the
+# room. A face whose front (PROBE out along its normal) is inside the room
+# is the room's, in the sector it faces; one wholly on the room's side of an
+# opening's plane whose front is in that opening (the door's reveals and
+# panel, the office's glazing) is the sector the opening leads into. A face
+# on the street's side of the openings' plane is seen from inside only
+# through them, which the site's portals already test, so it stays the
+# street's even where it shows through one.
+PROBE = 0.05
+SHELL_NEAR = ((GX0 - 0.5, -0.5, GZ0 - 0.5), (GX1 + 0.5, GH + 0.5, GZ1 + 0.5))
+
+
+def owner(points):
+    """`points`: a face's corners in world metres (x, y, z), in its winding
+    order. Returns "exterior" or the garage_* sector that owns it."""
+    lo, hi = SHELL_NEAR
+    if not any(all(lo[k] <= p[k] <= hi[k] for k in range(3)) for p in points):
+        return "exterior"
+    n = [0.0, 0.0, 0.0]
+    for (ax, ay, az), (bx, by, bz) in zip(points, points[1:] + points[:1]):
+        n[0] += (ay - by) * (az + bz)
+        n[1] += (az - bz) * (ax + bx)
+        n[2] += (ax - bx) * (ay + by)
+    length = math.sqrt(sum(v * v for v in n))
+    if length == 0.0:
+        return "exterior"
+    c = [sum(p[k] for p in points) / len(points) for k in range(3)]
+    x, y, z = (c[k] + PROBE * n[k] / length for k in range(3))
+    if X0 <= x <= X1 and 0.0 <= y <= CEIL and Z0 <= z <= Z1:
+        return sector(x, z)
+    if min(p[0] for p in points) >= GX0 - 1e-4 and GX0 <= x <= X0:
+        for p in PORTALS.values():
+            (cx, cy, cz), hw, hh = p["centre"], p["width"] / 2, p["height"] / 2
+            if abs(y - cy) <= hh and abs(z - cz) <= hw:
+                return p["inside"]
+    return "exterior"
 # Each luminous face its own anchor, in the pack: local -y the way it
 # shines, its length along local x and its width along local z.
 LIGHT_KIND = {"strip": "strip", "work": "work", "tube": "tube"}
