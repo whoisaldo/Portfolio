@@ -496,6 +496,19 @@ check("the three amber bench strip faces enter the prop bake without adding side
   assert.equal(bench.sources[0].intensity, .8);
   const side = make("garage_wall_tube");
   assert.equal(side.sources.length, 0, "existing magenta and cyan bake is unchanged");
+  const benchProto = proto.clone(), wallProto = proto.clone();
+  benchProto.userData.proto = "garage_bench_strip"; wallProto.userData.proto = "garage_wall_tube";
+  let text = JSON.stringify({ protos: [{ name: "garage_bench_strip", box: [1.22, .05, .11] }, { name: "garage_wall_tube", box: [1.22, .05, .11] }], count: 2, sectorRuns: [{ sector: "garage_shop", start: 0, count: 2 }] });
+  if (text.length % 2) text += " ";
+  const header = new TextEncoder().encode(text), buffer = new ArrayBuffer(4 + header.length + 32);
+  new DataView(buffer).setUint32(0, header.length, true); new Uint8Array(buffer, 4, header.length).set(header);
+  new Int16Array(buffer, 4 + header.length).set([0, 9300, 150, -4200, 0, 100, 1000, 0, 1, 9300, 150, -4240, 0, 100, 1000, 0]);
+  const mixed = propsModule.createProps([benchProto, wallProto], buffer, { reflectLayer: 2 });
+  const batches = mixed.group.children.filter((mesh) => mesh.isBaked);
+  assert.equal(batches.length, 2, "different reflection eligibility cannot share a static batch");
+  assert.equal(batches.find((mesh) => mesh.parts.some((part) => part.set.name === "garage_bench_strip")).layers.isEnabled(2), true);
+  assert.equal(batches.find((mesh) => mesh.parts.some((part) => part.set.name === "garage_wall_tube")).layers.isEnabled(2), false, "amber eligibility cannot change the side-wall neon balance");
+  mixed.dispose();
   bench.dispose(); side.dispose(); proto.geometry.dispose(); material.dispose();
 });
 

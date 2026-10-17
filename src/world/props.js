@@ -445,12 +445,14 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const instance = (src) => {
       const mine = own.forName(src.material.name);
       const material = mine ?? src.material;
+      const reflected = /^(neon_|glow|lantern)/.test(material.name) || own.light(material.name, k.name);
+      const layerMask = 1 | (reflected ? 1 << reflectLayer : 0);
       // The workshop is a small static pack. Write all of its opaque kit
       // parts into the shared material batches, including detailed tools.
       // The city keeps its size limit so thousands of street instances
       // still share their prototype vertices.
       if (!mine && !material.transparent && (sectorRuns.length || n * src.geometry.attributes.position.count <= BAKED)) {
-        const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}|${src.userData.assetKind ?? ""}`;
+        const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}|${src.userData.assetKind ?? ""}|${layerMask}`;
         if (!baked.has(key)) {
           const mesh = new Baked(twin(material, "baked", src.geometry));
           // (load: one a streamed district brings is hidden until its parts
@@ -458,7 +460,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
           if (hold) mesh.visible = false;
           mesh.name = `props_small_${material.name}`;
           if (src.userData.assetKind) mesh.userData.assetKind = src.userData.assetKind;
-          if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name, k.name)) mesh.layers.enable(reflectLayer);
+          mesh.layers.mask = layerMask;
           group.add(mesh);
           baked.set(key, mesh);
         }
@@ -504,7 +506,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       if (src.userData.assetKind) im.userData.assetKind = src.userData.assetKind;
       // Light in the air draws after the steam, as the lamps' shafts do.
       if (material.transparent) im.renderOrder = 7;
-      if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name, k.name)) im.layers.enable(reflectLayer);
+      im.layers.mask = layerMask;
       group.add(im);
       return im;
     };
