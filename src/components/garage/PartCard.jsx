@@ -8,8 +8,8 @@
 // The crop is always the real photograph zoomed to the part's pin, about 30
 // percent of the picture's width, which is what the S4's card always did. A
 // part no photograph shows (a tune, a module, a head unit nobody has
-// photographed yet) gets no crop and says why in its note; nothing stands in
-// for a picture that does not exist. A crop that is context rather than
+// photographed yet) gets no crop and says why in its archive-only note.
+// Nothing stands in for a picture that does not exist. A crop that is context rather than
 // evidence (the S6's ECU tune, shown on the engine it runs) carries its pin's
 // caption on the image.
 //
@@ -160,6 +160,7 @@ export default function PartCard({
         </dl>
 
         <p className="mt-3 prose-dark text-[0.9375rem] leading-[1.6]">{mod.note}</p>
+        {GARAGE_PHOTOS_ENABLED && mod.photoNote && <p className="mt-2 prose-dark text-[0.9375rem] leading-[1.6]">{mod.photoNote}</p>}
         {mod.demoNote && stance && <p className="mt-2 text-[0.8125rem] leading-[1.5] text-dim">{mod.demoNote}</p>}
 
         {GARAGE_PHOTOS_ENABLED && <Crop mod={mod} viewId={viewId} className="mt-4 max-w-[13rem]" />}

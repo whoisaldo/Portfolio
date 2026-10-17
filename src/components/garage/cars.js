@@ -24,7 +24,7 @@ import * as s6 from "../../data/garage-s6";
 
 export const SHOW_PRICES = s4.SHOW_PRICES;
 
-// The workshop visit in the order it is flown (PLAN.md, revision 2). `p` is
+// The workshop visit in the order it is flown (PLAN.md, revision 3). `p` is
 // where the station's button lands on the visit's 0..1 progress.
 export const STATIONS = [
   { id: "arrival", label: "Arrival", short: "Arrival", p: 0, carId: null },
@@ -32,7 +32,7 @@ export const STATIONS = [
   { id: "s4-bay", label: "S4 engine bay", short: "S4 bay", p: 0.4, carId: "s4", bay: true },
   { id: "s6", label: "S6", short: "S6", p: 0.6, carId: "s6" },
   { id: "s6-bay", label: "S6 engine bay", short: "S6 bay", p: 0.8, carId: "s6", bay: true },
-  { id: "shop", label: "Also in the shop", short: "Shop", p: 1, carId: null },
+  { id: "shop", label: "Afterlife workbench", short: "Workbench", p: 1, carId: null },
 ];
 
 export const findStation = (id) => STATIONS.find((s) => s.id === id) ?? null;
@@ -64,6 +64,7 @@ function build(id, data, extra) {
 export const CARS = [
   build("s4", s4, {
     label: "S4",
+    textLede: "My daily. Fully built, and I tuned it myself because I knew that engine had more in it. Pick a part from the build sheet to read about it.",
     bay: "Bay 01",
     title: `${s4.car.year} ${s4.car.name}`,
     spec: [s4.car.engine, s4.car.output],
