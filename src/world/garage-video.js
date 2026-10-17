@@ -1,62 +1,51 @@
-// The monitor uploads only when its decoded picture changes. Keep Three's
-// native video uploader, with invalidation owned by the decoded callbacks.
-// Media time matters as well as the frame counter: a paused seek can change
-// the picture without advancing the presented-frame count. Browsers without
-// decoded callbacks use their frame counter and explicit seek events.
+// Keep Three's decoded-frame notifications and native video upload path.
+// Browsers without those callbacks can still avoid repeated uploads when
+// their decoded-frame counter has not advanced.
 import * as THREE from "three";
 
 export function createGarageVideoTexture(video, bind) {
-  let texture = null, callback = 0, disposed = false;
-  let frame = null, time = NaN;
+  let texture = null, disposed = false, frame = null, width = 0, height = 0;
   const hasCallback = typeof video.requestVideoFrameCallback === "function";
-  const refresh = (nextFrame, nextTime) => {
-    if (disposed || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
-    const size = `${video.videoWidth}x${video.videoHeight}`;
-    if (texture?.userData.frameSize !== size) {
-      video.width = video.videoWidth;
-      video.height = video.videoHeight;
-      texture?.dispose();
-      texture = new THREE.Texture(video);
-      texture.isVideoTexture = true;
-      texture.update = update;
-      texture.name = "garage moon video frames";
-      texture.minFilter = texture.magFilter = THREE.LinearFilter;
-      texture.generateMipmaps = false;
-      texture.flipY = false;
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.internalFormat = "RGBA8";
-      texture.userData.frameSize = size;
-      frame = null; time = NaN;
-      bind(texture);
-    }
-    if (nextFrame !== frame || nextTime !== time) {
-      frame = nextFrame; time = nextTime;
+  const picture = () => video.getVideoPlaybackQuality?.().totalVideoFrames ?? video.currentTime;
+  const updateFrame = () => {
+    if (disposed || hasCallback || video.readyState < 2 || !texture) return;
+    const next = picture();
+    if (next !== frame) {
+      frame = next;
       texture.needsUpdate = true;
     }
   };
   const update = () => {
-    if (hasCallback) return;
-    const frames = video.getVideoPlaybackQuality?.().totalVideoFrames;
-    refresh(frames ?? null, frames == null ? video.currentTime : time);
+    if (disposed || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
+    if (!texture || width !== video.videoWidth || height !== video.videoHeight) {
+      width = video.videoWidth; height = video.videoHeight;
+      video.width = width;
+      video.height = height;
+      texture?.dispose();
+      texture = new THREE.VideoTexture(video);
+      texture.update = updateFrame;
+      texture.name = "garage moon video frames";
+      texture.flipY = false;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.internalFormat = "RGBA8";
+      texture.userData.frameSize = `${width}x${height}`;
+      frame = picture();
+      texture.needsUpdate = true;
+      bind(texture);
+    }
+    updateFrame();
   };
-  const seeked = () => refresh(video.getVideoPlaybackQuality?.().totalVideoFrames ?? null, video.currentTime);
-  const decoded = (_now, metadata) => {
-    if (disposed) return;
-    refresh(metadata.presentedFrames ?? null, metadata.mediaTime);
-    callback = video.requestVideoFrameCallback(decoded);
+  const seeked = () => {
+    update();
+    if (!disposed && texture && video.readyState >= 2) texture.needsUpdate = true;
   };
-  refresh(video.getVideoPlaybackQuality?.().totalVideoFrames ?? null, video.currentTime);
-  if (hasCallback) callback = video.requestVideoFrameCallback(decoded);
-  // During a paused seek the decoded callback can precede media readiness.
-  // Its notification may be skipped above; the completed seek supplies it.
+  update();
   video.addEventListener?.("seeked", seeked);
   return {
     update,
     dispose() {
       disposed = true;
-      if (callback) video.cancelVideoFrameCallback(callback);
       video.removeEventListener?.("seeked", seeked);
-      callback = 0;
       texture?.dispose();
     },
   };
