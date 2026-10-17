@@ -984,8 +984,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // runs it backwards while rewinding (the rain, the traffic, the koi, every
   // flicker). Smoothing everywhere else stays on the frame's dt.
   // Three invokes this for every scene pass, including the reflected
-  // camera and the temporary room-probe scene. Each pass builds its own
-  // instance lists and portal visibility before projectObject sees them.
+  // camera and the temporary room-probe scene. Each pass prepares its
+  // room-prop lists and portal visibility before projectObject sees them.
   const renderScene = renderer.render;
   renderer.render = function (drawScene, drawCamera) {
     if (city && (drawScene === scene || city.root.parent === drawScene)) {
@@ -993,7 +993,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       city.visibility.prepare(drawCamera);
       city.props.update(drawCamera);
       if (drawScene === scene && city.visibility.exteriorVisible) {
-        skyline?.update(drawCamera, renderer.getPixelRatio(), city.visibility);
+        // Skyline meshes use layer 0. The mirror draws layers 2/3 and
+        // must not repack thousands of buildings it cannot submit.
+        if (drawCamera.layers.isEnabled(0)) skyline?.update(drawCamera, renderer.getPixelRatio(), city.visibility);
         crowd?.update(drawCamera);
       }
     }

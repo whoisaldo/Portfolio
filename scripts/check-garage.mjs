@@ -769,6 +769,21 @@ check("ordinary exterior meshes keep independent portal visibility across passes
   outside.geometry.dispose(); outside.material.dispose();
 });
 
+check("the road mirror does not repack the unreflected skyline", () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const renderScene = renderer.render;"), to = source.indexOf("  const draw =", from);
+  const scene = { children: [], matrixWorldAutoUpdate: true }, skylineCameras = [], crowdCameras = [];
+  const city = { root: {}, visibility: { exteriorVisible: true, inside: false, prepare() {} }, props: { update() {} } };
+  const renderer = { render() {}, getPixelRatio: () => 1 };
+  const skyline = { update: (camera) => skylineCameras.push(camera) }, crowd = { update: (camera) => crowdCameras.push(camera) };
+  const main = new three.PerspectiveCamera(), reflected = new three.PerspectiveCamera();
+  main.layers.enable(2); reflected.layers.set(2); reflected.layers.enable(3);
+  runInNewContext(source.slice(from, to), { renderer, city, scene, car: null, skyline, crowd });
+  renderer.render(scene, reflected); renderer.render(scene, main);
+  assert.deepEqual(skylineCameras, [main]);
+  assert.deepEqual(crowdCameras, [reflected, main], "reflected crowd visibility remains prepared");
+});
+
 check("per-pass exterior culling restores visibility and keeps room lights and car shadows", () => {
   const source = readFileSync("src/world/world-scene.js", "utf8");
   const from = source.indexOf("  const renderScene = renderer.render;");
