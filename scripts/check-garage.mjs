@@ -224,6 +224,48 @@ for (const [tier, anchors] of Object.entries(anchorSets)) {
         }
       }
     });
+    check(`${tag} inspection replacements use graph edges`, () => {
+      for (const start of [.1, .275, .465, .56, .63, .735, .9]) {
+        const cursor = visit.navigator(start, aspect);
+        let before = visit.at(start, aspect);
+        cursor.request("s4_rear");
+        let state;
+        for (let n = 0; n < 2000; n++) {
+          if (n === 7) cursor.request("s6_bay");
+          if (n === 19) cursor.request("s4_rear");
+          state = cursor.sample(1 / 240);
+          assert.ok(before.position.distanceTo(state.pose.position) < .13, "replacement must stay on current edge");
+          if (state.location.edge) {
+            const edge = [...GARAGE_TIMELINE.filter((s) => s.route).map((s) => ({ id: s.route, ...s })), { id: "apron_s4rear", from: "arrival", into: "s4_rear" }].find((s) => s.id === state.location.edge);
+            assert.ok(edge, "inspection uses a published edge");
+            const expected = visit.sample(edge.id, edge.from, edge.into, state.location.u, aspect, { position: new Vector3(), target: new Vector3() });
+            assert.ok(expected.position.distanceTo(state.pose.position) < 1e-8);
+          }
+          before = state.pose;
+          if (state.done && n > 19) break;
+        }
+        assert.ok(state.done);
+        assert.ok(state.pose.position.distanceTo(visit.pose("s4_rear", aspect).position) < 1e-8);
+        const exit = visit.transition(start, aspect, cursor);
+        before = state.pose;
+        let crossed = false;
+        for (let n = 0; n < 2400; n++) {
+          state = exit.sample(1 / 240);
+          assert.ok(before.position.distanceTo(state.pose.position) < .13, "inspection exit stays continuous");
+          if ((before.position.x - 452) * (state.pose.position.x - 452) < 0) {
+            const hit = before.position.clone().lerp(state.pose.position, (452 - before.position.x) / (state.pose.position.x - before.position.x));
+            assert.ok(hit.y > .45 && hit.y < 4.15 && hit.z > -217.55 && hit.z < -212.45);
+            crossed = true;
+          }
+          before = state.pose;
+          if (state.done) break;
+        }
+        assert.ok(state.done && crossed && state.pose.position.x < 450);
+        exit.reverse(true);
+        for (let n = 0; n < 2400; n++) { state = exit.sample(1 / 240); if (state.done) break; }
+        assert.ok(state.done && state.pose.position.distanceTo(visit.pose("s4_rear", aspect).position) < 1e-8);
+      }
+    });
     check(`${tag} door`, () => {
       const inside = (pt) => pt.z > OPENING.z0 && pt.z < OPENING.z1 && pt.y > 0 && pt.y < OPENING.height;
       const entry = visit.entry(aspect);
@@ -324,6 +366,53 @@ check("late external map recovery", () => {
   assert.equal(registry.forName(source), first, "recovery reuses the material");
   registry.dispose();
   source.dispose();
+});
+
+check("cabin cuts and scroll rejoin never interpolate through a car", () => {
+  const anchors = new Map();
+  for (const id of ["s4", "s6"]) for (const suffix of ["", "_portrait"]) {
+    anchors.set(`cam_garage_${id}_cabin${suffix}`, { position: new Vector3(462, 1.1, id === "s4" ? -215 : -222) });
+    anchors.set(`cam_garage_${id}_cabin_target${suffix}`, { position: new Vector3(464, 1, id === "s4" ? -215 : -222) });
+  }
+  const visit = createGarageVisit(anchors);
+  const cursor = visit.navigator(.4, 1.6);
+  cursor.request("s6_cabin");
+  const cut = cursor.sample(1 / 120);
+  assert.ok(cut.cut && cut.done && cut.location.node === "s6_cabin");
+  cursor.request(.275);
+  const exit = cursor.sample(0);
+  assert.ok(exit.cut && exit.pose.position.distanceTo(visit.pose("s6", 1.6).position) < 1e-8);
+  let state;
+  for (let n = 0; n < 2400; n++) { state = cursor.sample(1 / 240); if (state.done) break; }
+  assert.ok(state.done && state.pose.position.distanceTo(visit.at(.275, 1.6).position) < 1e-8);
+  cursor.request("s4_rear", { cut: true });
+  const reduced = cursor.sample(0);
+  assert.ok(reduced.cut && reduced.done && reduced.location.node === "s4_rear");
+});
+
+check("floor normal recovery updates sampler presence and clears stale slots", () => {
+  const registry = materialModule.createGarageMaterials({});
+  const source = new three.MeshStandardMaterial();
+  source.name = "NCW_garage_workshop_floor";
+  source.userData = { runtime: "satin_floor", slots: '["baseColor","metallicRoughness","normal"]' };
+  source.map = new three.Texture(); source.roughnessMap = new three.Texture();
+  const material = registry.forName(source);
+  assert.equal(material.uniforms.uHasNormal.value, 0);
+  assert.deepEqual(registry.missing, ["NCW_garage_workshop_floor.normal"]);
+  source.normalMap = new three.Texture();
+  assert.equal(registry.forName(source), material);
+  assert.equal(material.uniforms.uNormal.value, source.normalMap);
+  assert.equal(material.uniforms.uHasNormal.value, 1);
+  assert.deepEqual(registry.missing, []);
+  source.normalMap = null;
+  registry.forName(source);
+  assert.equal(material.uniforms.uNormal.value, null);
+  assert.equal(material.uniforms.uHasNormal.value, 0);
+  source.userData.slots = '[]';
+  registry.forName(source);
+  assert.equal(material.uniforms.uMap.value, null);
+  assert.equal(material.uniforms.uRough.value, null);
+  registry.dispose(); source.dispose();
 });
 
 if (placeholders.size) {

@@ -133,6 +133,7 @@ export const GARAGE_POSES = {
 /** The points a path runs through between its two poses (not counting
  *  them), where the plan has any. `entry` and `exit` cross the real door. */
 export const GARAGE_ROUTES = {
+  apron_s4rear: [[455, 2.8, -210], [456, 1.8, -210]],
   entry: [[451.5, 2.4, -215.3], [455, 2.8, -216.2]],
   arrival_s4: [[455, 2.8, -210], [468, 2.6, -210]],
   s4_s4bay: [],

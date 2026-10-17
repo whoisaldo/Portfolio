@@ -56,6 +56,7 @@ import { getEnv } from "../lib/env.js";
 import { getLevels } from "../lib/ambient.js";
 import { DROP, HANDOFF, REVEAL } from "../lib/cues.js";
 import { boards as BOARDS, towers as TOWERS, SHOTS, GARAGE_STATIONS, GARAGE_TIMELINE } from "../data/world.js";
+import { findMod } from "../components/garage/cars.js";
 import { garageScrollFor } from "./scroll-stage.js";
 import { scrollToY } from "../lib/scroll.js";
 import { fetchUnpacked } from "./fetched.js";
@@ -173,6 +174,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // once the room is in: { pick(raycaster) -> { carId, point } | null,
   // flash(carId) -> Vector3 | null, ... }. Null until then.
   let garageCars = null;
+  let inspectionCursor = null;
+  let inspectionTarget = null;
+  let inspectionAspect = null;
+  let inspectionLabel = "";
+  let pinLayout = null;
   const garageCollision = createGarageCollision({ solids: () => city?.garageSolids ?? [], cars: () => garageCars?.bounds() ?? [] });
   const visiting = () => ((stage.garageVisit || stage.garageHold !== null) && visit ? visit : null);
   let skyline = null;
@@ -488,8 +494,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const ids = stage.shots.map((x) => x.id);
     const home = stage.route.kind === "home";
     if (garageDeparture && garageCars) {
-      const box = garageCars.bounds().find((row) => row.carId === "s4")?.box;
-      garageCars.setDeparture?.({ active: !home, cameraClear: camera.position.x < 450, liftDown: Boolean(box && box.min.y < .1) });
+      const bounds = garageCars.bounds().find((row) => row.carId === "s4");
+      garageCars.setDeparture?.({ active: !home, cameraClear: camera.position.x < 450, liftDown: Boolean(bounds?.liftDown) });
       if (!home && garageCars.departure && !garageCars.departure.ready) return;
     }
     if (flight?.garage || (!home && pose.position.x > 451.5 && pose.position.x < 476 && pose.position.y < 8 && pose.position.z > -230 && pose.position.z < -200)) return;
@@ -547,6 +553,16 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       shots.goal(ids, inside.position, inside.locals, aspect, dest, car?.car.position);
     } else shots.goal(ids, stage.position, localsFor(ids, dt), aspect, dest, car?.car.position);
 
+    if (home && inside.on && inspectionCursor && !flight && stage.view !== "cinema") {
+      if (inspectionAspect !== aspect) {
+        inspectionCursor = visit.navigator(inside.p, aspect);
+        inspectionAspect = aspect;
+        inspectionCursor.request(inspectionTarget ?? inside.p, { cut: true });
+      }
+      if (inspectionTarget == null) inspectionCursor.request(inside.p, { cut: reduced });
+      const next = inspectionCursor.sample(dt, dest);
+      if (next.done && inspectionTarget == null) inspectionCursor = null;
+    }
     const key = routeKey();
     if (lastRoute !== null && key !== lastRoute && shots && posed) {
       // Changing the destination retains the doorway cursor. A return to
@@ -560,12 +576,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         const returnInside = home && garageDeparture && dest.position.x >= 451.5 && dest.position.x <= 476 && dest.position.y < 8 && dest.position.z > -230 && dest.position.z < -200;
         let pending = null;
         if (returnInside) {
-          pending = visit.transition(garageDeparture.p, aspect);
+          pending = visit.transition(garageDeparture.p, aspect, inspectionCursor ?? visit.navigator(garageDeparture.p, aspect));
           pending.seekOutside();
           pending.reverse(true);
         }
         flight = { from: copyPose(makePose(), pose), t: 0, glitched: false,
-          garage: indoors ? visit.transition(inside.p, aspect) : null, pending };
+          garage: indoors ? visit.transition(inside.p, aspect, inspectionCursor ?? visit.navigator(inside.p, aspect)) : null, pending, safeGarage: indoors || returnInside };
         if (indoors && !home) garageDeparture = { p: inside.p };
         if (flight.garage) {
           garageCars?.setDeparture?.({ active: !home, cameraClear: false, liftDown: false });
@@ -763,7 +779,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       copyPose(pose, want);
       posed = true;
       if (jumped || cut) glitch = 1;
-    } else if (inside.on || flight?.garage) {
+    } else if (inside.on || flight?.garage || flight?.safeGarage) {
       // On the garage's route the smoothing was in the numbers: the pose
       // is the route's, as it stands, never a step toward it.
       copyPose(pose, want);
@@ -869,7 +885,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     shared.uTime.value = clock;
     shared.uCam.value.copy(camera.position);
     const env = drive(dt);
-    applyGarageState();
+    applyGarageState(dt);
     if (moonView) moon.renderShadows();
     if (moonView !== "only") {
       skyline?.update(camera, renderer.getPixelRatio());
@@ -1447,25 +1463,68 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let markers = null;
   let lastGarageSignature = null;
   let manual = { selection: null, hood: { s4: null, s6: null }, lowering: null };
-  const applyGarageState = () => {
-    if (!garageCars || flight?.garage) return;
+  const directedGarageState = (state = {}) => {
+    const tour = state.p != null ? visit.stateAt(state.p, reduced) : { hood: { s4: 0, s6: 0 }, lowering: 0 };
+    return { hood: state.hood ?? tour.hood, lowering: state.lowering ?? tour.lowering, driving: Boolean(state.free) };
+  };
+  const applyDirectedGarageState = (state = {}) => {
+    if (!garageCars?.applyState || garageAvailable !== "ready") return false;
+    garageCars.applyState(directedGarageState(state));
+    return true;
+  };
+  const requestInspection = (destination, { cut = reduced } = {}) => {
+    if (!visit) return false;
+    inspectionCursor ??= visit.navigator(inside.p, aspect);
+    inspectionAspect = aspect;
+    if (!inspectionCursor.request(destination, { cut })) return false;
+    inspectionTarget = destination;
+    return true;
+  };
+  const selectGaragePart = (selection, options) => {
+    if (selection && !findMod(selection.carId, selection.modId)) return false;
+    manual.selection = selection ? { carId: selection.carId, modId: selection.modId } : null;
+    garageCars?.select(manual.selection);
+    if (selection) {
+      const mod = findMod(selection.carId, selection.modId);
+      const key = mod.pose === "bay" ? `${selection.carId}_bay` : mod.pose === "front" ? selection.carId : `${selection.carId}_${mod.pose}`;
+      if (mod.pose === "bay" && !options?.preserveState) manual.hood[selection.carId] = 1;
+      if (mod.pose === "stance" && !options?.preserveState) manual.lowering = 0;
+      inspectionLabel = mod.pose === "cabin" ? `${selection.carId.toUpperCase()} cabin view. Camera cut.` : `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} ${mod.pose} view.`;
+      if (!requestInspection(key, options)) inspectionLabel = `${selection.carId.toUpperCase()} ${mod.pose} view is unavailable. The part details remain available.`;
+    } else {
+      inspectionTarget = null;
+      inspectionLabel = "Tour resumed.";
+    }
+    publishGarage();
+    return true;
+  };
+  const applyGarageState = (dt) => {
+    if (!garageCars) return;
     const tape = directed?.garage;
-    const defaults = tape?.p != null ? visit.stateAt(tape.p, reduced) : { hood: { s4: 0, s6: 0 }, lowering: 0 };
-    const state = tape ? { ...garageState(), hood: tape.hood ?? defaults.hood, lowering: tape.lowering ?? defaults.lowering } : garageState();
-    const indoors = tape ? Boolean(tape.active) : camera.position.x > 451.5 && camera.position.x < 476 && camera.position.z > -230 && camera.position.z < -200;
-    if (indoors && garageAvailable === "ready") garageCars.attach();
-    else garageCars.detach();
-    garageCars.setHood("s4", state.hood.s4);
-    garageCars.setHood("s6", state.hood.s6);
-    garageCars.setLowering(state.lowering);
-    garageCars.setInside(tape ? Number(Boolean(tape.active)) : clamp((camera.position.x - 451.5) / 4, 0, 1));
+    const state = tape ? { ...garageState(), ...directedGarageState({ ...tape, free: directed.free ?? tape.free }) } : garageState();
+    // Keep S6 physically parked while either camera or S4 is outdoors.
+    if (garageAvailable === "ready") garageCars.attach();
+    if (tape) applyDirectedGarageState({ ...tape, free: directed.free ?? tape.free });
+    else {
+      garageCars.setDriving(false);
+      garageCars.setHood("s4", state.hood.s4);
+      garageCars.setHood("s6", flight?.garage ? 0 : state.hood.s6);
+      garageCars.setLowering(flight?.garage ? 0 : state.lowering);
+    }
+    garageCars.setInside(tape?.free || directed?.free ? null : clamp(((car?.car.position.x ?? 0) - 451.5) / 4, 0, 1));
+    garageCars.update(tape ? 0 : dt);
     const endpoint = (v) => v <= 0 ? 0 : v >= 1 ? 1 : "moving";
     const signature = `${state.station}|${endpoint(state.hood.s4)}|${endpoint(state.hood.s6)}|${endpoint(state.lowering)}`;
-    if (signature !== lastGarageSignature) {
-      lastGarageSignature = signature;
-      publishGarage();
+    if (signature !== lastGarageSignature) { lastGarageSignature = signature; publishGarage(); }
+    if (!visiting() || directed || flight || garageAvailable !== "ready") { markers?.hideAll(pinElements); return; }
+    const view = { width, height, left: aspect < 1 ? 12 : 32, right: width - (aspect < 1 ? 12 : 32), top: aspect < 1 ? 104 : 96, bottom: Math.min(height, aspect < 1 ? 540 : height - 216) };
+    for (const name of ["nav", "actions", "side", "util"]) {
+      const rect = pinLayout?.[name];
+      if (rect?.y > height / 2) view.bottom = Math.min(view.bottom, rect.y - 24);
     }
-    markers?.project({ x: 0, y: 0, width, height }, pinElements);
+    const focused = [...pinElements].find(([, el]) => el === document.activeElement || el.contains(document.activeElement))?.[0];
+    const hidden = markers?.project(view, pinElements, { selected: manual.selection ? `${manual.selection.carId}:${manual.selection.modId}` : null, focused, cap: aspect < 1 ? 4 : Infinity });
+    for (const key of hidden ?? []) garageSubscribers.forEach((fn) => fn({ type: "pin-hidden", key }));
   };
   const publishGarage = () => garageSubscribers.forEach((fn) => fn(garageState()));
   const prepareGarage = () => {
@@ -1489,7 +1548,6 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         if (!streamed) await afterStreaming;
         if (disposed || !city) return false;
         await idle();
-        if (visit.placeholders.length) throw new Error("The workshop camera setup is incomplete.");
         if (atlas) city.garageMaterials.setBoards(boardTexture = atlas);
         packScene.updateMatrixWorld(true);
         packScene.traverse((node) => {
@@ -1499,6 +1557,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           node.matrixWorld.decompose(position, quaternion, new THREE.Vector3());
           city.anchors.set(node.name, { position, quaternion, extras: node.userData });
         });
+        visit = createGarageVisit(city.anchors);
+        inspectionCursor = null;
+        if (visit.placeholders.length) throw new Error("The workshop camera setup is incomplete.");
         city.garageMaterials.setRects(garageLights(city.anchors));
         city.kit.wet.garage?.set(garageLights(city.anchors));
         const fixtures = [...city.anchors].filter(([name]) => name.startsWith("anchor_garage_light_")).map(([name, anchor]) => ({ name, ...anchor, ...anchor.extras }));
@@ -1526,12 +1587,36 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         for (const a of [16 / 10, 390 / 844]) for (let i = 0; i <= 1000; i++) {
           const p = i / 1000;
           const state = visit.stateAt(p, reduced);
-          garageCars.setHood("s4", state.hood.s4);
-          garageCars.setHood("s6", state.hood.s6);
-          garageCars.setLowering(state.lowering);
+          garageCars.applyState(state);
           const candidate = visit.at(p, a, undefined, reduced);
           if (garageCollision.clearance(candidate.position) < .45 || garageCollision.nearPlane(candidate, a, camera.near) < .15) throw new Error(`Workshop camera clearance failed at ${p.toFixed(3)}.`);
           if (i % 20 === 0) await between();
+        }
+        // Inspection changes may take any graph branch with either hood
+        // open. Validate complete oriented poses against the conservative
+        // union once, including the doorway and the rear inspection spur.
+        garageCars.applyState({ hood: { s4: 0, s6: 0 }, lowering: 1 });
+        const carBoxes = garageCars.bounds();
+        garageCars.applyState({ hood: { s4: 1, s6: 1 }, lowering: 0 });
+        for (const row of garageCars.bounds()) carBoxes.find((b) => b.carId === row.carId).box.union(row.box);
+        const graphCollision = createGarageCollision({ solids: () => city.garageSolids, cars: () => carBoxes });
+        for (const a of [1440 / 900, 390 / 844]) {
+          for (const edge of visit.segments(a)) {
+            const count = Math.ceil(edge.length / .01);
+            for (let i = 0; i <= count; i++) {
+              const candidate = visit.sample(edge.id, edge.from, edge.into, i / count, a, makePose());
+              if (graphCollision.clearance(candidate.position) < .45 || graphCollision.nearPlane(candidate, a, camera.near) < .15) throw new Error(`Workshop inspection clearance failed on ${edge.id} at ${i}/${count}.`);
+              if (i % 100 === 0) await between();
+            }
+          }
+          for (const id of ["s4", "s6"]) {
+            const candidate = visit.pose(`${id}_cabin`, a);
+            if (!candidate) throw new Error(`The ${id.toUpperCase()} cabin camera is unavailable.`);
+            // Cabin cuts are intentionally inside their own coarse car box.
+            // Room fixtures and the other car still constrain the whole pose.
+            const cabinCollision = createGarageCollision({ solids: () => city.garageSolids, cars: () => carBoxes.filter((b) => b.carId !== id) });
+            if (cabinCollision.clearance(candidate.position) < .45 || cabinCollision.nearPlane(candidate, a, camera.near) < .15) throw new Error(`Workshop cabin clearance failed for ${id}.`);
+          }
         }
         garageCars.attach();
         // A real room frame is drawn out of sight before the text layout
@@ -1544,9 +1629,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           try {
             const p = GARAGE_STATIONS.find((station) => station.id === getGarageView().textStation)?.p ?? 0;
             const state = visit.stateAt(p, reduced);
-            garageCars.setHood("s4", state.hood.s4);
-            garageCars.setHood("s6", state.hood.s6);
-            garageCars.setLowering(state.lowering);
+            garageCars.applyState(state);
             applyPose(visit.at(p, aspect), false);
             camera.updateMatrixWorld();
             city.props.update(camera);
@@ -1569,7 +1652,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         const markerModule = Object.values(import.meta.glob("./garage-markers.js"))[0];
         if (markerModule && !markers) {
           const mod = await markerModule();
-          markers = (mod.createMarkers ?? mod.default)({ camera, anchors: garageCars.anchors(), occluders: [] });
+          markers = (mod.createMarkers ?? mod.default)({ camera, anchors: garageCars.anchors(), occluders: () => [...garageCars.occluders(), ...garageCollision.solids.filter((s) => s.kind !== "floor")] });
         }
         cover?.render(city.root);
         // The job has supplied every draw before it releases the shared
@@ -1592,10 +1675,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     return garageRoom;
   };
   const garageState = () => {
-    const p = clamp(stage.garageProgress ?? 0, 0, 1);
+    const p = clamp(inside.on ? inside.p : stage.garageProgress ?? 0, 0, 1);
     const tour = visit?.stateAt(p, reduced) ?? { hood: { s4: 0, s6: 0 }, lowering: 0 };
     const overrides = stage.view === "cinema" ? { selection: null, hood: { s4: null, s6: null }, lowering: null } : manual;
-    return { availability: garageAvailable, reason: garageReason, visiting: Boolean(visiting()), p, station: visit?.stationAt(p), selection: manual.selection,
+    return { availability: garageAvailable, reason: garageReason, visiting: Boolean(visiting()), p, station: manual.selection && stage.view !== "cinema" ? findMod(manual.selection.carId, manual.selection.modId)?.station : visit?.stationAt(p), selection: manual.selection, status: inspectionLabel,
       hood: { s4: overrides.hood.s4 ?? tour.hood.s4, s6: overrides.hood.s6 ?? tour.hood.s6 }, lowering: overrides.lowering ?? tour.lowering,
       override: { selection: overrides.selection, hoodS4: overrides.hood.s4, hoodS6: overrides.hood.s6, lowering: overrides.lowering } };
 
@@ -1956,6 +2039,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     posed = true;
     lastRoute = null;
     flight = null;
+    applyDirectedGarageState({ ...spec.garage, free: spec.free ?? spec.garage?.free });
     if (car && spec.car) car.directed(dt, spec.car);
     cineGlitch = spec.glitch ?? 0;
     draw(dt, null, spec.flow ?? dt);
@@ -2095,23 +2179,26 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         get state() { return garageState(); },
         subscribe(fn) { garageSubscribers.add(fn); return () => garageSubscribers.delete(fn); },
         retry: prepareGarage,
+        applyDirectedState: applyDirectedGarageState,
+        setPinLayout(layout) { pinLayout = layout; },
         collision: garageCollision,
         get fixtures() { return [...city.anchors].filter(([name]) => name.startsWith("anchor_garage_light_")).map(([name, row]) => ({ name, ...row, ...row.extras })); },
         registerPin(key, element) { if (element) pinElements.set(key, element); else pinElements.delete(key); },
         saveState: () => ({ ...manual, hood: { ...manual.hood } }),
-        restoreState(saved) { if (saved) { manual = { ...saved, hood: { ...saved.hood } }; publishGarage(); } },
-        select(selection) { manual.selection = selection; publishGarage(); },
+        restoreState(saved) { if (saved) { manual = { ...saved, hood: { ...saved.hood } }; selectGaragePart(manual.selection, { cut: true, preserveState: true }); } },
+        select: selectGaragePart,
         setHood(id, value) { if (id in manual.hood) {
           manual.hood[id] = value == null ? null : Number(value);
           garageCars?.setHood(id, manual.hood[id] ?? visit.stateAt(stage.garageProgress, reduced).hood[id]);
           publishGarage();
         } },
         setStance(value) {
+          requestInspection("s6_stance");
           manual.lowering = value == null ? null : value === "lowered" ? 1 : 0;
           garageCars?.setLowering(manual.lowering ?? visit.stateAt(stage.garageProgress, reduced).lowering);
           publishGarage();
         },
-        resumeTour() { manual = { selection: null, hood: { s4: null, s6: null }, lowering: null }; publishGarage(); },
+        resumeTour() { manual = { selection: null, hood: { s4: null, s6: null }, lowering: null }; inspectionTarget = null; inspectionLabel = "Tour resumed."; publishGarage(); },
         /** The room's pack, built in (resolves false with none to build). */
         prepare: prepareGarage,
         goStation(id) {
@@ -2119,6 +2206,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           const y = st ? garageScrollFor(st.p) : null;
           if (y !== null) {
             manual = { selection: null, hood: { s4: null, s6: null }, lowering: null };
+            inspectionTarget = null;
+            inspectionLabel = "";
+            requestInspection(st.p);
+            inspectionTarget = null;
             publishGarage();
             scrollToY(y);
           }
@@ -2130,6 +2221,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           inspection: (name, a = aspect, out = makePose()) => visit.pose(name, a, out),
           sample: (routeId, from, into, u, a = aspect, out = makePose()) => visit.sample(routeId, from, into, easeInOut(clamp(u, 0, 1)), a, out),
           stateAt: (p) => visit.stateAt(p, reduced),
+          route: (from, into, a = aspect) => visit.route(from, into, a),
         },
         placeholders: visit.placeholders,
       };
