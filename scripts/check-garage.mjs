@@ -1075,7 +1075,10 @@ check("exterior batches keep signals, local shader frames, layers and exact ligh
   assert.ok(local.material.vertexShader.includes("attribute float _deal"));
   const camera = new three.PerspectiveCamera(60, 1, .1, 200); camera.position.set(450, 2, -215); camera.lookAt(440, 2, -215); batch.update(camera);
   assert.ok(local.visible); assert.ok(local._multiDrawCount > 0);
-  camera.lookAt(460, 2, -215); batch.update(camera); assert.equal(local.visible, false);
+  camera.far = 1000; camera.updateProjectionMatrix();
+  camera.position.set(742.9, 2, -215); camera.lookAt(440, 2, -215); batch.update(camera);
+  assert.ok(local.visible, "reach uses the original shared prop bounds, not the smaller mesh bounds");
+  camera.lookAt(760, 2, -215); batch.update(camera); assert.equal(local.visible, false);
   original.dispose(); batch.dispose(); geometry.dispose(); base.dispose(); faceMat.dispose();
 });
 

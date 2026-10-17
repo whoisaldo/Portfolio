@@ -628,9 +628,8 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         const ci = cellIndex(`${x},${z},exterior`);
         mesh.cells.ci[r] = ci; mesh.cells.reach[r] = reach;
         mesh.cells.start[r] = start; mesh.cells.count[r] = count;
-        const bounds = new THREE.Box3();
-        for (let i = start; i < start + count; i++) bounds.expandByPoint(_p.fromBufferAttribute(geometry.attributes.position, geometry.index.getX(i)));
-        cellList[ci].union(bounds.expandByScalar(1));
+        // Bounds come from the original placement records below, exactly
+        // as the instanced path measured reach and the shared grid cell.
       }
       if (MULTI_DRAW) {
         mesh._multiDrawStarts = new Int32Array(runs.length);
@@ -645,6 +644,12 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         _q.setFromAxisAngle(_up, original.data[o + 4] / 10430.2);
         _s.set(original.data[o + 6] / 1000, original.data[o + 5] / 100, original.data[o + 6] / 1000);
         const matrices = Float32Array.from(_m.compose(_p, _q, _s).elements);
+        const kind = original.protos[original.data[o]];
+        const r = Math.max(...kind.box) * 2 + 1;
+        const x = original.data[o + 1] / 20, y = original.data[o + 2] / 50, z = original.data[o + 3] / 20;
+        const top = y + original.data[o + 5] / 100 * kind.box[1] * 2 + r;
+        const ci = cellIndex(cellOf(x, z, "exterior"));
+        cellList[ci].expandByPoint(_p.set(x - r, y - r, z - r)).expandByPoint(_p.set(x + r, top, z + r));
         const im = { geometry: src.geometry, material: local ?? src.material, userData: src.userData };
         const set = { name: proto, near: proto.endsWith(NEAR), n: 1, matrices, deals: new Float32Array(1), instanced: [im], small: [] };
         exteriorSets.push(set);
