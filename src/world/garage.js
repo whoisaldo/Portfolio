@@ -59,6 +59,23 @@ export function createGaragePresentation(createCars, context, { s6Available = tr
   return cars;
 }
 
+// A reduced-motion canvas rests until the room is ready. Its preparation
+// can still upload one resource per animation frame without drawing or
+// advancing the scene. The caller excludes active renderers and sampling.
+export function createGarageUploadPump({ run, pending, canRun, schedule = requestAnimationFrame, cancel = cancelAnimationFrame }) {
+  let frame = 0, disposed = false;
+  const wake = () => {
+    if (disposed || frame || !pending()) return;
+    frame = schedule(() => {
+      frame = 0;
+      if (disposed || !canRun() || !pending()) return;
+      run();
+      wake();
+    });
+  };
+  return { wake, dispose() { disposed = true; cancel(frame); frame = 0; } };
+}
+
 // Visibility is evaluated for the actual main, reflected or probe camera.
 // Keep mixed room/street cells conservatively. Only cells wholly beyond
 // the room must be visible through one of its authored openings.

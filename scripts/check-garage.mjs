@@ -558,6 +558,39 @@ check("world-space batching supplies typed identity textures and releases them",
   material.dispose();
 });
 
+check("resting garage preparation uploads once per frame without drawing", () => {
+  const callbacks = new Map(), jobs = [1, 2, 3, 4], completed = [];
+  let id = 0, allowed = true;
+  const pump = garage.createGarageUploadPump({
+    run: () => completed.push(jobs.shift()), pending: () => jobs.length > 0, canRun: () => allowed,
+    schedule: (fn) => { callbacks.set(++id, fn); return id; }, cancel: (key) => callbacks.delete(key),
+  });
+  const frame = () => {
+    const next = [...callbacks.values()];
+    callbacks.clear();
+    next.forEach((fn) => fn());
+  };
+  pump.wake(); pump.wake();
+  assert.equal(callbacks.size, 1, "parallel uploads share one preparation frame");
+  frame();
+  assert.deepEqual(completed, [1], "only one upload runs per frame");
+  allowed = false;
+  frame();
+  assert.deepEqual(completed, [1], "an active renderer or sampling retains its queue");
+  assert.equal(callbacks.size, 0, "ineligible preparation does not keep a frame loop");
+  allowed = true;
+  pump.wake(); frame(); frame(); frame();
+  assert.deepEqual(completed, [1, 2, 3, 4]);
+  assert.equal(callbacks.size, 0, "settled preparation has no recurring frame");
+  jobs.push(5);
+  pump.wake();
+  const stale = [...callbacks.values()][0];
+  pump.dispose();
+  assert.equal(callbacks.size, 0);
+  stale(); pump.wake();
+  assert.deepEqual(completed, [1, 2, 3, 4], "disposal cancels pending and stale callbacks");
+});
+
 check("portal visibility keeps real openings for main and reflected cameras", () => {
   const anchors = new Map([["anchor_garage_portal_door", { position: new Vector3(452, 2.3, -215), quaternion: new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2), extras: { width: 6, height: 4.6 } }]]);
   const visibility = garage.createGarageVisibility(anchors);

@@ -48,7 +48,7 @@ import { createTraffic, makeTrafficAhead } from "./traffic.js";
 import { createCar } from "./car.js";
 import { createClearance } from "./clearance.js";
 import { createShafts } from "./shafts.js";
-import { createGarageVisit, createGarageCollision, createGaragePresentation, garageLights } from "./garage.js";
+import { createGarageVisit, createGarageCollision, createGaragePresentation, createGarageUploadPump, garageLights } from "./garage.js";
 import { LIGHT_BOUNDS } from "./spill.js";
 import { cars as carModels, preloadCar } from "../three/car/object.js";
 import { getGarageView } from "../lib/garage3d.js";
@@ -1438,6 +1438,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // drawn, 5 to 12 ms on a desktop. A page drawing nothing runs it after a
   // quarter of a second; none runs while the adaptive pass is timing.
   const asks = [];
+  const idleUploads = createGarageUploadPump({
+    run: () => asks.shift()?.run(), pending: () => asks.length > 0,
+    canRun: () => reduced && garageAvailable === "loading" && !raf && !adapt.sampling && stage.mode !== "cinematic" && !disposed,
+  });
   const cancelledBuild = () => new DOMException("The world was disposed.", "AbortError");
   const ask = (job) => new Promise((resolve, reject) => {
     if (disposed) { reject(cancelledBuild()); return; }
@@ -1467,6 +1471,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     };
     late = setTimeout(overdue, 250);
     asks.push(entry);
+    if (reduced) idleUploads.wake();
   });
 
   // (load) Work spread over the page's frames: each frame gives up to
@@ -1713,6 +1718,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (!garageRoom) {
       garageAvailable = "loading";
       garageReason = null;
+      if (reduced) idleUploads.wake();
       publishGarage();
       // Optional exports are absent until B2's delivery lands. Missing
       // placements are a failure, never a furnished-room readiness signal.
@@ -2263,6 +2269,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const dispose = ({ contextLost = false } = {}) => {
     if (disposed) return;
     disposed = true;
+    idleUploads.dispose();
     garageAvailable = contextLost ? "lost" : "off";
     asks.splice(0).forEach((entry) => entry.run());
     garageCars?.dispose();
