@@ -20,6 +20,7 @@
     "world:assets": "node scripts/optimize-world.mjs",
     "check:world": "node scripts/check-world.mjs",
     "check:garage": "node scripts/check-garage.mjs",
+    "check:braindance": "node scripts/check-braindance.mjs",
     "check:drift": "node scripts/check-drift.mjs"
   },
   "dependencies": {
