@@ -48,6 +48,15 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   const districts = districtFile.districts;
   const districtAt = (x, z) => districts.find((d) => x >= d.bounds.x0 && x <= d.bounds.x1 && z >= d.bounds.z0 && z <= d.bounds.z1)?.label ?? "";
 
+  // Navigation is built once from the finished room, including hidden
+  // sectors. The avenue remains the spawn; loading never opens an empty bay.
+  const workshop = world.garage;
+  if (!workshop?.prepare) throw new Error("The workshop is unavailable");
+  await workshop.prepare({ priority: "now" });
+  if (workshop.state?.availability !== "ready" || !workshop.collision?.cars().some((c) => c.carId === "s6")) {
+    throw new Error("The workshop is not ready for free roam");
+  }
+
   // ---- the map ----------------------------------------------------------------
   // Made from the whole city, so every district's pack has to be in first
   // (they stream in behind the core; half a minute is given to a slow one,
@@ -57,6 +66,8 @@ export async function createRoam({ parts, world, reduced = false, city = { board
     if (s.packs.length >= s.packsTotal) break;
     await sleep(200);
   }
+  const loaded = world.stats();
+  if (loaded.packs.length < loaded.packsTotal) throw new Error("The city is not ready for free roam");
   const bounds = districts.reduce(
     (b, d) => ({ x0: Math.min(b.x0, d.bounds.x0 - 8), z0: Math.min(b.z0, d.bounds.z0 - 8), x1: Math.max(b.x1, d.bounds.x1 + 8), z1: Math.max(b.z1, d.bounds.z1 + 8) }),
     { x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity },
@@ -91,12 +102,13 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   // worker, and the wait from asking to having it.
   const t0 = performance.now();
   let slices = 0;
-  const kit = await gatherKit(parts.city.root, () => new Promise((resolve) => (slices++, requestAnimationFrame(resolve))));
+  const floorSources = workshop.collision.solids.map((s) => s.mesh).filter((m) => m?.name.startsWith("nav_garage_floor_"));
+  const kit = await gatherKit(parts.city.root, () => new Promise((resolve) => (slices++, requestAnimationFrame(resolve))), floorSources);
   const main = { gatherMs: Math.round(performance.now() - t0), gatherSlices: slices + 1, sentBytes: kit.positions.byteLength + kit.index.byteLength };
   const nav = await buildInWorker(
     {
       ...kit,
-      ...solidBoxes(collision),
+      ...solidBoxes(collision, workshop),
       bounds,
       walkFrom: [spawnWalk.at],
       carFrom: [spawn.at],
@@ -118,19 +130,21 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   // into the car, and there is no room there.
   const yielding = createYield(parts.traffic);
   // (`self`: the S4's own, which is not pushed out of the S4 it is.)
-  const withCars = (self) =>
-    yielding
-      ? Object.assign(Object.create(nav), {
+  const entryClosed = () => world.garage?.state?.availability !== "ready";
+  const threshold = { x0: 451.3, x1: 452.8, z0: -218.1, z1: -211.9 };
+  const overlapsDoor = (x, z, r, y) => entryClosed() && y < 4.6
+    && x + r > threshold.x0 && x - r < threshold.x1 && z + r > threshold.z0 && z - r < threshold.z1;
+  const withCars = (self) => Object.assign(Object.create(nav), {
           resolve(p, r, y, bit, tol, feet) {
             const hit = nav.resolve(p, r, y, bit, tol, feet);
-            if (hit === 2 || !yielding.push(p, r, y, self)) return hit;
+            if (overlapsDoor(p.x, p.z, r, y)) return 2;
+            if (hit === 2 || !yielding?.push(p, r, y, self)) return hit;
             return nav.resolve(p, r, y, bit, tol, feet) && yielding.push(p, r, y, self) ? 2 : 1;
           },
           fits(x, z, r, y, bit, tol, feet) {
-            return nav.fits(x, z, r, y, bit, tol, feet) && !yielding.overlaps(x, z, r, y);
+            return !overlapsDoor(x, z, r, y) && nav.fits(x, z, r, y, bit, tol, feet) && !yielding?.overlaps(x, z, r, y);
           },
-        })
-      : nav;
+        });
   const ground = withCars(false);
 
   // ---- the player --------------------------------------------------------
@@ -261,9 +275,14 @@ export async function createRoam({ parts, world, reduced = false, city = { board
     spec.board = Math.floor(clock / city.boardSlot) % city.boardCount;
     spec.towers = city.towers;
     const away = Math.hypot(x - bay.x, z - bay.z);
-    garage.door = clamp(garage.door + (away < 34 ? dt : -dt) / 2.6, 0, 1);
+    const ready = !entryClosed();
+    garage.door = ready ? clamp(garage.door + (away < 34 ? dt : -dt) / 2.6, 0, 1) : 0;
     spec.garage.door = garage.door;
-    spec.garage.tubes = away < 13;
+    spec.garage.tubes = ready && away < 13;
+    spec.garage.active = ready && (x > 451 && x < 476 && z > -230 && z < -200 || car.x > 451 && car.x < 476 && car.z > -230 && car.z < -200);
+    spec.garage.p = null;
+    spec.garage.hood.s4 = spec.garage.hood.s6 = 0;
+    spec.garage.lowering = 0;
   };
 
   return {

@@ -9,6 +9,7 @@
 // it cannot stand on. A wall, a kerb the car cannot climb, a rail, a ledge
 // and the edge of everything are all the same answer: no floor there for
 // you.
+import * as THREE from "three";
 import { CELL, TILE, UNIT, NONE, HEAD, WALK, CAR, MORE, WALK_STEP } from "./nav-build.js";
 
 export { WALK, CAR, WALK_STEP };
@@ -28,42 +29,78 @@ const AIRY = new Set(["awning"]);
  * time with `pause()` awaited between (a frame goes by) and no frame waits
  * on it.
  */
-export async function gatherKit(root, pause = () => Promise.resolve()) {
-  const meshes = root.children.filter((o) => o.isMesh && o.name.startsWith("kit_") && !AIRY.has(o.material?.name) && o.geometry.index);
+export async function gatherKit(root, pause = () => Promise.resolve(), sources = []) {
+  // Traverse hidden sectors too. Reflection twins and coarse camera helpers
+  // are not another floor, and vertices under a group are not world metres.
+  root.updateWorldMatrix(true, true);
+  const meshes = [];
+  const seen = new Set();
+  const take = (mesh) => {
+    if (seen.has(mesh) || !mesh.isMesh || !mesh.geometry?.attributes.position) return;
+    seen.add(mesh);
+    if (!/^(kit_|nav_garage_floor_)/.test(mesh.name) && !mesh.userData.navGeometry) return;
+    if (AIRY.has(mesh.material?.name)) return;
+    if (mesh.name.startsWith("occ_") || mesh.userData.renderTwin) return;
+    meshes.push(mesh);
+  };
+  root.traverse(take);
+  for (const source of sources) {
+    source.updateWorldMatrix(true, true);
+    source.traverse(take);
+  }
+  const batches = [];
   const base = new Map();
+  const local = new THREE.Matrix4();
   let nv = 0;
   let ni = 0;
   for (const mesh of meshes) {
     const pos = mesh.geometry.attributes.position;
-    if (!base.has(pos)) {
-      base.set(pos, nv);
-      nv += pos.count;
+    const count = mesh.geometry.index?.count ?? pos.count;
+    for (let i = 0; i < (mesh.isInstancedMesh ? mesh.count : 1); i++) {
+      const matrix = mesh.matrixWorld.clone();
+      if (mesh.isInstancedMesh) {
+        mesh.getMatrixAt(i, local);
+        matrix.multiply(local);
+      }
+      let copies = base.get(pos);
+      if (!copies) base.set(pos, copies = []);
+      let copy = copies.find((c) => c.matrix.equals(matrix));
+      if (!copy) {
+        copy = { at: nv, matrix, pos };
+        copies.push(copy);
+        nv += pos.count;
+      }
+      batches.push({ mesh, copy, count });
+      ni += count;
     }
-    ni += mesh.geometry.index.count;
   }
   const positions = new Float32Array(nv * 3);
   const index = new Uint32Array(ni);
-  const parts = new Uint32Array(meshes.length * 3);
-  const SLICE = 4 << 20;
+  const parts = new Uint32Array(batches.length * 3);
+  const point = new THREE.Vector3();
   let copied = 0;
-  const count = async (bytes) => {
+  const countBytes = async (bytes) => {
     copied += bytes;
-    if (copied >= SLICE) {
+    if (copied >= (4 << 20)) {
       copied = 0;
       await pause();
     }
   };
-  for (const [pos, at] of base) {
-    positions.set(pos.array.subarray(0, pos.count * 3), at * 3);
-    await count(pos.count * 12);
+  for (const copies of base.values()) for (const { pos, matrix, at } of copies) {
+    for (let i = 0; i < pos.count; i++) {
+      point.fromBufferAttribute(pos, i).applyMatrix4(matrix);
+      point.toArray(positions, (at + i) * 3);
+      if ((i & 65535) === 65535) await countBytes(65536 * 12);
+    }
+    await countBytes((pos.count % 65536) * 12);
   }
-  let o = 0;
-  for (const [n, mesh] of meshes.entries()) {
-    const src = mesh.geometry.index.array;
-    index.set(src, o);
-    parts.set([o, src.length, base.get(mesh.geometry.attributes.position)], n * 3);
-    o += src.length;
-    await count(src.length * 4);
+  let offset = 0;
+  for (const [n, { mesh, copy, count }] of batches.entries()) {
+    if (mesh.geometry.index) index.set(mesh.geometry.index.array, offset);
+    else for (let i = 0; i < count; i++) index[offset + i] = i;
+    parts.set([offset, count, copy.at], n * 3);
+    offset += count;
+    await countBytes(count * 4);
   }
   return { positions, index, parts };
 }
@@ -75,16 +112,26 @@ export async function gatherKit(root, pause = () => Promise.resolve()) {
  * and its box only closes what a modelled doorway leaves open; see
  * nav-build.js).
  */
-export function solidBoxes(file) {
-  const pack = (list) => {
-    const out = new Float32Array(list.length * 6);
-    list.forEach((b, k) => out.set([b.min[0], b.min[1], b.min[2], b.max[0], b.max[1], b.max[2]], k * 6));
-    return out;
+export function solidBoxes(file, garage = null) {
+  const pack = (list) => Float32Array.from(list.flatMap((b) => [...b.min, ...b.max]));
+  // The stair envelope is a camera obstacle; its actual treads/slope and
+  // mezzanine geometry supply walkable triangles instead of a sealed box.
+  const obstacle = (b) => b.nav !== false && b.nav !== 0 && !SOFT.has(b.kind) && !/^(garage_)?(stair|floor)/.test(b.kind);
+  const boxes = file.boxes.filter((b) => b.kind !== "building" && obstacle(b));
+  const seen = new Set(boxes.map((b) => [...b.min, ...b.max].join(",")));
+  const add = (box) => {
+    if (!box || box.isEmpty()) return;
+    const b = { min: box.min.toArray(), max: box.max.toArray() };
+    const key = [...b.min, ...b.max].join(",");
+    if (!seen.has(key)) {
+      seen.add(key);
+      boxes.push(b);
+    }
   };
-  return {
-    boxes: pack(file.boxes.filter((b) => b.kind !== "building" && !SOFT.has(b.kind))),
-    seals: pack(file.boxes.filter((b) => b.kind === "building")),
-  };
+  for (const solid of garage?.collision?.solids ?? []) if (obstacle(solid)) add(solid.box);
+  // S4 belongs to the driver. The parked S6 belongs to the map.
+  for (const car of garage?.collision?.cars() ?? []) if (car.carId === "s6") add(car.box);
+  return { boxes: pack(boxes), seals: pack(file.boxes.filter((b) => b.kind === "building")) };
 }
 
 /** Make the map in a worker. Resolves with createNav's object. */
@@ -102,7 +149,9 @@ export function buildInWorker(input, onProgress = () => {}) {
       worker.terminate();
       reject(new Error(event.message || "the map's worker failed"));
     };
-    worker.postMessage(input, [input.positions.buffer, input.index.buffer]);
+    const buffers = [input.positions, input.index, input.parts, input.boxes, input.seals, input.carIn, input.carRamps]
+      .filter((a) => a?.buffer).map((a) => a.buffer);
+    worker.postMessage(input, [...new Set(buffers)]);
   });
 }
 
