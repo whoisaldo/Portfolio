@@ -489,7 +489,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       // parts into the shared material batches, including detailed tools.
       // The city keeps its size limit so thousands of street instances
       // still share their prototype vertices.
-      if (!material.transparent && (sectorRuns.length || (!mine && n * src.geometry.attributes.position.count <= BAKED && (!batchInstances || !buildingCore || k.name === "traffic_light")))) {
+      if (!material.transparent && (sectorRuns.length || (!mine && n * src.geometry.attributes.position.count <= BAKED && (!batchInstances || !buildingCore || k.name === "traffic_light" && material.name === "glow")))) {
         const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}|${src.userData.assetKind ?? ""}|${layerMask}`;
         if (!baked.has(key)) {
           const shader = twin(material, mine ? "baked-local" : "baked", src.geometry);

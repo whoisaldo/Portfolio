@@ -1117,6 +1117,20 @@ check("shared prototype batches keep cached IDs, transforms and live deals for b
   props.dispose(); assert.equal(disposed, 2); a.geometry.dispose(); material.dispose();
 });
 
+check("undealt printed faces retain their zero design in shared prototype batches", () => {
+  const material = new three.ShaderMaterial({ uniforms: { uSpill: { value: null } } }); material.name = "NCW_print";
+  const a = new three.Mesh(new three.BoxGeometry(.2, .3, .1), material); a.userData.proto = "vending";
+  const b = a.clone(); b.userData = { proto: "vending_warm" };
+  const header = { protos: [{ name: "vending", box: [.5, .5, .5], reach: 100 }, { name: "vending_warm", box: [.5, .5, .5], reach: 100 }], count: 2 };
+  let json = JSON.stringify(header); while ((4 + Buffer.byteLength(json)) % 4) json += " ";
+  const bytes = Buffer.alloc(4 + Buffer.byteLength(json) + 32); bytes.writeUInt32LE(Buffer.byteLength(json)); bytes.write(json, 4);
+  new Int16Array(bytes.buffer, bytes.byteOffset + 4 + Buffer.byteLength(json), 16).set([0, 9000, 50, -4300, 0, 100, 1000, 0, 1, 9020, 50, -4300, 0, 100, 1000, 0]);
+  const props = propsModule.createProps([a, b], bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), { batchInstances: true });
+  const mesh = props.group.children.find((node) => node.isBatchedMesh && !node.isBaked), color = new three.Vector4();
+  assert.ok(mesh); for (let id = 0; id < 2; id++) { mesh.getColorAt(id, color); assert.equal(color.x, 0, "print reads a zero attribute even when its prototype receives random face designs"); }
+  props.dispose(); a.geometry.dispose(); material.dispose();
+});
+
 check("all six probe faces prepare their own portals and prop runs through the transform wrapper", () => {
   const source = readFileSync("src/world/world-scene.js", "utf8");
   const from = source.indexOf("  const renderScene = renderer.render;"), to = source.indexOf("  const draw =", from);

@@ -7,7 +7,7 @@ import { attributeKey } from "./merge.js";
 export function createPropBatches(sets, group, copyMaterial) {
   const groups = new Map(), batches = [], textures = new Set();
   for (const set of sets) for (const source of set.instanced) {
-    if (!source.material.isShaderMaterial || source.material.transparent || set.name === "traffic_light") continue;
+    if (!source.material.isShaderMaterial || source.material.transparent && source.material.blending !== THREE.AdditiveBlending || set.name === "traffic_light" && source.material.name === "glow") continue;
     const geometry = new THREE.BufferGeometry();
     geometry.index = source.geometry.index;
     for (const [name, attribute] of Object.entries(source.geometry.attributes)) if (name !== "aDeal") geometry.setAttribute(name, attribute);
@@ -47,7 +47,7 @@ export function createPropBatches(sets, group, copyMaterial) {
       for (let j = 0; j < part.set.n; j++) {
         const id = mesh.addInstance(geometryId); part.ids[j] = id;
         mesh.setMatrixAt(id, matrix.fromArray(part.set.matrices, j * 16));
-        mesh.setColorAt(id, color.set(part.set.deals[j], 0, 0, 1));
+        mesh.setColorAt(id, color.set(part.source.material.userData.dealt ? part.set.deals[j] : 0, 0, 0, 1));
       }
       if (part.source.material.userData.dealt) (part.set.batchDeals ??= []).push({ mesh, ids: part.ids });
       part.source.removeFromParent();
