@@ -1439,6 +1439,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let garageRoom = null;
   let roomCommitted = false;
   let boardTexture = null;
+  let placementPromise = null;
   let garageAvailable = "idle";
   let garageReason = null;
   const garageSubscribers = new Set();
@@ -1477,7 +1478,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       // placements are a failure, never a furnished-room readiness signal.
       const url = Reflect.get(worldAssets, "worldPackPropsUrl")?.[tier]?.garage;
       const fetching = preloadPack(tier, GARAGE_PACK);
-      const placementLoad = url ? fetchUnpacked(url) : Promise.reject(new Error("The workshop placements are unavailable."));
+      const placementLoad = url ? (placementPromise ??= fetchUnpacked(url).catch((error) => {
+        placementPromise = null;
+        throw error;
+      })) : Promise.reject(new Error("The workshop placements are unavailable."));
       const boardsUrl = GARAGE_PHOTOS_ENABLED ? Reflect.get(worldAssets, "worldGarageBoardsUrl")?.[tier] : null;
       const atlasLoad = boardsUrl && !boardTexture ? new THREE.TextureLoader().loadAsync(boardsUrl).then((texture) => (boardTexture = texture)) : Promise.resolve(boardTexture);
       garageRoom = (async () => {
