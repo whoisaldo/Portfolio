@@ -334,8 +334,11 @@ export default function GarageControls({
         </Panel>
       </div>
 
+      {/* On a phone the open list covers most of the frame, and the world
+          would draw the markers over its rows, so they wait until it closes.
+          Focus is inside the list or on Parts while it is open. */}
       <Markers
-        car={atShop || here.id === "arrival" ? null : car}
+        car={atShop || here.id === "arrival" || (phone && listOpen) ? null : car}
         selected={selection}
         registerPin={registerPin}
         onSelect={(m, el) => choose(m, el)}
