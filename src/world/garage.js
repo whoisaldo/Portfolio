@@ -19,6 +19,7 @@ import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { NEON } from "./materials.js";
 import { preloadMoon } from "./moon.js";
+import { createGarageVideoTexture } from "./garage-video.js";
 import { catmullRom, curveAt, easeInOut, makePose, copyPose, clamp } from "./shots.js";
 import { GARAGE_POSES, GARAGE_ROUTES, GARAGE_ROUTES_PORTRAIT, GARAGE_TIMELINE, GARAGE_STATES, GARAGE_STATIONS } from "../data/world.js";
 
@@ -119,7 +120,8 @@ export function createGarageVisibility(anchors) {
   }).filter(Boolean);
   const eye = new THREE.Vector3();
   const view = new THREE.Frustum(), matrix = new THREE.Matrix4(), positive = new THREE.Vector3();
-  let inside = false, nearOpening = false, cones = [], trafficCones = [], roadVisible = true;
+  const cameras = new WeakMap();
+  let inside = false, nearOpening = false, cones = [], trafficCones = [], roadVisible = true, passKey = null;
   const clip = (polygon, plane) => {
     const result = [];
     for (let i = 0; i < polygon.length; i++) {
@@ -134,7 +136,20 @@ export function createGarageVisibility(anchors) {
     get inside() { return inside; },
     get exteriorVisible() { return !inside || nearOpening || cones.length > 0; },
     get roadVisible() { return !inside || nearOpening || roadVisible; },
+    get passKey() { return passKey; },
     prepare(camera) {
+      // Direct and reflected cameras alternate within a frame. Keep each
+      // exact pose's clipped apertures, then restore that pass's own state.
+      // Any projection or world/inverse matrix change rebuilds its cones.
+      const matrices = [camera.matrixWorld.elements, camera.matrixWorldInverse.elements, camera.projectionMatrix.elements];
+      const previous = cameras.get(camera);
+      let same = Boolean(previous);
+      for (let i = 0; i < 48 && same; i++) same = previous.matrices[i] === matrices[Math.floor(i / 16)][i % 16];
+      if (same) {
+        ({ inside, nearOpening, cones, trafficCones, roadVisible } = previous);
+        passKey = previous;
+        return;
+      }
       eye.setFromMatrixPosition(camera.matrixWorld);
       inside = room.containsPoint(eye);
       view.setFromProjectionMatrix(matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
@@ -174,6 +189,8 @@ export function createGarageVisibility(anchors) {
         cones.push(planes);
         if (polygon.some((p) => p.y < eye.y && p.y >= -.01)) roadVisible = true;
       }
+      passKey = { matrices: matrices.flatMap((elements) => Array.from(elements)), inside, nearOpening, cones, trafficCones, roadVisible };
+      cameras.set(camera, passKey);
     },
     testTrafficSphere(x, y, z, radius) {
       if (!portals.length || !inside || nearOpening) return true;
@@ -387,18 +404,15 @@ export async function createGarage(named, shared, { reduced = false, reflectLaye
     video.preload = "none";
     let texture = null;
     const loaded = () => {
-      texture = new THREE.VideoTexture(video);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.flipY = false;
-      material.uniforms.uMap.value = texture;
+      texture = createGarageVideoTexture(video, (map) => { material.uniforms.uMap.value = map; });
     };
     video.addEventListener("loadeddata", loaded, { once: true });
-    const item = { video, dispose() {
+    const item = { video, update() { texture?.update(); }, dispose() {
+      texture?.dispose();
       video.pause();
       video.removeEventListener("loadeddata", loaded);
       video.removeAttribute("src");
       video.load();
-      texture?.dispose();
     } };
     media.push(item);
     monitorVideo?.pause();
@@ -491,6 +505,7 @@ export async function createGarage(named, shared, { reduced = false, reflectLaye
         if (!monitorVideo.src) monitorVideo.src = `${import.meta.env.BASE_URL}scenes/garage/moon-braindance.mp4`;
         if (monitorVideo.paused) monitorVideo.play().catch(() => {});
       } else pauseMedia();
+      for (const item of media) item.update();
       if (garage >= 0) {
         const k = THREE.MathUtils.clamp((position - (garage - DOOR_FROM)) / (DOOR_FROM - DOOR_TO), 0, 1);
         open = k * k * (3 - 2 * k);

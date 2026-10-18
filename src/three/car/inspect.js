@@ -77,7 +77,9 @@ export function localBounds(car, into = new THREE.Box3()) {
   _m.copy(car.matrixWorld).invert();
   into.makeEmpty();
   car.traverse((o) => {
-    if (!o.isMesh || !o.visible) return;
+    // The paint batch submits the same rig geometry. Its original nodes
+    // remain visible to physical queries while their camera layers are off.
+    if (!o.isMesh || !o.visible || o.userData.garagePaintBatch) return;
     for (let p = o.parent; p && p !== car; p = p.parent) if (!p.visible) return;
     if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
     into.union(_box.copy(o.geometry.boundingBox).applyMatrix4(new THREE.Matrix4().multiplyMatrices(_m, o.matrixWorld)));

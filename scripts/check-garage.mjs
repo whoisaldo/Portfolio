@@ -36,14 +36,18 @@ let materialModule;
 let scrollModule;
 let mergeModule;
 let inspectionModule;
+let paintBatchModule;
 let policyModule;
+let videoModule;
 let carSpecs;
 let s4Mods;
 let GLTFLoader;
 let carDecoder;
 try {
   [world, garage, three, propsModule, materialModule, scrollModule, mergeModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js"), vite.ssrLoadModule("/src/world/scroll-stage.js"), vite.ssrLoadModule("/src/world/merge.js")]);
+  paintBatchModule = await vite.ssrLoadModule("/src/world/garage-paint-batch.js");
   policyModule = await vite.ssrLoadModule("/src/world/garage-policy.js");
+  videoModule = await vite.ssrLoadModule("/src/world/garage-video.js");
   ({ cars: carSpecs } = await vite.ssrLoadModule("/src/three/car/object.js"));
   [inspectionModule, { mods: s4Mods }, { GLTFLoader }, { MeshoptDecoder: carDecoder }] = await Promise.all([vite.ssrLoadModule("/src/three/car/inspect.js"), vite.ssrLoadModule("/src/data/garage.js"), vite.ssrLoadModule("three/addons/loaders/GLTFLoader.js"), vite.ssrLoadModule("three/addons/libs/meshopt_decoder.module.js")]);
 } finally {
@@ -62,19 +66,101 @@ const check = (name, fn) => {
   }
 };
 
-check("the provisional S6 stays on the development test path until review", () => {
+check("the approved S6 is available on every visitor path", () => {
   const asset = "/models/ali-s6.glb?v=review";
-  assert.equal(policyModule.garageS6Policy(asset).url, null);
-  assert.equal(policyModule.garageS6Policy(asset, { search: "?garage-test-s6=1" }).url, null);
-  assert.equal(policyModule.garageS6Policy(asset, { development: true }).url, null);
+  assert.deepEqual(policyModule.garageS6Policy(asset), { url: asset, unavailable: null });
+  assert.equal(policyModule.garageS6Policy(asset, { search: "?garage-test-s6=1" }).url, asset);
+  assert.equal(policyModule.garageS6Policy(asset, { development: true }).url, asset);
   assert.deepEqual(policyModule.garageS6Policy(asset, { development: true, search: "?garage-test-s6=1" }), { url: asset, unavailable: null });
   assert.equal(policyModule.garageS6Policy(null).url, null);
   assert.ok(carSpecs.s4.url);
   assert.equal(carSpecs.s4.unavailable, null);
-  assert.equal(carSpecs.s6.url, null);
+  assert.ok(carSpecs.s6.url);
+  assert.equal(carSpecs.s6.unavailable, null);
 });
 
 // ---- the timeline -------------------------------------------------------------
+check("monitor textures follow decoded frames and dispose their callbacks", () => {
+  let callback, requests = 0, cancelled = 0, disposed = 0;
+  const listeners = new Map();
+  const video = { readyState: 2, videoWidth: 1280, videoHeight: 720, currentTime: 0,
+    getVideoPlaybackQuality: () => ({ totalVideoFrames: 1 }),
+    requestVideoFrameCallback(fn) { callback = fn; return ++requests; },
+    cancelVideoFrameCallback(id) { cancelled = id; },
+    addEventListener: (name, fn) => listeners.set(name, fn),
+    removeEventListener: (name) => listeners.delete(name),
+  };
+  const textures = [];
+  const monitor = videoModule.createGarageVideoTexture(video, (texture) => {
+    textures.push(texture); texture.addEventListener("dispose", () => disposed++);
+  });
+  const first = textures[0], initial = first.version;
+  assert.equal(first.isVideoTexture, true, "retain Three's native video upload path");
+  assert.equal(first.internalFormat, "RGBA8", "retain the monitor shader's raw video texels");
+  assert.equal(video.width, video.videoWidth, "the detached element supplies positive storage dimensions");
+  assert.equal(video.height, video.videoHeight);
+  assert.equal(first.colorSpace, three.SRGBColorSpace);
+  assert.equal(first.generateMipmaps, false);
+  callback(0, { presentedFrames: 1, mediaTime: 0 });
+  assert.equal(first.version, initial + 1, "native decoded notifications are retained");
+  monitor.update(); monitor.update();
+  assert.equal(first.version, initial + 1, "render passes do not repeat a decoded notification");
+  callback(1, { presentedFrames: 2, mediaTime: 1 / 24 });
+  assert.equal(first.version, initial + 2, "every new decoded frame is uploaded");
+  callback(1.5, { presentedFrames: 2, mediaTime: 1.5 });
+  assert.equal(first.version, initial + 3, "a paused seek can change media time without advancing the presented-frame counter");
+  video.videoWidth = 1920; video.videoHeight = 1080;
+  monitor.update();
+  callback(2, { presentedFrames: 3, mediaTime: 2 / 24 });
+  assert.equal(textures.length, 2, "a source-size change gets a fresh allocation");
+  assert.equal(disposed, 1);
+  const resized = textures.at(-1), version = resized.version;
+  video.readyState = 1;
+  callback(3, { presentedFrames: 4, mediaTime: 3 });
+  assert.equal(resized.version, version + 1, "native decoding retains a notification during transient seek readiness");
+  video.readyState = 2;
+  video.currentTime = 3;
+  listeners.get("seeked")();
+  assert.equal(resized.version, version + 2, "a completed seek supplies its available picture");
+  monitor.dispose();
+  assert.equal(disposed, 2);
+  assert.equal(cancelled, requests);
+  assert.equal(listeners.size, 0);
+});
+check("monitor textures retain the fallback update contract without frame callbacks", () => {
+  const listeners = new Map();
+  const video = { readyState: 2, videoWidth: 1280, videoHeight: 720, currentTime: 0,
+    addEventListener: (name, fn) => listeners.set(name, fn),
+    removeEventListener: (name) => listeners.delete(name),
+  };
+  let texture;
+  const monitor = videoModule.createGarageVideoTexture(video, (map) => { texture = map; });
+  const initial = texture.version;
+  monitor.update(); monitor.update();
+  assert.equal(texture.version, initial);
+  video.currentTime = .5;
+  monitor.update();
+  assert.equal(texture.version, initial + 1);
+  monitor.update();
+  assert.equal(texture.version, initial + 1, "a paused fallback video does not reupload");
+  monitor.dispose();
+  let frames = 1;
+  video.getVideoPlaybackQuality = () => ({ totalVideoFrames: frames });
+  const counted = videoModule.createGarageVideoTexture(video, (map) => { texture = map; });
+  const first = texture.version;
+  video.currentTime = .51; counted.update();
+  video.currentTime = .52; counted.update();
+  assert.equal(texture.version, first, "a playback clock tick is not a new decoded frame");
+  frames++;
+  counted.update();
+  assert.equal(texture.version, first + 1);
+  video.currentTime = 3;
+  listeners.get("seeked")();
+  assert.equal(texture.version, first + 2, "a fallback paused seek updates even with an unchanged frame counter");
+  counted.dispose();
+  assert.equal(listeners.size, 0);
+});
+
 {
   const queue = garage.createGarageBuildQueue();
   const order = [];
@@ -690,6 +776,56 @@ check("resting garage preparation uploads once per frame without drawing", () =>
   assert.deepEqual(completed, [1, 2, 3, 4], "disposal cancels pending and stale callbacks");
 });
 
+// Run the actual preparation loop with a clock and resources whose cost is
+// known. Grouping warm-up must retain every program, texture and buffer job.
+{
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const readyToDraw = async (drawn) => {");
+  const to = source.indexOf("  // ---- searchlights", from);
+  assert.ok(from >= 0 && to > from);
+  let now = 0;
+  const events = [], batches = [];
+  const textures = Array.from({ length: 6 }, (_, id) => ({ isTexture: true, image: {}, version: 1, id }));
+  const materials = textures.map((map) => ({ version: 0, map }));
+  const resident = new Map([[textures[0], { __version: 1 }]]);
+  const drawn = materials.map((material, id) => ({ object: { material }, geometry: { id }, bytes: id === 0 ? 12 : 0 }));
+  const renderer = {
+    info: { programs: [] }, properties: { get: (texture) => resident.get(texture) ?? {} },
+    getRenderTarget: () => null, setRenderTarget() {},
+    compile(list) {
+      const id = renderer.info.programs.length;
+      renderer.info.programs.push({ isReady: () => true,
+        getUniforms() { events.push(`uniforms:${id}`); now += 1; },
+        getAttributes() { events.push(`attributes:${id}`); now += 1; },
+      });
+      return list.drawn.map(({ object }) => object.material);
+    },
+    initTexture(texture) { events.push(`texture:${texture.id}`); resident.set(texture, { __version: texture.version }); now += 2; },
+  };
+  const prepare = runInNewContext(`${source.slice(from, to)}\nreadyToDraw;`, {
+    disposed: false, warmKit: { programs: [], send(list) {
+      events.push(`buffers:${list.length}`);
+      return [() => events.push("buffer piece")];
+    } },
+    renderer, post: { composer: { inputBuffer: {} } }, camera: {}, scene: {}, cover: null,
+    Listed: class { constructor(drawn) { this.drawn = drawn; } },
+    between: async () => {}, workAllowance: () => 4, WARM_BYTES: 100,
+    performance: { now: () => now },
+    ask: async (job) => { const start = now; const result = job(); batches.push({ ms: now - start }); return result; },
+  });
+  await prepare(drawn);
+  check("bounded preparation finishes every resource before readiness", () => {
+    for (let id = 0; id < materials.length; id++) {
+      assert.equal(events.filter((event) => event === `uniforms:${id}`).length, 1);
+      assert.equal(events.filter((event) => event === `attributes:${id}`).length, 1);
+      assert.equal(events.filter((event) => event === `texture:${id}`).length, id === 0 ? 0 : 1);
+    }
+    assert.deepEqual(events.slice(-2), ["buffers:1", "buffer piece"]);
+    assert.ok(batches.every(({ ms }) => ms <= 4), "small jobs fit the actual work allowance");
+    assert.equal(batches.length, 8, "lookups and pictures share bounded frame slots");
+  });
+}
+
 check("resting frames draw effective manual car state and layout once", () => {
   // Exercise the runtime's actual frame gate with a stable camera. The
   // renderer records the effective hood state only when a frame is drawn.
@@ -759,6 +895,26 @@ check("room and exterior triangles sharing a tile keep independent visibility", 
   tile.onBeforeRender({ info: { render: { frame: 1 } } }, null, camera);
   assert.deepEqual(cells.list.map((cell) => cell.sector).sort(), ["exterior", "garage_shell"]);
   assert.equal(Array.from(tile._multiDrawCounts).slice(0, tile._multiDrawCount).reduce((sum, n) => sum + n, 0), 36, "the wall-hidden street box cannot borrow the room's tile exemption");
+  cells.visibilityKey = () => visibility.passKey;
+  const commands = () => ({ starts: Array.from(tile._multiDrawStarts).slice(0, tile._multiDrawCount), counts: Array.from(tile._multiDrawCounts).slice(0, tile._multiDrawCount) });
+  tile.onBeforeRender({ info: { render: { frame: 2 } } }, null, camera);
+  const directCommands = commands();
+  const other = camera.clone(); other.lookAt(475, 2, -215); other.updateMatrixWorld();
+  visibility.prepare(other);
+  tile.onBeforeRender({ info: { render: { frame: 3 } } }, null, other);
+  const otherCommands = commands();
+  for (let pass = 0; pass < 3; pass++) {
+    visibility.prepare(camera);
+    tile.onBeforeRender({ info: { render: { frame: 4 + pass * 2 } } }, null, camera);
+    assert.deepEqual(commands(), directCommands, "restore the direct camera's exact runs");
+    visibility.prepare(other);
+    tile.onBeforeRender({ info: { render: { frame: 5 + pass * 2 } } }, null, other);
+    assert.deepEqual(commands(), otherCommands, "restore the other pass's independent runs");
+  }
+  tile.setRuns({ cell: result.value.cell, start: result.value.start, count: Int32Array.from(result.value.count, n => n / 2) });
+  visibility.prepare(camera);
+  tile.onBeforeRender({ info: { render: { frame: 12 } } }, null, camera);
+  assert.equal(commands().counts.reduce((sum, n) => sum + n, 0), 18, "a new district's run table invalidates saved commands");
   geometry.dispose(); tile.material.dispose(); room.geometry.dispose(); street.geometry.dispose();
 });
 
@@ -774,10 +930,47 @@ check("street props use each prototype's bounds within a shared tile", () => {
   const anchors = new Map([["anchor_garage_portal_door", { position: new Vector3(452, 2.3, -215), quaternion: new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2), extras: { width: 6, height: 4.6 } }]]);
   const visibility = garage.createGarageVisibility(anchors), camera = new three.PerspectiveCamera(60, 1.6, .1, 2000);
   camera.position.set(462, 2, -215); camera.lookAt(440, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
-  const props = propsModule.createProps([a, b], buffer, { visibleBox: visibility.test }); props.update(camera);
+  const opaque = material.clone(); opaque.transparent = false; opaque.name = "metal";
+  const c = a.clone(), d = b.clone(); c.material = d.material = opaque;
+  let caching = true, boxReads = 0;
+  const props = propsModule.createProps([a, b, c, d], buffer, {
+    visibleBox: (box, sector) => { boxReads++; return visibility.test(box, sector); },
+    visibilityKey: () => caching && visibility.inside ? visibility.passKey : null,
+  }); props.update(camera);
   assert.equal(props.group.getObjectByName("props_visible_prop_test_glass").count, 1);
   assert.equal(props.group.getObjectByName("props_hidden_prop_test_glass").count, 0);
-  props.dispose(); a.geometry.dispose(); material.dispose();
+  const capture = () => {
+    const meshes = [];
+    props.group.traverse((mesh) => { if (mesh.isMesh) meshes.push({ name: mesh.name, visible: mesh.visible,
+      count: mesh.isInstancedMesh ? mesh.count : null,
+      matrices: mesh.isInstancedMesh ? Array.from(mesh.instanceMatrix.array.slice(0, mesh.count * 16)) : null,
+      starts: mesh.isBatchedMesh ? Array.from(mesh._multiDrawStarts.slice(0, mesh._multiDrawCount)) : null,
+      counts: mesh.isBatchedMesh ? Array.from(mesh._multiDrawCounts.slice(0, mesh._multiDrawCount)) : null,
+    }); });
+    return meshes;
+  };
+  assert.ok(capture().some((mesh) => mesh.counts), "the fixture exercises baked commands as well as instanced matrices");
+  const wall = camera.clone(); wall.lookAt(475, 2, -215); wall.updateMatrixWorld();
+  const reflected = camera.clone(); reflected.position.y = -2; reflected.lookAt(440, -2, -215); reflected.updateMatrixWorld();
+  const outdoors = camera.clone(); outdoors.position.set(440, 2, -215); outdoors.lookAt(462, 2, -215); outdoors.updateMatrixWorld();
+  const spacer = wall.clone(); spacer.updateMatrixWorld();
+  const use = (view) => { visibility.prepare(view); props.update(view); };
+  for (const view of [camera, wall, reflected, outdoors, camera, reflected]) {
+    caching = false; use(spacer); use(view);
+    const expected = capture();
+    caching = true; use(spacer); use(view);
+    assert.deepEqual(capture(), expected, "cached passes submit the same geometry and matrices as the ordinary culler");
+    use(spacer); visibility.prepare(view);
+    const before = boxReads;
+    props.update(view);
+    assert.deepEqual(capture(), expected, "an outdoor pass cannot overwrite an indoor camera's saved lists");
+    if (visibility.inside) assert.equal(boxReads, before, "a stationary pass does not retest every prop box");
+  }
+  camera.fov = 90; camera.updateProjectionMatrix();
+  caching = false; use(spacer); use(camera); const wide = capture();
+  caching = true; use(spacer); use(camera);
+  assert.deepEqual(capture(), wide, "a projection change invalidates the old prop decisions");
+  props.dispose(); a.geometry.dispose(); material.dispose(); opaque.dispose();
 });
 
 check("ordinary exterior meshes keep independent portal visibility across passes", () => {
@@ -795,6 +988,141 @@ check("ordinary exterior meshes keep independent portal visibility across passes
   const streetPass = garage.cullGarageObjects(scene, { testSphere: () => true }, { car: parked });
   assert.equal(outside.visible, true); streetPass();
   outside.geometry.dispose(); outside.material.dispose();
+});
+
+check("room procedural parts share draws while preserving each original local frame", () => {
+  const geometry = new three.BoxGeometry(.4, .6, .2);
+  geometry.setAttribute("color", new three.Float32BufferAttribute(new Float32Array(geometry.attributes.position.count * 4).fill(.5), 4));
+  const base = new three.ShaderMaterial({ uniforms: { uSpill: { value: null } } }); base.name = "NCW_face";
+  const proto = new three.Mesh(geometry, base); proto.userData.proto = "room_frame_test";
+  const header = { protos: [{ name: "room_frame_test", box: [.2, .3, .1] }], count: 2, sectorRuns: [{ sector: "garage_s4", start: 0, count: 1 }, { sector: "garage_s6", start: 1, count: 1 }] };
+  let json = JSON.stringify(header); while ((4 + Buffer.byteLength(json)) % 4) json += " ";
+  const buffer = new ArrayBuffer(4 + Buffer.byteLength(json) + 32);
+  new DataView(buffer).setUint32(0, Buffer.byteLength(json), true); new Uint8Array(buffer, 4, Buffer.byteLength(json)).set(Buffer.from(json));
+  new Int16Array(buffer, 4 + Buffer.byteLength(json), 16).set([0, 9240, 100, -4300, 1043, 110, 900, 0, 0, 9300, 100, -4400, -1043, 90, 1100, 0]);
+  const system = propsModule.createProps([proto], buffer, { reflectLayer: 2 });
+  const meshes = system.group.children.filter((o) => o.isMesh);
+  assert.equal(meshes.length, 1, "two sectors and placements share a procedural material draw");
+  const mesh = meshes[0], g = mesh.geometry;
+  assert.equal(mesh.isInstancedMesh, undefined); assert.equal(mesh.layers.mask, 5);
+  assert.equal(g.attributes.position.count, 2 * geometry.attributes.position.count);
+  const frame = new three.Matrix4(), point = new Vector3();
+  for (let i = 0; i < g.attributes.position.count; i++) {
+    for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) frame.elements[c * 4 + r] = g.attributes[`_instance_matrix_${c}`].array[i * 4 + r];
+    point.fromBufferAttribute(g.attributes._local_position, i).applyMatrix4(frame);
+    assert.ok(point.distanceTo(new Vector3().fromBufferAttribute(g.attributes.position, i)) < .0001);
+    assert.equal(g.attributes._deal.getX(i), 0);
+    assert.deepEqual(Array.from(g.attributes._local_normal.array.slice(i * 3, i * 3 + 3)), Array.from(geometry.attributes.normal.array.slice((i % geometry.attributes.normal.count) * 3, (i % geometry.attributes.normal.count) * 3 + 3)));
+  }
+  assert.ok(mesh.material.vertexShader.includes("attribute float _deal"));
+  system.dispose(); geometry.dispose(); base.dispose();
+});
+
+check("paint batching preserves moving rig matrices, physical bounds, picking and resource lifetime", () => {
+  const root = new three.Group(), hood = new three.Group(), wheel = new three.Group(); root.add(hood, wheel);
+  const material = new three.MeshStandardMaterial(); material.name = "s4_paint";
+  const a = new three.Mesh(new three.BoxGeometry(2, .3, 3), material), b = new three.Mesh(new three.BoxGeometry(1, .1, .8), material), c = new three.Mesh(new three.BoxGeometry(.3, .6, .6), material);
+  root.add(a); hood.add(b); wheel.add(c); hood.position.set(0, .5, .8); wheel.position.set(.9, -.3, .9);
+  const camera = new three.PerspectiveCamera(50, 1.6, .1, 100), ray = new three.Raycaster();
+  root.position.set(463, 1, -215); root.rotation.y = .67; root.updateMatrixWorld(true);
+  const hitDistance = () => { camera.position.set(470, 1.2, -209); camera.lookAt(root.position); camera.updateMatrixWorld(); ray.setFromCamera(new three.Vector2(), camera); return ray.intersectObject(root, true)[0]?.distance; };
+  const sources = []; root.traverse(node => { if (node.isMesh) sources.push(node); });
+  const before = hitDistance(), batch = paintBatchModule.createGaragePaintBatch(root);
+  assert.ok(batch); assert.ok([a, b, c].every(n => n.layers.mask === 0));
+  assert.ok(Math.abs(hitDistance() - before) < 1e-7, "the same painted surface receives physical picks");
+  for (let step = 0; step <= 20; step++) {
+    batch.mesh.visible = false; const expected = inspectionModule.localBounds(root).clone(); batch.mesh.visible = true;
+    root.position.x = 463 + step / 10; root.rotation.y = .67 + step / 100; hood.rotation.x = -step / 20; wheel.rotation.x = step / 5;
+    batch.mesh.visible = false; const moved = inspectionModule.localBounds(root).clone(); batch.mesh.visible = true;
+    const actual = inspectionModule.localBounds(root);
+    assert.deepEqual(actual.toArray?.() ?? [actual.min.toArray(), actual.max.toArray()], [moved.min.toArray(), moved.max.toArray()]);
+    assert.ok(!expected.isEmpty());
+    const matrix = new three.Matrix4(); for (const [i, source] of sources.entries()) { batch.mesh.getMatrixAt(i, matrix); assert.deepEqual(matrix.elements, Array.from(Float32Array.from(source.matrixWorld.elements)), "GPU batch matrices equal the original model uniforms exactly"); }
+  }
+  root.updateMatrixWorld(true); const version = batch.mesh._matricesTexture.version; root.updateMatrixWorld(true); assert.equal(batch.mesh._matricesTexture.version, version, "a stationary rig does not upload the same matrix texture again");
+  const shader = { uniforms: {}, vertexShader: "#include <common>\n#include <project_vertex>\n#include <defaultnormal_vertex>", fragmentShader: "" };
+  batch.mesh.material.onBeforeCompile(shader, {});
+  const render = view => batch.mesh.onBeforeRender({}, null, view, batch.mesh.geometry, batch.mesh.material);
+  render(camera);
+  const viewTexture = shader.uniforms.uGaragePaintView.value, normalTexture = shader.uniforms.uGaragePaintNormal.value;
+  for (const [id, source] of sources.entries()) {
+    const mv = new three.Matrix4().multiplyMatrices(camera.matrixWorldInverse, source.matrixWorld), normal = new three.Matrix3().getNormalMatrix(mv);
+    assert.deepEqual(Array.from(viewTexture.image.data.slice(id * 16, id * 16 + 16)), Array.from(Float32Array.from(mv.elements)));
+    for (let i = 0; i < 9; i++) assert.equal(normalTexture.image.data[id * 12 + Math.floor(i / 3) * 4 + i % 3], Math.fround(normal.elements[i]));
+  }
+  const viewVersion = viewTexture.version, normalVersion = normalTexture.version;
+  render(camera); assert.equal(viewTexture.version, viewVersion); assert.equal(normalTexture.version, normalVersion);
+  const reflected = camera.clone(); reflected.position.y *= -1; reflected.updateMatrixWorld(); render(reflected); render(camera);
+  assert.equal(shader.uniforms.uGaragePaintView.value, viewTexture); assert.equal(viewTexture.version, viewVersion, "a returning camera binds its original texture without reuploading it");
+  let disposed = 0; batch.mesh._matricesTexture.addEventListener("dispose", () => disposed++); batch.dispose(); assert.equal(disposed, 1); assert.ok([a, b, c].every(n => n.layers.mask === 1));
+  for (const source of [a, b, c]) source.geometry.dispose(); material.dispose();
+});
+
+check("all six probe faces prepare their own portals and prop runs through the transform wrapper", () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const renderScene = renderer.render;"), to = source.indexOf("  const draw =", from);
+  const scene = new three.Scene(), capture = new three.Scene(), wrapper = new three.Group(), root = new three.Group();
+  capture.add(wrapper); wrapper.add(root);
+  const portals = [], props = [], drawn = [];
+  const city = { root, visibility: { prepare: (view) => portals.push(view) }, props: { update: (view) => props.push(view) } };
+  const renderer = { render: (_scene, view) => drawn.push(view) };
+  runInNewContext(source.slice(from, to), { renderer, city, scene, car: null });
+  const faces = Array.from({ length: 6 }, () => new three.PerspectiveCamera(90, 1, .1, 60));
+  for (const face of faces) renderer.render(capture, face);
+  assert.deepEqual(portals, faces); assert.deepEqual(props, faces); assert.deepEqual(drawn, faces);
+  renderer.render(new three.Scene(), faces[0]);
+  assert.equal(portals.length, 6, "postprocessing scenes cannot replace the portal state");
+});
+
+check("exterior batches keep signals, local shader frames, layers and exact light sources", () => {
+  const wire = (header, rows) => {
+    let json = JSON.stringify(header); while ((4 + Buffer.byteLength(json)) % 4) json += " ";
+    const bytes = Buffer.alloc(4 + Buffer.byteLength(json) + rows.length * 16);
+    bytes.writeUInt32LE(Buffer.byteLength(json)); bytes.write(json, 4);
+    const values = new Int16Array(bytes.buffer, bytes.byteOffset + 4 + Buffer.byteLength(json), rows.length * 8);
+    values.set(rows.flat()); return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  };
+  const base = new three.ShaderMaterial({ uniforms: { uSpill: { value: null } } }); base.name = "glow";
+  const geometry = new three.BoxGeometry(.2, .3, .1).toNonIndexed();
+  geometry.setIndex(Array.from({ length: geometry.attributes.position.count }, (_, i) => i));
+  geometry.setAttribute("color", new three.Float32BufferAttribute(new Float32Array(geometry.attributes.position.count * 4).fill(.5), 4));
+  const glow = new three.Mesh(geometry, base); glow.name = "proto_traffic_light_glow"; glow.userData.proto = "traffic_light";
+  const faceMat = new three.ShaderMaterial(); faceMat.name = "NCW_face";
+  const face = new three.Mesh(geometry, faceMat); face.name = "proto_signal_box_face"; face.userData.proto = "signal_box";
+  const header = { protos: [{ name: "traffic_light", box: [.5, 1, .5], reach: 300 }, { name: "signal_box", box: [.5, 1, .5], reach: 300 }], count: 2 };
+  const rows = [[0, 8800, 100, -4300, 0, 100, 1000, 0], [1, 8800, 100, -4300, 0, 100, 1000, 0]];
+  const full = wire(header, rows), empty = wire({ ...header, count: 0 }, []);
+  const exterior = new three.Group();
+  for (const [i, src] of [glow, face].entries()) {
+    const g = geometry.clone(), matrix = new three.Matrix4().makeTranslation(440, 2, -215);
+    g.applyMatrix4(matrix);
+    if (i) {
+      g.setAttribute("_local_position", geometry.attributes.position.clone()); g.setAttribute("_local_normal", geometry.attributes.normal.clone());
+      for (let col = 0; col < 4; col++) g.setAttribute(`_instance_matrix_${col}`, new three.Float32BufferAttribute(Array.from({ length: g.attributes.position.count }, () => matrix.elements.slice(col * 4, col * 4 + 4)).flat(), 4));
+      g.setAttribute("_deal", new three.Float32BufferAttribute(new Float32Array(g.attributes.position.count), 1));
+    }
+    const node = new three.Mesh(g, { name: `NCW_${i ? "face" : "glow"}` }); node.name = `exterior_test_${i}`;
+    node.userData = { sourceKind: "prop", visibilitySector: "exterior", sourceLayers: 5, shaderLocal: Boolean(i), runs: [[36, -18, 300, 0, g.index.count]], placements: [[i, i, src.userData.proto, src.name, 0, g.index.count]] };
+    exterior.add(node);
+  }
+  const original = propsModule.createProps([glow, face], full, { reflectLayer: 2 });
+  const batch = propsModule.createProps([glow, face], empty, { exterior, originalBuffer: full, reflectLayer: 2 });
+  const lightRows = (system) => system.sources.flatMap((light) => Array.from(light.mesh.geometry.attributes.position.array).map((value) => `${light.color.getHexString()}:${light.intensity}:${value}`)).sort();
+  assert.deepEqual(lightRows(batch), lightRows(original), "every source triangle, colour and gain survives removal of its placement");
+  const signal = batch.written("traffic_light"); assert.equal(signal.length, 1); assert.equal(signal[0].matrices[13], 2);
+  const local = batch.group.getObjectByName("exterior_test_1");
+  const signalFace = batch.dealt("signal_box");
+  assert.equal(signalFace.matrices.length, 16); signalFace.deal(0, -.5);
+  assert.ok(Array.from(local.geometry.attributes._deal.array).every((v) => v === -.5), "crossing signals still update a taken placement");
+  assert.equal(local.layers.mask, 5); assert.ok(local.material.vertexShader.includes("mat4(_instance_matrix_0"));
+  assert.ok(local.material.vertexShader.includes("attribute float _deal"));
+  const camera = new three.PerspectiveCamera(60, 1, .1, 200); camera.position.set(450, 2, -215); camera.lookAt(440, 2, -215); batch.update(camera);
+  assert.ok(local.visible); assert.ok(local._multiDrawCount > 0);
+  camera.far = 1000; camera.updateProjectionMatrix();
+  camera.position.set(742.9, 2, -215); camera.lookAt(440, 2, -215); batch.update(camera);
+  assert.ok(local.visible, "reach uses the original shared prop bounds, not the smaller mesh bounds");
+  camera.lookAt(760, 2, -215); batch.update(camera); assert.equal(local.visible, false);
+  original.dispose(); batch.dispose(); geometry.dispose(); base.dispose(); faceMat.dispose();
 });
 
 check("the road mirror does not repack the unreflected skyline", () => {
@@ -863,6 +1191,20 @@ check("portal visibility keeps real openings for main and reflected cameras", ()
   assert.ok(!visibility.test(box(462, 2, -225), "garage_s6"), "outside cannot see through a closed wall");
   assert.equal(visibility.test(box(462, 2, -225), "garage_shell"), true, "the workshop's outer walls and roof stay visible from the street");
   assert.ok(visibility.test(box(440, 1, -150)), "exterior culling is unchanged outdoors");
+  const direct = camera.clone(), reflected = camera.clone();
+  direct.position.set(462, 2, -215); direct.lookAt(475, 2, -215); direct.updateMatrixWorld();
+  reflected.position.set(462, -2, -215); reflected.lookAt(440, -2, -215); reflected.updateMatrixWorld();
+  for (let pass = 0; pass < 3; pass++) {
+    visibility.prepare(direct);
+    assert.equal(visibility.exteriorVisible, false, "restored direct pass keeps its wall cull");
+    assert.equal(visibility.test(box(440, 1, -215)), false);
+    visibility.prepare(reflected);
+    assert.equal(visibility.exteriorVisible, true, "restored reflected pass keeps its own aperture");
+    assert.equal(visibility.test(box(440, 1, -215)), true);
+  }
+  reflected.fov = 5; reflected.updateProjectionMatrix(); reflected.lookAt(440, -2, -150); reflected.updateMatrixWorld();
+  visibility.prepare(reflected);
+  assert.equal(visibility.test(box(440, 1, -215)), false, "a changed lens/pose invalidates the saved pass");
 });
 
 check("immersive Arrival fits its sticky controls and has an inverse mapping", () => {

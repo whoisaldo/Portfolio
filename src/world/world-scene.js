@@ -48,6 +48,7 @@ import { createTraffic, makeTrafficAhead } from "./traffic.js";
 import { createCar } from "./car.js";
 import { createClearance } from "./clearance.js";
 import { createShafts } from "./shafts.js";
+import { createGaragePaintBatch } from "./garage-paint-batch.js";
 import { createGarageVisit, createGarageCollision, createGaragePresentation, createGarageUploadPump, createGarageBuildQueue, cullGarageObjects, garageLights } from "./garage.js";
 import { LIGHT_BOUNDS } from "./spill.js";
 import { cars as carModels, preloadCar } from "../three/car/object.js";
@@ -254,6 +255,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // once the room is in: { pick(raycaster) -> { carId, point } | null,
   // flash(carId) -> Vector3 | null, ... }. Null until then.
   let garageCars = null;
+  let garagePaintBatch = null;
   let inspectionCursor = null;
   let inspectionTarget = null;
   let inspectionAspect = null;
@@ -974,6 +976,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let clock = 0;
   let firstFrame = false;
   let disposed = false;
+  let recentDrawMs = 0;
   const times = new Float32Array(240);
   let timeIndex = 0;
 
@@ -988,7 +991,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // room-prop lists and portal visibility before projectObject sees them.
   const renderScene = renderer.render;
   renderer.render = function (drawScene, drawCamera) {
-    if (city && (drawScene === scene || city.root.parent === drawScene)) {
+    // PMREM wraps the city in a transform group. Prepare every actual cube
+    // face too, so portal and prop runs never inherit a previous view.
+    let cityPass = drawScene === scene;
+    for (let parent = city?.root; !cityPass && parent; parent = parent.parent) cityPass = parent === drawScene;
+    if (city && cityPass) {
       drawCamera.updateMatrixWorld();
       city.visibility.prepare(drawCamera);
       city.props.update(drawCamera);
@@ -1026,6 +1033,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }
   };
   const draw = (dt, moonView = null, flow = dt) => {
+    const began = performance.now();
     renderer.info.reset();
     diagnostics?.begin();
     let mirrored = false;
@@ -1111,6 +1119,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       firstFrame = true;
       onFirstFrame?.();
     }
+    recentDrawMs = Math.max(performance.now() - began, recentDrawMs * .75);
   };
 
   // ---- adaptive quality -----------------------------------------------------
@@ -1449,7 +1458,6 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     for (const o of culled) o.frustumCulled = true;
     running = null;
     check();
-    streamPacks();
     buildSearchlights().catch((err) => {
       if (!disposed && import.meta.env.DEV) console.warn("[world] no searchlights", err);
     });
@@ -1461,10 +1469,19 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // door's last tick and an intro that can open on the moon come
     // together, as they did.
     const m = await moonMade;
-    if (!m || disposed) return;
-    post.setMoon(m.scene, m.camera);
-    await m.prepare(post.composer.inputBuffer, { width, height, pixelRatio: renderer.getPixelRatio() }, moonSlot);
-    if (!disposed) moon = m;
+    if (disposed) return;
+    if (m) {
+      post.setMoon(m.scene, m.camera);
+      await m.prepare(post.composer.inputBuffer, { width, height, pixelRatio: renderer.getPixelRatio() }, moonSlot);
+      if (!disposed) moon = m;
+    }
+    // The hero has its first frames. Prepare the workshop next, at idle,
+    // before distant districts take the shared construction buffers. The
+    // page does not await this work, and a failed room cannot stop streaming.
+    if (!disposed) {
+      const room = hasGaragePack(tier) ? idle().then(prepareGarage).catch(() => false) : Promise.resolve();
+      void room.then(() => { if (!disposed) return streamPacks(); });
+    }
   };
 
   // (load) Work that waits on the GPU's process: a question it must answer
@@ -1513,17 +1530,17 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   });
 
   // (load) Work spread over the page's frames: each frame gives up to
-  // WORK_MS of it, run just after that frame is drawn (the frame's own work
-  // is a few milliseconds, so the frame and its share stay inside the
-  // tier's budget). `between()` resolves at once while this frame's share
-  // lasts, else just after the next frame; a page drawing nothing (the tab
+  // workAllowance() of it, run just after that frame is drawn. Leave room
+  // for the recent draw and two milliseconds for other page work, with an
+  // eight millisecond ceiling (six on phone). `between()` resolves at once
+  // while that share lasts, else after the next frame; no drawing (the tab
   // hidden, a cover up) has no frames to follow, and waits a sixth of a
   // second instead.
   // (While the adaptive pass is timing the page's frames, none of it: what
   // it times is the city's own frame, and a frame with a share of work in
   // it misses a fast display's refresh where the city's alone does not, so
   // the pass shed pixels a visitor's machine had to spare.)
-  const WORK_MS = tier === "phone" ? 6 : 4;
+  const workAllowance = () => Math.max(1, Math.min(tier === "phone" ? 6 : 8, 16.7 - recentDrawMs - 2));
   let workFrom = -Infinity;
   // (`untimed`: the voxel moon's, which the intro may wait for, runs on.)
   // One piece of work is let go a frame, so two at once (a district and the
@@ -1562,7 +1579,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     late = setTimeout(go, 160);
   };
   const slot = (untimed) => {
-    if (!(adapt.sampling && !untimed) && performance.now() - workFrom < WORK_MS) return Promise.resolve();
+    if (!(adapt.sampling && !untimed) && performance.now() - workFrom < workAllowance()) return Promise.resolve();
     return new Promise((resolve) => {
       waiting.push({ resolve, untimed });
       if (!slotArmed) arm();
@@ -1808,6 +1825,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         // lighting probe can now prepare against its actual surfaces.
         if (!garageCars) garageCars = createGaragePresentation(runtime.default ?? runtime.createGarageCars, { scene, renderer, shared, tier, reduced, anchors: city.anchors, fixtures, road: car, camera, between }, { s6Available: !carModels.s6.unavailable });
         await garageCars.ready;
+        if (!garagePaintBatch) {
+          let inspection = garageCars.anchors().find((anchor) => anchor.carId === "s4")?.owner;
+          while (inspection && inspection.parent !== car.car) inspection = inspection.parent;
+          if (inspection) garagePaintBatch = createGaragePaintBatch(inspection);
+          if (garagePaintBatch) await renderer.compileAsync?.(garagePaintBatch.mesh, camera, scene);
+        }
         if (disposed) return false;
         if (["s4", "s6"].some((id) => garageCars.stats?.[id]?.placeholder && !garageCars.stats[id].visitorOmitted)) throw new Error("A development car cannot be presented as a finished model.");
         if (diagnostics) await diagnostics.during("garage-probe", () => garageCars.captureProbe?.(city.root));
@@ -1817,12 +1840,21 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         // Validate the sampled camera after the actual car state has been
         // applied. All geometry remains hidden behind the text until this
         // finishes; construction yields through the same frame scheduler.
+        const parkedStates = new Map();
         for (const a of [16 / 10, 390 / 844]) for (let i = 0; i <= 1000; i++) {
           const p = i / 1000;
           const state = visit.stateAt(p, reduced);
-          garageCars.applyState(state);
+          // Both aspect sweeps use the same exact physical states. Holds
+          // need one bounds walk; every distinct hood/drop fraction still
+          // gets its own real geometry query, without rounding the state.
+          const key = JSON.stringify([state.hood.s4, state.hood.s6, state.lowering]);
+          let parked = parkedStates.get(key);
+          if (!parked) {
+            garageCars.applyState(state);
+            parked = withParkedS4(() => garageCars.bounds());
+            parkedStates.set(key, parked);
+          }
           const candidate = visit.at(p, a, undefined, reduced);
-          const parked = withParkedS4(() => garageCars.bounds());
           const collision = createGarageCollision({ solids: () => city.garageSolids, cars: () => parked });
           if (collision.clearance(candidate.position) < .45 || collision.nearPlane(candidate, a, camera.near) < .15) throw new Error(`Workshop camera clearance failed at ${p.toFixed(3)}.`);
           if (i % 20 === 0) { await between(); if (disposed) return false; }
@@ -1907,6 +1939,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       }, { priority: true }).catch((err) => {
         if (disposed) return false;
         garageRoom = null;
+        garagePaintBatch?.dispose(); garagePaintBatch = null;
         garageCars?.dispose();
         garageCars = null;
         garageAvailable = "failed";
@@ -2096,15 +2129,23 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (disposed) return;
     programs.push(...(cover?.compile(drawn) ?? []));
     for (let round = 0; round < 3 && !disposed; round++) {
-      // Each program once it is built, first used before a frame.
+      // Wait for every program, then initialize ready ones within the same
+      // measured share. Small uniform lookups do not each cost a refresh.
       for (const program of programs) {
         while (!program.isReady()) {
           await between();
           if (disposed) return;
         }
+      }
+      let programIndex = 0;
+      while (programIndex < programs.length) {
         await ask(() => {
-          program.getUniforms();
-          program.getAttributes();
+          const from = performance.now(), allowance = workAllowance();
+          do {
+            const program = programs[programIndex++];
+            program.getUniforms();
+            program.getAttributes();
+          } while (programIndex < programs.length && performance.now() - from < allowance);
         });
         if (disposed) return;
       }
@@ -2117,9 +2158,14 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         for (const k of Object.keys(m)) add(m[k]);
         for (const u of Object.values(m.uniforms ?? {})) add(u?.value);
       }
-      for (const p of pictures) {
-        if (renderer.properties.get(p).__version === p.version) continue;
-        await ask(() => renderer.initTexture(p));
+      const pendingPictures = [...pictures].filter((p) => renderer.properties.get(p).__version !== p.version);
+      let pictureIndex = 0;
+      while (pictureIndex < pendingPictures.length) {
+        await ask(() => {
+          const from = performance.now(), allowance = workAllowance();
+          do { renderer.initTexture(pendingPictures[pictureIndex++]); }
+          while (pictureIndex < pendingPictures.length && performance.now() - from < allowance);
+        });
         if (disposed) return;
       }
       if (round === 0) {
@@ -2311,6 +2357,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     idleUploads.dispose();
     garageAvailable = contextLost ? "lost" : "off";
     asks.splice(0).forEach((entry) => entry.run());
+    garagePaintBatch?.dispose(); garagePaintBatch = null;
     garageCars?.dispose();
     garageCars = null;
     garageSubscribers.clear();

@@ -471,6 +471,7 @@ export class Tiled extends THREE.Mesh {
   constructor(geometry, material, cells, runs) {
     super(geometry, material);
     this.cells = cells;
+    this.passLists = new WeakMap();
     this.frustumCulled = false;
     if (MULTI_DRAW) {
       this.isBatchedMesh = true;
@@ -491,8 +492,29 @@ export class Tiled extends THREE.Mesh {
 
   onBeforeRender(renderer, scene, camera) {
     if (!MULTI_DRAW) return;
+    // Static room poses recur across direct and reflected passes. Restore
+    // that camera's exact command list while its aperture state, geometry
+    // and cell partition match. Flights and late packs rebuild normally.
+    const key = this.cells.visibilityKey?.();
+    let saved = key ? this.passLists.get(camera) : null;
+    if (saved && saved.key === key && saved.runs === this.runs && saved.geometry === this.geometry && saved.cells === this.cells.list.length) {
+      this._multiDrawCount = saved.count;
+      this._multiDrawStarts.set(saved.starts.subarray(0, saved.count));
+      this._multiDrawCounts.set(saved.counts.subarray(0, saved.count));
+      return;
+    }
+    const remember = () => {
+      if (!key) return;
+      const count = this._multiDrawCount;
+      if (!saved || saved.starts.length < count) saved = { starts: new Int32Array(count), counts: new Int32Array(count) };
+      saved.starts.set(this._multiDrawStarts.subarray(0, count));
+      saved.counts.set(this._multiDrawCounts.subarray(0, count));
+      Object.assign(saved, { key, runs: this.runs, geometry: this.geometry, cells: this.cells.list.length, count });
+      this.passLists.set(camera, saved);
+    };
     if (this.cells.visibleBox && !this.cells.visibleBox(this.geometry.boundingBox, this.userData.sector)) {
       this._multiDrawCount = 0;
+      remember();
       return;
     }
     const { cell, start, count } = this.runs;
@@ -514,6 +536,7 @@ export class Tiled extends THREE.Mesh {
       }
     }
     this._multiDrawCount = n;
+    remember();
   }
 }
 

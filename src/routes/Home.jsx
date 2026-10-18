@@ -291,7 +291,13 @@ function GarageShell({ onMounted, onLayout }) {
     if (!getWorld()) window.dispatchEvent(new Event("aly:world-retry"));
     setRoomTry((n) => n + 1);
   }, []);
-  const loading = <p className="mt-12 prose-dark text-dim rail-clear" role="status">Loading the garage.</p>;
+  const loading = <div className="mt-12 prose-dark rail-clear" data-garage-loading>
+    <p role="status" className="text-dim">Loading the workshop and parts lists.</p>
+    <h3>2013 Audi S4</h3>
+    <p>B8.5. Supercharged V6.</p>
+    <h3>2013 Audi S6</h3>
+    <p>C7. 4.0 TFSI twin-turbo V8. IE ECU and TCU tunes, with Virtual Link lowering.</p>
+  </div>;
 
   const boundary = (
     <GarageBoundary onRetry={() => setAttempt((n) => n + 1)}>
