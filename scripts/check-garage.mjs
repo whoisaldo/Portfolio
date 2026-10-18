@@ -827,7 +827,7 @@ check("reduced-motion cold entry cannot strand construction behind sampling", ()
   const entered = new Promise((resolve) => { roomEntered = resolve; });
   const roomBake = new Promise((resolve) => { finishRoom = resolve; });
   const construction = garage.createGarageBuildQueue();
-  const prepare = runInNewContext(`${source.slice(from, to).replaceAll("import.meta", "meta")}\nprepareGarage;`, {
+  const context = {
     disposed: false, tier: "high", reduced: false, hasGaragePack: () => true,
     carRuntime: async () => ({}), garageData: async () => ({ findMod() {} }),
     garageRoom: null, garageAvailable: "idle", garageReason: null, publishGarage() {},
@@ -841,7 +841,9 @@ check("reduced-motion cold entry cannot strand construction behind sampling", ()
     roomCommitted: false, packsIn: [], THREE: three,
     city: { anchors: new Map(), garageMaterials: { setRects() {} }, kit: { wet: {} },
       async addPack() { events.push("room bake"); roomEntered(); await roomBake; } },
-  });
+  };
+  const executable = `${source.slice(from, to).replaceAll("import.meta", "meta")}\nprepareGarage;`;
+  const prepare = runInNewContext(executable, context);
   void prepare();
   await entered;
   let districtBuilt = false;
@@ -851,6 +853,16 @@ check("reduced-motion cold entry cannot strand construction behind sampling", ()
   check("S6 fetch overlaps room and pending cars release district bake queue", () => {
     assert.deepEqual(events, ["S6 requested", "room bake"]);
     assert.ok(districtBuilt, "district construction proceeds while the S6 request remains pending");
+  });
+  const fetchingQueue = garage.createGarageBuildQueue();
+  const pendingRoom = runInNewContext(executable, { ...context, garageRoom: null,
+    construction: fetchingQueue, preloadPack: () => new Promise(() => {}) });
+  void pendingRoom();
+  let builtWhileFetching = false;
+  void fetchingQueue.run(() => { builtWhileFetching = true; });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  check("pending garage asset requests do not own the district bake queue", () => {
+    assert.ok(builtWhileFetching, "district construction cannot wait for a pending garage download");
   });
 }
 

@@ -1795,10 +1795,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       const s6Load = carModels.s6.unavailable ? Promise.resolve() : preloadCar("s6");
       void s6Load.catch(() => {});
       garageRoom = (async () => {
-        const { runtime, fixtures } = await construction.run(async () => {
-          const [packScene, placements, atlas, runtime, registry] = await Promise.all([fetching, placementLoad, atlasLoad, carRuntime(), garageData()]);
-          findMod = registry.findMod;
-          if (disposed || !city) return {};
+        // Network and module waits do not own the mutable bake buffers.
+        // Once ready, the workshop precedes queued distant district builds.
+        const [packScene, placements, atlas, runtime, registry] = await Promise.all([fetching, placementLoad, atlasLoad, carRuntime(), garageData()]);
+        if (disposed || !city) return false;
+        findMod = registry.findMod;
+        const fixtures = await construction.run(async () => {
           await idle();
           if (disposed) return {};
           if (atlas) city.garageMaterials.setBoards(boardTexture = atlas);
@@ -1826,7 +1828,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
             roomCommitted = true;
             packsIn.push(GARAGE_PACK);
           }
-          return { runtime, fixtures };
+          return fixtures;
         }, { priority: true });
         if (disposed) return false;
         await s6Load;
