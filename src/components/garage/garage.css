@@ -366,10 +366,14 @@
 
 /* Phone: a line at the top, everything else in one strip at the bottom. The
    collapsed card plus both bars stay inside the bottom third or so; an open
-   card or list grows upward and scrolls inside itself. */
+   card or list grows upward and scrolls inside itself. The strip starts
+   above the site's sound button (Chrome.jsx, 2rem tall at 1.25rem from the
+   bottom left), which would otherwise sit on the first station tab and take
+   its taps; with sound on, its hidden volume slider takes taps to the right
+   of it too, so moving the strip sideways would not be enough. */
 @media (max-width: 767.98px) {
   .gw-stage {
-    padding: 4.25rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+    padding: 4.25rem 0.75rem calc(3.75rem + env(safe-area-inset-bottom));
     gap: 0.5rem;
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr) auto auto auto;
