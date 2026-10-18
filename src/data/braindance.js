@@ -62,7 +62,7 @@ export const CHAPTERS = [
   { id: "plaza", title: "The plaza", line: "Everything I built because what existed was not good enough." },
   { id: "corpo", title: "Corpo row", line: "Seven towers. Seven places that let me in." },
   { id: "roof", title: "The roof", line: "Who is driving." },
-  { id: "garage", title: "Bay 01", line: "The car, all the way down to the bolts." },
+  { id: "garage", title: "Bay 01", line: "Both cars, all the way down to the bolts." },
   { id: "moon", title: "The moon", line: "Somebody always wanted to go there." },
   { id: "end", title: "End of recording", line: "" },
 ];

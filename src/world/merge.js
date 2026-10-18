@@ -325,6 +325,45 @@ export const attributeKey = (geometry) => Object.keys(geometry.attributes).sort(
 // three drops them, a Tiled mesh is a plain mesh and draws everything.
 const MULTI_DRAW = "_multiDrawStarts" in new THREE.BatchedMesh(1, 3, 3);
 
+// These meshes already contain world-space vertices. Native materials still
+// compile Three's batching transform, which needs a real float identity and
+// unsigned integer draw IDs. Null textures bind a byte fallback, invalid for
+// usampler2D. Geometry owns the shared textures and their disposal.
+const identityBatches = new WeakMap();
+export function identityBatching(object, draws = 1) {
+  const geometry = object.geometry;
+  let batch = identityBatches.get(geometry);
+  if (!batch) {
+    const matrix = new THREE.DataTexture(new Float32Array(new THREE.Matrix4().elements), 4, 1, THREE.RGBAFormat, THREE.FloatType);
+    matrix.name = "world batching identity";
+    matrix.needsUpdate = true;
+    batch = { matrix, ids: null, capacity: 0, objects: new Set() };
+    identityBatches.set(geometry, batch);
+    const dispose = () => {
+      batch.matrix.dispose();
+      batch.ids?.dispose();
+      for (const mesh of batch.objects) if (mesh.geometry === geometry) mesh._matricesTexture = mesh._indirectTexture = null;
+      batch.objects.clear();
+      identityBatches.delete(geometry);
+      geometry.removeEventListener("dispose", dispose);
+    };
+    geometry.addEventListener("dispose", dispose);
+  }
+  batch.objects.add(object);
+  if (batch.capacity < Math.max(1, draws)) {
+    batch.ids?.dispose();
+    const size = Math.ceil(Math.sqrt(Math.max(1, draws)));
+    batch.ids = new THREE.DataTexture(new Uint32Array(size * size), size, size, THREE.RedIntegerFormat, THREE.UnsignedIntType);
+    batch.ids.name = "world batching draw IDs";
+    batch.ids.needsUpdate = true;
+    batch.capacity = size * size;
+    for (const mesh of batch.objects) if (mesh.geometry === geometry) mesh._indirectTexture = batch.ids;
+  }
+  object._matricesTexture = batch.matrix;
+  object._indirectTexture = batch.ids;
+  object._colorsTexture = null;
+}
+
 const _frustum = new THREE.Frustum();
 const _view = new THREE.Matrix4();
 
@@ -342,7 +381,7 @@ function look(cells, renderer, camera) {
   if (cells.frame === frame) return frame;
   cells.frame = frame;
   _frustum.setFromProjectionMatrix(_view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-  for (const cell of cells.list) if (_frustum.intersectsBox(cell.box)) cell.seen = frame;
+  for (const cell of cells.list) if (_frustum.intersectsBox(cell.box) && (!cells.visibleBox || cells.visibleBox(cell.box, cell.sector))) cell.seen = frame;
   return frame;
 }
 
@@ -366,6 +405,7 @@ export function* cutSteps(geometry, cells, min = 0) {
   const runOf = new Int32Array(tris);
   const runAt = new Map();
   const runs = [];
+  const bounds = new THREE.Box3();
   for (let t = 0; t < tris; t++) {
     if (t % 4096 === 4095) yield;
     const a = index[t * 3] * 3;
@@ -373,12 +413,15 @@ export function* cutSteps(geometry, cells, min = 0) {
     const c = index[t * 3 + 2] * 3;
     const cx = Math.floor((pos[a] + pos[b] + pos[c]) / 3 / cells.size);
     const cz = Math.floor((pos[a + 2] + pos[b + 2] + pos[c + 2]) / 3 / cells.size);
-    const key = cx * 65536 + cz;
+    bounds.min.set(Math.min(pos[a], pos[b], pos[c]), Math.min(pos[a + 1], pos[b + 1], pos[c + 1]), Math.min(pos[a + 2], pos[b + 2], pos[c + 2]));
+    bounds.max.set(Math.max(pos[a], pos[b], pos[c]), Math.max(pos[a + 1], pos[b + 1], pos[c + 1]), Math.max(pos[a + 2], pos[b + 2], pos[c + 2]));
+    const sector = cells.partition?.(bounds) ?? "";
+    const key = `${cx},${cz},${sector}`;
     let id = cells.ids.get(key);
     if (id === undefined) {
       id = cells.list.length;
       cells.ids.set(key, id);
-      cells.list.push({ id, cx, cz, box: new THREE.Box3(), seen: -1 });
+      cells.list.push({ id, cx, cz, sector, box: new THREE.Box3(), seen: -1 });
     }
     let r = runAt.get(id);
     if (r === undefined) {
@@ -428,11 +471,11 @@ export class Tiled extends THREE.Mesh {
   constructor(geometry, material, cells, runs) {
     super(geometry, material);
     this.cells = cells;
+    this.passLists = new WeakMap();
     this.frustumCulled = false;
     if (MULTI_DRAW) {
       this.isBatchedMesh = true;
       this._multiDrawCount = 0;
-      this._matricesTexture = this._indirectTexture = this._colorsTexture = null;
     }
     this.setRuns(runs);
   }
@@ -444,10 +487,36 @@ export class Tiled extends THREE.Mesh {
       this._multiDrawStarts = new Int32Array(runs.cell.length);
       this._multiDrawCounts = new Int32Array(runs.cell.length);
     }
+    if (MULTI_DRAW) identityBatching(this, runs.cell.length);
   }
 
   onBeforeRender(renderer, scene, camera) {
     if (!MULTI_DRAW) return;
+    // Static room poses recur across direct and reflected passes. Restore
+    // that camera's exact command list while its aperture state, geometry
+    // and cell partition match. Flights and late packs rebuild normally.
+    const key = this.cells.visibilityKey?.();
+    let saved = key ? this.passLists.get(camera) : null;
+    if (saved && saved.key === key && saved.runs === this.runs && saved.geometry === this.geometry && saved.cells === this.cells.list.length) {
+      this._multiDrawCount = saved.count;
+      this._multiDrawStarts.set(saved.starts.subarray(0, saved.count));
+      this._multiDrawCounts.set(saved.counts.subarray(0, saved.count));
+      return;
+    }
+    const remember = () => {
+      if (!key) return;
+      const count = this._multiDrawCount;
+      if (!saved || saved.starts.length < count) saved = { starts: new Int32Array(count), counts: new Int32Array(count) };
+      saved.starts.set(this._multiDrawStarts.subarray(0, count));
+      saved.counts.set(this._multiDrawCounts.subarray(0, count));
+      Object.assign(saved, { key, runs: this.runs, geometry: this.geometry, cells: this.cells.list.length, count });
+      this.passLists.set(camera, saved);
+    };
+    if (this.cells.visibleBox && !this.cells.visibleBox(this.geometry.boundingBox, this.userData.sector)) {
+      this._multiDrawCount = 0;
+      remember();
+      return;
+    }
     const { cell, start, count } = this.runs;
     const { list } = this.cells;
     const seen = look(this.cells, renderer, camera);
@@ -467,6 +536,7 @@ export class Tiled extends THREE.Mesh {
       }
     }
     this._multiDrawCount = n;
+    remember();
   }
 }
 
@@ -485,5 +555,5 @@ export function asOneRun(mesh) {
   mesh._multiDrawStarts = Int32Array.of(0);
   mesh._multiDrawCounts = Int32Array.of(index.count);
   mesh._multiDrawCount = 1;
-  mesh._matricesTexture = mesh._indirectTexture = mesh._colorsTexture = null;
+  identityBatching(mesh);
 }

@@ -44,8 +44,9 @@ import { fetchUnpacked } from "./fetched.js";
 import { NEON } from "./materials.js";
 import { RULES, deal } from "./prop-deal.js";
 import { createPropSurfaces } from "./prop-surfaces.js";
+import { identityBatching } from "./merge.js";
 
-const CELL = 48;
+const CELL = 12;
 // The most vertices a part may have in the whole city and be written out.
 const BAKED = 6000;
 // three draws a list of runs of an index in one call for its own
@@ -57,20 +58,20 @@ const SHAPE = /^__v(\d+)$/;
 const cache = new Map();
 
 /** The tier's props file, fetched once. */
-export function preloadProps(tier) {
-  if (!cache.has(tier)) {
+export function preloadProps(tier, url = worldPropsUrl[tier]) {
+  if (!cache.has(url)) {
     // (load: gzipped beside the plain file; src/world/fetched.js.)
-    const p = fetchUnpacked(worldPropsUrl[tier])
+    const p = fetchUnpacked(url)
       .catch((err) => {
-        cache.delete(tier);
+        cache.delete(url);
         throw err;
       });
-    cache.set(tier, p);
+    cache.set(url, p);
   }
-  return cache.get(tier);
+  return cache.get(url);
 }
 
-function parse(buffer) {
+export function parseProps(buffer) {
   const view = new DataView(buffer);
   const hl = view.getUint32(0, true);
   const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, hl)));
@@ -85,9 +86,26 @@ const _s = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0);
 const _frustum = new THREE.Frustum();
 const _vp = new THREE.Matrix4();
-const _last = new THREE.Vector3(1e9, 0, 0);
-const _lastDir = new THREE.Vector3();
 const _dir = new THREE.Vector3();
+
+// A static batch keeps the exact local inputs of the instanced shader.
+// World positions still describe its bounds and its signal/light geometry.
+function localBatchMaterial(material) {
+  if (material.userData.localFrame) return material;
+  material.userData.localFrame = true;
+  material.vertexShader = `
+    attribute vec3 _local_position;
+    attribute vec3 _local_normal;
+    attribute vec4 _instance_matrix_0;
+    attribute vec4 _instance_matrix_1;
+    attribute vec4 _instance_matrix_2;
+    attribute vec4 _instance_matrix_3;
+  ` + material.vertexShader.replace(/\bposition\b/g, "_local_position")
+    .replace(/\bnormal\b/g, "_local_normal")
+    .replace(/\binstanceMatrix\b/g, "mat4(_instance_matrix_0, _instance_matrix_1, _instance_matrix_2, _instance_matrix_3)")
+    .replace(/\baDeal\b/g, "_deal");
+  return material;
+}
 
 /**
  * Small parts written out, one mesh a material, drawn a run of cells at a
@@ -122,7 +140,7 @@ class Baked extends THREE.Mesh {
       this._multiDrawStarts = new Int32Array(0);
       this._multiDrawCounts = new Int32Array(0);
       this._multiDrawCount = 0;
-      this._matricesTexture = this._indirectTexture = this._colorsTexture = null;
+      identityBatching(this);
     }
   }
 
@@ -146,6 +164,12 @@ class Baked extends THREE.Mesh {
    *  apply() that puts it in the mesh. */
   *writeSteps(rank) {
     const names = Object.keys(this.parts[0].src.geometry.attributes);
+    const local = this.material.userData.localFrame;
+    const sizes = Object.fromEntries(names.map((name) => [name, this.parts[0].src.geometry.attributes[name].itemSize]));
+    if (local) {
+      Object.assign(sizes, { _local_position: 3, _local_normal: 3, _instance_matrix_0: 4, _instance_matrix_1: 4, _instance_matrix_2: 4, _instance_matrix_3: 4, _deal: 1 });
+      names.push(...Object.keys(sizes).filter((name) => !names.includes(name)));
+    }
     let verts = 0;
     let indices = 0;
     // Each instance of each part, by its cell and then by how far it is seen.
@@ -163,7 +187,7 @@ class Baked extends THREE.Mesh {
     yield;
     items.sort((a, b) => rank[a.ci] - rank[b.ci] || a.set.reach - b.set.reach);
     yield;
-    const out = Object.fromEntries(names.map((name) => [name, new Float32Array(verts * this.parts[0].src.geometry.attributes[name].itemSize)]));
+    const out = Object.fromEntries(names.map((name) => [name, new Float32Array(verts * sizes[name])]));
     const index = verts > 65535 ? new Uint32Array(indices) : new Uint16Array(indices);
     const ci = [];
     const reach = [];
@@ -193,9 +217,15 @@ class Baked extends THREE.Mesh {
       const m12 = e[o + 12], m13 = e[o + 13], m14 = e[o + 14];
       const n = g.attributes.position.count;
       for (const name of names) {
-        const from = g.attributes[name].array;
+        const from = g.attributes[name]?.array;
         const to = out[name];
-        if (name === "position") {
+        if (local && name === "_local_position") to.set(g.attributes.position.array, v * 3);
+        else if (local && name === "_local_normal") to.set(g.attributes.normal.array, v * 3);
+        else if (local && name === "_deal") to.fill(set.deals[j], v, v + n);
+        else if (local && name.startsWith("_instance_matrix_")) {
+          const column = Number(name.slice(-1));
+          for (let k = 0; k < n; k++) to.set(e.subarray(o + column * 4, o + column * 4 + 4), (v + k) * 4);
+        } else if (name === "position") {
           for (let k = 0, s = 0, d = v * 3; k < n; k++, s += 3, d += 3) {
             const x = from[s], y = from[s + 1], z = from[s + 2];
             to[d] = m0 * x + m4 * y + m8 * z + m12;
@@ -228,7 +258,7 @@ class Baked extends THREE.Mesh {
       since += n;
     }
     const geometry = new THREE.BufferGeometry();
-    for (const name of names) geometry.setAttribute(name, new THREE.BufferAttribute(out[name], this.parts[0].src.geometry.attributes[name].itemSize));
+    for (const name of names) geometry.setAttribute(name, new THREE.BufferAttribute(out[name], sizes[name]));
     geometry.setIndex(new THREE.BufferAttribute(index, 1));
     const cells = { ci: Int32Array.from(ci), reach: Float32Array.from(reach), start: Int32Array.from(start), count: Int32Array.from(count) };
     return {
@@ -241,6 +271,7 @@ class Baked extends THREE.Mesh {
         if (MULTI_DRAW) {
           this._multiDrawStarts = new Int32Array(ci.length);
           this._multiDrawCounts = new Int32Array(ci.length);
+          identityBatching(this, ci.length);
         }
       },
     };
@@ -297,8 +328,13 @@ export function opaqueOrder(a, b) {
  * materials); `buffer`: the props file. Returns { group, update(camera),
  * sources (for the light bake), dispose }.
  */
-export function createProps(protoMeshes, buffer, { phone = false, reflectLayer = 0 } = {}) {
-  const { protos, data, count } = parse(buffer);
+export function createProps(protoMeshes, buffer, { phone = false, reflectLayer = 0, visibleBox = null, visibilityKey = null, exterior = null, originalBuffer = null } = {}) {
+  const { protos, data, count, sectorRuns = [] } = parseProps(buffer);
+  const placementSectors = new Array(count).fill("exterior");
+  for (const { sector, start, count: n } of sectorRuns) placementSectors.fill(sector, start, start + n);
+  const attachments = [];
+  const lastPosition = new THREE.Vector3(1e9, 0, 0);
+  const lastDirection = new THREE.Vector3();
   const group = new THREE.Group();
   group.name = "props";
   // The props' own materials (plants) share the kit's uniforms, which any
@@ -330,15 +366,22 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const [first] = members;
     const shapes = kinds.map((k) => ({ k, v: k.name.startsWith(first.name) && SHAPE.exec(k.name.slice(first.name.length))?.[1] }))
       .filter((s) => s.v).sort((a, b) => a.v - b.v).map((s) => s.k);
-    const dealt = deal(data, list, rule, shapes.length + 1);
-    list.forEach((i, j) => {
-      deals[i] = dealt.deal[j];
-    });
-    if (!shapes.length) continue;
-    first.list = [];
-    list.forEach((i, j) => (dealt.shape[j] ? shapes[dealt.shape[j] - 1] : first).list.push(i));
+    const partitions = new Map();
+    for (const i of list) {
+      const sector = placementSectors[i];
+      if (!partitions.has(sector)) partitions.set(sector, []);
+      partitions.get(sector).push(i);
+    }
+    if (shapes.length) first.list = [];
+    for (const indices of partitions.values()) {
+      const dealt = deal(data, indices, rule, shapes.length + 1);
+      indices.forEach((i, j) => {
+        deals[i] = dealt.deal[j];
+        if (shapes.length) (dealt.shape[j] ? shapes[dealt.shape[j] - 1] : first).list.push(i);
+      });
+    }
   }
-  const cellOf = (x, z) => `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
+  const cellOf = (x, z, sector) => `${Math.floor(x / CELL)},${Math.floor(z / CELL)},${sector}`;
   const decoded = (i, out) => {
     const o = i * 8;
     _p.set(data[o + 1] / 20, data[o + 2] / 50, data[o + 3] / 20);
@@ -356,7 +399,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   const cellIndex = (key) => {
     if (!cellAt.has(key)) {
       cellAt.set(key, cellList.length);
-      cellList.push(new THREE.Box3());
+      cellList.push(Object.assign(new THREE.Box3(), { sector: key.split(",")[2] }));
     }
     return cellAt.get(key);
   };
@@ -373,12 +416,15 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   // is the kit meshes' own program: its uniforms are its original's, read
   // through, with uProp 1 over them.)
   const twins = new Map();
-  const twin = (material, kind, geometry) => {
+  const twin = (material, kind, geometry, glow = null) => {
     const alphas = material.vertexColors && geometry.attributes.color?.itemSize === 4;
-    const key = `${material.uuid}|${kind}|${alphas}`;
+    const key = `${material.uuid}|${kind}|${alphas}|${glow ?? ""}`;
     if (!twins.has(key)) {
-      const copy = material.clone();
-      copy.uniforms = kind === "baked" ? Object.create(material.uniforms, { uProp: { value: { value: 1 }, enumerable: true } }) : material.uniforms;
+      // The world uniforms are shared below. Copying their render targets
+      // first is unsupported by Three and would create unusable duplicates.
+      const source = material.uniforms ? Object.create(material, { uniforms: { value: {} } }) : material;
+      const copy = new material.constructor().copy(source);
+      if (material.uniforms) copy.uniforms = kind === "baked" ? Object.create(material.uniforms, { uProp: { value: { value: 1 }, enumerable: true }, ...(glow == null ? {} : { uIntensity: { value: { value: glow }, enumerable: true } }) }) : material.uniforms;
       copy.userData.sortId = material.id;
       twins.set(key, copy);
     }
@@ -395,9 +441,16 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     built.add(k.name);
     const mine = [];
     // Sort by cell, and note each cell's run.
+    const prototypeBounds = new THREE.Box3();
+    for (const src of [...meshes, ...(parts.get(k.name + NEAR) ?? [])]) {
+      if (!src.geometry.boundingBox) src.geometry.computeBoundingBox();
+      prototypeBounds.union(src.geometry.boundingBox);
+    }
+    prototypeBounds.expandByScalar(1);
+    const placedBounds = new THREE.Box3();
     const withCell = k.list.map((i) => {
       const o = i * 8;
-      return { i, cell: cellOf(data[o + 1] / 20, data[o + 3] / 20) };
+      return { i, cell: cellOf(data[o + 1] / 20, data[o + 3] / 20, placementSectors[i]) };
     });
     withCell.sort((a, b) => (a.cell < b.cell ? -1 : a.cell > b.cell ? 1 : 0));
     const n = withCell.length;
@@ -413,29 +466,40 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       const z = data[i * 8 + 3] / 20;
       const top = y + (data[i * 8 + 5] / 100) * k.box[1] * 2 + r;
       if (!run || run.cell !== cell) {
-        run = { cell, ci: cellIndex(cell), start: j, end: j };
+        run = { cell, ci: cellIndex(cell), sector: placementSectors[i], box: new THREE.Box3(), start: j, end: j };
         runs.push(run);
       }
       run.end = j + 1;
+      run.box.union(placedBounds.copy(prototypeBounds).applyMatrix4(_m));
       cellList[run.ci].expandByPoint(_p.set(x - r, y - r, z - r)).expandByPoint(_p.set(x + r, top, z + r));
     });
     const instance = (src) => {
       const mine = own.forName(src.material.name);
       const material = mine ?? src.material;
-      if (!mine && !material.transparent && n * src.geometry.attributes.position.count <= BAKED) {
-        const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}`;
+      const reflected = /^(neon_|glow|lantern)/.test(material.name) || own.light(material.name, k.name);
+      const layerMask = 1 | (reflected ? 1 << reflectLayer : 0);
+      // The workshop is a small static pack. Write all of its opaque kit
+      // parts into the shared material batches, including detailed tools.
+      // The city keeps its size limit so thousands of street instances
+      // still share their prototype vertices.
+      if (!material.transparent && (sectorRuns.length || (!mine && n * src.geometry.attributes.position.count <= BAKED))) {
+        // The amber bench strip keeps its own brightness and material batch.
+        const glow = own.glow(material.name, k.name);
+        const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}|${src.userData.assetKind ?? ""}|${layerMask}|${glow ?? ""}`;
         if (!baked.has(key)) {
-          const mesh = new Baked(twin(material, "baked", src.geometry));
+          const shader = twin(material, mine ? "baked-local" : "baked", src.geometry, glow);
+          const mesh = new Baked(mine ? localBatchMaterial(shader) : shader);
           // (load: one a streamed district brings is hidden until its parts
           // are written and put in: shown empty, a frame made its program.)
           if (hold) mesh.visible = false;
           mesh.name = `props_small_${material.name}`;
-          if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name)) mesh.layers.enable(reflectLayer);
+          if (src.userData.assetKind) mesh.userData.assetKind = src.userData.assetKind;
+          mesh.layers.mask = layerMask;
           group.add(mesh);
           baked.set(key, mesh);
         }
         unwritten.add(baked.get(key));
-        return { baked: baked.get(key), src };
+        return { baked: baked.get(key), src: mine ? { geometry: src.geometry, material: mine, name: src.name, userData: src.userData } : src };
       }
       let geometry = src.geometry;
       if (mine?.userData.reads) {
@@ -473,9 +537,10 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       im.frustumCulled = false;
       im.matrixAutoUpdate = false;
       im.userData.hue = src.userData.hue;
+      if (src.userData.assetKind) im.userData.assetKind = src.userData.assetKind;
       // Light in the air draws after the steam, as the lamps' shafts do.
       if (material.transparent) im.renderOrder = 7;
-      if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name)) im.layers.enable(reflectLayer);
+      im.layers.mask = layerMask;
       group.add(im);
       return im;
     };
@@ -505,7 +570,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   };
   const ranks = () => {
     const rank = new Int32Array(cellList.length);
-    const rows = [...cellAt].map(([key, ci]) => [ci, ...key.split(",").map(Number)]);
+    const rows = [...cellAt].map(([key, ci]) => [ci, ...key.split(",").slice(0, 2).map(Number)]);
     rows.sort((a, b) => a[2] - b[2] || a[1] - b[1]).forEach(([ci], r) => {
       rank[ci] = r;
     });
@@ -533,48 +598,169 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   for (const k of kinds) build(k);
   write();
 
+  // Offline exterior batches replace their placements atomically. Keep the
+  // prototypes' local frames for procedural paint, and their original
+  // records for signal colours and the street-level light bake.
+  const exteriorSets = [];
+  const exteriorDeals = new Map();
+  if (exterior) {
+    if (!originalBuffer) throw new Error("Exterior batches need their original light-bake records.");
+    const original = parseProps(originalBuffer);
+    for (const source of exterior.children) {
+      if (!source.isMesh || source.userData.sourceKind !== "prop" || source.userData.visibilitySector !== "exterior") throw new Error("Invalid exterior prop batch.");
+      const geometry = source.geometry.clone();
+      const name = source.material.name.replace(/^NCW_/, "");
+      const prototype = protoMeshes.find((m) => m.material.name.replace(/^NCW_/, "") === name);
+      const local = own.forName(name);
+      if (!prototype) throw new Error(`Missing exterior prop material ${name}.`);
+      let material;
+      if (source.userData.shaderLocal) {
+        if (!local) throw new Error(`Missing exterior local shader ${name}.`);
+        material = localBatchMaterial(twin(local, "exterior", geometry));
+      } else material = twin(prototype.material, "baked", geometry);
+      const mesh = new Baked(material);
+      mesh.geometry.dispose(); mesh.geometry = geometry;
+      mesh.name = source.name;
+      mesh.userData = { ...source.userData };
+      mesh.layers.mask = source.userData.sourceLayers;
+      const runs = source.userData.runs;
+      mesh.cells = { ci: new Int32Array(runs.length), reach: new Float32Array(runs.length), start: new Int32Array(runs.length), count: new Int32Array(runs.length) };
+      for (let r = 0; r < runs.length; r++) {
+        const [x, z, reach, start, count] = runs[r];
+        const ci = cellIndex(`${x},${z},exterior`);
+        mesh.cells.ci[r] = ci; mesh.cells.reach[r] = reach;
+        mesh.cells.start[r] = start; mesh.cells.count[r] = count;
+        // Bounds come from the original placement records below, exactly
+        // as the instanced path measured reach and the shared grid cell.
+      }
+      if (MULTI_DRAW) {
+        mesh._multiDrawStarts = new Int32Array(runs.length);
+        mesh._multiDrawCounts = new Int32Array(runs.length);
+        identityBatching(mesh, runs.length);
+      }
+      for (const [record, , proto, partName, start, count] of source.userData.placements) {
+        const src = parts.get(proto)?.find((p) => p.name === partName);
+        if (!src) throw new Error(`Missing exterior prototype part ${partName}.`);
+        const o = record * 8;
+        _p.set(original.data[o + 1] / 20, original.data[o + 2] / 50, original.data[o + 3] / 20);
+        _q.setFromAxisAngle(_up, original.data[o + 4] / 10430.2);
+        _s.set(original.data[o + 6] / 1000, original.data[o + 5] / 100, original.data[o + 6] / 1000);
+        const matrices = Float32Array.from(_m.compose(_p, _q, _s).elements);
+        const kind = original.protos[original.data[o]];
+        const r = Math.max(...kind.box) * 2 + 1;
+        const x = original.data[o + 1] / 20, y = original.data[o + 2] / 50, z = original.data[o + 3] / 20;
+        const top = y + original.data[o + 5] / 100 * kind.box[1] * 2 + r;
+        const ci = cellIndex(cellOf(x, z, "exterior"));
+        cellList[ci].expandByPoint(_p.set(x - r, y - r, z - r)).expandByPoint(_p.set(x + r, top, z + r));
+        const im = { geometry: src.geometry, material: local ?? src.material, userData: src.userData };
+        const set = { name: proto, near: proto.endsWith(NEAR), n: 1, matrices, deals: new Float32Array(1), instanced: [im], small: [] };
+        exteriorSets.push(set);
+        let first = Infinity;
+        for (let i = start; i < start + count; i++) first = Math.min(first, geometry.index.getX(i));
+        mesh.parts.push({ set, src, at: Int32Array.of(first) });
+        if (local?.userData.dealt) {
+          if (!exteriorDeals.has(proto)) exteriorDeals.set(proto, new Map());
+          const rows = exteriorDeals.get(proto);
+          if (!rows.has(record)) rows.set(record, { matrices, parts: [] });
+          rows.get(record).parts.push({ geometry, first, count: src.geometry.attributes.position.count, set });
+        }
+      }
+      group.add(mesh);
+      baked.set(`exterior:${source.uuid}`, mesh);
+    }
+  }
+
   // Whenever the camera has moved or turned enough: which cells the frustum
   // holds and how far each is, once for everyone; then each prototype's
   // instances in the cells it is drawn at (inside its reach), rebuilt only
   // if that set of cells changed since last time.
   let cellVis = new Uint8Array(cellList.length);
   let cellDist = new Float32Array(cellList.length);
+  const runVisible = (run, reach) => cellVis[run.ci] && cellDist[run.ci] <= reach && (!visibleBox || visibleBox(run.box, run.sector));
   let frames = 0;
   let stale = false;
+  let lastCamera = null;
+  let lastKey = null;
+  let passes = new WeakMap();
+  const outsideRuns = new Map();
+  const rememberBaked = (mesh, saved = {}) => {
+    saved.geometry = mesh.geometry; saved.visible = mesh.visible;
+    if (mesh.isBatchedMesh) {
+      saved.count = mesh._multiDrawCount;
+      if (!(saved.starts?.length >= saved.count)) {
+        saved.starts = new Int32Array(saved.count);
+        saved.counts = new Int32Array(saved.count);
+      }
+      saved.starts.set(mesh._multiDrawStarts.subarray(0, saved.count));
+      saved.counts.set(mesh._multiDrawCounts.subarray(0, saved.count));
+    }
+    return saved;
+  };
   const update = (camera) => {
     camera.updateMatrixWorld();
     camera.getWorldDirection(_dir);
-    const moved = camera.position.distanceToSquared(_last) > 0.25 || _dir.dot(_lastDir) < 0.99985;
+    const moved = camera.position.distanceToSquared(lastPosition) > 0.25 || _dir.dot(lastDirection) < 0.99985;
+    const key = visibilityKey?.();
     frames++;
-    if (!moved && !stale && frames % 60 !== 0) return;
+    if (!moved && !stale && camera === lastCamera && (!key || key === lastKey) && frames % 60 !== 0) return;
+    if (stale) passes = new WeakMap();
+    lastCamera = camera;
+    lastKey = key;
     stale = false;
     if (cellVis.length !== cellList.length) {
       cellVis = new Uint8Array(cellList.length);
       cellDist = new Float32Array(cellList.length);
     }
-    _last.copy(camera.position);
-    _lastDir.copy(_dir);
-    _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-    _frustum.setFromProjectionMatrix(_vp);
-    const cam = camera.position;
-    for (let c = 0; c < cellList.length; c++) {
-      cellDist[c] = cellList[c].distanceToPoint(cam);
-      cellVis[c] = _frustum.intersectsBox(cellList[c]) ? 1 : 0;
+    lastPosition.copy(camera.position);
+    lastDirection.copy(_dir);
+    // Room passes alternate between two static cameras. Reuse their exact
+    // cell/run decisions, then pack from the current matrices and deals.
+    // Cached arrays are copies so an uncached outdoor pass cannot alter them.
+    let prepared = key ? passes.get(camera) : null;
+    const cached = prepared?.key === key && prepared?.vis.length === cellList.length;
+    if (cached) {
+      cellVis.set(prepared.vis); cellDist.set(prepared.dist);
+    } else {
+      _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      _frustum.setFromProjectionMatrix(_vp);
+      const cam = camera.position;
+      for (let c = 0; c < cellList.length; c++) {
+        cellDist[c] = cellList[c].distanceToPoint(cam);
+        cellVis[c] = _frustum.intersectsBox(cellList[c]) && (!visibleBox || visibleBox(cellList[c], cellList[c].sector)) ? 1 : 0;
+      }
+      if (key) {
+        prepared ??= { sets: new Map(), baked: new Map() };
+        if (prepared.vis?.length !== cellList.length) {
+          prepared.vis = new Uint8Array(cellList.length);
+          prepared.dist = new Float32Array(cellList.length);
+        }
+        prepared.vis.set(cellVis); prepared.dist.set(cellDist);
+        prepared.key = key;
+        passes.set(camera, prepared);
+      }
     }
     for (const set of sets) {
       const reach = set.reach;
       // The set of cells it is drawn in, as a hash.
-      let sig = 2166136261;
-      for (const run of set.runs) {
-        if (cellVis[run.ci] && cellDist[run.ci] <= reach) sig = Math.imul(sig ^ run.ci, 16777619) >>> 0;
+      const lists = prepared?.sets ?? outsideRuns;
+      let selected = lists.get(set);
+      if (!cached || !selected) {
+        selected ??= { runs: [], sig: 0 };
+        selected.runs.length = 0;
+        let sig = 2166136261;
+        for (const run of set.runs) if (runVisible(run, reach)) {
+          sig = Math.imul(sig ^ run.ci, 16777619) >>> 0;
+          selected.runs.push(run);
+        }
+        selected.sig = sig;
+        lists.set(set, selected);
       }
-      if (sig === set.sig) continue;
-      set.sig = sig;
+      if (selected.sig === set.sig) continue;
+      set.sig = selected.sig;
       let c = 0;
       const dst = set.instanced[0]?.instanceMatrix.array;
       const dealt = set.aDeal;
-      for (const run of set.runs) {
-        if (!cellVis[run.ci] || cellDist[run.ci] > reach) continue;
+      for (const run of selected.runs) {
         dst?.set(set.matrices.subarray(run.start * 16, run.end * 16), c * 16);
         if (dealt.length) dealt[0].array.set(set.deals.subarray(run.start, run.end), c);
         c += run.end - run.start;
@@ -596,7 +782,20 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         dealt[m].needsUpdate = true;
       }
     }
-    for (const mesh of baked.values()) mesh.show(cellVis, cellDist);
+    for (const mesh of baked.values()) {
+      const saved = prepared?.baked.get(mesh);
+      if (cached && saved?.geometry === mesh.geometry) {
+        mesh.visible = saved.visible;
+        if (mesh.isBatchedMesh) {
+          mesh._multiDrawCount = saved.count;
+          mesh._multiDrawStarts.set(saved.starts.subarray(0, saved.count));
+          mesh._multiDrawCounts.set(saved.counts.subarray(0, saved.count));
+        }
+      } else {
+        mesh.show(cellVis, cellDist);
+        if (prepared) prepared.baked.set(mesh, rememberBaked(mesh, saved));
+      }
+    }
   };
 
   // The light the props give the street, for the bake (src/world/spill.js):
@@ -609,7 +808,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       if (set.near) continue;
       for (const im of [...set.instanced, ...set.small]) {
         const name = im.material.name;
-        const face = own.light(name);
+        const face = own.light(name, set.name);
         if (!/^(neon_|glow|lantern)/.test(name) && !face) continue;
         const g = im.geometry;
         const pos = g.attributes.position;
@@ -654,12 +853,63 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     }
     return sources;
   };
-  const sources = sourcesOf(sets);
+  const sources = sourcesOf([...sets, ...exteriorSets]);
+  if (sectorRuns.length) {
+    group.name = "props_garage_room";
+    group.traverse((node) => {
+      node.userData.sector = "garage_room";
+      node.userData.sectorRuns = sectorRuns.map((run) => ({ ...run }));
+    });
+  }
 
   return {
     group,
-    update,
+    update(camera) {
+      update(camera);
+      for (const child of attachments) child.update(camera);
+    },
     sources,
+    /** A pack shares material and prototype draws across its open room.
+     *  Sector labels stay on the cell runs, so each camera can still cull
+     *  them independently without drawing the same material per sector. */
+    addPlacements(meshes, buffer, { hold = false } = {}) {
+      const parsed = parseProps(buffer);
+      const { protos, data, count, sectorRuns } = parsed;
+      if (!Number.isInteger(count) || count <= 0 || !Array.isArray(sectorRuns) || !sectorRuns.length) throw new Error("garage placements are empty or have no sectors");
+      const covered = new Uint8Array(count);
+      for (const { sector, start, count: n } of sectorRuns) {
+        if (!/^garage_(apron|s4|s6|shop|mezzanine)$/.test(sector) || !Number.isInteger(start) || !Number.isInteger(n) || start < 0 || n <= 0 || start + n > count) throw new Error("invalid garage sector run");
+        for (let i = start; i < start + n; i++) {
+          if (covered[i]++) throw new Error("overlapping garage sector runs");
+          if (!protos[data[i * 8]]) throw new Error("unknown garage placement prototype");
+        }
+      }
+      if (covered.some((n) => n !== 1)) throw new Error("garage placements lack sector coverage");
+      const available = new Set(meshes.map((mesh) => mesh.userData.proto ?? mesh.name.replace(/^proto_/, "").replace(/_[a-z]+(_[a-z]+)?$/, "")));
+      for (let i = 0; i < count; i++) if (!available.has(protos[data[i * 8]].name)) throw new Error(`missing garage prototype ${protos[data[i * 8]].name}`);
+      const children = [createProps(meshes, buffer, { phone, reflectLayer, visibleBox, visibilityKey })];
+      let committed = false;
+      const commit = () => {
+        if (committed) return;
+        committed = true;
+        attachments.push(...children);
+        children.forEach((child) => group.add(child.group));
+        stale = true;
+      };
+      const prepare = function* () {
+        const drawn = [];
+        for (const child of children) child.group.traverse((object) => {
+          if (object.isMesh) drawn.push({ object, geometry: object.geometry, extra: object.isInstancedMesh ? [object.instanceMatrix] : [] });
+        });
+        yield;
+        return drawn;
+      };
+      const result = { count, sources: children.flatMap((child) => child.sources), prepare, commit,
+        disposeBake() { children.forEach((child) => child.disposeBake()); },
+        dispose() { if (!committed) children.forEach((child) => child.dispose()); } };
+      if (!hold) commit();
+      return result;
+    },
     /**
      * Prototypes that came with a district's pack (dressed as the core's
      * were): their instances are drawn from now on. Returns the light they
@@ -715,15 +965,31 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
      *  now, sends up only its own. Null if it has no dealt part. */
     dealt(name) {
       const set = sets.find((st) => st.name === name && st.aDeal.length);
-      if (!set) return null;
+      const extra = [...(exteriorDeals.get(name)?.values() ?? [])];
+      if (!set && !extra.length) return null;
+      const n = set?.n ?? 0;
+      const matrices = extra.length ? new Float32Array((n + extra.length) * 16) : set.matrices;
+      if (extra.length) {
+        if (set) matrices.set(set.matrices);
+        extra.forEach((row, j) => matrices.set(row.matrices, (n + j) * 16));
+      }
       return {
-        matrices: set.matrices,
+        matrices,
         deal(j, value) {
+          if (j >= n) {
+            for (const { geometry, first, count, set: partSet } of extra[j - n].parts) {
+              partSet.deals[0] = value;
+              const attribute = geometry.attributes._deal;
+              attribute.array.fill(value, first, first + count);
+              attribute.addUpdateRange(first, count); attribute.needsUpdate = true;
+            }
+            return;
+          }
           set.deals[j] = value;
           // Where it is in what is drawn: the runs in sight before its own.
           let c = 0;
           for (const run of set.runs) {
-            if (!cellVis[run.ci] || cellDist[run.ci] > set.reach) continue;
+            if (!runVisible(run, set.reach)) continue;
             if (j < run.end && j >= run.start) {
               for (const a of set.aDeal) {
                 a.array[c + j - run.start] = value;
@@ -742,15 +1008,16 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       return Object.fromEntries(sets.filter((st) => !st.near).map((st) => [st.name, `${st.count}/${st.n}`]));
     },
     disposeBake() {
+      attachments.forEach((child) => child.disposeBake());
       for (const m of bakeMeshes) m.geometry.dispose();
       bakeMeshes.length = 0;
     },
     dispose() {
+      attachments.forEach((child) => child.dispose());
       for (const m of bakeMeshes) m.geometry.dispose();
       for (const set of sets) for (const im of set.instanced) im.dispose();
       for (const mesh of baked.values()) {
         mesh.geometry.dispose();
-        mesh.dispose();
       }
       for (const geometry of owned) geometry.dispose();
       for (const material of twins.values()) material.dispose();

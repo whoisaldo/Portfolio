@@ -20,6 +20,7 @@
 import * as THREE from "three";
 import { bd, set } from "../store.js";
 import { clamp } from "../../world/shots.js";
+import { PACKS } from "../../world/city.js";
 import { buildInWorker, gatherKit, solidBoxes, CAR, WALK } from "./nav.js";
 import { createVehicle } from "./vehicle.js";
 import { createChase } from "./chase.js";
@@ -48,15 +49,24 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   const districts = districtFile.districts;
   const districtAt = (x, z) => districts.find((d) => x >= d.bounds.x0 && x <= d.bounds.x1 && z >= d.bounds.z0 && z <= d.bounds.z1)?.label ?? "";
 
+  // Avenue driving needs the streamed city, independently of the optional
+  // workshop. Its doorway stays sealed until a complete room map is ready.
+  const workshopReady = () => world.garage?.state?.availability === "ready"
+    && typeof world.garage.applyDirectedState === "function"
+    && Array.isArray(world.garage.collision?.solids)
+    && world.garage.collision?.cars().some((c) => c.carId === "s6" && !c.box.isEmpty());
+
   // ---- the map ----------------------------------------------------------------
   // Made from the whole city, so every district's pack has to be in first
   // (they stream in behind the core; half a minute is given to a slow one,
   // and a district that never came has no ground to stand on).
   for (let waited = 0; waited < 30000; waited += 200) {
     const s = world.stats();
-    if (s.packs.length >= s.packsTotal) break;
+    if (PACKS.every((name) => s.packs.includes(name))) break;
     await sleep(200);
   }
+  const loaded = world.stats();
+  if (!PACKS.every((name) => loaded.packs.includes(name))) throw new Error("The city is not ready for free roam");
   const bounds = districts.reduce(
     (b, d) => ({ x0: Math.min(b.x0, d.bounds.x0 - 8), z0: Math.min(b.z0, d.bounds.z0 - 8), x1: Math.max(b.x1, d.bounds.x1 + 8), z1: Math.max(b.z1, d.bounds.z1 + 8) }),
     { x0: Infinity, z0: Infinity, x1: -Infinity, z1: -Infinity },
@@ -89,27 +99,67 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   // What the map costs, kept with it (nav.stats.main): the milliseconds on
   // this thread gathering the kit's triangles, the bytes handed to the
   // worker, and the wait from asking to having it.
-  const t0 = performance.now();
-  let slices = 0;
-  const kit = await gatherKit(parts.city.root, () => new Promise((resolve) => (slices++, requestAnimationFrame(resolve))));
-  const main = { gatherMs: Math.round(performance.now() - t0), gatherSlices: slices + 1, sentBytes: kit.positions.byteLength + kit.index.byteLength };
-  const nav = await buildInWorker(
-    {
-      ...kit,
-      ...solidBoxes(collision),
-      bounds,
-      walkFrom: [spawnWalk.at],
-      carFrom: [spawn.at],
-      carIn: Float32Array.from(carIn),
-      carRamps: Float32Array.from(carRamps),
-      diagnose: import.meta.env.DEV,
-      // Dev, `?navall`: the floors no flood reached are kept too, to see why.
-      keepAll: import.meta.env.DEV && new URLSearchParams(window.location.search).has("navall"),
-    },
-    (p) => onProgress(0.05 + 0.95 * p),
-  );
-  main.waitMs = Math.round(performance.now() - t0);
-  nav.stats.main = main;
+  const makeNav = async (includeWorkshop, progress = () => {}) => {
+    const t0 = performance.now();
+    let slices = 0;
+    const workshop = includeWorkshop ? world.garage : null;
+    // Parked navigation uses closed hoods and normal stance, independently
+    // of the recording frame that preceded the switch into free roam.
+    workshop?.applyDirectedState({ active: false, p: null, hood: { s4: 0, s6: 0 }, lowering: 0, free: true });
+    const floorSources = (workshop?.collision.solids ?? []).map((s) => s.mesh).filter((m) => m?.name.startsWith("nav_garage_floor_"));
+    const kit = await gatherKit(parts.city.root, () => new Promise((resolve) => (slices++, requestAnimationFrame(resolve))), floorSources);
+    const main = { gatherMs: Math.round(performance.now() - t0), gatherSlices: slices + 1, sentBytes: kit.positions.byteLength + kit.index.byteLength };
+    const made = await buildInWorker(
+      {
+        ...kit,
+        ...solidBoxes(collision, workshop),
+        bounds,
+        walkFrom: [spawnWalk.at],
+        carFrom: [spawn.at],
+        carIn: Float32Array.from(carIn),
+        carRamps: Float32Array.from(carRamps),
+        diagnose: import.meta.env.DEV,
+        // Dev, `?navall`: the floors no flood reached are kept too, to see why.
+        keepAll: import.meta.env.DEV && new URLSearchParams(window.location.search).has("navall"),
+      },
+      progress,
+    );
+    main.waitMs = Math.round(performance.now() - t0);
+    made.stats.main = main;
+    return made;
+  };
+  let workshopNav = workshopReady();
+  const nav = await makeNav(workshopNav, (p) => onProgress(0.05 + 0.95 * p));
+  let disposed = false;
+  let navJob = 0;
+  let rebuilding = false;
+  const updateWorkshop = () => {
+    if (disposed) return;
+    if (!workshopReady()) {
+      workshopNav = false;
+      navJob++;
+      return;
+    }
+    if (workshopNav || rebuilding) return;
+    const job = ++navJob;
+    rebuilding = true;
+    makeNav(true).then((complete) => {
+      if (!disposed && job === navJob && workshopReady()) {
+        // All consumers retain this object. Publish the finished worker
+        // result in one task, then let the doorway open on the next frame.
+        Object.defineProperties(nav, Object.getOwnPropertyDescriptors(complete));
+        workshopNav = true;
+      }
+    }).catch(() => {
+      // A room-map failure only closes this doorway; avenue play continues.
+    }).finally(() => {
+      rebuilding = false;
+      if (job !== navJob) updateWorkshop();
+    });
+  };
+  const unwatchWorkshop = world.garage?.subscribe(updateWorkshop);
+  updateWorkshop();
+  Promise.resolve().then(() => world.garage?.prepare({ priority: "now" })).then(updateWorkshop, updateWorkshop);
 
   // ---- the traffic and the people ------------------------------------------
   // The cars brake for the player and are solid to them (yield.js): what
@@ -118,19 +168,29 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   // into the car, and there is no room there.
   const yielding = createYield(parts.traffic);
   // (`self`: the S4's own, which is not pushed out of the S4 it is.)
-  const withCars = (self) =>
-    yielding
-      ? Object.assign(Object.create(nav), {
-          resolve(p, r, y, bit, tol, feet) {
-            const hit = nav.resolve(p, r, y, bit, tol, feet);
-            if (hit === 2 || !yielding.push(p, r, y, self)) return hit;
-            return nav.resolve(p, r, y, bit, tol, feet) && yielding.push(p, r, y, self) ? 2 : 1;
-          },
-          fits(x, z, r, y, bit, tol, feet) {
-            return nav.fits(x, z, r, y, bit, tol, feet) && !yielding.overlaps(x, z, r, y);
-          },
-        })
-      : nav;
+  const portal = parts.city.anchors.get("anchor_garage_portal_door");
+  const portalReady = Number(portal?.extras?.width) > 0 && Number(portal?.extras?.height) > 0;
+  const entryClosed = () => !portalReady || !workshopNav || !workshopReady();
+  // Missing portal metadata must not disable the city. Seal the known
+  // street-facing envelope instead and keep garage entry unavailable.
+  const x = portalReady ? portal.position.x : shelter?.position.x ?? 452;
+  const z = portalReady ? portal.position.z : bayAt?.z ?? -215;
+  const width = portalReady ? Number(portal.extras.width) : Number(shelter?.extras?.size?.[2] ?? 30);
+  const threshold = { x0: x - 0.7, x1: x + 0.8, z0: z - width / 2 - 0.1, z1: z + width / 2 + 0.1,
+    top: portalReady ? portal.position.y + Number(portal.extras.height) / 2 : Infinity };
+  const overlapsDoor = (x, z, r, y) => entryClosed() && y < threshold.top
+    && x + r > threshold.x0 && x - r < threshold.x1 && z + r > threshold.z0 && z - r < threshold.z1;
+  const withCars = (self) => Object.assign(Object.create(nav), {
+    resolve(p, r, y, bit, tol, feet) {
+      const hit = nav.resolve(p, r, y, bit, tol, feet);
+      if (overlapsDoor(p.x, p.z, r, y)) return 2;
+      if (hit === 2 || !yielding?.push(p, r, y, self)) return hit;
+      return nav.resolve(p, r, y, bit, tol, feet) && yielding.push(p, r, y, self) ? 2 : 1;
+    },
+    fits(x, z, r, y, bit, tol, feet) {
+      return !overlapsDoor(x, z, r, y) && nav.fits(x, z, r, y, bit, tol, feet) && !yielding?.overlaps(x, z, r, y);
+    },
+  });
   const ground = withCars(false);
 
   // ---- the player --------------------------------------------------------
@@ -261,9 +321,14 @@ export async function createRoam({ parts, world, reduced = false, city = { board
     spec.board = Math.floor(clock / city.boardSlot) % city.boardCount;
     spec.towers = city.towers;
     const away = Math.hypot(x - bay.x, z - bay.z);
-    garage.door = clamp(garage.door + (away < 34 ? dt : -dt) / 2.6, 0, 1);
+    const ready = !entryClosed();
+    garage.door = ready ? clamp(garage.door + (away < 34 ? dt : -dt) / 2.6, 0, 1) : 0;
     spec.garage.door = garage.door;
-    spec.garage.tubes = away < 13;
+    spec.garage.tubes = ready && away < 13;
+    spec.garage.active = ready && (x > 451 && x < 476 && z > -230 && z < -200 || car.x > 451 && car.x < 476 && car.z > -230 && car.z < -200);
+    spec.garage.p = null;
+    spec.garage.hood.s4 = spec.garage.hood.s6 = 0;
+    spec.garage.lowering = 0;
   };
 
   return {
@@ -283,6 +348,7 @@ export async function createRoam({ parts, world, reduced = false, city = { board
     enter() {
       on = true;
       keys.clear();
+      world.garage?.applyDirectedState?.({ active: false, p: null, hood: { s4: 0, s6: 0 }, lowering: 0, free: true });
       vehicle.place(spawn.at[0], spawn.at[2], spawn.yaw ?? Math.PI, spawn.at[1]);
       mode = "drive";
       chase.reset();
@@ -337,6 +403,7 @@ export async function createRoam({ parts, world, reduced = false, city = { board
         if (car.knock > 2.5) chase.knock(car.knock);
         spec.roll = chase.frame(dt, car, pose, still);
       }
+      world.garage?.applyDirectedState?.({ active: false, p: null, hood: { s4: 0, s6: 0 }, lowering: 0, free: true });
       parts.car?.free(step, car);
       car.cut = false;
       player.afoot = afoot;
@@ -432,6 +499,9 @@ export async function createRoam({ parts, world, reduced = false, city = { board
       chase.zoom(delta);
     },
     dispose() {
+      disposed = true;
+      navJob++;
+      unwatchWorkshop?.();
       if (on) {
         parts.car?.endFree();
         yielding?.reset();

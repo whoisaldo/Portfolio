@@ -2276,7 +2276,7 @@ const _planes = new Float64Array(24);
 const _vp = new THREE.Matrix4();
 const NAMES = ["aWalk", "aPath", "aBody", "aLook", "aWear"];
 
-export function createCrowd(scene, shared, { phone = false, reduced = false, reflectLayer = 2, walks = [], standers = [], cover = null, traffic: given = null } = {}) {
+export function createCrowd(scene, shared, { phone = false, reduced = false, reflectLayer = 2, walks = [], standers = [], cover = null, traffic: given = null, visibleSphere = null } = {}) {
   // The traffic, for whoever crosses at a junction to ask when its arm can
   // be walked (src/world/traffic.js, walk()); without it they wait at the
   // kerb and never cross.
@@ -2500,6 +2500,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
         for (let p = 0; p < 24 && !out; p += 4) out = _planes[p] * x + _planes[p + 1] * (y + 1) + _planes[p + 2] * z + _planes[p + 3] < -2.6;
         if (out) continue;
       }
+      if (visibleSphere && !visibleSphere(x, y + 1, z, 2.6)) continue;
       const top = y + 1.8 * data[o + 8];
       const dx = x - cam.x;
       const dz = z - cam.z;
@@ -2583,7 +2584,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   // world-scene.js draws the scene without telling the crowd: every draw of
   // it starts by updating the scene's matrices, which is where this is told.
   group.updateMatrixWorld = function (force) {
-    refresh();
+    if (this.visible) refresh();
     THREE.Group.prototype.updateMatrixWorld.call(this, force);
   };
 

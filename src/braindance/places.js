@@ -89,7 +89,12 @@ export function createPlaces(anchors, recording) {
   P.face = { at: [inBay, bar(64)], box: { car: CAR_BOX.face } };
   P.wheels = { at: [inBay, bar(64)], box: { car: CAR_BOX.wheelFL } };
   P.rear = { at: [inBay, bar(64)], box: { car: CAR_BOX.rear } };
-  P.bmw = { at: [inBay, bar(64)], box: { world: around([475.4, 3.5, -215], [0.2, 1.9, 3.4], 0.3) } };
+  // Resolve after lazy room attachment as well as at startup. The scanner
+  // reads this box each frame; no old photo-board location is retained.
+  P.bmw = { at: [inBay, bar(64)], box: { get world() {
+    const a = at("anchor_garage_bmw_clue");
+    return a ? around(a.toArray(), [0.8, 0.65, 0.8], 0.12) : { min: [1, 1, 1], max: [0, 0, 0] };
+  } } };
   P.exhaust = { at: [bar(49), bar(64)], box: { car: CAR_BOX.exhaust }, sound: { car: CAR_BOX.exhaust.c, r: 10, k: 1 } };
   P.intake = { at: [inBay, bar(64)], box: { car: CAR_BOX.intake }, sound: { car: CAR_BOX.intake.c, r: 6, k: 0.8 } };
   P.tune = { at: [inBay, bar(64)], box: { car: ENGINE }, heat: { car: ENGINE.c, r: 0.9, k: 0.5 } };

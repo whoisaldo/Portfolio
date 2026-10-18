@@ -662,7 +662,7 @@ const madeAhead = (key, make) => {
   return got ?? make();
 };
 
-export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, elevated = [], deckCars = 0, props = null } = {}) {
+export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, elevated = [], deckCars = 0, props = null, visibleSphere = null } = {}) {
   const avGeo = madeAhead("av", avGeometry);
   const full = cars >= 4;
   if (full) prepareNearModels();
@@ -2221,6 +2221,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     if (!viewed) return true;
     ball.center.copy(p);
     ball.radius = 24 * s;
+    if (visibleSphere && !visibleSphere(p.x, p.y, p.z, ball.radius)) return false;
     if (view.intersectsSphere(ball)) return true;
     ball.center.y = -p.y;
     return view.intersectsSphere(ball);
@@ -2474,6 +2475,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       const { shown, braking } = now;
       const off = p.distanceToSquared(shared.uCam.value);
       if (off > LAMPS_TO * LAMPS_TO) continue;
+      if (visibleSphere) {
+        x.lamps.box.getBoundingSphere(ball);
+        ball.center.applyQuaternion(q).add(p);
+        if (!visibleSphere(ball.center.x, ball.center.y, ball.center.z, ball.radius + 1)) continue;
+      }
       if (viewed) {
         ball.center.copy(p);
         ball.radius = 18;

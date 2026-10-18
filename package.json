@@ -14,10 +14,13 @@
     "logos": "node scripts/normalize-logos.mjs",
     "icons": "node scripts/make-stack-icons.mjs",
     "check:audio": "node scripts/check-audio-single.mjs",
-    "car:assets": "node scripts/optimize-s4.mjs",
+    "car:assets": "node scripts/optimize-s4.mjs && node scripts/optimize-s6.mjs",
     "check:s4": "node scripts/check-s4.mjs",
+    "check:s6": "node scripts/check-s6.mjs",
     "world:assets": "node scripts/optimize-world.mjs",
     "check:world": "node scripts/check-world.mjs",
+    "check:garage": "node scripts/check-garage.mjs",
+    "check:braindance": "node scripts/check-braindance.mjs",
     "check:drift": "node scripts/check-drift.mjs"
   },
   "dependencies": {

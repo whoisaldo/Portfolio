@@ -1,45 +1,103 @@
-// src/lib/garage3d.js: the door to the 3D garage.
+// src/lib/garage3d.js: shared preparation for the lazy garage section.
 //
-// Same shape as drift.js: three.js is never in the main bundle, and the
-// garage's scene is only fetched when the reader switches the bay to the
-// model. The car itself is the GLB the intro drifts (src/three/car), so a
-// reader who watched the intro already has it; the promise waits for it
-// either way. The promise is shared so a second switch never fetches twice,
-// and a failed load resets so a retry gets a second chance.
-let promise = null;
+// The synchronous shell mounts the implementation only after this scheduler
+// releases it. Ordinary entry waits for a hero frame and idle time; hashes,
+// requests and approaching Stack prioritize the same shared import.
+import { useSyncExternalStore } from "react";
 
-export function loadGarage3d() {
-  if (!promise) {
-    promise = import("./garage-scene.js")
-      .then(async (mod) => {
-        await mod.preloadGarage();
-        return mod;
-      })
-      .catch((err) => {
-        promise = null;
-        throw err;
-      });
+let section = null;
+
+export function loadGarageSection() {
+  if (!section) {
+    section = import("../sections/Garage.jsx").catch((err) => {
+      section = null;
+      throw err;
+    });
   }
-  return promise;
+  return section;
 }
 
-/**
- * The garage's 3D, built and compiled, for the door's loading screen to wait
- * on. GarageModel says it is expected as it mounts and settles it once its
- * scene is warm (or has failed: the door must not wait on a garage that will
- * never come).
- */
-let settle = null;
-let expected = false;
-export const garageWarm = new Promise((resolve) => {
-  settle = resolve;
-});
-export function expectGarage() {
-  expected = true;
+let authorized = false;
+let scheduled = false;
+let idleId = null;
+const sectionSubs = new Set();
+const sectionSnapshot = () => authorized;
+const subscribeSection = (fn) => {
+  sectionSubs.add(fn);
+  return () => sectionSubs.delete(fn);
+};
+export const useGarageSectionReady = () => useSyncExternalStore(subscribeSection, sectionSnapshot, sectionSnapshot);
+
+/** Authorize the one import, after a painted page, optionally at idle. */
+export function prepareGarageSection({ idle = false } = {}) {
+  if (typeof window === "undefined" || authorized) return;
+  const go = () => {
+    if (authorized) return;
+    authorized = true;
+    sectionSubs.forEach((fn) => fn());
+    loadGarageSection().catch(() => {});
+  };
+  if (!idle && idleId !== null) {
+    if (window.cancelIdleCallback) window.cancelIdleCallback(idleId);
+    else clearTimeout(idleId);
+    idleId = null;
+    go();
+    return;
+  }
+  if (scheduled && idle) return;
+  scheduled = true;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (authorized) return;
+    if (idle) idleId = window.requestIdleCallback ? window.requestIdleCallback(go, { timeout: 4000 }) : window.setTimeout(go, 1500);
+    else go();
+  }));
 }
-export function garageExpected() {
-  return expected;
+
+// Readiness, rather than a query or entrance action, decides whether the
+// automatic immersive visit can be shown in production.
+export const visitEnabled = () => true;
+
+// What the section's shell (src/routes/Home.jsx) decides its layout from,
+// shared with the film, which reads it without rendering:
+//
+//   availability  the visit's readiness, agents/B5/CONTRACT.md 2.2: "off",
+//                 "unsupported", "idle", "loading", "ready", "failed",
+//                 "lost" or "restoring"
+//   reason        what failed, when it did
+//   film          the film holds the visit for its pass through the garage
+//   textStation   the text car/part/workbench mapped to the visit's progress
+const view = { availability: "off", reason: null, film: false, textStation: "arrival" };
+let viewSnap = { ...view };
+const viewSubs = new Set();
+
+export function getGarageView() {
+  return viewSnap;
 }
-export function settleGarage() {
-  settle?.();
+
+export function setGarageView(patch) {
+  let changed = false;
+  for (const [k, v] of Object.entries(patch)) {
+    if (view[k] !== v) {
+      view[k] = v;
+      changed = true;
+    }
+  }
+  if (!changed) return;
+  viewSnap = { ...view };
+  viewSubs.forEach((fn) => fn());
+}
+
+const subscribeView = (fn) => {
+  viewSubs.add(fn);
+  return () => viewSubs.delete(fn);
+};
+
+/** The section's layout inputs, rerendering the caller when one changes. */
+export function useGarageView() {
+  return useSyncExternalStore(subscribeView, getGarageView, getGarageView);
+}
+
+/** Whether the film can make its pass through the visit now. */
+export function filmCanVisit() {
+  return view.availability === "ready";
 }

@@ -12,7 +12,7 @@
 // function, and a useSyncExternalStore hook over it. Two kinds of field live
 // here and they are treated differently on purpose:
 //
-//   Per frame   position, locals, dim, pointer, ui, look. Written by the
+//   Per frame   position, locals, garageProgress, dim, pointer, ui, look. Written by the
 //               scroll stage and the modes sixty times a second and read by
 //               the world's own frame loop straight off `stage`. Changing
 //               them notifies nobody: a React render per scrolled frame is
@@ -20,13 +20,8 @@
 //   Discrete    section, activeProject, activeRole, route, paused, status.
 //               Written rarely, through set(), which notifies subscribers.
 //
-// `covers` is the list of reasons the world is hidden: the door, an expanded
-// deck, the console, the garage's own 3D viewer. While any of them is up the
-// world stops drawing, because a frame nobody can see still costs a frame.
-// The garage's viewer is the one exception to "any": it comes on screen
-// while the camera is still flying into the garage, and that flight is the
-// point of the section, so the viewer only covers the city once the flight
-// has landed (`holding` is the shot being held).
+// `covers` lists opaque overlays such as the door and the console. The
+// workshop shares this renderer and never covers it with another canvas.
 import { useSyncExternalStore } from "react";
 
 export const stage = {
@@ -36,6 +31,23 @@ export const stage = {
   position: 0,
   // Per shot, 0 to 1: how far the viewport's middle has travelled through it.
   locals: [],
+  // The visit inside the garage, 0 at its arrival to 1 at the shop wall:
+  // how far through the Garage shot's hold the scroll is (scroll-stage.js).
+  garageProgress: 0,
+  // Whether the Garage section is in its cinematic layout, so the camera
+  // makes the visit inside (src/world/garage.js) rather than holding on
+  // the old viewer's pose.
+  garageVisit: false,
+  // The visit held at one progress while the section shows its photographs
+  // and the visit is ready (the station those photographs are of), so Look
+  // and the film over the photographs see the same place; null otherwise.
+  garageHold: null,
+  // Bumped when the section changes layout: the camera cuts to where the
+  // new layout has it rather than flying the route there.
+  garageCut: 0,
+  // Whether the reader has come within a screen and a half of the garage
+  // (src/routes/Home.jsx): under reduced motion its city is built then.
+  garageNear: false,
   // The shot id under the middle of the viewport.
   section: "hero",
   // -1..1 on both axes; mouse only, never touch.
@@ -61,6 +73,13 @@ export const stage = {
   route: { kind: "home" },
   // "off" | "loading" | "ready" | "failed": the live world, not the poster.
   status: "off",
+  // The same for the world built for the garage alone, under reduced motion
+  // (src/world/WorldMount.jsx): the page stays the still page it is without
+  // a city, so nothing that offers Look or the film hears of this one.
+  garageWorld: "off",
+  // "ok", "lost" (the GPU took the WebGL context away) or "restoring" (it
+  // gave it back and the city is being built again on it).
+  context: "ok",
   // "stage" while the scroll drives the camera; "cinematic" while the intro
   // does (src/components/IntroCinematic.jsx), when the world's own loop rests.
   mode: "stage",
@@ -112,14 +131,8 @@ export function subscribeStage(fn) {
 
 function recomputePaused() {
   const hidden = typeof document !== "undefined" && document.hidden;
-  const covered = [...stage.covers].some((key) => key !== "garage" || garageCovers());
+  const covered = stage.covers.size > 0;
   setStage({ paused: hidden || covered });
-}
-
-/** Whether the garage's viewer is covering the city right now. Never while
- *  the page is put away (Look, Cinema): the viewer is part of the page. */
-export function garageCovers() {
-  return stage.covers.has("garage") && stage.holding === "garage" && stage.view === "page";
 }
 
 /** The view changed (src/world/modes.js): the covers mean something else. */
@@ -168,7 +181,7 @@ if (typeof document !== "undefined") {
 let world = null;
 
 export function getWorld() {
-  return stage.status === "ready" ? world : null;
+  return stage.status === "ready" || stage.garageWorld === "ready" ? world : null;
 }
 
 export function setWorld(next) {

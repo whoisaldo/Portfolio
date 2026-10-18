@@ -204,12 +204,13 @@ export const mods = [
   },
   {
     id: "suspension",
-    anchor: { part: "wheel_fl", offset: [0.02, 0.36, 0], box: [0.9, 0.5, 0.8] },
+    anchor: { part: "wheel_fl", carrier: "steer_fl", offset: [0.02, 0.36, 0], box: [0.9, 0.5, 0.8] },
     group: "suspension",
     name: "ECS RS4 suspension",
     brand: "ECS",
     price: 1300,
-    note: "The RS4 suspension set, which is where the ride height in the photographs comes from.",
+    note: "The RS4 suspension set.",
+    photoNote: "The ride height in the photographs comes from this suspension set.",
     pins: [{ view: "front", x: 59, y: 61, label: "Ride height" }],
   },
   {
