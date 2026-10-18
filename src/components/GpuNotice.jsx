@@ -1,7 +1,7 @@
 // src/components/GpuNotice.jsx: the one warning this site shows.
 //
 // Only in the cinematic shell (App.jsx mounts it there and nowhere else;
-// /recruiters has nothing on it that needs a GPU), only when src/lib/gpu.js
+// the homepage has nothing on it that needs a GPU), only when src/lib/gpu.js
 // says the browser is drawing on the CPU, and only until it is dismissed
 // for this tab. It says three things and stops: what is off, what has been
 // turned down because of it, and where the switch lives in Chrome, the one
@@ -90,8 +90,8 @@ export default function GpuNotice({ show }) {
         </p>
 
         <p className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 mono-ui">
-          <Link to="/recruiters" className="text-volt transition-colors hover:text-fuchsia">
-            The plain version
+          <Link to="/" className="text-volt transition-colors hover:text-fuchsia">
+            The simple version
           </Link>
           <button
             type="button"

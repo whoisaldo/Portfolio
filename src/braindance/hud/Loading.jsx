@@ -7,6 +7,7 @@
 // already: the door starts the same downloads while it waits for a click.
 import React from "react";
 import { Link } from "react-router-dom";
+import { PLAYGROUND } from "../../data/site";
 import { LOAD_STEPS, useBytes, useLoaded } from "../../world/progress";
 import { useBd } from "../store";
 import { BOOT, LOAD_LABELS } from "../../data/braindance";
@@ -48,8 +49,8 @@ export default function Loading() {
         ))}
       </ul>
       <div className="bd-boot-links">
-        <Link to="/" className="bd-link">{BOOT.toCinematic}</Link>
-        <Link to="/recruiters" className="bd-link">{BOOT.toRecruiters}</Link>
+        <Link to={PLAYGROUND} className="bd-link">{BOOT.toCinematic}</Link>
+        <Link to="/" className="bd-link">{BOOT.toRecruiters}</Link>
       </div>
     </div>
   );

@@ -17,6 +17,7 @@ import { useReturnToDoor } from "../lib/intro";
 import sidebandMark from "../assets/Sideband/SidebandMark.png";
 
 const footerLinks = [
+  { label: "X", href: links.x, external: true },
   { label: "GitHub", href: links.github, external: true },
   { label: "LinkedIn", href: links.linkedin, external: true },
   { label: "Email", href: links.email, external: false },
@@ -81,14 +82,21 @@ export default function Footer() {
               <span className="ink-underline">{link.label}</span>
             </a>
           ))}
-          {/* The plain version. The header carries this link from lg up and
-              the door carries it on arrival; the footer carries it for
-              everyone else. */}
+          {/* Out of the playground, to the homepage's other half. */}
           <Link
-            to="/recruiters"
+            to="/blog"
             className="mono-label text-dim transition-colors duration-200 hover:text-volt"
           >
-            <span className="ink-underline">Recruiters press this</span>
+            <span className="ink-underline">Writing</span>
+          </Link>
+          {/* The plain version, the homepage. The header carries this link
+              from lg up and the door carries it on arrival; the footer
+              carries it for everyone else. */}
+          <Link
+            to="/"
+            className="mono-label text-dim transition-colors duration-200 hover:text-volt"
+          >
+            <span className="ink-underline">The simple version</span>
           </Link>
           {/* The way back to the front: the door, with both ways in offered
               again, and the full intro behind whichever one is chosen. */}

@@ -68,14 +68,20 @@ npm run world:assets   # -> public/scenes/world/world-high.glb, world-phone.glb
 
 ## Structure
 
-- `src/App.jsx` the router, and the split between the three shells: the
-  cinematic (entry gate, intro, navbar, reticle cursor, console, footer) under
-  `/`, the plain version under `/recruiters`, which mounts none of that, and
-  the braindance under `/braindance`
-- `src/routes/` the scrolling home page, `/work/:slug` for the 15 detail
-  pages (8 projects, 7 roles), and `Recruiters.jsx` + `RecruiterWork.jsx`:
-  the plain, light, conventional portfolio at `/recruiters`, reading the
-  same data files as everything else and sharing no component with them
+- `src/Root.jsx` the first split: `/` and `/blog` go to `src/front/`,
+  everything else to `App.jsx`. Both are lazy, so the homepage never
+  downloads the city's code
+- `src/front/` the homepage and the blog: who Ali is, X and the other links,
+  his photos down the page, where he has worked (with logos), the latest posts,
+  four projects that open for a little more, and the way into the playground. Tailwind on the playground's palette, no motion,
+  no audio. The homepage's words and work history are `src/data/home.js`.
+  `posts.js` reads every Markdown file in `src/blog/`; the filename is the
+  address
+- `src/App.jsx` the router, and the split between the two shells: the
+  cinematic (entry gate, intro, navbar, reticle cursor, console, footer) with
+  its scrolling page at `/playground`, and the braindance under `/braindance`
+- `src/routes/` the scrolling page and `/work/:slug` for the 15 detail pages
+  (8 projects, 7 roles)
 - `src/components/` and `src/sections/` the page sections
 - `src/components/IntroCinematic.jsx` the intro. Runs on the song's clock;
   `?intro=off`, `?intro=short` and `?intro=full` override the default of
@@ -146,12 +152,15 @@ npm run world:assets   # -> public/scenes/world/world-high.glb, world-phone.glb
 
 ## Three ways in
 
-`/` is the site as designed. `/recruiters` is the same content with none of
-the cinema: no door, no intro, no sound, no reticle, no effects, light rather
-than black, one column. "Recruiters press this" on the door, in the header
-and in the footer goes there, and the plain page links back. The deploy
-workflow writes `/recruiters` its own `index.html`, so the address on a
-résumé answers with a 200.
+`/` is the homepage: plain, dark, one column, with the writing at `/blog`.
+Old links to a section of the cinematic (`/#garage`, `/#contact`) are
+forwarded to the same section under `/playground`. It replaced the plain
+version that lived at `/recruiters`; that address is on the résumé, so the
+deploy writes it a page that forwards to `/` with its query string, and
+anything under it forwards the same way.
+
+`/playground` is the site as designed. "The simple version" on the door, in
+the header and in the footer goes back to `/`.
 
 `/braindance` is the third: the city alone, as a recorded night to play and
 search, desktop only. It is an item on the door's menu and `jackin` in the

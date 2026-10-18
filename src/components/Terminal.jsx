@@ -19,8 +19,8 @@
 // visible button for it justified: `garage` opens the bay on a part, `goto`
 // jumps to a section, `sound` and `volume` drive the track, and `fx` (with
 // `signs`, `haze`, `wet`, `cursor`, `scanlines`, `traffic`, `reactive` as
-// shortcuts) switches the environment through src/lib/env.js. `recruiters`
-// leaves for the plain version of the site.
+// shortcuts) switches the environment through src/lib/env.js. `home`
+// leaves for the plain version of the site, the homepage.
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -28,7 +28,7 @@ import { Terminal as TerminalIcon, Clock } from "lucide-react";
 import { useReplayIntro } from "../lib/intro";
 import { openGarage } from "../lib/garage";
 import { scrollToSection } from "../lib/scroll";
-import { sections } from "../data/site";
+import { atPlayground, sections } from "../data/site";
 import { mods } from "../data/garage";
 import { FX, getEnv, isLowPower, setEnv, resetEnv } from "../lib/env";
 import { getVolume, setSoundEnabled, setVolume, soundEnabled, unlockAudio } from "../lib/audio";
@@ -191,7 +191,7 @@ export default function Terminal({ onExit }) {
     sound        sound on · sound off
     volume       volume 40
     fx           fx · fx haze off · fx signs on · fx reset
-    recruiters   the plain version of this site
+    home         the simple version of this site
     jackin       the braindance: the city, no page
     look         put the page away and look at the city (H)
     watch        this site as a film (C)
@@ -231,7 +231,7 @@ export default function Terminal({ onExit }) {
     "neofetch", "tree", "grep", "find", "open", "sudo", "exit", "hire",
     "git", "vim", "nano", "touch", "mkdir", "rm", "cp", "mv", "head", "tail",
     "funfact", "interests", "uplink", "vitals",
-    "garage", "goto", "sound", "volume", "fx", "env", "recruiters", "jackin", "braindance", "look", "watch", "photo",
+    "garage", "goto", "sound", "volume", "fx", "env", "home", "jackin", "braindance", "look", "watch", "photo",
     "signs", "haze", "wet", "cursor", "scanlines", "traffic", "reactive",
   ], []);
 
@@ -302,7 +302,7 @@ export default function Terminal({ onExit }) {
   fs             ls · cd · pwd · cat · tree · find · open · head · tail · grep
   system         whoami · hostname · date · uptime · neofetch · history · clear · banner
   fun            intro · sudo hire · git status · git log · vim · nano
-  environment    garage · goto · sound · volume · fx · env · recruiters · jackin
+  environment    garage · goto · sound · volume · fx · env · home · jackin
 
   keys           Tab = complete   ↑↓ = history   Ctrl+L = clear   Enter = run
 
@@ -841,14 +841,14 @@ AUTHOR
 
       case "goto": {
         const target = (args[0] || "").toLowerCase();
-        if (target === "recruiters") {
-          say("system", "Leaving for the plain version.");
-          navigate("/recruiters");
+        if (target === "home") {
+          say("system", "Leaving for the simple version.");
+          navigate("/");
           break;
         }
         const hit = sections.find((x) => x.id === target || x.label.toLowerCase() === target);
         if (!hit) {
-          say("error", `goto: no section '${target}'.\nSections: ${sections.map((x) => x.id).join(" · ")} · recruiters`);
+          say("error", `goto: no section '${target}'.\nSections: ${sections.map((x) => x.id).join(" · ")} · home`);
           break;
         }
         say("system", `Going to ${hit.label}.`);
@@ -911,9 +911,9 @@ AUTHOR
         fx([lowerCmd, ...args]);
         break;
 
-      case "recruiters":
-        say("system", "Leaving for the plain version: /recruiters");
-        navigate("/recruiters");
+      case "home":
+        say("system", "Leaving for the simple version: /");
+        navigate("/");
         break;
 
       // The third way in. The keystroke that ran this is the gesture the
@@ -934,7 +934,7 @@ AUTHOR
         const which = command === "look" ? "look" : "cinema";
         if (stage.status !== "ready" || document.documentElement.dataset.world !== "on") {
           say("error", `${command}: the city is off. fx world on brings it back.`);
-        } else if (which === "cinema" && window.location.pathname !== "/") {
+        } else if (which === "cinema" && !atPlayground(window.location.pathname)) {
           say("error", "watch: the film is the home page. goto top, then watch.");
         } else {
           say("system", which === "look" ? "Putting the page away. H or esc brings it back." : "Rolling. Space pauses, the arrows skip, esc stops.");

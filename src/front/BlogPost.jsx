@@ -1,0 +1,81 @@
+// src/front/BlogPost.jsx: /blog/:slug.
+//
+// Its own chunk, so the Markdown renderer loads with the first article a
+// reader opens and not with the homepage. The posts are files in this repo,
+// written by Ali, so their HTML goes in as it comes out of marked.
+import React, { useMemo } from "react";
+import { Link, useParams } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { marked } from "marked";
+import { profile, links } from "../data/profile";
+import { findPost, formatDate } from "./posts";
+import { COLUMN, useTitle } from "./lib";
+import { FollowOnX, FrontFooter, FrontHeader } from "./parts";
+
+const backLink = "inline-flex items-center gap-1.5 text-sm font-medium text-dim transition-colors duration-150 hover:text-volt";
+
+export default function BlogPost() {
+  const { slug } = useParams();
+  const post = findPost(slug);
+  const html = useMemo(() => (post ? marked.parse(post.body) : ""), [post]);
+  useTitle(post ? `${post.title} · ${profile.name}` : `Writing · ${profile.name}`);
+
+  if (!post) {
+    return (
+      <>
+        <FrontHeader />
+        <main className={`${COLUMN} pb-24 pt-16 sm:pt-24`}>
+          <h1 className="font-display text-3xl font-semibold text-bone">No post at this address</h1>
+          <p className="prose-dark mt-4">It may have been renamed. Everything that is published is listed here:</p>
+          <Link to="/blog" className={`${backLink} mt-6`}>
+            <ArrowLeft className="size-3.5" aria-hidden="true" /> All writing
+          </Link>
+        </main>
+        <FrontFooter />
+      </>
+    );
+  }
+
+  // The address the static page for this post is served from, trailing slash
+  // and all (scripts/static-pages.mjs), so a shared link needs no redirect.
+  const url = `${links.site}blog/${post.slug}/`;
+  const share = `https://x.com/intent/post?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(url)}`;
+
+  return (
+    <>
+      <FrontHeader />
+      <main className={`${COLUMN} pb-24 pt-14 sm:pt-20`}>
+        <article>
+          <Link to="/blog" className={backLink}>
+            <ArrowLeft className="size-3.5" aria-hidden="true" /> Writing
+          </Link>
+          <h1 className="mt-8 font-display text-3xl font-semibold leading-tight text-bone text-balance sm:text-4xl">
+            {post.title}
+          </h1>
+          <p className="mt-4 text-sm tabular-nums text-dim">
+            <time dateTime={post.date}>{formatDate(post.date)}</time> · {post.minutes} min read
+          </p>
+          <div className="post-body mt-10" dangerouslySetInnerHTML={{ __html: html }} />
+        </article>
+
+        <aside className="mt-16 border-t border-ink-line pt-8">
+          <p className="text-pretty text-muted">
+            Thanks for reading. I post shorter notes, and every new write-up, on X.
+          </p>
+          <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-4">
+            <FollowOnX />
+            <a
+              href={share}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-medium text-muted transition-colors duration-150 hover:text-volt"
+            >
+              <span className="ink-underline">Share this post</span>
+            </a>
+          </div>
+        </aside>
+      </main>
+      <FrontFooter />
+    </>
+  );
+}

@@ -52,6 +52,7 @@ export const emails = [
 
 export const links = {
   github: "https://github.com/whoisaldo",
+  x: "https://x.com/whoisaldooo",
   linkedin: "https://www.linkedin.com/in/alialdoyounes/",
   email: "mailto:aldo@sideband.studio",
   studio: "https://sideband.studio",
