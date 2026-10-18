@@ -1,3 +1,4 @@
+import { loadModelWithDeadline } from "../../world/load-deadline.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { s4ModelUrl } from "../../data/s4";
@@ -36,7 +37,9 @@ export function preloadCar(kind = "s4") {
   if (cars[kind].unavailable) return Promise.reject(unavailable(kind));
   if (!pending[kind]) {
     const progress = kind === "s4" ? (e) => markBytes("car", e.loaded, e.total) : undefined;
-    pending[kind] = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(cars[kind].url, progress)
+    // The early S6 prefetch leaves the door's audio ahead on a slow link.
+    const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    pending[kind] = (kind === "s6" ? loadModelWithDeadline(cars[kind].url, loader, "low") : loader.loadAsync(cars[kind].url, progress))
       .then((gltf) => { sources[kind] = gltf.scene; })
       .catch((error) => { pending[kind] = null; throw error; });
   }

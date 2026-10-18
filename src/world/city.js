@@ -12,6 +12,7 @@
 // WebGL context rebuilds from memory; each build owns its GPU resources and
 // hands them back in dispose().
 import * as THREE from "three";
+import { loadModelWithDeadline } from "./load-deadline.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { worldModelUrl, worldPackUrl, worldShopsUrl, worldExteriorPropsUrl } from "../data/world-assets.js";
@@ -162,9 +163,7 @@ export const hasGaragePack = (tier) => Boolean(worldPackUrl[tier]?.[GARAGE_PACK]
 export function preloadPack(tier, pack) {
   const key = `${tier}:${pack}`;
   if (!packCache.has(key)) {
-    const p = new GLTFLoader()
-      .setMeshoptDecoder(MeshoptDecoder)
-      .loadAsync(worldPackUrl[tier][pack])
+    const p = loadModelWithDeadline(worldPackUrl[tier][pack], new GLTFLoader().setMeshoptDecoder(MeshoptDecoder), pack === GARAGE_PACK ? "auto" : "low")
       .then((gltf) => gltf.scene)
       .catch((err) => {
         packCache.delete(key);
