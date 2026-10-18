@@ -121,6 +121,14 @@ export default function GarageControls({
   const listCars = car ? [car] : CARS;
   const atShop = here.id === "shop";
   const showStance = car?.id === "s6" && (here.id === "s6" || mod?.id === "virtual-link");
+  // The label names the car being looked at. Halfway through a flight
+  // between the cars the integration already says the next car while the
+  // station is still the last one, so the label takes that car's nearest
+  // station rather than read "S4 engine bay" beside the S6. A station with no
+  // car of its own (arrival, the workbench) names no car.
+  const named = car && here.carId && here.carId !== car.id
+    ? list.filter((s) => s.carId === car.id).sort((a, b) => Math.abs(list.indexOf(a) - stationIndex) - Math.abs(list.indexOf(b) - stationIndex))[0] ?? here
+    : here;
 
   // ---- focus that survives the controls changing ---------------------------
   useEffect(() => {
@@ -291,9 +299,9 @@ export default function GarageControls({
       <div ref={part("label")} className="gw-label">
         <p className="mono-label text-volt">05 // Garage</p>
         <p className="gw-label-line mono-micro">
-          <span className="text-primary tabular-nums">{pad(stationIndex + 1)} / {pad(list.length)}</span>
-          <span className="text-muted">{here.label}</span>
-          {car && <span className="text-dim hidden md:inline">{car.title}</span>}
+          <span className="text-primary tabular-nums">{pad(list.indexOf(named) + 1)} / {pad(list.length)}</span>
+          <span className="text-muted">{named.label}</span>
+          {car && named.carId === car.id && <span className="text-dim hidden md:inline">{car.title}</span>}
         </p>
       </div>
 
