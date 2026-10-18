@@ -83,18 +83,27 @@ export function createGaragePresentation(createCars, context, { s6Available = tr
   return cars;
 }
 
-// A reduced-motion canvas rests until the room is ready. Its preparation
-// can still upload one resource per animation frame without drawing or
-// advancing the scene. The caller excludes active renderers and sampling.
-export function createGarageUploadPump({ run, pending, canRun, schedule = requestAnimationFrame, cancel = cancelAnimationFrame }) {
-  let frame = 0, disposed = false;
+// A still page can prepare several uploads without drawing. Each batch
+// stops after four resources or four milliseconds, and rechecks ownership
+// after every resource so active renderers and disposal always take over.
+export function createGarageUploadPump({ run, pending, canRun, batch = 1, budgetMs = 4, now = () => performance.now(), schedule = requestAnimationFrame, cancel = cancelAnimationFrame }) {
+  let frame = 0, disposed = false, running = false;
   const wake = () => {
-    if (disposed || frame || !pending()) return;
-    frame = schedule(() => {
+    if (disposed || frame || running || !pending()) return;
+    frame = schedule(async () => {
       frame = 0;
       if (disposed || !canRun() || !pending()) return;
-      run();
-      wake();
+      running = true;
+      const from = now();
+      try {
+        for (let i = 0; i < batch && !disposed && canRun() && pending(); i++) {
+          await run();
+          if (now() - from >= budgetMs) break;
+        }
+      } finally {
+        running = false;
+        wake();
+      }
     });
   };
   return { wake, dispose() { disposed = true; cancel(frame); frame = 0; } };

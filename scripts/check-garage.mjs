@@ -40,6 +40,7 @@ let paintBatchModule;
 let policyModule;
 let videoModule;
 let carSpecs;
+let deadlineModule;
 let s4Mods;
 let GLTFLoader;
 let carDecoder;
@@ -47,6 +48,7 @@ try {
   [world, garage, three, propsModule, materialModule, scrollModule, mergeModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js"), vite.ssrLoadModule("/src/world/scroll-stage.js"), vite.ssrLoadModule("/src/world/merge.js")]);
   paintBatchModule = await vite.ssrLoadModule("/src/world/garage-paint-batch.js");
   policyModule = await vite.ssrLoadModule("/src/world/garage-policy.js");
+  deadlineModule = await vite.ssrLoadModule("/src/world/load-deadline.js");
   videoModule = await vite.ssrLoadModule("/src/world/garage-video.js");
   ({ cars: carSpecs } = await vite.ssrLoadModule("/src/three/car/object.js"));
   [inspectionModule, { mods: s4Mods }, { GLTFLoader }, { MeshoptDecoder: carDecoder }] = await Promise.all([vite.ssrLoadModule("/src/three/car/inspect.js"), vite.ssrLoadModule("/src/data/garage.js"), vite.ssrLoadModule("three/addons/loaders/GLTFLoader.js"), vite.ssrLoadModule("three/addons/libs/meshopt_decoder.module.js")]);
@@ -78,6 +80,10 @@ check("the approved S6 is available on every visitor path", () => {
   assert.ok(carSpecs.s6.url);
   assert.equal(carSpecs.s6.unavailable, null);
 });
+
+const checkAsync = async (name, fn) => {
+  try { await fn(); } catch (err) { failures.push(`${name}: ${err.message}`); }
+};
 
 // ---- the timeline -------------------------------------------------------------
 check("monitor textures follow decoded frames and dispose their callbacks", () => {
@@ -743,28 +749,28 @@ check("world-space batching supplies typed identity textures and releases them",
   material.dispose();
 });
 
-check("resting garage preparation uploads once per frame without drawing", () => {
+await checkAsync("resting garage preparation uploads once per frame without drawing", async () => {
   const callbacks = new Map(), jobs = [1, 2, 3, 4], completed = [];
   let id = 0, allowed = true;
   const pump = garage.createGarageUploadPump({
     run: () => completed.push(jobs.shift()), pending: () => jobs.length > 0, canRun: () => allowed,
     schedule: (fn) => { callbacks.set(++id, fn); return id; }, cancel: (key) => callbacks.delete(key),
   });
-  const frame = () => {
+  const frame = async () => {
     const next = [...callbacks.values()];
     callbacks.clear();
-    next.forEach((fn) => fn());
+    for (const fn of next) await fn();
   };
   pump.wake(); pump.wake();
   assert.equal(callbacks.size, 1, "parallel uploads share one preparation frame");
-  frame();
+  await frame();
   assert.deepEqual(completed, [1], "only one upload runs per frame");
   allowed = false;
-  frame();
+  await frame();
   assert.deepEqual(completed, [1], "an active renderer or sampling retains its queue");
   assert.equal(callbacks.size, 0, "ineligible preparation does not keep a frame loop");
   allowed = true;
-  pump.wake(); frame(); frame(); frame();
+  pump.wake(); await frame(); await frame(); await frame();
   assert.deepEqual(completed, [1, 2, 3, 4]);
   assert.equal(callbacks.size, 0, "settled preparation has no recurring frame");
   jobs.push(5);
@@ -776,11 +782,242 @@ check("resting garage preparation uploads once per frame without drawing", () =>
   assert.deepEqual(completed, [1, 2, 3, 4], "disposal cancels pending and stale callbacks");
 });
 
+await checkAsync("still upload batches obey count, time, renderer ownership and disposal", async () => {
+  for (const cost of [0, 3]) {
+    const callbacks = [], done = [];
+    let now = 0, allowed = true;
+    const pump = garage.createGarageUploadPump({ batch: 4, budgetMs: 4, now: () => now,
+      run: () => { done.push(done.length); now += cost; }, pending: () => done.length < 10,
+      canRun: () => allowed, schedule: (fn) => { callbacks.push(fn); return callbacks.length; }, cancel() {},
+    });
+    pump.wake(); await callbacks.shift()();
+    assert.equal(done.length, cost ? 2 : 4, "stop at either the time or count bound");
+    allowed = false; await callbacks.shift()();
+    const count = done.length;
+    assert.equal(callbacks.length, 0, "renderer ownership stops the pump");
+    allowed = true; pump.wake(); const stale = callbacks.shift(); pump.dispose(); await stale();
+    assert.equal(done.length, count, "disposal blocks stale batches");
+  }
+});
+
+await checkAsync("a stalled download aborts and a subsequent attempt can finish", async () => {
+  let signal;
+  await assert.rejects(deadlineModule.withLoadDeadline((s) => { signal = s; return new Promise(() => {}); }, 5), /took too long/);
+  assert.equal(signal.aborted, true, "the actual network request receives cancellation");
+  assert.equal(await deadlineModule.withLoadDeadline(async () => "retried", 20), "retried");
+  await assert.rejects(deadlineModule.withLoadDeadline(async () => { throw new Error("failed S6"); }, 20000), /failed S6/);
+});
+
+await checkAsync("garage uploads and frame slots precede districts while the moon stays first", async () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const asks = [];");
+  const to = source.indexOf("  // ---- the districts", from);
+  const frames = [], order = [];
+  const context = { disposed: false, reduced: false, garageAvailable: "loading", raf: 0,
+    adapt: { sampling: false }, stage: {}, tier: "high", recentDrawMs: 0, performance: { now: () => 0 },
+    createGarageUploadPump: () => ({ wake() {} }), DOMException,
+    requestAnimationFrame: (fn) => { frames.push(fn); return frames.length; }, cancelAnimationFrame() {},
+    setTimeout: (fn, ms) => { if (ms === 0) fn(); return 1; }, clearTimeout() {},
+  };
+  const q = runInNewContext(`${source.slice(from, to)}\n({ queueUpload, nextUpload, slot });`, context);
+  const uploads = [q.queueUpload(() => order.push("district upload")), q.queueUpload(() => order.push("garage upload"), true)];
+  q.nextUpload().run(); q.nextUpload().run(); await Promise.all(uploads);
+  assert.deepEqual(order, ["garage upload", "district upload"]);
+  const slots = [q.slot(false).then(() => order.push("district slot")), q.slot(false, true).then(() => order.push("garage slot")), q.slot(true).then(() => order.push("moon slot"))];
+  for (let i = 0; i < 3; i++) { frames.shift()(); await Promise.resolve(); }
+  await Promise.all(slots);
+  assert.deepEqual(order.slice(2), ["moon slot", "garage slot", "district slot"]);
+});
+
+// A reduced-motion cold entry can briefly run before the still-page cover
+// pauses it. Execute the real sampling policy and stage gate in that order.
+check("reduced-motion cold entry cannot strand construction behind sampling", () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const armed = source.match(/  const armed = (.*);/)[1].replaceAll("import.meta.env.DEV", "dev");
+  const from = source.indexOf("  let running = null;");
+  const to = source.indexOf("  const unwatch = subscribeStage(check);", from);
+  for (const dev of [false, true]) for (const search of ["", "?adapt=off"]) {
+    const context = { reduced: true, dev, window: { location: { search } }, URLSearchParams,
+      stage: { paused: false, mode: "stage" }, city: {}, lightIn: true,
+      soundscape: { setActive() {} }, resume() {}, pause() {}, settle() {},
+      document: { hidden: false } };
+    const run = runInNewContext(`const adapt = { armed: ${armed}, sampling: false };
+      const startSampling = () => { adapt.sampling = true; };
+      ${source.slice(from, to)}
+      () => { check(); stage.paused = true; check(); return adapt.sampling; };`, context);
+    assert.equal(run(), false, "a paused still world must leave construction slots available");
+  }
+});
+
+// Run the idle launch with settled, rejected and held downloads. A held
+// asset gets only a four-second head start and cannot own city readiness.
+for (const mode of ["settled", "failed", "stalled"]) {
+  await checkAsync(`district download head start is bounded with ${mode} garage assets`, async () => {
+    const source = readFileSync("src/world/world-scene.js", "utf8");
+    const from = source.indexOf("    // The hero has its first frames.");
+    const to = source.indexOf("\n  };", from);
+    const events = [];
+    let deadline;
+    const load = () => mode === "stalled" ? new Promise(() => {}) : mode === "failed" ? Promise.reject(new Error("network")) : Promise.resolve();
+    runInNewContext(source.slice(from, to), {
+      disposed: false, tier: "high", idle: async () => {}, hasGaragePack: () => true,
+      carModels: { s6: {} }, GARAGE_PACK: "garage", preloadPack: load, preloadCar: load,
+      setTimeout: (fn, ms) => { assert.equal(ms, 4000); deadline = fn; return 1; }, clearTimeout() {},
+      prepareGarage: () => { events.push("room requested"); return new Promise(() => {}); },
+      streamPacks: () => events.push("district downloads"),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    if (mode === "stalled") {
+      assert.deepEqual(events, ["room requested"]);
+      deadline();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    assert.deepEqual(events, ["room requested", "district downloads"]);
+  });
+}
+
+await checkAsync("district downloads leave network capacity and continue past individual faults", async () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("    let nextPack = 0;");
+  const to = source.indexOf("    for (const [i, name] of PACKS.entries())", from);
+  assert.ok(from >= 0 && to > from);
+  const asked = [], release = new Map(), PACKS = Array.from({ length: 9 }, (_, i) => `district-${i}`);
+  const loads = runInNewContext(`(() => { ${source.slice(from, to)} return loads; })();`, {
+    PACKS, tier: "high", disposed: false,
+    preloadPack: (tier, name) => { asked.push(name); return new Promise((resolve, reject) => release.set(name, { resolve, reject })); },
+  });
+  assert.equal(asked.length, 3, "distant downloads leave connections for critical dependencies");
+  release.get(PACKS[1]).reject(new Error("failed district"));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(asked.length, 4, "a failure releases its connection");
+  for (let i = 2; i < 9; i++) {
+    release.get(PACKS[i]).resolve(PACKS[i]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  assert.equal(asked.length, 9, "one stalled district cannot block the remaining downloads");
+  release.get(PACKS[0]).resolve(PACKS[0]);
+  const results = await Promise.all(loads);
+  assert.equal(results[0].s, PACKS[0]); assert.match(results[1].err.message, /failed district/);
+  assert.equal(results[8].s, PACKS[8], "construction still receives results in authored order");
+});
+
+// Run the real preparation job with a held room bake and S6 request. Only
+// the shared room build owns the queue; car download/readiness cannot own it.
+{
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const prepareGarage = () => {");
+  const to = source.indexOf("  const garageState = () =>", from);
+  const events = [];
+  let finishRoom;
+  let roomEntered;
+  const entered = new Promise((resolve) => { roomEntered = resolve; });
+  const roomBake = new Promise((resolve) => { finishRoom = resolve; });
+  const construction = garage.createGarageBuildQueue();
+  const context = {
+    disposed: false, tier: "high", reduced: false, hasGaragePack: () => true,
+    carRuntime: async () => ({}), garageData: async () => ({ findMod() {} }),
+    garageRoom: null, garageAvailable: "idle", garageReason: null, idleUploads: { wake() {} }, publishGarage() {},
+    worldAssets: { worldPackPropsUrl: { high: { garage: "fixture" } } },
+    preloadPack: async () => new three.Scene(), GARAGE_PACK: "garage",
+    placementPromise: null, fetchUnpacked: async () => [],
+    GARAGE_PHOTOS_ENABLED: false, boardTexture: null,
+    carModels: { s6: {} }, preloadCar: async () => { events.push("S6 requested"); },
+    withLoadDeadline: (fn) => fn(), garageBetween: async () => {},
+    garageCars: null, createGaragePresentation: () => ({ ready: new Promise(() => {}) }),
+    scene: {}, renderer: {}, shared: {}, car: {}, camera: {},
+    construction, idle: async () => {}, between: async () => {}, readyToDraw: async () => {}, clearance: null, findMod: null, visit: null, inspectionCursor: null,
+    createGarageVisit: () => ({ placeholders: [] }), garageLights: () => [],
+    roomCommitted: false, packsIn: [], THREE: three,
+    city: { anchors: new Map(), garageMaterials: { setRects() {} }, kit: { wet: {} },
+      async addPack() { events.push("room bake"); roomEntered(); await roomBake; } },
+  };
+  const executable = `${source.slice(from, to).replaceAll("import.meta", "meta")}\nprepareGarage;`;
+  const prepare = runInNewContext(executable, context);
+  void prepare();
+  await entered;
+  let districtBuilt = false;
+  void construction.run(() => { districtBuilt = true; });
+  finishRoom();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  check("S6 fetch overlaps room and pending car preparation releases district bake queue", () => {
+    assert.deepEqual(events, ["S6 requested", "room bake"]);
+    assert.ok(districtBuilt, "district construction proceeds while car preparation remains pending");
+  });
+  const fetchingQueue = garage.createGarageBuildQueue();
+  const pendingRoom = runInNewContext(executable, { ...context, garageRoom: null,
+    construction: fetchingQueue, preloadPack: () => new Promise(() => {}) });
+  void pendingRoom();
+  let builtWhileFetching = false;
+  void fetchingQueue.run(() => { builtWhileFetching = true; });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  check("pending garage asset requests do not own the district bake queue", () => {
+    assert.ok(builtWhileFetching, "district construction cannot wait for a pending garage download");
+  });
+}
+
+await checkAsync("failed room and S6 cached loads start fresh on retry", async () => {
+  for (const kind of ["room", "s6"]) {
+    const source = readFileSync(kind === "room" ? "src/world/city.js" : "src/three/car/object.js", "utf8");
+    const from = source.indexOf(kind === "room" ? "const packCache =" : "const pending =");
+    const to = source.indexOf(kind === "room" ? "export async function createCity" : "// No-argument callers", from);
+    let calls = 0;
+    const context = { worldPackUrl: { high: { garage: "room" } }, cars: { s6: { url: "s6" } }, MeshoptDecoder: {},
+      GLTFLoader: class { setMeshoptDecoder() { return this; } },
+      loadModelWithDeadline: async () => { if (++calls === 1) throw new Error("download deadline"); return { scene: "retried scene" }; },
+    };
+    const preload = runInNewContext(`${source.slice(from, to).replaceAll("export ", "")}\n${kind === "room" ? "() => preloadPack('high', 'garage')" : "() => preloadCar('s6')"};`, context);
+    const failed = preload(); await assert.rejects(failed, /download deadline/);
+    const retried = preload(); assert.notEqual(retried, failed);
+    await retried; assert.equal(calls, 2);
+    assert.equal(preload(), retried, "a successful response remains shared");
+  }
+});
+
+await checkAsync("failed or stalled S6 cannot commit a room and retries stay possible", async () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const prepareGarage = () => {");
+  const to = source.indexOf("  const garageState = () =>", from);
+  const executable = `${source.slice(from, to).replaceAll("import.meta", "meta")}\nprepareGarage;`;
+  for (const stall of [false, true]) {
+    let builds = 0, attempts = 0;
+    const context = { disposed: false, tier: "high", reduced: false, hasGaragePack: () => true,
+      carRuntime: async () => ({}), garageData: async () => ({}), garageRoom: null, garageAvailable: "idle", garageReason: null,
+      publishGarage() {}, idleUploads: { wake() {} }, worldAssets: { worldPackPropsUrl: { high: { garage: "fixture" } } },
+      preloadPack: async () => ({}), GARAGE_PACK: "garage", placementPromise: null, fetchUnpacked: async () => [],
+      GARAGE_PHOTOS_ENABLED: false, boardTexture: null, carModels: { s6: {} },
+      preloadCar: () => { attempts++; return stall ? new Promise(() => {}) : Promise.reject(new Error("S6 failed")); },
+      withLoadDeadline: (fn) => deadlineModule.withLoadDeadline(fn, 5),
+      city: {}, findMod: null, construction: { run() { builds++; } }, garagePaintBatch: null, garageCars: null, meta: { env: { DEV: false } },
+    };
+    const prepare = runInNewContext(executable, context);
+    await assert.rejects(deadlineModule.withLoadDeadline(() => prepare(), 50));
+    assert.equal(context.garageAvailable, "failed"); assert.equal(context.garageRoom, null); assert.equal(builds, 0);
+    await assert.rejects(deadlineModule.withLoadDeadline(() => prepare(), 50)); assert.equal(attempts, 2, "retry requests the asset again");
+  }
+});
+
+// A final district can arrive after the initial probe but before readiness.
+// Execute the actual readiness handoff for each side of that race.
+check("late district completion refreshes the probe before releasing the bake", () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("        // The job has supplied every draw");
+  const to = source.indexOf("        return true;", from) + "        return true;".length;
+  for (const [streamed, probeStreamed] of [[false, false], [true, false], [true, true]]) {
+    const events = [];
+    const context = { streamed, probeStreamed, city: { root: {} }, garageAvailable: "loading",
+      garageCars: { captureProbe() { events.push("probe"); } },
+      releaseStreaming() { events.push("release"); }, publishGarage() { events.push("publish"); } };
+    runInNewContext(`(() => { ${source.slice(from, to)} })();`, context);
+    assert.deepEqual(events, [...(streamed && !probeStreamed ? ["probe"] : []), ...(streamed ? ["release"] : []), "publish"]);
+    assert.equal(context.garageAvailable, "ready");
+  }
+});
+
 // Run the actual preparation loop with a clock and resources whose cost is
 // known. Grouping warm-up must retain every program, texture and buffer job.
 {
   const source = readFileSync("src/world/world-scene.js", "utf8");
-  const from = source.indexOf("  const readyToDraw = async (drawn) => {");
+  const from = source.indexOf("  const readyToDraw = async (drawn, garage = false) => {");
   const to = source.indexOf("  // ---- searchlights", from);
   assert.ok(from >= 0 && to > from);
   let now = 0;
@@ -811,7 +1048,7 @@ check("resting garage preparation uploads once per frame without drawing", () =>
     Listed: class { constructor(drawn) { this.drawn = drawn; } },
     between: async () => {}, workAllowance: () => 4, WARM_BYTES: 100,
     performance: { now: () => now },
-    ask: async (job) => { const start = now; const result = job(); batches.push({ ms: now - start }); return result; },
+    queueUpload: async (job) => { const start = now; const result = job(); batches.push({ ms: now - start }); return result; },
   });
   await prepare(drawn);
   check("bounded preparation finishes every resource before readiness", () => {
@@ -841,7 +1078,7 @@ check("resting frames draw effective manual car state and layout once", () => {
     width: 1440, height: 900, packsIn: [], stage: { paused: false, mode: "page", garageProgress: .2, garageCut: 0 },
     visit: { stateAt: () => tour }, garageState: () => state, pinLayout: { side: { height: 100 } },
     disposed: false, city: {}, raf: 0, last: 0, timeIndex: 0, times: new Float32Array(64), reduced: true,
-    adapt: { sampling: false }, asks: [], requestAnimationFrame: () => 1, clamp: (v, a, b) => Math.min(b, Math.max(a, v)),
+    adapt: { sampling: false }, nextUpload: () => undefined, requestAnimationFrame: () => 1, clamp: (v, a, b) => Math.min(b, Math.max(a, v)),
     sample() {}, step() {}, draw: () => drawn.push({ ...state.hood }),
     soundscape: { update() {} }, motion: { vel: { length: () => 0 } }, getEnv: () => ({ wet: 0 }), shelterBox: null, traffic: null,
   };
