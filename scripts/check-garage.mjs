@@ -802,10 +802,82 @@ await checkAsync("still upload batches obey count, time, renderer ownership and 
 
 await checkAsync("a stalled download aborts and a subsequent attempt can finish", async () => {
   let signal;
-  await assert.rejects(deadlineModule.withLoadDeadline((s) => { signal = s; return new Promise(() => {}); }, 5), /took too long/);
+  await assert.rejects(deadlineModule.withLoadDeadline((s) => { signal = s; return new Promise(() => {}); }, 5), /stopped responding/);
   assert.equal(signal.aborted, true, "the actual network request receives cancellation");
   assert.equal(await deadlineModule.withLoadDeadline(async () => "retried", 20), "retried");
   await assert.rejects(deadlineModule.withLoadDeadline(async () => { throw new Error("failed S6"); }, 20000), /failed S6/);
+});
+
+// A virtual clock covers transfers longer than the inactivity allowance
+// without making this check sleep for a real minute.
+await checkAsync("slow but steady model bytes are not a stall", async () => {
+  const source = readFileSync("src/world/load-deadline.js", "utf8");
+  let clock = 0, id = 0, signal, released = false, parsed;
+  const timers = new Map();
+  const advance = (ms) => {
+    clock += ms;
+    for (const [key, timer] of [...timers]) if (timer.at <= clock) { timers.delete(key); timer.fn(); }
+  };
+  const bytes = [1, 2, 3, 4, 5, 6];
+  let chunk = 0;
+  const reader = { async read() {
+    if (chunk === bytes.length) return { done: true };
+    advance(15000);
+    if (signal.aborted) throw signal.reason;
+    return { done: false, value: new Uint8Array([bytes[chunk++]]) };
+  }, releaseLock() { released = true; } };
+  const load = runInNewContext(`${source.replaceAll("export ", "")}\nloadModelWithDeadline;`, {
+    AbortController, Uint8Array, clearTimeout: (key) => timers.delete(key),
+    setTimeout: (fn, ms) => { timers.set(++id, { at: clock + ms, fn }); return id; },
+    fetch: async (url, options) => { signal = options.signal; return { ok: true, body: { getReader: () => reader },
+      async arrayBuffer() { const data = []; for (;;) { const part = await reader.read(); if (part.done) return new Uint8Array(data).buffer; data.push(...part.value); } },
+    }; },
+  });
+  const result = await load("/models/test.glb", { parseAsync(data) { parsed = Array.from(new Uint8Array(data)); return "parsed"; } });
+  assert.equal(clock, 90000, "the transfer exceeds four inactivity windows");
+  assert.equal(result, "parsed"); assert.deepEqual(parsed, bytes); assert.equal(signal.aborted, false);
+  assert.equal(released, true); assert.equal(timers.size, 0, "success clears the last progress timer");
+});
+
+await checkAsync("district inactivity retries once, with fresh requests and a finite failure budget", async () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("    let nextPack = 0;");
+  const to = source.indexOf("    for (const [i, name] of PACKS.entries())", from);
+  const calls = new Map();
+  const loads = runInNewContext(`(() => { ${source.slice(from, to)} return loads; })();`, {
+    PACKS: ["transient", "permanent", "http-failure"], tier: "high", disposed: false,
+    retryStalledLoad: deadlineModule.retryStalledLoad,
+    preloadPack: async (tier, name) => {
+      const count = (calls.get(name) ?? 0) + 1; calls.set(name, count);
+      if (name === "http-failure") throw new Error("HTTP 503");
+      if (count === 1 || name === "permanent") throw Object.assign(new Error("inactivity"), { code: "load-stalled" });
+      return "fresh district";
+    },
+  });
+  const results = await Promise.all(loads);
+  assert.equal(results[0].s, "fresh district"); assert.equal(calls.get("transient"), 2);
+  assert.equal(results[1].err.code, "load-stalled"); assert.equal(calls.get("permanent"), 2);
+  assert.equal(calls.get("http-failure"), 1, "permanent HTTP failures do not loop");
+  let attempts = 0;
+  await assert.rejects(deadlineModule.retryStalledLoad(async () => { attempts++; throw Object.assign(new Error("disposed"), { code: "load-stalled" }); }, () => false));
+  assert.equal(attempts, 1, "disposal prevents a new request");
+});
+
+await checkAsync("the idle head start reuses the attempted S6 load even after a fast failure", async () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("    // The hero has its first frames.");
+  const to = source.indexOf("\n  };", from);
+  let requests = 1, streamed = false;
+  const failed = Promise.reject(new Error("S6 failed")); void failed.catch(() => {});
+  runInNewContext(source.slice(from, to), {
+    disposed: false, tier: "high", idle: async () => {}, hasGaragePack: () => true,
+    garageLoads: [Promise.resolve(), failed], carModels: { s6: {} }, GARAGE_PACK: "garage",
+    prepareGarage: () => { requests++; return Promise.reject(new Error("do not restart a completed failure")); },
+    preloadPack: async () => {}, preloadCar: async () => { requests++; },
+    setTimeout, clearTimeout, streamPacks: () => { streamed = true; },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(requests, 1); assert.equal(streamed, true);
 });
 
 await checkAsync("garage uploads and frame slots precede districts while the moon stays first", async () => {
@@ -859,13 +931,14 @@ for (const mode of ["settled", "failed", "stalled"]) {
     const events = [];
     let deadline;
     const load = () => mode === "stalled" ? new Promise(() => {}) : mode === "failed" ? Promise.reject(new Error("network")) : Promise.resolve();
-    runInNewContext(source.slice(from, to), {
-      disposed: false, tier: "high", idle: async () => {}, hasGaragePack: () => true,
+    const context = {
+      disposed: false, tier: "high", idle: async () => {}, hasGaragePack: () => true, garageLoads: null,
       carModels: { s6: {} }, GARAGE_PACK: "garage", preloadPack: load, preloadCar: load,
       setTimeout: (fn, ms) => { assert.equal(ms, 4000); deadline = fn; return 1; }, clearTimeout() {},
-      prepareGarage: () => { events.push("room requested"); return new Promise(() => {}); },
+      prepareGarage: () => { events.push("room requested"); context.garageLoads = [load(), load()]; return new Promise(() => {}); },
       streamPacks: () => events.push("district downloads"),
-    });
+    };
+    runInNewContext(source.slice(from, to), context);
     await new Promise((resolve) => setTimeout(resolve, 0));
     if (mode === "stalled") {
       assert.deepEqual(events, ["room requested"]);
@@ -883,7 +956,7 @@ await checkAsync("district downloads leave network capacity and continue past in
   assert.ok(from >= 0 && to > from);
   const asked = [], release = new Map(), PACKS = Array.from({ length: 9 }, (_, i) => `district-${i}`);
   const loads = runInNewContext(`(() => { ${source.slice(from, to)} return loads; })();`, {
-    PACKS, tier: "high", disposed: false,
+    PACKS, tier: "high", disposed: false, retryStalledLoad: deadlineModule.retryStalledLoad,
     preloadPack: (tier, name) => { asked.push(name); return new Promise((resolve, reject) => release.set(name, { resolve, reject })); },
   });
   assert.equal(asked.length, 3, "distant downloads leave connections for critical dependencies");
@@ -985,7 +1058,7 @@ await checkAsync("failed or stalled S6 cannot commit a room and retries stay pos
       publishGarage() {}, idleUploads: { wake() {} }, worldAssets: { worldPackPropsUrl: { high: { garage: "fixture" } } },
       preloadPack: async () => ({}), GARAGE_PACK: "garage", placementPromise: null, fetchUnpacked: async () => [],
       GARAGE_PHOTOS_ENABLED: false, boardTexture: null, carModels: { s6: {} },
-      preloadCar: () => { attempts++; return stall ? new Promise(() => {}) : Promise.reject(new Error("S6 failed")); },
+      preloadCar: () => { attempts++; return stall ? deadlineModule.withLoadDeadline(() => new Promise(() => {}), 5) : Promise.reject(new Error("S6 failed")); },
       withLoadDeadline: (fn) => deadlineModule.withLoadDeadline(fn, 5),
       city: {}, findMod: null, construction: { run() { builds++; } }, garagePaintBatch: null, garageCars: null, meta: { env: { DEV: false } },
     };

@@ -59,7 +59,7 @@ import { DROP, HANDOFF, REVEAL } from "../lib/cues.js";
 import { boards as BOARDS, towers as TOWERS, SHOTS, GARAGE_STATIONS, GARAGE_TIMELINE } from "../data/world.js";
 import { garageScrollFor } from "./scroll-stage.js";
 import { scrollToY } from "../lib/scroll.js";
-import { withLoadDeadline } from "./load-deadline.js";
+import { retryStalledLoad } from "./load-deadline.js";
 import { fetchUnpacked } from "./fetched.js";
 import * as worldAssets from "../data/world-assets.js";
 import { GARAGE_PHOTOS_ENABLED } from "../components/garage/features.js";
@@ -1484,12 +1484,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (!disposed) void idle().then(async () => {
       if (disposed) return;
       if (hasGaragePack(tier)) {
-        void prepareGarage().catch(() => false);
+        if (!garageLoads) void prepareGarage().catch(() => false);
         // Give the room and S6 first use of a slow connection. A stalled
         // request can delay distant downloads by at most four seconds.
         let timer;
         await Promise.race([
-          Promise.allSettled([preloadPack(tier, GARAGE_PACK), carModels.s6.unavailable ? Promise.resolve() : preloadCar("s6")]),
+          Promise.allSettled(garageLoads ?? []),
           new Promise((resolve) => { timer = setTimeout(resolve, 4000); }),
         ]).finally(() => clearTimeout(timer));
       }
@@ -1634,7 +1634,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const download = async () => {
       while (!disposed && nextPack < PACKS.length) {
         const i = nextPack++;
-        try { pending[i].resolve({ s: await preloadPack(tier, PACKS[i]) }); }
+        try { pending[i].resolve({ s: await retryStalledLoad(() => preloadPack(tier, PACKS[i]), () => !disposed) }); }
         catch (err) { pending[i].resolve({ err }); }
       }
     };
@@ -1687,6 +1687,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // resume afterwards. A failure lets a later ask try again.
   let streamed = false;
   let garageRoom = null;
+  let garageLoads = null;
   let roomCommitted = false;
   let boardTexture = null;
   let placementPromise = null;
@@ -1830,11 +1831,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       // Request the cached S6 alongside the room, before either is built.
       // Observe failure now and propagate it when car preparation needs it.
       const s6Load = carModels.s6.unavailable ? Promise.resolve() : preloadCar("s6");
+      garageLoads = [fetching, s6Load];
       void s6Load.catch(() => {});
       garageRoom = (async () => {
         // Network and module waits do not own the mutable bake buffers.
         // Once ready, the workshop precedes queued distant district builds.
-        const [packScene, placements, atlas, runtime, registry] = await withLoadDeadline(() => Promise.all([fetching, placementLoad, atlasLoad, carRuntime(), garageData(), s6Load]));
+        const [packScene, placements, atlas, runtime, registry] = await Promise.all([fetching, placementLoad, atlasLoad, carRuntime(), garageData(), s6Load]);
         if (disposed || !city) return false;
         findMod = registry.findMod;
         const fixtures = await construction.run(async () => {
