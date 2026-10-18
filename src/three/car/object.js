@@ -1,3 +1,4 @@
+import { loadModelWithDeadline } from "../../world/load-deadline.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { s4ModelUrl } from "../../data/s4";
@@ -17,7 +18,7 @@ const PARTS = ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr", "steer_fl", "stee
 export const cars = {
   s4: { url: s4ModelUrl, name: "ali_s4", title: "Ali's 2013 Audi S4", size: [2.02, 1.38, 4.74], wheelRadius: 0.34325, wheelbase: 2.811, unavailable: null },
   s6: {
-    ...garageS6Policy(s6ModelUrl, { development: import.meta.env.DEV, search: typeof location === "undefined" ? "" : location.search }), name: "ali_s6", title: "Ali's 2013 Audi S6", size: [2.088, 1.463, 4.939], wheelRadius: 0.3433, wheelbase: 2.912,
+    ...garageS6Policy(s6ModelUrl), name: "ali_s6", title: "Ali's 2013 Audi S6", size: [2.102, 1.477, 4.933], wheelRadius: 0.3433, wheelbase: 2.912,
   },
 };
 
@@ -36,7 +37,9 @@ export function preloadCar(kind = "s4") {
   if (cars[kind].unavailable) return Promise.reject(unavailable(kind));
   if (!pending[kind]) {
     const progress = kind === "s4" ? (e) => markBytes("car", e.loaded, e.total) : undefined;
-    pending[kind] = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(cars[kind].url, progress)
+    // The early S6 prefetch leaves the door's audio ahead on a slow link.
+    const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    pending[kind] = (kind === "s6" ? loadModelWithDeadline(cars[kind].url, loader, "low") : loader.loadAsync(cars[kind].url, progress))
       .then((gltf) => { sources[kind] = gltf.scene; })
       .catch((error) => { pending[kind] = null; throw error; });
   }

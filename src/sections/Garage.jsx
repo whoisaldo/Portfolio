@@ -31,15 +31,24 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
   const [previousLayout, setPreviousLayout] = useState(cinematic);
   const [applied, setApplied] = useState(null);
   const savedOverrides = useRef(null);
+  // The status the world was left with by this layer's own restore, not by
+  // anything the visitor did. Restoring with nothing selected makes the world
+  // say "Tour resumed." on every arrival, and it keeps that line in every
+  // later update, so it is held back until the world says something else or
+  // the visitor really clears a selection.
+  const quiet = useRef(null);
   const currentSelection = useRef(selection);
   currentSelection.current = selection;
   if (cinematic !== previousLayout) {
     setPreviousLayout(cinematic);
+    // The last status from before the controls went away was already heard.
+    setWorldState((state) => ({ ...state, status: "" }));
     if (cinematic && restoreAnchor?.startsWith("part:")) setPartsOpen(true);
   }
   const adapter = () => getWorld()?.garage;
   const select = useCallback((next) => {
     if (next && !cars[next.carId]?.mods.some((mod) => mod.id === next.modId)) return false;
+    quiet.current = null;
     setSelection(next);
     setGarageView({ selection: next });
     if (savedOverrides.current) {
@@ -67,6 +76,7 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     const g = adapter();
     if (savedOverrides.current) g?.restoreState?.({ ...savedOverrides.current, selection: currentSelection.current });
     else g?.select?.(currentSelection.current);
+    quiet.current = currentSelection.current ? null : g?.state?.status ?? null;
   }, [cinematic, context]);
   useEffect(() => {
     if (!cinematic) return undefined;
@@ -77,6 +87,7 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
     return g?.subscribe?.((state) => {
       savedOverrides.current = g.saveState?.() ?? savedOverrides.current;
       if (state.type === "pin-hidden") return;
+      if (state.status !== quiet.current) quiet.current = null;
       setWorldState(state);
       if (state.station) setStation(state.station);
       if ("activeCar" in state) setActiveCar(state.activeCar);
@@ -120,8 +131,8 @@ export default function Garage({ cinematic = false, availability = "idle", reaso
   };
   const missingS6 = worldState.models?.s6 === false;
   return <div ref={root} data-garage-car-missing={cinematic && missingS6 && activeCar === "s6" ? "true" : undefined} data-garage-ready={cinematic && availability === "ready" ? "true" : "false"}>
-    {cinematic && missingS6 && <p className="garage-model-note">The S6 model is being rebuilt. Its build details are available in Parts.</p>}
-    {cinematic ? <GarageControls {...common} station={station} stations={GARAGE_STATIONS} hood={worldState.hood} stance={worldState.lowering ? "lowered" : "normal"} override={worldState.override} status={worldState.status ?? ""} onLayout={(layout) => adapter()?.setPinLayout?.(layout)} registerPin={(key, el) => adapter()?.registerPin?.(key, el)} partsOpen={partsOpen} onPartsOpen={setPartsOpen} onHood={(id, open) => adapter()?.setHood?.(id, open)} onStance={(value) => adapter()?.setStance?.(value)} onResumeTour={() => adapter()?.resumeTour?.()} />
+    {cinematic && missingS6 && <p className="garage-model-note">The S6 model is unavailable. Its build details are available in Parts.</p>}
+    {cinematic ? <GarageControls {...common} station={station} stations={GARAGE_STATIONS} hood={worldState.hood} stance={worldState.lowering ? "lowered" : "normal"} override={worldState.override} status={worldState.status === quiet.current ? "" : worldState.status ?? ""} onLayout={(layout) => adapter()?.setPinLayout?.(layout)} registerPin={(key, el) => adapter()?.registerPin?.(key, el)} partsOpen={partsOpen} onPartsOpen={setPartsOpen} onHood={(id, open) => adapter()?.setHood?.(id, open)} onStance={(value) => adapter()?.setStance?.(value)} onResumeTour={() => { quiet.current = null; adapter()?.resumeTour?.(); }} />
       : GARAGE_PHOTOS_ENABLED && ArchivedPhotos ? <Suspense fallback={<GarageText {...common} />}><ArchivedPhotos {...common} /></Suspense> : <GarageText {...common} />}
   </div>;
 }

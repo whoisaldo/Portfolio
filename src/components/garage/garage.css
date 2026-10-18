@@ -212,6 +212,11 @@
   pointer-events: auto;
   will-change: transform;
 }
+/* Focus waits on the layer itself while the camera moves its marker away. */
+.gw-markers:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px #fcee0a;
+}
 /* Not shown until the world has placed it once. */
 .gw-pin-3d:not([style*="transform"]) { visibility: hidden; }
 
@@ -337,10 +342,13 @@
 .gw-panel-scroll { padding-bottom: 0.5rem; }
 
 /* Desktop: label upper left, the card down the left side, and two rows
-   along the bottom, the car and part controls above the stations. */
+   along the bottom, the car and part controls above the stations. The
+   stations start above the site's sound button and its volume slider
+   (Chrome.jsx, 2rem tall at 1.25rem from the bottom left), as on a phone:
+   lower down, the sound group takes the clicks meant for Arrival and S4. */
 @media (min-width: 768px) {
   .gw-stage {
-    padding: 5.25rem var(--gw-pad-x) 1.5rem;
+    padding: 5.25rem var(--gw-pad-x) 3.75rem;
     gap: 0.75rem;
     grid-template-columns: auto auto minmax(0, 1fr) auto;
     grid-template-rows: auto minmax(0, 1fr) auto auto;
@@ -361,10 +369,14 @@
 
 /* Phone: a line at the top, everything else in one strip at the bottom. The
    collapsed card plus both bars stay inside the bottom third or so; an open
-   card or list grows upward and scrolls inside itself. */
+   card or list grows upward and scrolls inside itself. The strip starts
+   above the site's sound button (Chrome.jsx, 2rem tall at 1.25rem from the
+   bottom left), which would otherwise sit on the first station tab and take
+   its taps; with sound on, its hidden volume slider takes taps to the right
+   of it too, so moving the strip sideways would not be enough. */
 @media (max-width: 767.98px) {
   .gw-stage {
-    padding: 4.25rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+    padding: 4.25rem 0.75rem calc(3.75rem + env(safe-area-inset-bottom));
     gap: 0.5rem;
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr) auto auto auto;

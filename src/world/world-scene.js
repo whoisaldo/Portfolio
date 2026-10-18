@@ -48,6 +48,7 @@ import { createTraffic, makeTrafficAhead } from "./traffic.js";
 import { createCar } from "./car.js";
 import { createClearance } from "./clearance.js";
 import { createShafts } from "./shafts.js";
+import { createGaragePaintBatch } from "./garage-paint-batch.js";
 import { createGarageVisit, createGarageCollision, createGaragePresentation, createGarageUploadPump, createGarageBuildQueue, cullGarageObjects, garageLights } from "./garage.js";
 import { LIGHT_BOUNDS } from "./spill.js";
 import { cars as carModels, preloadCar } from "../three/car/object.js";
@@ -58,6 +59,7 @@ import { DROP, HANDOFF, REVEAL } from "../lib/cues.js";
 import { boards as BOARDS, towers as TOWERS, SHOTS, GARAGE_STATIONS, GARAGE_TIMELINE } from "../data/world.js";
 import { garageScrollFor } from "./scroll-stage.js";
 import { scrollToY } from "../lib/scroll.js";
+import { retryStalledLoad } from "./load-deadline.js";
 import { fetchUnpacked } from "./fetched.js";
 import * as worldAssets from "../data/world-assets.js";
 import { GARAGE_PHOTOS_ENABLED } from "../components/garage/features.js";
@@ -254,6 +256,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // once the room is in: { pick(raycaster) -> { carId, point } | null,
   // flash(carId) -> Vector3 | null, ... }. Null until then.
   let garageCars = null;
+  let garagePaintBatch = null;
   let inspectionCursor = null;
   let inspectionTarget = null;
   let inspectionAspect = null;
@@ -974,6 +977,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let clock = 0;
   let firstFrame = false;
   let disposed = false;
+  let recentDrawMs = 0;
   const times = new Float32Array(240);
   let timeIndex = 0;
 
@@ -988,7 +992,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // room-prop lists and portal visibility before projectObject sees them.
   const renderScene = renderer.render;
   renderer.render = function (drawScene, drawCamera) {
-    if (city && (drawScene === scene || city.root.parent === drawScene)) {
+    // PMREM wraps the city in a transform group. Prepare every actual cube
+    // face too, so portal and prop runs never inherit a previous view.
+    let cityPass = drawScene === scene;
+    for (let parent = city?.root; !cityPass && parent; parent = parent.parent) cityPass = parent === drawScene;
+    if (city && cityPass) {
       drawCamera.updateMatrixWorld();
       city.visibility.prepare(drawCamera);
       city.props.update(drawCamera);
@@ -1026,6 +1034,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }
   };
   const draw = (dt, moonView = null, flow = dt) => {
+    const began = performance.now();
     renderer.info.reset();
     diagnostics?.begin();
     let mirrored = false;
@@ -1111,6 +1120,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       firstFrame = true;
       onFirstFrame?.();
     }
+    recentDrawMs = Math.max(performance.now() - began, recentDrawMs * .75);
   };
 
   // ---- adaptive quality -----------------------------------------------------
@@ -1129,7 +1139,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // Dev only: `?adapt=off` keeps every tier at full quality, so a
   // measurement on a loaded machine compares like with like instead of
   // whatever the first two seconds happened to shed.
-  const armed = !(import.meta.env.DEV && new URLSearchParams(window.location.search).get("adapt") === "off");
+  // A still garage can pause before the sample window finishes. Its upload
+  // and construction queues must never wait for an adaptive frame window.
+  const armed = !reduced && !(import.meta.env.DEV && new URLSearchParams(window.location.search).get("adapt") === "off");
   const adapt = { armed, sampling: false, t: 0, samples: [], shed: [], tried: [], p95: null, fade: null, reflectK: 0, trial: null };
   const startSampling = () => {
     adapt.sampling = true;
@@ -1225,7 +1237,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     raf = requestAnimationFrame(frame);
     // (load: one piece of work that waits on the GPU's process, before this
     // frame's draws; see `ask`.)
-    if (!adapt.sampling) asks.shift()?.run();
+    if (!adapt.sampling) nextUpload()?.run();
     const scrollDt = last ? clamp((now - last) / 1000, 0, .5) : 0;
     const dt = Math.min(scrollDt, 1 / 20);
     if (last) {
@@ -1449,7 +1461,6 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     for (const o of culled) o.frustumCulled = true;
     running = null;
     check();
-    streamPacks();
     buildSearchlights().catch((err) => {
       if (!disposed && import.meta.env.DEV) console.warn("[world] no searchlights", err);
     });
@@ -1461,10 +1472,29 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // door's last tick and an intro that can open on the moon come
     // together, as they did.
     const m = await moonMade;
-    if (!m || disposed) return;
-    post.setMoon(m.scene, m.camera);
-    await m.prepare(post.composer.inputBuffer, { width, height, pixelRatio: renderer.getPixelRatio() }, moonSlot);
-    if (!disposed) moon = m;
+    if (disposed) return;
+    if (m) {
+      post.setMoon(m.scene, m.camera);
+      await m.prepare(post.composer.inputBuffer, { width, height, pixelRatio: renderer.getPixelRatio() }, moonSlot);
+      if (!disposed) moon = m;
+    }
+    // The hero has its first frames. Prepare the workshop next, at idle,
+    // before distant districts take the shared construction buffers. Give
+    // its downloads a bounded head start without awaiting car readiness.
+    if (!disposed) void idle().then(async () => {
+      if (disposed) return;
+      if (hasGaragePack(tier)) {
+        if (!garageLoads) void prepareGarage().catch(() => false);
+        // Give the room and S6 first use of a slow connection. A stalled
+        // request can delay distant downloads by at most four seconds.
+        let timer;
+        await Promise.race([
+          Promise.allSettled(garageLoads ?? []),
+          new Promise((resolve) => { timer = setTimeout(resolve, 4000); }),
+        ]).finally(() => clearTimeout(timer));
+      }
+      if (!disposed) void streamPacks();
+    });
   };
 
   // (load) Work that waits on the GPU's process: a question it must answer
@@ -1476,14 +1506,21 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // drawn, 5 to 12 ms on a desktop. A page drawing nothing runs it after a
   // quarter of a second; none runs while the adaptive pass is timing.
   const asks = [];
+  // The loading room gets the next upload without changing district order.
+  const nextUpload = () => {
+    const first = garageAvailable === "loading" ? asks.findIndex((entry) => entry.garage) : -1;
+    return asks.splice(first < 0 ? 0 : first, 1)[0];
+  };
   const idleUploads = createGarageUploadPump({
-    run: () => asks.shift()?.run(), pending: () => asks.length > 0,
-    canRun: () => reduced && garageAvailable === "loading" && !raf && !adapt.sampling && stage.mode !== "cinematic" && !disposed,
+    batch: 4, budgetMs: 4,
+    run: () => nextUpload()?.run(), pending: () => asks.length > 0,
+    canRun: () => garageAvailable === "loading" && !raf && !adapt.sampling && stage.mode !== "cinematic" && !disposed,
   });
   const cancelledBuild = () => new DOMException("The world was disposed.", "AbortError");
-  const ask = (job) => new Promise((resolve, reject) => {
+  const queueUpload = (job, garage = false) => new Promise((resolve, reject) => {
     if (disposed) { reject(cancelledBuild()); return; }
     const entry = {
+      garage,
       run() {
         if (entry.done) return;
         entry.done = true;
@@ -1499,7 +1536,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     };
     let late = 0;
     const overdue = () => {
-      if (adapt.sampling) {
+      if (adapt.sampling || (!garage && garageAvailable === "loading" && asks.some((entry) => entry.garage))) {
         late = setTimeout(overdue, 250);
         return;
       }
@@ -1509,21 +1546,23 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     };
     late = setTimeout(overdue, 250);
     asks.push(entry);
-    if (reduced) idleUploads.wake();
+    idleUploads.wake();
   });
 
+  const garageAsk = (job) => queueUpload(job, true);
+
   // (load) Work spread over the page's frames: each frame gives up to
-  // WORK_MS of it, run just after that frame is drawn (the frame's own work
-  // is a few milliseconds, so the frame and its share stay inside the
-  // tier's budget). `between()` resolves at once while this frame's share
-  // lasts, else just after the next frame; a page drawing nothing (the tab
+  // workAllowance() of it, run just after that frame is drawn. Leave room
+  // for the recent draw and two milliseconds for other page work, with an
+  // eight millisecond ceiling (six on phone). `between()` resolves at once
+  // while that share lasts, else after the next frame; no drawing (the tab
   // hidden, a cover up) has no frames to follow, and waits a sixth of a
   // second instead.
   // (While the adaptive pass is timing the page's frames, none of it: what
   // it times is the city's own frame, and a frame with a share of work in
   // it misses a fast display's refresh where the city's alone does not, so
   // the pass shed pixels a visitor's machine had to spare.)
-  const WORK_MS = tier === "phone" ? 6 : 4;
+  const workAllowance = () => Math.max(1, Math.min(tier === "phone" ? 6 : 8, 16.7 - recentDrawMs - 2));
   let workFrom = -Infinity;
   // (`untimed`: the voxel moon's, which the intro may wait for, runs on.)
   // One piece of work is let go a frame, so two at once (a district and the
@@ -1544,7 +1583,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         return;
       }
       const moonFirst = waiting.findIndex((w) => w.untimed);
-      const i = moonFirst >= 0 ? moonFirst : adapt.sampling ? -1 : 0;
+      const garageFirst = garageAvailable === "loading" ? waiting.findIndex((w) => w.garage) : -1;
+      const i = moonFirst >= 0 ? moonFirst : adapt.sampling ? -1 : garageFirst >= 0 ? garageFirst : 0;
       if (i < 0) {
         next = requestAnimationFrame(go);
         late = setTimeout(go, 160);
@@ -1561,14 +1601,15 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     next = requestAnimationFrame(go);
     late = setTimeout(go, 160);
   };
-  const slot = (untimed) => {
-    if (!(adapt.sampling && !untimed) && performance.now() - workFrom < WORK_MS) return Promise.resolve();
+  const slot = (untimed, garage = false) => {
+    if (!(adapt.sampling && !untimed) && performance.now() - workFrom < workAllowance()) return Promise.resolve();
     return new Promise((resolve) => {
-      waiting.push({ resolve, untimed });
+      waiting.push({ resolve, untimed, garage });
       if (!slotArmed) arm();
     });
   };
   const between = async () => { if (disposed) throw cancelledBuild(); await slot(false); if (disposed) throw cancelledBuild(); };
+  const garageBetween = async () => { if (disposed) throw cancelledBuild(); await slot(false, true); if (disposed) throw cancelledBuild(); };
   const moonSlot = async () => { if (disposed) throw cancelledBuild(); await slot(true); if (disposed) throw cancelledBuild(); };
 
   // ---- the districts behind the core ------------------------------------------
@@ -1581,8 +1622,24 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const packsIn = [];
   const construction = createGarageBuildQueue();
   const streamPacks = async () => {
-    // All fetched at once, built in one at a time in the streaming order.
-    const loads = PACKS.map((name) => preloadPack(tier, name).then((s) => ({ s }), (err) => ({ err })));
+    // Three background requests leave connections for the door, inspection
+    // worker and marker module, even on a six-connection HTTP/1.1 preview.
+    // Downloads remain independent of room readiness and commit in order.
+    let nextPack = 0;
+    const pending = PACKS.map(() => {
+      let resolve;
+      const ready = new Promise((done) => { resolve = done; });
+      return { ready, resolve };
+    });
+    const download = async () => {
+      while (!disposed && nextPack < PACKS.length) {
+        const i = nextPack++;
+        try { pending[i].resolve({ s: await retryStalledLoad(() => preloadPack(tier, PACKS[i]), () => !disposed) }); }
+        catch (err) { pending[i].resolve({ err }); }
+      }
+    };
+    void Promise.all(Array.from({ length: 3 }, download));
+    const loads = pending.map((entry) => entry.ready);
     for (const [i, name] of PACKS.entries()) {
       try {
         const { s: packScene, err } = await loads[i];
@@ -1630,6 +1687,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // resume afterwards. A failure lets a later ask try again.
   let streamed = false;
   let garageRoom = null;
+  let garageLoads = null;
   let roomCommitted = false;
   let boardTexture = null;
   let placementPromise = null;
@@ -1758,7 +1816,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (!garageRoom) {
       garageAvailable = "loading";
       garageReason = null;
-      if (reduced) idleUploads.wake();
+      idleUploads.wake();
       publishGarage();
       // Optional exports are absent until B2's delivery lands. Missing
       // placements are a failure, never a furnished-room readiness signal.
@@ -1770,46 +1828,63 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       })) : Promise.reject(new Error("The workshop placements are unavailable."));
       const boardsUrl = GARAGE_PHOTOS_ENABLED ? Reflect.get(worldAssets, "worldGarageBoardsUrl")?.[tier] : null;
       const atlasLoad = boardsUrl && !boardTexture ? new THREE.TextureLoader().loadAsync(boardsUrl).then((texture) => (boardTexture = texture)) : Promise.resolve(boardTexture);
-      garageRoom = construction.run(async () => {
-        const [packScene, placements, atlas, runtime, registry] = await Promise.all([fetching, placementLoad, atlasLoad, carRuntime(), garageData()]);
-        findMod = registry.findMod;
+      // Request the cached S6 alongside the room, before either is built.
+      // Observe failure now and propagate it when car preparation needs it.
+      const s6Load = carModels.s6.unavailable ? Promise.resolve() : preloadCar("s6");
+      garageLoads = [fetching, s6Load];
+      void s6Load.catch(() => {});
+      garageRoom = (async () => {
+        // Network and module waits do not own the mutable bake buffers.
+        // Once ready, the workshop precedes queued distant district builds.
+        const [packScene, placements, atlas, runtime, registry] = await Promise.all([fetching, placementLoad, atlasLoad, carRuntime(), garageData(), s6Load]);
         if (disposed || !city) return false;
-        await idle();
-        if (disposed) return false;
-        if (atlas) city.garageMaterials.setBoards(boardTexture = atlas);
-        packScene.updateMatrixWorld(true);
-        packScene.traverse((node) => {
-          if (!/^(anchor_|cam_)/.test(node.name)) return;
-          const position = new THREE.Vector3();
-          const quaternion = new THREE.Quaternion();
-          node.matrixWorld.decompose(position, quaternion, new THREE.Vector3());
-          city.anchors.set(node.name, { position, quaternion, extras: node.userData });
-        });
-        visit = createGarageVisit(city.anchors);
-        inspectionCursor = null;
-        if (visit.placeholders.length) throw new Error("The workshop camera setup is incomplete.");
-        city.garageMaterials.setRects(garageLights(city.anchors));
-        city.kit.wet.garage?.set(garageLights(city.anchors));
-        const fixtures = [...city.anchors].filter(([name]) => name.startsWith("anchor_garage_light_")).map(([name, anchor]) => ({ name, ...anchor, ...anchor.extras }));
-        if (!roomCommitted) {
-          await city.addPack(GARAGE_PACK, packScene, { placements, beforeMerge: (part) => clearance?.add(part), between, ready: readyToDraw,
-            validate: () => {
-              const missing = city.garageMaterials.missing;
-              if (missing.length) throw new Error(`The workshop is missing ${missing.join(", ")}`);
-            },
+        findMod = registry.findMod;
+        const fixtures = await construction.run(async () => {
+          await idle();
+          if (disposed) return {};
+          if (atlas) city.garageMaterials.setBoards(boardTexture = atlas);
+          packScene.updateMatrixWorld(true);
+          packScene.traverse((node) => {
+            if (!/^(anchor_|cam_)/.test(node.name)) return;
+            const position = new THREE.Vector3();
+            const quaternion = new THREE.Quaternion();
+            node.matrixWorld.decompose(position, quaternion, new THREE.Vector3());
+            city.anchors.set(node.name, { position, quaternion, extras: node.userData });
           });
-          roomCommitted = true;
-          packsIn.push(GARAGE_PACK);
-        }
+          visit = createGarageVisit(city.anchors);
+          inspectionCursor = null;
+          if (visit.placeholders.length) throw new Error("The workshop camera setup is incomplete.");
+          city.garageMaterials.setRects(garageLights(city.anchors));
+          city.kit.wet.garage?.set(garageLights(city.anchors));
+          const fixtures = [...city.anchors].filter(([name]) => name.startsWith("anchor_garage_light_")).map(([name, anchor]) => ({ name, ...anchor, ...anchor.extras }));
+          if (!roomCommitted) {
+            await city.addPack(GARAGE_PACK, packScene, { placements, beforeMerge: (part) => clearance?.add(part), between: garageBetween, ready: (drawn) => readyToDraw(drawn, true),
+              validate: () => {
+                const missing = city.garageMaterials.missing;
+                if (missing.length) throw new Error(`The workshop is missing ${missing.join(", ")}`);
+              },
+            });
+            roomCommitted = true;
+            packsIn.push(GARAGE_PACK);
+          }
+          return fixtures;
+        }, { priority: true });
         if (disposed) return false;
-        await between();
+        await garageBetween();
         if (disposed) return false;
         // The completed room is still behind text. Cars and their static
         // lighting probe can now prepare against its actual surfaces.
-        if (!garageCars) garageCars = createGaragePresentation(runtime.default ?? runtime.createGarageCars, { scene, renderer, shared, tier, reduced, anchors: city.anchors, fixtures, road: car, camera, between }, { s6Available: !carModels.s6.unavailable });
+        if (!garageCars) garageCars = createGaragePresentation(runtime.default ?? runtime.createGarageCars, { scene, renderer, shared, tier, reduced, anchors: city.anchors, fixtures, road: car, camera, between: garageBetween }, { s6Available: !carModels.s6.unavailable });
         await garageCars.ready;
+        if (!garagePaintBatch) {
+          let inspection = garageCars.anchors().find((anchor) => anchor.carId === "s4")?.owner;
+          while (inspection && inspection.parent !== car.car) inspection = inspection.parent;
+          if (inspection) garagePaintBatch = createGaragePaintBatch(inspection);
+          if (garagePaintBatch) await renderer.compileAsync?.(garagePaintBatch.mesh, camera, scene);
+        }
         if (disposed) return false;
         if (["s4", "s6"].some((id) => garageCars.stats?.[id]?.placeholder && !garageCars.stats[id].visitorOmitted)) throw new Error("A development car cannot be presented as a finished model.");
+        const probeStreamed = streamed;
         if (diagnostics) await diagnostics.during("garage-probe", () => garageCars.captureProbe?.(city.root));
         else await garageCars.captureProbe?.(city.root);
         if (disposed) return false;
@@ -1817,15 +1892,24 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         // Validate the sampled camera after the actual car state has been
         // applied. All geometry remains hidden behind the text until this
         // finishes; construction yields through the same frame scheduler.
+        const parkedStates = new Map();
         for (const a of [16 / 10, 390 / 844]) for (let i = 0; i <= 1000; i++) {
           const p = i / 1000;
           const state = visit.stateAt(p, reduced);
-          garageCars.applyState(state);
+          // Both aspect sweeps use the same exact physical states. Holds
+          // need one bounds walk; every distinct hood/drop fraction still
+          // gets its own real geometry query, without rounding the state.
+          const key = JSON.stringify([state.hood.s4, state.hood.s6, state.lowering]);
+          let parked = parkedStates.get(key);
+          if (!parked) {
+            garageCars.applyState(state);
+            parked = withParkedS4(() => garageCars.bounds());
+            parkedStates.set(key, parked);
+          }
           const candidate = visit.at(p, a, undefined, reduced);
-          const parked = withParkedS4(() => garageCars.bounds());
           const collision = createGarageCollision({ solids: () => city.garageSolids, cars: () => parked });
           if (collision.clearance(candidate.position) < .45 || collision.nearPlane(candidate, a, camera.near) < .15) throw new Error(`Workshop camera clearance failed at ${p.toFixed(3)}.`);
-          if (i % 20 === 0) { await between(); if (disposed) return false; }
+          if (i % 20 === 0) { await garageBetween(); if (disposed) return false; }
         }
         // Inspection changes may take any graph branch with either hood
         // open. Validate complete oriented poses against the conservative
@@ -1841,7 +1925,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
             for (let i = 0; i <= count; i++) {
               const candidate = visit.sample(edge.id, edge.from, edge.into, i / count, a, makePose());
               if (graphCollision.clearance(candidate.position) < .45 || graphCollision.nearPlane(candidate, a, camera.near) < .15) throw new Error(`Workshop inspection clearance failed on ${edge.id} at ${i}/${count}.`);
-              if (i % 100 === 0) { await between(); if (disposed) return false; }
+              if (i % 100 === 0) { await garageBetween(); if (disposed) return false; }
             }
           }
           for (const id of ["s4", "s6"]) {
@@ -1856,7 +1940,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         garageCars.attach();
         // A real room frame is drawn out of sight before the text layout
         // is released. Preserve the on-screen camera and render target.
-        await ask(() => {
+        await garageAsk(() => {
           if (disposed) return;
           const warmTarget = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType });
           warmTarget.texture.name = "garage readiness warm frame";
@@ -1900,13 +1984,20 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         cover?.render(city.root);
         // The job has supplied every draw before it releases the shared
         // bake. Readiness never precedes maps, placements or car warm-up.
-        if (streamed) releaseStreaming();
+        // Streaming can finish during validation, before the ready-state
+        // refresh in streamPacks can see this room. Capture its final scene.
+        if (streamed) {
+          if (!probeStreamed) garageCars.captureProbe?.(city.root);
+          releaseStreaming();
+        }
         garageAvailable = "ready";
         publishGarage();
         return true;
-      }, { priority: true }).catch((err) => {
+      })().catch((err) => {
         if (disposed) return false;
         garageRoom = null;
+        placementPromise = null;
+        garagePaintBatch?.dispose(); garagePaintBatch = null;
         garageCars?.dispose();
         garageCars = null;
         garageAvailable = "failed";
@@ -2069,7 +2160,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }
     traverseVisible() {}
   }
-  const readyToDraw = async (drawn) => {
+  const readyToDraw = async (drawn, garage = false) => {
+    const yieldWork = garage ? garageBetween : between;
+    const ask = (job) => queueUpload(job, garage);
     if (disposed) return;
     const programs = warmKit ? [] : (warmKit = makeWarmKit()).programs;
     const versions = new Map();
@@ -2078,7 +2171,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const compileSome = async (list) => {
       const made = [];
       for (const d of list) {
-        await between();
+        await yieldWork();
         if (disposed) return made;
         const before = renderer.info.programs.length;
         const target = renderer.getRenderTarget();
@@ -2092,19 +2185,27 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     programs.push(...(await compileSome(drawn)));
     // And the rain's cover, which draws the kit from above in its own
     // material (cover.js), as it will once the district is in.
-    await between();
+    await yieldWork();
     if (disposed) return;
     programs.push(...(cover?.compile(drawn) ?? []));
     for (let round = 0; round < 3 && !disposed; round++) {
-      // Each program once it is built, first used before a frame.
+      // Wait for every program, then initialize ready ones within the same
+      // measured share. Small uniform lookups do not each cost a refresh.
       for (const program of programs) {
         while (!program.isReady()) {
-          await between();
+          await yieldWork();
           if (disposed) return;
         }
+      }
+      let programIndex = 0;
+      while (programIndex < programs.length) {
         await ask(() => {
-          program.getUniforms();
-          program.getAttributes();
+          const from = performance.now(), allowance = workAllowance();
+          do {
+            const program = programs[programIndex++];
+            program.getUniforms();
+            program.getAttributes();
+          } while (programIndex < programs.length && performance.now() - from < allowance);
         });
         if (disposed) return;
       }
@@ -2117,9 +2218,14 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         for (const k of Object.keys(m)) add(m[k]);
         for (const u of Object.values(m.uniforms ?? {})) add(u?.value);
       }
-      for (const p of pictures) {
-        if (renderer.properties.get(p).__version === p.version) continue;
-        await ask(() => renderer.initTexture(p));
+      const pendingPictures = [...pictures].filter((p) => renderer.properties.get(p).__version !== p.version);
+      let pictureIndex = 0;
+      while (pictureIndex < pendingPictures.length) {
+        await ask(() => {
+          const from = performance.now(), allowance = workAllowance();
+          do { renderer.initTexture(pendingPictures[pictureIndex++]); }
+          while (pictureIndex < pendingPictures.length && performance.now() - from < allowance);
+        });
         if (disposed) return;
       }
       if (round === 0) {
@@ -2279,7 +2385,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // Braindance owns the frame loop, including while its tape waits for
     // the room. Service the same upload queue here instead of throttling
     // every pack step through the paused-page 250 ms fallback.
-    if (!adapt.sampling) asks.shift()?.run();
+    if (!adapt.sampling) nextUpload()?.run();
     directed = spec;
     copyPose(pose, spec.pose);
     copyPose(want, spec.pose);
@@ -2311,6 +2417,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     idleUploads.dispose();
     garageAvailable = contextLost ? "lost" : "off";
     asks.splice(0).forEach((entry) => entry.run());
+    garagePaintBatch?.dispose(); garagePaintBatch = null;
     garageCars?.dispose();
     garageCars = null;
     garageSubscribers.clear();

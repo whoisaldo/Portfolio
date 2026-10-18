@@ -1,4 +1,4 @@
-"""The parts that make the CC-BY A6 into Ali's S6. Executed in build_s6.py's context.
+"""The parts that make the A6 C7 base into Ali's S6. Executed in build_s6.py's context.
 
 Each part is built in the car's frame (X left, -Y forward, Z up, metres,
 origin on the ground midway between the axles), then gathered under one

@@ -260,7 +260,7 @@ box('bay_floor', (0, -.03, -.56), (1.2, .95, .03), shadow, engine, 0)
 
 # The lock carrier across the front: a black plastic top over the radiator,
 # the latch in the middle and the headlamps' backs at its ends.
-front = local((0, -2.16, .78))
+front = local((0, *LOCK_AT))   # build_s6.py: under the hood's front edge
 box('lock_carrier_top', tuple(front + Vector((0, .0, -.035))), (.86, .1, .025), plastic, engine, .008)
 box('lock_carrier_riser', tuple(front + Vector((0, .055, -.1))), (.8, .02, .13), plastic, engine, .006)
 box('bonnet_latch', tuple(front + Vector((0, .005, -.012))), (.07, .045, .028), head, engine, .006)

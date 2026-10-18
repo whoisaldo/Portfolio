@@ -36,14 +36,20 @@ let materialModule;
 let scrollModule;
 let mergeModule;
 let inspectionModule;
+let paintBatchModule;
 let policyModule;
+let videoModule;
 let carSpecs;
+let deadlineModule;
 let s4Mods;
 let GLTFLoader;
 let carDecoder;
 try {
   [world, garage, three, propsModule, materialModule, scrollModule, mergeModule] = await Promise.all([vite.ssrLoadModule("/src/data/world.js"), vite.ssrLoadModule("/src/world/garage.js"), vite.ssrLoadModule("three"), vite.ssrLoadModule("/src/world/props.js"), vite.ssrLoadModule("/src/world/garage-materials.js"), vite.ssrLoadModule("/src/world/scroll-stage.js"), vite.ssrLoadModule("/src/world/merge.js")]);
+  paintBatchModule = await vite.ssrLoadModule("/src/world/garage-paint-batch.js");
   policyModule = await vite.ssrLoadModule("/src/world/garage-policy.js");
+  deadlineModule = await vite.ssrLoadModule("/src/world/load-deadline.js");
+  videoModule = await vite.ssrLoadModule("/src/world/garage-video.js");
   ({ cars: carSpecs } = await vite.ssrLoadModule("/src/three/car/object.js"));
   [inspectionModule, { mods: s4Mods }, { GLTFLoader }, { MeshoptDecoder: carDecoder }] = await Promise.all([vite.ssrLoadModule("/src/three/car/inspect.js"), vite.ssrLoadModule("/src/data/garage.js"), vite.ssrLoadModule("three/addons/loaders/GLTFLoader.js"), vite.ssrLoadModule("three/addons/libs/meshopt_decoder.module.js")]);
 } finally {
@@ -62,19 +68,105 @@ const check = (name, fn) => {
   }
 };
 
-check("the provisional S6 stays on the development test path until review", () => {
+check("the approved S6 is available on every visitor path", () => {
   const asset = "/models/ali-s6.glb?v=review";
-  assert.equal(policyModule.garageS6Policy(asset).url, null);
-  assert.equal(policyModule.garageS6Policy(asset, { search: "?garage-test-s6=1" }).url, null);
-  assert.equal(policyModule.garageS6Policy(asset, { development: true }).url, null);
+  assert.deepEqual(policyModule.garageS6Policy(asset), { url: asset, unavailable: null });
+  assert.equal(policyModule.garageS6Policy(asset, { search: "?garage-test-s6=1" }).url, asset);
+  assert.equal(policyModule.garageS6Policy(asset, { development: true }).url, asset);
   assert.deepEqual(policyModule.garageS6Policy(asset, { development: true, search: "?garage-test-s6=1" }), { url: asset, unavailable: null });
   assert.equal(policyModule.garageS6Policy(null).url, null);
   assert.ok(carSpecs.s4.url);
   assert.equal(carSpecs.s4.unavailable, null);
-  assert.equal(carSpecs.s6.url, null);
+  assert.ok(carSpecs.s6.url);
+  assert.equal(carSpecs.s6.unavailable, null);
 });
 
+const checkAsync = async (name, fn) => {
+  try { await fn(); } catch (err) { failures.push(`${name}: ${err.message}`); }
+};
+
 // ---- the timeline -------------------------------------------------------------
+check("monitor textures follow decoded frames and dispose their callbacks", () => {
+  let callback, requests = 0, cancelled = 0, disposed = 0;
+  const listeners = new Map();
+  const video = { readyState: 2, videoWidth: 1280, videoHeight: 720, currentTime: 0,
+    getVideoPlaybackQuality: () => ({ totalVideoFrames: 1 }),
+    requestVideoFrameCallback(fn) { callback = fn; return ++requests; },
+    cancelVideoFrameCallback(id) { cancelled = id; },
+    addEventListener: (name, fn) => listeners.set(name, fn),
+    removeEventListener: (name) => listeners.delete(name),
+  };
+  const textures = [];
+  const monitor = videoModule.createGarageVideoTexture(video, (texture) => {
+    textures.push(texture); texture.addEventListener("dispose", () => disposed++);
+  });
+  const first = textures[0], initial = first.version;
+  assert.equal(first.isVideoTexture, true, "retain Three's native video upload path");
+  assert.equal(first.internalFormat, "RGBA8", "retain the monitor shader's raw video texels");
+  assert.equal(video.width, video.videoWidth, "the detached element supplies positive storage dimensions");
+  assert.equal(video.height, video.videoHeight);
+  assert.equal(first.colorSpace, three.SRGBColorSpace);
+  assert.equal(first.generateMipmaps, false);
+  callback(0, { presentedFrames: 1, mediaTime: 0 });
+  assert.equal(first.version, initial + 1, "native decoded notifications are retained");
+  monitor.update(); monitor.update();
+  assert.equal(first.version, initial + 1, "render passes do not repeat a decoded notification");
+  callback(1, { presentedFrames: 2, mediaTime: 1 / 24 });
+  assert.equal(first.version, initial + 2, "every new decoded frame is uploaded");
+  callback(1.5, { presentedFrames: 2, mediaTime: 1.5 });
+  assert.equal(first.version, initial + 3, "a paused seek can change media time without advancing the presented-frame counter");
+  video.videoWidth = 1920; video.videoHeight = 1080;
+  monitor.update();
+  callback(2, { presentedFrames: 3, mediaTime: 2 / 24 });
+  assert.equal(textures.length, 2, "a source-size change gets a fresh allocation");
+  assert.equal(disposed, 1);
+  const resized = textures.at(-1), version = resized.version;
+  video.readyState = 1;
+  callback(3, { presentedFrames: 4, mediaTime: 3 });
+  assert.equal(resized.version, version + 1, "native decoding retains a notification during transient seek readiness");
+  video.readyState = 2;
+  video.currentTime = 3;
+  listeners.get("seeked")();
+  assert.equal(resized.version, version + 2, "a completed seek supplies its available picture");
+  monitor.dispose();
+  assert.equal(disposed, 2);
+  assert.equal(cancelled, requests);
+  assert.equal(listeners.size, 0);
+});
+check("monitor textures retain the fallback update contract without frame callbacks", () => {
+  const listeners = new Map();
+  const video = { readyState: 2, videoWidth: 1280, videoHeight: 720, currentTime: 0,
+    addEventListener: (name, fn) => listeners.set(name, fn),
+    removeEventListener: (name) => listeners.delete(name),
+  };
+  let texture;
+  const monitor = videoModule.createGarageVideoTexture(video, (map) => { texture = map; });
+  const initial = texture.version;
+  monitor.update(); monitor.update();
+  assert.equal(texture.version, initial);
+  video.currentTime = .5;
+  monitor.update();
+  assert.equal(texture.version, initial + 1);
+  monitor.update();
+  assert.equal(texture.version, initial + 1, "a paused fallback video does not reupload");
+  monitor.dispose();
+  let frames = 1;
+  video.getVideoPlaybackQuality = () => ({ totalVideoFrames: frames });
+  const counted = videoModule.createGarageVideoTexture(video, (map) => { texture = map; });
+  const first = texture.version;
+  video.currentTime = .51; counted.update();
+  video.currentTime = .52; counted.update();
+  assert.equal(texture.version, first, "a playback clock tick is not a new decoded frame");
+  frames++;
+  counted.update();
+  assert.equal(texture.version, first + 1);
+  video.currentTime = 3;
+  listeners.get("seeked")();
+  assert.equal(texture.version, first + 2, "a fallback paused seek updates even with an unchanged frame counter");
+  counted.dispose();
+  assert.equal(listeners.size, 0);
+});
+
 {
   const queue = garage.createGarageBuildQueue();
   const order = [];
@@ -657,28 +749,28 @@ check("world-space batching supplies typed identity textures and releases them",
   material.dispose();
 });
 
-check("resting garage preparation uploads once per frame without drawing", () => {
+await checkAsync("resting garage preparation uploads once per frame without drawing", async () => {
   const callbacks = new Map(), jobs = [1, 2, 3, 4], completed = [];
   let id = 0, allowed = true;
   const pump = garage.createGarageUploadPump({
     run: () => completed.push(jobs.shift()), pending: () => jobs.length > 0, canRun: () => allowed,
     schedule: (fn) => { callbacks.set(++id, fn); return id; }, cancel: (key) => callbacks.delete(key),
   });
-  const frame = () => {
+  const frame = async () => {
     const next = [...callbacks.values()];
     callbacks.clear();
-    next.forEach((fn) => fn());
+    for (const fn of next) await fn();
   };
   pump.wake(); pump.wake();
   assert.equal(callbacks.size, 1, "parallel uploads share one preparation frame");
-  frame();
+  await frame();
   assert.deepEqual(completed, [1], "only one upload runs per frame");
   allowed = false;
-  frame();
+  await frame();
   assert.deepEqual(completed, [1], "an active renderer or sampling retains its queue");
   assert.equal(callbacks.size, 0, "ineligible preparation does not keep a frame loop");
   allowed = true;
-  pump.wake(); frame(); frame(); frame();
+  pump.wake(); await frame(); await frame(); await frame();
   assert.deepEqual(completed, [1, 2, 3, 4]);
   assert.equal(callbacks.size, 0, "settled preparation has no recurring frame");
   jobs.push(5);
@@ -689,6 +781,360 @@ check("resting garage preparation uploads once per frame without drawing", () =>
   stale(); pump.wake();
   assert.deepEqual(completed, [1, 2, 3, 4], "disposal cancels pending and stale callbacks");
 });
+
+await checkAsync("still upload batches obey count, time, renderer ownership and disposal", async () => {
+  for (const cost of [0, 3]) {
+    const callbacks = [], done = [];
+    let now = 0, allowed = true;
+    const pump = garage.createGarageUploadPump({ batch: 4, budgetMs: 4, now: () => now,
+      run: () => { done.push(done.length); now += cost; }, pending: () => done.length < 10,
+      canRun: () => allowed, schedule: (fn) => { callbacks.push(fn); return callbacks.length; }, cancel() {},
+    });
+    pump.wake(); await callbacks.shift()();
+    assert.equal(done.length, cost ? 2 : 4, "stop at either the time or count bound");
+    allowed = false; await callbacks.shift()();
+    const count = done.length;
+    assert.equal(callbacks.length, 0, "renderer ownership stops the pump");
+    allowed = true; pump.wake(); const stale = callbacks.shift(); pump.dispose(); await stale();
+    assert.equal(done.length, count, "disposal blocks stale batches");
+  }
+});
+
+await checkAsync("a stalled download aborts and a subsequent attempt can finish", async () => {
+  let signal;
+  await assert.rejects(deadlineModule.withLoadDeadline((s) => { signal = s; return new Promise(() => {}); }, 5), /stopped responding/);
+  assert.equal(signal.aborted, true, "the actual network request receives cancellation");
+  assert.equal(await deadlineModule.withLoadDeadline(async () => "retried", 20), "retried");
+  await assert.rejects(deadlineModule.withLoadDeadline(async () => { throw new Error("failed S6"); }, 20000), /failed S6/);
+});
+
+// A virtual clock covers transfers longer than the inactivity allowance
+// without making this check sleep for a real minute.
+await checkAsync("slow but steady model bytes are not a stall", async () => {
+  const source = readFileSync("src/world/load-deadline.js", "utf8");
+  let clock = 0, id = 0, signal, released = false, parsed;
+  const timers = new Map();
+  const advance = (ms) => {
+    clock += ms;
+    for (const [key, timer] of [...timers]) if (timer.at <= clock) { timers.delete(key); timer.fn(); }
+  };
+  const bytes = [1, 2, 3, 4, 5, 6];
+  let chunk = 0;
+  const reader = { async read() {
+    if (chunk === bytes.length) return { done: true };
+    advance(15000);
+    if (signal.aborted) throw signal.reason;
+    return { done: false, value: new Uint8Array([bytes[chunk++]]) };
+  }, releaseLock() { released = true; } };
+  const load = runInNewContext(`${source.replaceAll("export ", "")}\nloadModelWithDeadline;`, {
+    AbortController, Uint8Array, clearTimeout: (key) => timers.delete(key),
+    setTimeout: (fn, ms) => { timers.set(++id, { at: clock + ms, fn }); return id; },
+    fetch: async (url, options) => { signal = options.signal; return { ok: true, body: { getReader: () => reader },
+      async arrayBuffer() { const data = []; for (;;) { const part = await reader.read(); if (part.done) return new Uint8Array(data).buffer; data.push(...part.value); } },
+    }; },
+  });
+  const result = await load("/models/test.glb", { parseAsync(data) { parsed = Array.from(new Uint8Array(data)); return "parsed"; } });
+  assert.equal(clock, 90000, "the transfer exceeds four inactivity windows");
+  assert.equal(result, "parsed"); assert.deepEqual(parsed, bytes); assert.equal(signal.aborted, false);
+  assert.equal(released, true); assert.equal(timers.size, 0, "success clears the last progress timer");
+});
+
+await checkAsync("district inactivity retries once, with fresh requests and a finite failure budget", async () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("    let nextPack = 0;");
+  const to = source.indexOf("    for (const [i, name] of PACKS.entries())", from);
+  const calls = new Map();
+  const loads = runInNewContext(`(() => { ${source.slice(from, to)} return loads; })();`, {
+    PACKS: ["transient", "permanent", "http-failure"], tier: "high", disposed: false,
+    retryStalledLoad: deadlineModule.retryStalledLoad,
+    preloadPack: async (tier, name) => {
+      const count = (calls.get(name) ?? 0) + 1; calls.set(name, count);
+      if (name === "http-failure") throw new Error("HTTP 503");
+      if (count === 1 || name === "permanent") throw Object.assign(new Error("inactivity"), { code: "load-stalled" });
+      return "fresh district";
+    },
+  });
+  const results = await Promise.all(loads);
+  assert.equal(results[0].s, "fresh district"); assert.equal(calls.get("transient"), 2);
+  assert.equal(results[1].err.code, "load-stalled"); assert.equal(calls.get("permanent"), 2);
+  assert.equal(calls.get("http-failure"), 1, "permanent HTTP failures do not loop");
+  let attempts = 0;
+  await assert.rejects(deadlineModule.retryStalledLoad(async () => { attempts++; throw Object.assign(new Error("disposed"), { code: "load-stalled" }); }, () => false));
+  assert.equal(attempts, 1, "disposal prevents a new request");
+});
+
+await checkAsync("the idle head start reuses the attempted S6 load even after a fast failure", async () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("    // The hero has its first frames.");
+  const to = source.indexOf("\n  };", from);
+  let requests = 1, streamed = false;
+  const failed = Promise.reject(new Error("S6 failed")); void failed.catch(() => {});
+  runInNewContext(source.slice(from, to), {
+    disposed: false, tier: "high", idle: async () => {}, hasGaragePack: () => true,
+    garageLoads: [Promise.resolve(), failed], carModels: { s6: {} }, GARAGE_PACK: "garage",
+    prepareGarage: () => { requests++; return Promise.reject(new Error("do not restart a completed failure")); },
+    preloadPack: async () => {}, preloadCar: async () => { requests++; },
+    setTimeout, clearTimeout, streamPacks: () => { streamed = true; },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(requests, 1); assert.equal(streamed, true);
+});
+
+await checkAsync("garage uploads and frame slots precede districts while the moon stays first", async () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const asks = [];");
+  const to = source.indexOf("  // ---- the districts", from);
+  const frames = [], order = [];
+  const context = { disposed: false, reduced: false, garageAvailable: "loading", raf: 0,
+    adapt: { sampling: false }, stage: {}, tier: "high", recentDrawMs: 0, performance: { now: () => 0 },
+    createGarageUploadPump: () => ({ wake() {} }), DOMException,
+    requestAnimationFrame: (fn) => { frames.push(fn); return frames.length; }, cancelAnimationFrame() {},
+    setTimeout: (fn, ms) => { if (ms === 0) fn(); return 1; }, clearTimeout() {},
+  };
+  const q = runInNewContext(`${source.slice(from, to)}\n({ queueUpload, nextUpload, slot });`, context);
+  const uploads = [q.queueUpload(() => order.push("district upload")), q.queueUpload(() => order.push("garage upload"), true)];
+  q.nextUpload().run(); q.nextUpload().run(); await Promise.all(uploads);
+  assert.deepEqual(order, ["garage upload", "district upload"]);
+  const slots = [q.slot(false).then(() => order.push("district slot")), q.slot(false, true).then(() => order.push("garage slot")), q.slot(true).then(() => order.push("moon slot"))];
+  for (let i = 0; i < 3; i++) { frames.shift()(); await Promise.resolve(); }
+  await Promise.all(slots);
+  assert.deepEqual(order.slice(2), ["moon slot", "garage slot", "district slot"]);
+});
+
+// A reduced-motion cold entry can briefly run before the still-page cover
+// pauses it. Execute the real sampling policy and stage gate in that order.
+check("reduced-motion cold entry cannot strand construction behind sampling", () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const armed = source.match(/  const armed = (.*);/)[1].replaceAll("import.meta.env.DEV", "dev");
+  const from = source.indexOf("  let running = null;");
+  const to = source.indexOf("  const unwatch = subscribeStage(check);", from);
+  for (const dev of [false, true]) for (const search of ["", "?adapt=off"]) {
+    const context = { reduced: true, dev, window: { location: { search } }, URLSearchParams,
+      stage: { paused: false, mode: "stage" }, city: {}, lightIn: true,
+      soundscape: { setActive() {} }, resume() {}, pause() {}, settle() {},
+      document: { hidden: false } };
+    const run = runInNewContext(`const adapt = { armed: ${armed}, sampling: false };
+      const startSampling = () => { adapt.sampling = true; };
+      ${source.slice(from, to)}
+      () => { check(); stage.paused = true; check(); return adapt.sampling; };`, context);
+    assert.equal(run(), false, "a paused still world must leave construction slots available");
+  }
+});
+
+// Run the idle launch with settled, rejected and held downloads. A held
+// asset gets only a four-second head start and cannot own city readiness.
+for (const mode of ["settled", "failed", "stalled"]) {
+  await checkAsync(`district download head start is bounded with ${mode} garage assets`, async () => {
+    const source = readFileSync("src/world/world-scene.js", "utf8");
+    const from = source.indexOf("    // The hero has its first frames.");
+    const to = source.indexOf("\n  };", from);
+    const events = [];
+    let deadline;
+    const load = () => mode === "stalled" ? new Promise(() => {}) : mode === "failed" ? Promise.reject(new Error("network")) : Promise.resolve();
+    const context = {
+      disposed: false, tier: "high", idle: async () => {}, hasGaragePack: () => true, garageLoads: null,
+      carModels: { s6: {} }, GARAGE_PACK: "garage", preloadPack: load, preloadCar: load,
+      setTimeout: (fn, ms) => { assert.equal(ms, 4000); deadline = fn; return 1; }, clearTimeout() {},
+      prepareGarage: () => { events.push("room requested"); context.garageLoads = [load(), load()]; return new Promise(() => {}); },
+      streamPacks: () => events.push("district downloads"),
+    };
+    runInNewContext(source.slice(from, to), context);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    if (mode === "stalled") {
+      assert.deepEqual(events, ["room requested"]);
+      deadline();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    assert.deepEqual(events, ["room requested", "district downloads"]);
+  });
+}
+
+await checkAsync("district downloads leave network capacity and continue past individual faults", async () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("    let nextPack = 0;");
+  const to = source.indexOf("    for (const [i, name] of PACKS.entries())", from);
+  assert.ok(from >= 0 && to > from);
+  const asked = [], release = new Map(), PACKS = Array.from({ length: 9 }, (_, i) => `district-${i}`);
+  const loads = runInNewContext(`(() => { ${source.slice(from, to)} return loads; })();`, {
+    PACKS, tier: "high", disposed: false, retryStalledLoad: deadlineModule.retryStalledLoad,
+    preloadPack: (tier, name) => { asked.push(name); return new Promise((resolve, reject) => release.set(name, { resolve, reject })); },
+  });
+  assert.equal(asked.length, 3, "distant downloads leave connections for critical dependencies");
+  release.get(PACKS[1]).reject(new Error("failed district"));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(asked.length, 4, "a failure releases its connection");
+  for (let i = 2; i < 9; i++) {
+    release.get(PACKS[i]).resolve(PACKS[i]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  assert.equal(asked.length, 9, "one stalled district cannot block the remaining downloads");
+  release.get(PACKS[0]).resolve(PACKS[0]);
+  const results = await Promise.all(loads);
+  assert.equal(results[0].s, PACKS[0]); assert.match(results[1].err.message, /failed district/);
+  assert.equal(results[8].s, PACKS[8], "construction still receives results in authored order");
+});
+
+// Run the real preparation job with a held room bake and S6 request. Only
+// the shared room build owns the queue; car download/readiness cannot own it.
+{
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const prepareGarage = () => {");
+  const to = source.indexOf("  const garageState = () =>", from);
+  const events = [];
+  let finishRoom;
+  let roomEntered;
+  const entered = new Promise((resolve) => { roomEntered = resolve; });
+  const roomBake = new Promise((resolve) => { finishRoom = resolve; });
+  const construction = garage.createGarageBuildQueue();
+  const context = {
+    disposed: false, tier: "high", reduced: false, hasGaragePack: () => true,
+    carRuntime: async () => ({}), garageData: async () => ({ findMod() {} }),
+    garageRoom: null, garageAvailable: "idle", garageReason: null, idleUploads: { wake() {} }, publishGarage() {},
+    worldAssets: { worldPackPropsUrl: { high: { garage: "fixture" } } },
+    preloadPack: async () => new three.Scene(), GARAGE_PACK: "garage",
+    placementPromise: null, fetchUnpacked: async () => [],
+    GARAGE_PHOTOS_ENABLED: false, boardTexture: null,
+    carModels: { s6: {} }, preloadCar: async () => { events.push("S6 requested"); },
+    withLoadDeadline: (fn) => fn(), garageBetween: async () => {},
+    garageCars: null, createGaragePresentation: () => ({ ready: new Promise(() => {}) }),
+    scene: {}, renderer: {}, shared: {}, car: {}, camera: {},
+    construction, idle: async () => {}, between: async () => {}, readyToDraw: async () => {}, clearance: null, findMod: null, visit: null, inspectionCursor: null,
+    createGarageVisit: () => ({ placeholders: [] }), garageLights: () => [],
+    roomCommitted: false, packsIn: [], THREE: three,
+    city: { anchors: new Map(), garageMaterials: { setRects() {} }, kit: { wet: {} },
+      async addPack() { events.push("room bake"); roomEntered(); await roomBake; } },
+  };
+  const executable = `${source.slice(from, to).replaceAll("import.meta", "meta")}\nprepareGarage;`;
+  const prepare = runInNewContext(executable, context);
+  void prepare();
+  await entered;
+  let districtBuilt = false;
+  void construction.run(() => { districtBuilt = true; });
+  finishRoom();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  check("S6 fetch overlaps room and pending car preparation releases district bake queue", () => {
+    assert.deepEqual(events, ["S6 requested", "room bake"]);
+    assert.ok(districtBuilt, "district construction proceeds while car preparation remains pending");
+  });
+  const fetchingQueue = garage.createGarageBuildQueue();
+  const pendingRoom = runInNewContext(executable, { ...context, garageRoom: null,
+    construction: fetchingQueue, preloadPack: () => new Promise(() => {}) });
+  void pendingRoom();
+  let builtWhileFetching = false;
+  void fetchingQueue.run(() => { builtWhileFetching = true; });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  check("pending garage asset requests do not own the district bake queue", () => {
+    assert.ok(builtWhileFetching, "district construction cannot wait for a pending garage download");
+  });
+}
+
+await checkAsync("failed room and S6 cached loads start fresh on retry", async () => {
+  for (const kind of ["room", "s6"]) {
+    const source = readFileSync(kind === "room" ? "src/world/city.js" : "src/three/car/object.js", "utf8");
+    const from = source.indexOf(kind === "room" ? "const packCache =" : "const pending =");
+    const to = source.indexOf(kind === "room" ? "export async function createCity" : "// No-argument callers", from);
+    let calls = 0;
+    const context = { worldPackUrl: { high: { garage: "room" } }, cars: { s6: { url: "s6" } }, MeshoptDecoder: {},
+      GLTFLoader: class { setMeshoptDecoder() { return this; } },
+      loadModelWithDeadline: async () => { if (++calls === 1) throw new Error("download deadline"); return { scene: "retried scene" }; },
+    };
+    const preload = runInNewContext(`${source.slice(from, to).replaceAll("export ", "")}\n${kind === "room" ? "() => preloadPack('high', 'garage')" : "() => preloadCar('s6')"};`, context);
+    const failed = preload(); await assert.rejects(failed, /download deadline/);
+    const retried = preload(); assert.notEqual(retried, failed);
+    await retried; assert.equal(calls, 2);
+    assert.equal(preload(), retried, "a successful response remains shared");
+  }
+});
+
+await checkAsync("failed or stalled S6 cannot commit a room and retries stay possible", async () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const prepareGarage = () => {");
+  const to = source.indexOf("  const garageState = () =>", from);
+  const executable = `${source.slice(from, to).replaceAll("import.meta", "meta")}\nprepareGarage;`;
+  for (const stall of [false, true]) {
+    let builds = 0, attempts = 0;
+    const context = { disposed: false, tier: "high", reduced: false, hasGaragePack: () => true,
+      carRuntime: async () => ({}), garageData: async () => ({}), garageRoom: null, garageAvailable: "idle", garageReason: null,
+      publishGarage() {}, idleUploads: { wake() {} }, worldAssets: { worldPackPropsUrl: { high: { garage: "fixture" } } },
+      preloadPack: async () => ({}), GARAGE_PACK: "garage", placementPromise: null, fetchUnpacked: async () => [],
+      GARAGE_PHOTOS_ENABLED: false, boardTexture: null, carModels: { s6: {} },
+      preloadCar: () => { attempts++; return stall ? deadlineModule.withLoadDeadline(() => new Promise(() => {}), 5) : Promise.reject(new Error("S6 failed")); },
+      withLoadDeadline: (fn) => deadlineModule.withLoadDeadline(fn, 5),
+      city: {}, findMod: null, construction: { run() { builds++; } }, garagePaintBatch: null, garageCars: null, meta: { env: { DEV: false } },
+    };
+    const prepare = runInNewContext(executable, context);
+    await assert.rejects(deadlineModule.withLoadDeadline(() => prepare(), 50));
+    assert.equal(context.garageAvailable, "failed"); assert.equal(context.garageRoom, null); assert.equal(builds, 0);
+    await assert.rejects(deadlineModule.withLoadDeadline(() => prepare(), 50)); assert.equal(attempts, 2, "retry requests the asset again");
+  }
+});
+
+// A final district can arrive after the initial probe but before readiness.
+// Execute the actual readiness handoff for each side of that race.
+check("late district completion refreshes the probe before releasing the bake", () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("        // The job has supplied every draw");
+  const to = source.indexOf("        return true;", from) + "        return true;".length;
+  for (const [streamed, probeStreamed] of [[false, false], [true, false], [true, true]]) {
+    const events = [];
+    const context = { streamed, probeStreamed, city: { root: {} }, garageAvailable: "loading",
+      garageCars: { captureProbe() { events.push("probe"); } },
+      releaseStreaming() { events.push("release"); }, publishGarage() { events.push("publish"); } };
+    runInNewContext(`(() => { ${source.slice(from, to)} })();`, context);
+    assert.deepEqual(events, [...(streamed && !probeStreamed ? ["probe"] : []), ...(streamed ? ["release"] : []), "publish"]);
+    assert.equal(context.garageAvailable, "ready");
+  }
+});
+
+// Run the actual preparation loop with a clock and resources whose cost is
+// known. Grouping warm-up must retain every program, texture and buffer job.
+{
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const readyToDraw = async (drawn, garage = false) => {");
+  const to = source.indexOf("  // ---- searchlights", from);
+  assert.ok(from >= 0 && to > from);
+  let now = 0;
+  const events = [], batches = [];
+  const textures = Array.from({ length: 6 }, (_, id) => ({ isTexture: true, image: {}, version: 1, id }));
+  const materials = textures.map((map) => ({ version: 0, map }));
+  const resident = new Map([[textures[0], { __version: 1 }]]);
+  const drawn = materials.map((material, id) => ({ object: { material }, geometry: { id }, bytes: id === 0 ? 12 : 0 }));
+  const renderer = {
+    info: { programs: [] }, properties: { get: (texture) => resident.get(texture) ?? {} },
+    getRenderTarget: () => null, setRenderTarget() {},
+    compile(list) {
+      const id = renderer.info.programs.length;
+      renderer.info.programs.push({ isReady: () => true,
+        getUniforms() { events.push(`uniforms:${id}`); now += 1; },
+        getAttributes() { events.push(`attributes:${id}`); now += 1; },
+      });
+      return list.drawn.map(({ object }) => object.material);
+    },
+    initTexture(texture) { events.push(`texture:${texture.id}`); resident.set(texture, { __version: texture.version }); now += 2; },
+  };
+  const prepare = runInNewContext(`${source.slice(from, to)}\nreadyToDraw;`, {
+    disposed: false, warmKit: { programs: [], send(list) {
+      events.push(`buffers:${list.length}`);
+      return [() => events.push("buffer piece")];
+    } },
+    renderer, post: { composer: { inputBuffer: {} } }, camera: {}, scene: {}, cover: null,
+    Listed: class { constructor(drawn) { this.drawn = drawn; } },
+    between: async () => {}, workAllowance: () => 4, WARM_BYTES: 100,
+    performance: { now: () => now },
+    queueUpload: async (job) => { const start = now; const result = job(); batches.push({ ms: now - start }); return result; },
+  });
+  await prepare(drawn);
+  check("bounded preparation finishes every resource before readiness", () => {
+    for (let id = 0; id < materials.length; id++) {
+      assert.equal(events.filter((event) => event === `uniforms:${id}`).length, 1);
+      assert.equal(events.filter((event) => event === `attributes:${id}`).length, 1);
+      assert.equal(events.filter((event) => event === `texture:${id}`).length, id === 0 ? 0 : 1);
+    }
+    assert.deepEqual(events.slice(-2), ["buffers:1", "buffer piece"]);
+    assert.ok(batches.every(({ ms }) => ms <= 4), "small jobs fit the actual work allowance");
+    assert.equal(batches.length, 8, "lookups and pictures share bounded frame slots");
+  });
+}
 
 check("resting frames draw effective manual car state and layout once", () => {
   // Exercise the runtime's actual frame gate with a stable camera. The
@@ -705,7 +1151,7 @@ check("resting frames draw effective manual car state and layout once", () => {
     width: 1440, height: 900, packsIn: [], stage: { paused: false, mode: "page", garageProgress: .2, garageCut: 0 },
     visit: { stateAt: () => tour }, garageState: () => state, pinLayout: { side: { height: 100 } },
     disposed: false, city: {}, raf: 0, last: 0, timeIndex: 0, times: new Float32Array(64), reduced: true,
-    adapt: { sampling: false }, asks: [], requestAnimationFrame: () => 1, clamp: (v, a, b) => Math.min(b, Math.max(a, v)),
+    adapt: { sampling: false }, nextUpload: () => undefined, requestAnimationFrame: () => 1, clamp: (v, a, b) => Math.min(b, Math.max(a, v)),
     sample() {}, step() {}, draw: () => drawn.push({ ...state.hood }),
     soundscape: { update() {} }, motion: { vel: { length: () => 0 } }, getEnv: () => ({ wet: 0 }), shelterBox: null, traffic: null,
   };
@@ -759,6 +1205,26 @@ check("room and exterior triangles sharing a tile keep independent visibility", 
   tile.onBeforeRender({ info: { render: { frame: 1 } } }, null, camera);
   assert.deepEqual(cells.list.map((cell) => cell.sector).sort(), ["exterior", "garage_shell"]);
   assert.equal(Array.from(tile._multiDrawCounts).slice(0, tile._multiDrawCount).reduce((sum, n) => sum + n, 0), 36, "the wall-hidden street box cannot borrow the room's tile exemption");
+  cells.visibilityKey = () => visibility.passKey;
+  const commands = () => ({ starts: Array.from(tile._multiDrawStarts).slice(0, tile._multiDrawCount), counts: Array.from(tile._multiDrawCounts).slice(0, tile._multiDrawCount) });
+  tile.onBeforeRender({ info: { render: { frame: 2 } } }, null, camera);
+  const directCommands = commands();
+  const other = camera.clone(); other.lookAt(475, 2, -215); other.updateMatrixWorld();
+  visibility.prepare(other);
+  tile.onBeforeRender({ info: { render: { frame: 3 } } }, null, other);
+  const otherCommands = commands();
+  for (let pass = 0; pass < 3; pass++) {
+    visibility.prepare(camera);
+    tile.onBeforeRender({ info: { render: { frame: 4 + pass * 2 } } }, null, camera);
+    assert.deepEqual(commands(), directCommands, "restore the direct camera's exact runs");
+    visibility.prepare(other);
+    tile.onBeforeRender({ info: { render: { frame: 5 + pass * 2 } } }, null, other);
+    assert.deepEqual(commands(), otherCommands, "restore the other pass's independent runs");
+  }
+  tile.setRuns({ cell: result.value.cell, start: result.value.start, count: Int32Array.from(result.value.count, n => n / 2) });
+  visibility.prepare(camera);
+  tile.onBeforeRender({ info: { render: { frame: 12 } } }, null, camera);
+  assert.equal(commands().counts.reduce((sum, n) => sum + n, 0), 18, "a new district's run table invalidates saved commands");
   geometry.dispose(); tile.material.dispose(); room.geometry.dispose(); street.geometry.dispose();
 });
 
@@ -774,10 +1240,47 @@ check("street props use each prototype's bounds within a shared tile", () => {
   const anchors = new Map([["anchor_garage_portal_door", { position: new Vector3(452, 2.3, -215), quaternion: new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2), extras: { width: 6, height: 4.6 } }]]);
   const visibility = garage.createGarageVisibility(anchors), camera = new three.PerspectiveCamera(60, 1.6, .1, 2000);
   camera.position.set(462, 2, -215); camera.lookAt(440, 2, -215); camera.updateMatrixWorld(); visibility.prepare(camera);
-  const props = propsModule.createProps([a, b], buffer, { visibleBox: visibility.test }); props.update(camera);
+  const opaque = material.clone(); opaque.transparent = false; opaque.name = "metal";
+  const c = a.clone(), d = b.clone(); c.material = d.material = opaque;
+  let caching = true, boxReads = 0;
+  const props = propsModule.createProps([a, b, c, d], buffer, {
+    visibleBox: (box, sector) => { boxReads++; return visibility.test(box, sector); },
+    visibilityKey: () => caching && visibility.inside ? visibility.passKey : null,
+  }); props.update(camera);
   assert.equal(props.group.getObjectByName("props_visible_prop_test_glass").count, 1);
   assert.equal(props.group.getObjectByName("props_hidden_prop_test_glass").count, 0);
-  props.dispose(); a.geometry.dispose(); material.dispose();
+  const capture = () => {
+    const meshes = [];
+    props.group.traverse((mesh) => { if (mesh.isMesh) meshes.push({ name: mesh.name, visible: mesh.visible,
+      count: mesh.isInstancedMesh ? mesh.count : null,
+      matrices: mesh.isInstancedMesh ? Array.from(mesh.instanceMatrix.array.slice(0, mesh.count * 16)) : null,
+      starts: mesh.isBatchedMesh ? Array.from(mesh._multiDrawStarts.slice(0, mesh._multiDrawCount)) : null,
+      counts: mesh.isBatchedMesh ? Array.from(mesh._multiDrawCounts.slice(0, mesh._multiDrawCount)) : null,
+    }); });
+    return meshes;
+  };
+  assert.ok(capture().some((mesh) => mesh.counts), "the fixture exercises baked commands as well as instanced matrices");
+  const wall = camera.clone(); wall.lookAt(475, 2, -215); wall.updateMatrixWorld();
+  const reflected = camera.clone(); reflected.position.y = -2; reflected.lookAt(440, -2, -215); reflected.updateMatrixWorld();
+  const outdoors = camera.clone(); outdoors.position.set(440, 2, -215); outdoors.lookAt(462, 2, -215); outdoors.updateMatrixWorld();
+  const spacer = wall.clone(); spacer.updateMatrixWorld();
+  const use = (view) => { visibility.prepare(view); props.update(view); };
+  for (const view of [camera, wall, reflected, outdoors, camera, reflected]) {
+    caching = false; use(spacer); use(view);
+    const expected = capture();
+    caching = true; use(spacer); use(view);
+    assert.deepEqual(capture(), expected, "cached passes submit the same geometry and matrices as the ordinary culler");
+    use(spacer); visibility.prepare(view);
+    const before = boxReads;
+    props.update(view);
+    assert.deepEqual(capture(), expected, "an outdoor pass cannot overwrite an indoor camera's saved lists");
+    if (visibility.inside) assert.equal(boxReads, before, "a stationary pass does not retest every prop box");
+  }
+  camera.fov = 90; camera.updateProjectionMatrix();
+  caching = false; use(spacer); use(camera); const wide = capture();
+  caching = true; use(spacer); use(camera);
+  assert.deepEqual(capture(), wide, "a projection change invalidates the old prop decisions");
+  props.dispose(); a.geometry.dispose(); material.dispose(); opaque.dispose();
 });
 
 check("ordinary exterior meshes keep independent portal visibility across passes", () => {
@@ -795,6 +1298,141 @@ check("ordinary exterior meshes keep independent portal visibility across passes
   const streetPass = garage.cullGarageObjects(scene, { testSphere: () => true }, { car: parked });
   assert.equal(outside.visible, true); streetPass();
   outside.geometry.dispose(); outside.material.dispose();
+});
+
+check("room procedural parts share draws while preserving each original local frame", () => {
+  const geometry = new three.BoxGeometry(.4, .6, .2);
+  geometry.setAttribute("color", new three.Float32BufferAttribute(new Float32Array(geometry.attributes.position.count * 4).fill(.5), 4));
+  const base = new three.ShaderMaterial({ uniforms: { uSpill: { value: null } } }); base.name = "NCW_face";
+  const proto = new three.Mesh(geometry, base); proto.userData.proto = "room_frame_test";
+  const header = { protos: [{ name: "room_frame_test", box: [.2, .3, .1] }], count: 2, sectorRuns: [{ sector: "garage_s4", start: 0, count: 1 }, { sector: "garage_s6", start: 1, count: 1 }] };
+  let json = JSON.stringify(header); while ((4 + Buffer.byteLength(json)) % 4) json += " ";
+  const buffer = new ArrayBuffer(4 + Buffer.byteLength(json) + 32);
+  new DataView(buffer).setUint32(0, Buffer.byteLength(json), true); new Uint8Array(buffer, 4, Buffer.byteLength(json)).set(Buffer.from(json));
+  new Int16Array(buffer, 4 + Buffer.byteLength(json), 16).set([0, 9240, 100, -4300, 1043, 110, 900, 0, 0, 9300, 100, -4400, -1043, 90, 1100, 0]);
+  const system = propsModule.createProps([proto], buffer, { reflectLayer: 2 });
+  const meshes = system.group.children.filter((o) => o.isMesh);
+  assert.equal(meshes.length, 1, "two sectors and placements share a procedural material draw");
+  const mesh = meshes[0], g = mesh.geometry;
+  assert.equal(mesh.isInstancedMesh, undefined); assert.equal(mesh.layers.mask, 5);
+  assert.equal(g.attributes.position.count, 2 * geometry.attributes.position.count);
+  const frame = new three.Matrix4(), point = new Vector3();
+  for (let i = 0; i < g.attributes.position.count; i++) {
+    for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) frame.elements[c * 4 + r] = g.attributes[`_instance_matrix_${c}`].array[i * 4 + r];
+    point.fromBufferAttribute(g.attributes._local_position, i).applyMatrix4(frame);
+    assert.ok(point.distanceTo(new Vector3().fromBufferAttribute(g.attributes.position, i)) < .0001);
+    assert.equal(g.attributes._deal.getX(i), 0);
+    assert.deepEqual(Array.from(g.attributes._local_normal.array.slice(i * 3, i * 3 + 3)), Array.from(geometry.attributes.normal.array.slice((i % geometry.attributes.normal.count) * 3, (i % geometry.attributes.normal.count) * 3 + 3)));
+  }
+  assert.ok(mesh.material.vertexShader.includes("attribute float _deal"));
+  system.dispose(); geometry.dispose(); base.dispose();
+});
+
+check("paint batching preserves moving rig matrices, physical bounds, picking and resource lifetime", () => {
+  const root = new three.Group(), hood = new three.Group(), wheel = new three.Group(); root.add(hood, wheel);
+  const material = new three.MeshStandardMaterial(); material.name = "s4_paint";
+  const a = new three.Mesh(new three.BoxGeometry(2, .3, 3), material), b = new three.Mesh(new three.BoxGeometry(1, .1, .8), material), c = new three.Mesh(new three.BoxGeometry(.3, .6, .6), material);
+  root.add(a); hood.add(b); wheel.add(c); hood.position.set(0, .5, .8); wheel.position.set(.9, -.3, .9);
+  const camera = new three.PerspectiveCamera(50, 1.6, .1, 100), ray = new three.Raycaster();
+  root.position.set(463, 1, -215); root.rotation.y = .67; root.updateMatrixWorld(true);
+  const hitDistance = () => { camera.position.set(470, 1.2, -209); camera.lookAt(root.position); camera.updateMatrixWorld(); ray.setFromCamera(new three.Vector2(), camera); return ray.intersectObject(root, true)[0]?.distance; };
+  const sources = []; root.traverse(node => { if (node.isMesh) sources.push(node); });
+  const before = hitDistance(), batch = paintBatchModule.createGaragePaintBatch(root);
+  assert.ok(batch); assert.ok([a, b, c].every(n => n.layers.mask === 0));
+  assert.ok(Math.abs(hitDistance() - before) < 1e-7, "the same painted surface receives physical picks");
+  for (let step = 0; step <= 20; step++) {
+    batch.mesh.visible = false; const expected = inspectionModule.localBounds(root).clone(); batch.mesh.visible = true;
+    root.position.x = 463 + step / 10; root.rotation.y = .67 + step / 100; hood.rotation.x = -step / 20; wheel.rotation.x = step / 5;
+    batch.mesh.visible = false; const moved = inspectionModule.localBounds(root).clone(); batch.mesh.visible = true;
+    const actual = inspectionModule.localBounds(root);
+    assert.deepEqual(actual.toArray?.() ?? [actual.min.toArray(), actual.max.toArray()], [moved.min.toArray(), moved.max.toArray()]);
+    assert.ok(!expected.isEmpty());
+    const matrix = new three.Matrix4(); for (const [i, source] of sources.entries()) { batch.mesh.getMatrixAt(i, matrix); assert.deepEqual(matrix.elements, Array.from(Float32Array.from(source.matrixWorld.elements)), "GPU batch matrices equal the original model uniforms exactly"); }
+  }
+  root.updateMatrixWorld(true); const version = batch.mesh._matricesTexture.version; root.updateMatrixWorld(true); assert.equal(batch.mesh._matricesTexture.version, version, "a stationary rig does not upload the same matrix texture again");
+  const shader = { uniforms: {}, vertexShader: "#include <common>\n#include <project_vertex>\n#include <defaultnormal_vertex>", fragmentShader: "" };
+  batch.mesh.material.onBeforeCompile(shader, {});
+  const render = view => batch.mesh.onBeforeRender({}, null, view, batch.mesh.geometry, batch.mesh.material);
+  render(camera);
+  const viewTexture = shader.uniforms.uGaragePaintView.value, normalTexture = shader.uniforms.uGaragePaintNormal.value;
+  for (const [id, source] of sources.entries()) {
+    const mv = new three.Matrix4().multiplyMatrices(camera.matrixWorldInverse, source.matrixWorld), normal = new three.Matrix3().getNormalMatrix(mv);
+    assert.deepEqual(Array.from(viewTexture.image.data.slice(id * 16, id * 16 + 16)), Array.from(Float32Array.from(mv.elements)));
+    for (let i = 0; i < 9; i++) assert.equal(normalTexture.image.data[id * 12 + Math.floor(i / 3) * 4 + i % 3], Math.fround(normal.elements[i]));
+  }
+  const viewVersion = viewTexture.version, normalVersion = normalTexture.version;
+  render(camera); assert.equal(viewTexture.version, viewVersion); assert.equal(normalTexture.version, normalVersion);
+  const reflected = camera.clone(); reflected.position.y *= -1; reflected.updateMatrixWorld(); render(reflected); render(camera);
+  assert.equal(shader.uniforms.uGaragePaintView.value, viewTexture); assert.equal(viewTexture.version, viewVersion, "a returning camera binds its original texture without reuploading it");
+  let disposed = 0; batch.mesh._matricesTexture.addEventListener("dispose", () => disposed++); batch.dispose(); assert.equal(disposed, 1); assert.ok([a, b, c].every(n => n.layers.mask === 1));
+  for (const source of [a, b, c]) source.geometry.dispose(); material.dispose();
+});
+
+check("all six probe faces prepare their own portals and prop runs through the transform wrapper", () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const renderScene = renderer.render;"), to = source.indexOf("  const draw =", from);
+  const scene = new three.Scene(), capture = new three.Scene(), wrapper = new three.Group(), root = new three.Group();
+  capture.add(wrapper); wrapper.add(root);
+  const portals = [], props = [], drawn = [];
+  const city = { root, visibility: { prepare: (view) => portals.push(view) }, props: { update: (view) => props.push(view) } };
+  const renderer = { render: (_scene, view) => drawn.push(view) };
+  runInNewContext(source.slice(from, to), { renderer, city, scene, car: null });
+  const faces = Array.from({ length: 6 }, () => new three.PerspectiveCamera(90, 1, .1, 60));
+  for (const face of faces) renderer.render(capture, face);
+  assert.deepEqual(portals, faces); assert.deepEqual(props, faces); assert.deepEqual(drawn, faces);
+  renderer.render(new three.Scene(), faces[0]);
+  assert.equal(portals.length, 6, "postprocessing scenes cannot replace the portal state");
+});
+
+check("exterior batches keep signals, local shader frames, layers and exact light sources", () => {
+  const wire = (header, rows) => {
+    let json = JSON.stringify(header); while ((4 + Buffer.byteLength(json)) % 4) json += " ";
+    const bytes = Buffer.alloc(4 + Buffer.byteLength(json) + rows.length * 16);
+    bytes.writeUInt32LE(Buffer.byteLength(json)); bytes.write(json, 4);
+    const values = new Int16Array(bytes.buffer, bytes.byteOffset + 4 + Buffer.byteLength(json), rows.length * 8);
+    values.set(rows.flat()); return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  };
+  const base = new three.ShaderMaterial({ uniforms: { uSpill: { value: null } } }); base.name = "glow";
+  const geometry = new three.BoxGeometry(.2, .3, .1).toNonIndexed();
+  geometry.setIndex(Array.from({ length: geometry.attributes.position.count }, (_, i) => i));
+  geometry.setAttribute("color", new three.Float32BufferAttribute(new Float32Array(geometry.attributes.position.count * 4).fill(.5), 4));
+  const glow = new three.Mesh(geometry, base); glow.name = "proto_traffic_light_glow"; glow.userData.proto = "traffic_light";
+  const faceMat = new three.ShaderMaterial(); faceMat.name = "NCW_face";
+  const face = new three.Mesh(geometry, faceMat); face.name = "proto_signal_box_face"; face.userData.proto = "signal_box";
+  const header = { protos: [{ name: "traffic_light", box: [.5, 1, .5], reach: 300 }, { name: "signal_box", box: [.5, 1, .5], reach: 300 }], count: 2 };
+  const rows = [[0, 8800, 100, -4300, 0, 100, 1000, 0], [1, 8800, 100, -4300, 0, 100, 1000, 0]];
+  const full = wire(header, rows), empty = wire({ ...header, count: 0 }, []);
+  const exterior = new three.Group();
+  for (const [i, src] of [glow, face].entries()) {
+    const g = geometry.clone(), matrix = new three.Matrix4().makeTranslation(440, 2, -215);
+    g.applyMatrix4(matrix);
+    if (i) {
+      g.setAttribute("_local_position", geometry.attributes.position.clone()); g.setAttribute("_local_normal", geometry.attributes.normal.clone());
+      for (let col = 0; col < 4; col++) g.setAttribute(`_instance_matrix_${col}`, new three.Float32BufferAttribute(Array.from({ length: g.attributes.position.count }, () => matrix.elements.slice(col * 4, col * 4 + 4)).flat(), 4));
+      g.setAttribute("_deal", new three.Float32BufferAttribute(new Float32Array(g.attributes.position.count), 1));
+    }
+    const node = new three.Mesh(g, { name: `NCW_${i ? "face" : "glow"}` }); node.name = `exterior_test_${i}`;
+    node.userData = { sourceKind: "prop", visibilitySector: "exterior", sourceLayers: 5, shaderLocal: Boolean(i), runs: [[36, -18, 300, 0, g.index.count]], placements: [[i, i, src.userData.proto, src.name, 0, g.index.count]] };
+    exterior.add(node);
+  }
+  const original = propsModule.createProps([glow, face], full, { reflectLayer: 2 });
+  const batch = propsModule.createProps([glow, face], empty, { exterior, originalBuffer: full, reflectLayer: 2 });
+  const lightRows = (system) => system.sources.flatMap((light) => Array.from(light.mesh.geometry.attributes.position.array).map((value) => `${light.color.getHexString()}:${light.intensity}:${value}`)).sort();
+  assert.deepEqual(lightRows(batch), lightRows(original), "every source triangle, colour and gain survives removal of its placement");
+  const signal = batch.written("traffic_light"); assert.equal(signal.length, 1); assert.equal(signal[0].matrices[13], 2);
+  const local = batch.group.getObjectByName("exterior_test_1");
+  const signalFace = batch.dealt("signal_box");
+  assert.equal(signalFace.matrices.length, 16); signalFace.deal(0, -.5);
+  assert.ok(Array.from(local.geometry.attributes._deal.array).every((v) => v === -.5), "crossing signals still update a taken placement");
+  assert.equal(local.layers.mask, 5); assert.ok(local.material.vertexShader.includes("mat4(_instance_matrix_0"));
+  assert.ok(local.material.vertexShader.includes("attribute float _deal"));
+  const camera = new three.PerspectiveCamera(60, 1, .1, 200); camera.position.set(450, 2, -215); camera.lookAt(440, 2, -215); batch.update(camera);
+  assert.ok(local.visible); assert.ok(local._multiDrawCount > 0);
+  camera.far = 1000; camera.updateProjectionMatrix();
+  camera.position.set(742.9, 2, -215); camera.lookAt(440, 2, -215); batch.update(camera);
+  assert.ok(local.visible, "reach uses the original shared prop bounds, not the smaller mesh bounds");
+  camera.lookAt(760, 2, -215); batch.update(camera); assert.equal(local.visible, false);
+  original.dispose(); batch.dispose(); geometry.dispose(); base.dispose(); faceMat.dispose();
 });
 
 check("the road mirror does not repack the unreflected skyline", () => {
@@ -863,6 +1501,20 @@ check("portal visibility keeps real openings for main and reflected cameras", ()
   assert.ok(!visibility.test(box(462, 2, -225), "garage_s6"), "outside cannot see through a closed wall");
   assert.equal(visibility.test(box(462, 2, -225), "garage_shell"), true, "the workshop's outer walls and roof stay visible from the street");
   assert.ok(visibility.test(box(440, 1, -150)), "exterior culling is unchanged outdoors");
+  const direct = camera.clone(), reflected = camera.clone();
+  direct.position.set(462, 2, -215); direct.lookAt(475, 2, -215); direct.updateMatrixWorld();
+  reflected.position.set(462, -2, -215); reflected.lookAt(440, -2, -215); reflected.updateMatrixWorld();
+  for (let pass = 0; pass < 3; pass++) {
+    visibility.prepare(direct);
+    assert.equal(visibility.exteriorVisible, false, "restored direct pass keeps its wall cull");
+    assert.equal(visibility.test(box(440, 1, -215)), false);
+    visibility.prepare(reflected);
+    assert.equal(visibility.exteriorVisible, true, "restored reflected pass keeps its own aperture");
+    assert.equal(visibility.test(box(440, 1, -215)), true);
+  }
+  reflected.fov = 5; reflected.updateProjectionMatrix(); reflected.lookAt(440, -2, -150); reflected.updateMatrixWorld();
+  visibility.prepare(reflected);
+  assert.equal(visibility.test(box(440, 1, -215)), false, "a changed lens/pose invalidates the saved pass");
 });
 
 check("immersive Arrival fits its sticky controls and has an inverse mapping", () => {
