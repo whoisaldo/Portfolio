@@ -42,9 +42,9 @@
 //   came to land on a page whose assets had not loaded.
 //   The page underneath is fully rendered the whole time, so a crawler that
 //   ignores overlays reads a complete document.
-//   It offers the way out. "For recruiters" goes to /recruiters, a plain
-//   version of the site with none of this on it, because the reader with the
-//   least time is the one this door most needs to not detain. It is the
+//   It offers the way out. "The simple version" goes to the homepage, a
+//   plain page with none of this on it, because the reader with the least
+//   time is the one this door most needs to not detain. It is the
 //   menu's third item, the size of the two answers, and it is on the loading
 //   screen too.
 //
@@ -140,8 +140,8 @@ const COPY = {
   braindanceItem: "Braindance",
   braindanceNew: "New",
   braindanceLine: "The city on its own. One recorded night with my work hidden in it, about four minutes, desktop only.",
-  recruitersItem: "For recruiters",
-  recruitersLine: "The plain version: experience, projects, skills and the résumé.",
+  recruitersItem: "The simple version",
+  recruitersLine: "One page: where I've worked, what I've written, and how to reach me.",
   loadNote: "The intro starts the moment the city is in. Past thirty seconds, it starts on still pictures.",
   preloading: "Loading assets",
   preloaded: "Ready",
@@ -443,7 +443,7 @@ function BraindanceItem({ className = "" }) {
 function RecruitersItem({ className = "" }) {
   return (
     <div className={className}>
-      <Link to="/recruiters" className={MENU_ITEM}>
+      <Link to="/" className={MENU_ITEM}>
         <span className={MENU_MARK} aria-hidden="true">▸</span>
         <Briefcase className="w-6 h-6 shrink-0" aria-hidden="true" />
         {COPY.recruitersItem}
@@ -455,8 +455,8 @@ function RecruitersItem({ className = "" }) {
 }
 
 export default function EntryGate({ onEnter }) {
-  // /recruiters links back here with this. The plain version's way across is
-  // to the entrance, not to the page behind it, so the door goes up whatever
+  // The homepage's way into the playground arrives with this. It goes to
+  // the entrance, not to the page behind it, so the door goes up whatever
   // the sound preference says and the intro behind it is the whole one.
   const asked = useLocation().state?.door === true;
   const [open, setOpen] = useState(() => asked || shouldGate());

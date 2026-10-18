@@ -2,6 +2,7 @@
 // editor's hint, and the end of the recording.
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { PLAYGROUND } from "../../data/site";
 import { bd, set, useBd } from "../store";
 import { ACHIEVEMENTS, CLUES, END, TUTORIAL } from "../../data/braindance";
 import { fmt } from "../format";
@@ -130,8 +131,8 @@ export function EndScreen({ engineRef }) {
         </a>
       </div>
       <div className="bd-boot-links">
-        <Link to="/" className="bd-link">{END.cinematic}</Link>
-        <Link to="/recruiters" className="bd-link">{END.recruiters}</Link>
+        <Link to={PLAYGROUND} className="bd-link">{END.cinematic}</Link>
+        <Link to="/" className="bd-link">{END.recruiters}</Link>
       </div>
     </div>
   );

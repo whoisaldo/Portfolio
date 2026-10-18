@@ -3,7 +3,7 @@
 // Copy lives in src/data, and the braindance has plenty: its screens, its
 // chapters, every clue and every achievement. The tone is Ali's call: his
 // work and his life are in the city, but not in a professional way. It
-// should be fun to find out about him here; the deep dive is /recruiters.
+// should be fun to find out about him here; the deep dive is the case studies.
 //
 // Fun is not fiction. Every fact below is one the site already states
 // (experience.js, projects.js, life.js, garage.js, profile.js, About.jsx),
@@ -19,7 +19,7 @@ export const BOOT = {
   notHereTitle: "This one needs a desktop",
   notHereLine: "The braindance wants a mouse, a keyboard and a graphics card. The other two ways in work everywhere.",
   toCinematic: "The cinematic site",
-  toRecruiters: "For recruiters",
+  toRecruiters: "The simple version",
   loading: "Jacking in",
   failed: "The recording would not play here",
   failedLine: "This browser could not build the city. The other two ways in still work.",
@@ -85,7 +85,7 @@ export const END = {
   journal: "Journal",
   email: "Email me",
   cinematic: "The cinematic site",
-  recruiters: "For recruiters",
+  recruiters: "The simple version",
 };
 
 export const LAYER_NAMES = {
@@ -117,7 +117,7 @@ export const CONTROLS = [
  * readouts under the title, `links` open in a new tab so the recording
  * keeps its place. Secrets are not marked on the timeline.
  */
-const writeUp = (slug) => ({ label: "Full write-up", href: `/recruiters/work/${slug}` });
+const writeUp = (slug) => ({ label: "Full write-up", href: `/work/${slug}` });
 
 export const CLUES = [
   // ---- 0 Jack in ----

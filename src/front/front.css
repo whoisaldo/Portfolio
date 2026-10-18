@@ -1,0 +1,105 @@
+/* Loaded by src/front/ only. The homepage is Tailwind; this file is for the
+   two things Tailwind cannot reach. */
+
+/* The playground's scanlines (index.css, .paper-grain::after) are a CRT
+   laid over everything, which reads as texture on a city and as a smudge
+   on a paragraph. The grain under them stays. */
+body.front.paper-grain::after {
+  content: none;
+}
+
+/* The page stays put behind a photo opened full size (src/front/Lightbox.jsx). */
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
+/* A post's body. Its markup comes out of Markdown, so it is styled by
+   element. Barlow at the size and leading .prose-dark uses for the
+   playground's case studies, with a measure set by the 42rem column. */
+.post-body {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: rgb(236 234 228 / 0.84);
+  overflow-wrap: break-word;
+}
+@media (min-width: 768px) {
+  .post-body { font-size: 1.125rem; }
+}
+
+.post-body > * + * { margin-top: 1.25em; }
+
+.post-body h2,
+.post-body h3 {
+  font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  color: #eceae4;
+  text-wrap: balance;
+}
+.post-body h2 { font-size: 1.5rem; line-height: 1.2; margin-top: 2.2em; }
+.post-body h3 { font-size: 1.2rem; line-height: 1.3; margin-top: 1.8em; }
+.post-body h2 + *,
+.post-body h3 + * { margin-top: 0.75em; }
+
+.post-body p,
+.post-body li { text-wrap: pretty; }
+
+.post-body strong { color: #eceae4; font-weight: 600; }
+
+.post-body a {
+  color: #eceae4;
+  text-decoration: underline;
+  text-decoration-color: #fcee0a;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color 150ms;
+}
+.post-body a:hover { color: #fcee0a; }
+
+.post-body ul,
+.post-body ol { padding-left: 1.25em; }
+.post-body ul { list-style: square; }
+.post-body ol { list-style: decimal; }
+.post-body li::marker { color: rgb(236 234 228 / 0.4); }
+.post-body li + li { margin-top: 0.45em; }
+
+.post-body code {
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: #131316;
+  border: 1px solid #24242a;
+  padding: 0.1em 0.35em;
+}
+
+/* Code blocks are the one place a post wears the playground's signage: a
+   volt edge, like a terminal pane. */
+.post-body pre {
+  background: #050506;
+  border: 1px solid #24242a;
+  border-left: 2px solid #fcee0a;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.post-body pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+  color: rgb(236 234 228 / 0.9);
+}
+
+.post-body blockquote {
+  border-left: 2px solid #24242a;
+  padding-left: 1.1rem;
+  color: rgb(236 234 228 / 0.7);
+}
+
+.post-body hr {
+  border: 0;
+  height: 1px;
+  background: #24242a;
+  margin: 2.5em 0;
+}
+
+.post-body img { max-width: 100%; height: auto; }

@@ -1,17 +1,18 @@
 // src/braindance/Braindance.jsx: the third way in.
 //
-// The cinematic is a page over a city; /recruiters is the page without the
+// The cinematic is a page over a city; the homepage is a page without the
 // city. This is the city without the page: a braindance, a recorded night
 // in Night City that can be played, paused, scrubbed, rewound and walked
 // around in, with the portfolio hidden in it as clues to scan.
 //
-// Its own shell, as /recruiters has its own (see App.jsx): no navbar, no
+// Its own shell (see App.jsx): no navbar, no
 // door, no scroll stage, no page. It mounts the city through the same lazy
 // chunk the cinematic uses, so a reader who came from the cinematic has it
 // cached already. Desktop only, by Ali's call: a phone is told so and
 // offered the other two.
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { PLAYGROUND } from "../data/site";
 import { hasGpuAcceleration } from "../lib/gpu";
 import { unlockAudio } from "../lib/audio";
 import { stopAmbient } from "../lib/ambient";
@@ -37,8 +38,8 @@ function NotHere() {
         <h1 className="bd-title">{BOOT.notHereTitle}</h1>
         <p className="bd-copy">{BOOT.notHereLine}</p>
         <div className="bd-notice-links">
-          <Link to="/" className="bd-btn">{BOOT.toCinematic}</Link>
-          <Link to="/recruiters" className="bd-btn bd-btn-quiet">{BOOT.toRecruiters}</Link>
+          <Link to={PLAYGROUND} className="bd-btn">{BOOT.toCinematic}</Link>
+          <Link to="/" className="bd-btn bd-btn-quiet">{BOOT.toRecruiters}</Link>
         </div>
       </div>
     </div>
@@ -156,8 +157,8 @@ export default function Braindance() {
             </button>
             <p className="bd-small">{BOOT.sound}</p>
             <div className="bd-boot-links">
-              <Link to="/" className="bd-link">{BOOT.toCinematic}</Link>
-              <Link to="/recruiters" className="bd-link">{BOOT.toRecruiters}</Link>
+              <Link to={PLAYGROUND} className="bd-link">{BOOT.toCinematic}</Link>
+              <Link to="/" className="bd-link">{BOOT.toRecruiters}</Link>
             </div>
           </div>
         </div>
