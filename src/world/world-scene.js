@@ -1138,7 +1138,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // Dev only: `?adapt=off` keeps every tier at full quality, so a
   // measurement on a loaded machine compares like with like instead of
   // whatever the first two seconds happened to shed.
-  const armed = !(import.meta.env.DEV && new URLSearchParams(window.location.search).get("adapt") === "off");
+  // A still garage can pause before the sample window finishes. Its upload
+  // and construction queues must never wait for an adaptive frame window.
+  const armed = !reduced && !(import.meta.env.DEV && new URLSearchParams(window.location.search).get("adapt") === "off");
   const adapt = { armed, sampling: false, t: 0, samples: [], shed: [], tried: [], p95: null, fade: null, reflectK: 0, trial: null };
   const startSampling = () => {
     adapt.sampling = true;
@@ -1476,12 +1478,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       if (!disposed) moon = m;
     }
     // The hero has its first frames. Prepare the workshop next, at idle,
-    // before distant districts take the shared construction buffers. The
-    // page does not await this work, and a failed room cannot stop streaming.
-    if (!disposed) {
-      const room = hasGaragePack(tier) ? idle().then(prepareGarage).catch(() => false) : Promise.resolve();
-      void room.then(() => { if (!disposed) return streamPacks(); });
-    }
+    // before distant districts take the shared construction buffers. Start
+    // their downloads in the same idle turn without waiting for car readiness.
+    if (!disposed) void idle().then(() => {
+      if (disposed) return;
+      if (hasGaragePack(tier)) void prepareGarage().catch(() => false);
+      void streamPacks();
+    });
   };
 
   // (load) Work that waits on the GPU's process: a question it must answer
@@ -1787,38 +1790,46 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       })) : Promise.reject(new Error("The workshop placements are unavailable."));
       const boardsUrl = GARAGE_PHOTOS_ENABLED ? Reflect.get(worldAssets, "worldGarageBoardsUrl")?.[tier] : null;
       const atlasLoad = boardsUrl && !boardTexture ? new THREE.TextureLoader().loadAsync(boardsUrl).then((texture) => (boardTexture = texture)) : Promise.resolve(boardTexture);
-      garageRoom = construction.run(async () => {
-        const [packScene, placements, atlas, runtime, registry] = await Promise.all([fetching, placementLoad, atlasLoad, carRuntime(), garageData()]);
-        findMod = registry.findMod;
-        if (disposed || !city) return false;
-        await idle();
-        if (disposed) return false;
-        if (atlas) city.garageMaterials.setBoards(boardTexture = atlas);
-        packScene.updateMatrixWorld(true);
-        packScene.traverse((node) => {
-          if (!/^(anchor_|cam_)/.test(node.name)) return;
-          const position = new THREE.Vector3();
-          const quaternion = new THREE.Quaternion();
-          node.matrixWorld.decompose(position, quaternion, new THREE.Vector3());
-          city.anchors.set(node.name, { position, quaternion, extras: node.userData });
-        });
-        visit = createGarageVisit(city.anchors);
-        inspectionCursor = null;
-        if (visit.placeholders.length) throw new Error("The workshop camera setup is incomplete.");
-        city.garageMaterials.setRects(garageLights(city.anchors));
-        city.kit.wet.garage?.set(garageLights(city.anchors));
-        const fixtures = [...city.anchors].filter(([name]) => name.startsWith("anchor_garage_light_")).map(([name, anchor]) => ({ name, ...anchor, ...anchor.extras }));
-        if (!roomCommitted) {
-          await city.addPack(GARAGE_PACK, packScene, { placements, beforeMerge: (part) => clearance?.add(part), between, ready: readyToDraw,
-            validate: () => {
-              const missing = city.garageMaterials.missing;
-              if (missing.length) throw new Error(`The workshop is missing ${missing.join(", ")}`);
-            },
+      // Request the cached S6 alongside the room, before either is built.
+      // Observe failure now and propagate it when car preparation needs it.
+      const s6Load = carModels.s6.unavailable ? Promise.resolve() : preloadCar("s6");
+      void s6Load.catch(() => {});
+      garageRoom = (async () => {
+        const { runtime, fixtures } = await construction.run(async () => {
+          const [packScene, placements, atlas, runtime, registry] = await Promise.all([fetching, placementLoad, atlasLoad, carRuntime(), garageData()]);
+          findMod = registry.findMod;
+          if (disposed || !city) return {};
+          await idle();
+          if (disposed) return {};
+          if (atlas) city.garageMaterials.setBoards(boardTexture = atlas);
+          packScene.updateMatrixWorld(true);
+          packScene.traverse((node) => {
+            if (!/^(anchor_|cam_)/.test(node.name)) return;
+            const position = new THREE.Vector3();
+            const quaternion = new THREE.Quaternion();
+            node.matrixWorld.decompose(position, quaternion, new THREE.Vector3());
+            city.anchors.set(node.name, { position, quaternion, extras: node.userData });
           });
-          roomCommitted = true;
-          packsIn.push(GARAGE_PACK);
-        }
+          visit = createGarageVisit(city.anchors);
+          inspectionCursor = null;
+          if (visit.placeholders.length) throw new Error("The workshop camera setup is incomplete.");
+          city.garageMaterials.setRects(garageLights(city.anchors));
+          city.kit.wet.garage?.set(garageLights(city.anchors));
+          const fixtures = [...city.anchors].filter(([name]) => name.startsWith("anchor_garage_light_")).map(([name, anchor]) => ({ name, ...anchor, ...anchor.extras }));
+          if (!roomCommitted) {
+            await city.addPack(GARAGE_PACK, packScene, { placements, beforeMerge: (part) => clearance?.add(part), between, ready: readyToDraw,
+              validate: () => {
+                const missing = city.garageMaterials.missing;
+                if (missing.length) throw new Error(`The workshop is missing ${missing.join(", ")}`);
+              },
+            });
+            roomCommitted = true;
+            packsIn.push(GARAGE_PACK);
+          }
+          return { runtime, fixtures };
+        }, { priority: true });
         if (disposed) return false;
+        await s6Load;
         await between();
         if (disposed) return false;
         // The completed room is still behind text. Cars and their static
@@ -1936,7 +1947,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         garageAvailable = "ready";
         publishGarage();
         return true;
-      }, { priority: true }).catch((err) => {
+      })().catch((err) => {
         if (disposed) return false;
         garageRoom = null;
         garagePaintBatch?.dispose(); garagePaintBatch = null;

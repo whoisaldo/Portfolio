@@ -776,6 +776,84 @@ check("resting garage preparation uploads once per frame without drawing", () =>
   assert.deepEqual(completed, [1, 2, 3, 4], "disposal cancels pending and stale callbacks");
 });
 
+// A reduced-motion cold entry can briefly run before the still-page cover
+// pauses it. Execute the real sampling policy and stage gate in that order.
+check("reduced-motion cold entry cannot strand construction behind sampling", () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const armed = source.match(/  const armed = (.*);/)[1].replaceAll("import.meta.env.DEV", "dev");
+  const from = source.indexOf("  let running = null;");
+  const to = source.indexOf("  const unwatch = subscribeStage(check);", from);
+  for (const dev of [false, true]) for (const search of ["", "?adapt=off"]) {
+    const context = { reduced: true, dev, window: { location: { search } }, URLSearchParams,
+      stage: { paused: false, mode: "stage" }, city: {}, lightIn: true,
+      soundscape: { setActive() {} }, resume() {}, pause() {}, settle() {},
+      document: { hidden: false } };
+    const run = runInNewContext(`const adapt = { armed: ${armed}, sampling: false };
+      const startSampling = () => { adapt.sampling = true; };
+      ${source.slice(from, to)}
+      () => { check(); stage.paused = true; check(); return adapt.sampling; };`, context);
+    assert.equal(run(), false, "a paused still world must leave construction slots available");
+  }
+});
+
+// District requests must start even while the complete garage promise is
+// pending. Execute the actual post-hero idle turn with an unsettled room.
+{
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("    // The hero has its first frames.");
+  const to = source.indexOf("\n  };", from);
+  const events = [];
+  runInNewContext(source.slice(from, to), {
+    disposed: false, tier: "high", idle: () => Promise.resolve(),
+    hasGaragePack: () => true,
+    prepareGarage: () => { events.push("room requested"); return new Promise(() => {}); },
+    streamPacks: () => events.push("district downloads"),
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  check("district downloads do not await garage readiness", () => {
+    assert.deepEqual(events, ["room requested", "district downloads"]);
+  });
+}
+
+// Run the real preparation job with a held room bake and S6 request. Only
+// the shared room build owns the queue; car download/readiness cannot own it.
+{
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("  const prepareGarage = () => {");
+  const to = source.indexOf("  const garageState = () =>", from);
+  const events = [];
+  let finishRoom;
+  let roomEntered;
+  const entered = new Promise((resolve) => { roomEntered = resolve; });
+  const roomBake = new Promise((resolve) => { finishRoom = resolve; });
+  const construction = garage.createGarageBuildQueue();
+  const prepare = runInNewContext(`${source.slice(from, to).replaceAll("import.meta", "meta")}\nprepareGarage;`, {
+    disposed: false, tier: "high", reduced: false, hasGaragePack: () => true,
+    carRuntime: async () => ({}), garageData: async () => ({ findMod() {} }),
+    garageRoom: null, garageAvailable: "idle", garageReason: null, publishGarage() {},
+    worldAssets: { worldPackPropsUrl: { high: { garage: "fixture" } } },
+    preloadPack: async () => new three.Scene(), GARAGE_PACK: "garage",
+    placementPromise: null, fetchUnpacked: async () => [],
+    GARAGE_PHOTOS_ENABLED: false, boardTexture: null,
+    carModels: { s6: {} }, preloadCar: () => { events.push("S6 requested"); return new Promise(() => {}); },
+    construction, idle: async () => {}, between: async () => {}, readyToDraw: async () => {}, clearance: null, findMod: null, visit: null, inspectionCursor: null,
+    createGarageVisit: () => ({ placeholders: [] }), garageLights: () => [],
+    roomCommitted: false, packsIn: [], THREE: three,
+    city: { anchors: new Map(), garageMaterials: { setRects() {} }, kit: { wet: {} },
+      async addPack() { events.push("room bake"); roomEntered(); await roomBake; } },
+  });
+  void prepare();
+  await entered;
+  let districtBuilt = false;
+  void construction.run(() => { districtBuilt = true; });
+  finishRoom();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  check("S6 fetch overlaps room and pending cars release district bake queue", () => {
+    assert.deepEqual(events, ["S6 requested", "room bake"]);
+    assert.ok(districtBuilt, "district construction proceeds while the S6 request remains pending");
+  });
+}
+
 // Run the actual preparation loop with a clock and resources whose cost is
 // known. Grouping warm-up must retain every program, texture and buffer job.
 {
