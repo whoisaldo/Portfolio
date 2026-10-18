@@ -20,6 +20,7 @@
 // the content instead of for it.
 import React, { useEffect } from "react";
 import { Link, useParams, Navigate } from "react-router-dom";
+import { PLAYGROUND } from "../data/site";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, ArrowUpRight, Github, ExternalLink } from "lucide-react";
 import { findWork, neighbours, subtitleOf, RENAMED_SLUGS } from "../data/work";
@@ -82,7 +83,7 @@ export default function WorkPage() {
 
   // An unknown slug is a wrong URL, not a crash. Send them to the work index
   // rather than rendering an apology.
-  if (!hit) return <Navigate to="/#projects" replace />;
+  if (!hit) return <Navigate to={`${PLAYGROUND}#projects`} replace />;
 
   const { kind, entry } = hit;
   const { prev, next } = neighbours(slug);
@@ -100,7 +101,7 @@ export default function WorkPage() {
 
         <div className="relative">
           <Link
-            to={kind === "project" ? "/#projects" : "/#experience"}
+            to={kind === "project" ? `${PLAYGROUND}#projects` : `${PLAYGROUND}#experience`}
             className="inline-flex items-center gap-2 mono-label text-dim hover:text-volt transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -498,7 +499,7 @@ export default function WorkPage() {
           </Link>
         ) : (
           <Link
-            to="/#contact"
+            to={`${PLAYGROUND}#contact`}
             className="group inline-flex items-center gap-2 mono-ui text-muted hover:text-volt transition-colors ml-auto"
           >
             Get in touch

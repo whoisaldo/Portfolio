@@ -27,6 +27,10 @@
 // the intro hands over while the car is still rolling, it finishes parking
 // on the page's clock, then takes the road.
 //
+// In the braindance's free roam (src/braindance/roam) the car belongs to
+// the player: `free` puts it wherever the simulation has it, off the road's
+// line and up the ramp, with the same wheels, lamps, shadow and light.
+//
 // The car is the only thing in the city lit by three.js lights: the lights
 // the drift used and a night street to reflect (nightEnvironment), with the
 // sky light tinted by the city's own light where the car is (the same spill
@@ -34,6 +38,15 @@
 // the bay. The drift's two coloured rims are a stage light for one camera;
 // on the road they come down to a glint, or a car parked with its back to
 // the hero shot flares at the lens.
+//
+// Inside the garage the room lights it instead (src/world/garage-lighting.js:
+// a fixed rig over the two bays and the workshop's own reflections). Its
+// road light and night street fade out as it comes through the door, by
+// where it actually is, so the page, the braindance's recording and its free
+// roam hand over alike. Parked in its bay, the car the garage inspects
+// (src/world/garage-cars.js: the same model, hood and engine bay kept)
+// takes the road's car's place: one car, one transform, its lamps and
+// shadow, drawn as one or the other.
 import * as THREE from "three";
 import { createObject } from "../three/car/object.js";
 import { createContactShadow } from "../three/car/street-contact.js";
@@ -41,9 +54,10 @@ import { PARK_FROM, clamp, poseAt, parkingCurve, coastToStop } from "../three/dr
 import { createLamps, createGroundLight } from "../three/drift/lamps.js";
 import { createRig, createDrift } from "../three/drift/rig.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
 import { SHOTS } from "../data/world.js";
+import { createGarageLighting, fixturesFrom, GARAGE_LIGHT_LOOK, scopeCarLighting } from "./garage-lighting.js";
 import { slim } from "../three/car/slim.js";
+import { toFloat } from "./merge.js";
 
 const FOLLOW = 4; // 1/s: how closely the car follows its goal
 const VMAX = 160; // m/s: the most a single frame may ask of it
@@ -116,6 +130,92 @@ function mirrorStandIn(car, rig) {
  * A studio (three's RoomEnvironment) gave it grey walls and white softboxes
  * to reflect, which blew its roof and hood out to white.
  */
+/**
+ * The S4's pictured parts that are the same physical program but for what
+ * one of them has and another lacks (a clearcoat, an emissive map) given
+ * it, so that they are one program: ANGLE's Metal backend keeps 96 render
+ * pipelines a frame and makes every one again past that (see Baked in
+ * props.js), and the car was seven of the city's. What each is given draws
+ * nothing it did not: a clearcoat of 1e-10 takes out of the light under it
+ * and adds of its own a ten-billionth, under float32's rounding of either;
+ * an emissive map under a black emissive is multiplied by that black (its
+ * own map stands in for one). And as one vertex layout, plain floats, as
+ * the merged parts are: a quantized part's numbers made what the GPU makes
+ * of them (merge.js toFloat), the same vertices. A normal map or
+ * transparency is a program of its own still.
+ */
+export function oneProgram(car) {
+  const parts = new Set();
+  const meshes = [];
+  car.traverse((o) => {
+    const m = o.material;
+    if (o.isMesh && m?.isMeshPhysicalMaterial && m.map && !m.normalMap && !m.transparent && !m.onBeforeCompile.toString().includes("shader")) {
+      parts.add(m);
+      meshes.push(o);
+    }
+  });
+  if (parts.size < 2) return [];
+  const generated = [];
+  const coated = [...parts].some((m) => m.clearcoat > 0);
+  const lit = [...parts].some((m) => m.emissiveMap);
+  for (const m of parts) {
+    if (coated && !(m.clearcoat > 0)) m.clearcoat = 1e-10;
+    if (lit && !m.emissiveMap && m.emissive.getHex() === 0) m.emissiveMap = m.map;
+  }
+  for (const o of meshes) {
+    const plain = Object.values(o.geometry.attributes).every((a) => !a.isInterleavedBufferAttribute && a.array instanceof Float32Array);
+    if (!plain) { o.geometry = toFloat(o.geometry); generated.push(o.geometry); }
+  }
+  return generated;
+}
+
+/**
+ * The lamps' clear lenses, transparent and seen from both sides, are drawn
+ * by three in two passes, the far side's faces and then the near side's,
+ * each its own program (the far pass's normals turned round by a define):
+ * two of ANGLE Metal's 96 render pipelines a frame (see Baked in props.js).
+ * One draw of the near side's program instead, of the lens's faces turned
+ * round (each triangle's corners in the other order, its normals negated)
+ * and then the lens as it is. A draw's triangles go down in their order,
+ * so the far side's are drawn before the near side's as the two passes
+ * drew them, with the same normals (negated before the view's matrix and
+ * not after it: the same numbers), as plain floats (merge.js toFloat).
+ */
+export function lensesOneDraw(car) {
+  const generated = [];
+  const meshes = [];
+  car.traverse((o) => {
+    const m = o.material;
+    if (o.isMesh && m?.transparent && m.side === THREE.DoubleSide && !m.forceSinglePass) meshes.push(o);
+  });
+  for (const o of meshes) {
+    const g = toFloat(o.geometry);
+    const n = g.attributes.position.count;
+    const both = new THREE.BufferGeometry();
+    for (const [name, a] of Object.entries(g.attributes)) {
+      const arr = new Float32Array(a.array.length * 2);
+      arr.set(a.array, 0);
+      arr.set(a.array, a.array.length);
+      if (name === "normal") for (let i = 0; i < a.array.length; i++) arr[i] = -arr[i];
+      both.setAttribute(name, new THREE.BufferAttribute(arr, a.itemSize));
+    }
+    const idx = g.index.array;
+    const tris = new Uint32Array(idx.length * 2);
+    for (let i = 0; i < idx.length; i += 3) {
+      tris[i] = idx[i];
+      tris[i + 1] = idx[i + 2];
+      tris[i + 2] = idx[i + 1];
+    }
+    for (let i = 0; i < idx.length; i++) tris[idx.length + i] = idx[i] + n;
+    both.setIndex(new THREE.BufferAttribute(tris, 1));
+    if (g !== o.geometry) g.dispose();
+    o.geometry = both;
+    generated.push(both);
+  }
+  for (const o of meshes) o.material.side = THREE.FrontSide;
+  return generated;
+}
+
 function nightEnvironment() {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x010102);
@@ -180,6 +280,10 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   // and added once they are merged; the real car is drawn once.
   const standIn = mirrorStandIn(car, rig);
   const slimmed = slim(car);
+  const preparedGeometries = [...oneProgram(car), ...lensesOneDraw(car)];
+  // What is drawn as the road's car, hidden while the garage's stands in.
+  const roadMeshes = [];
+  car.traverse((o) => o.isMesh && roadMeshes.push(o));
   const ready = tier === "phone"
     ? lighten(car).catch((err) => {
         if (import.meta.env.DEV) console.warn("[world] the phone's car keeps every triangle", err);
@@ -187,6 +291,8 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
     : Promise.resolve();
   standIn.layers.set(mirrorLayer);
   car.add(standIn);
+  const lightInside = { value: 0 };
+  scopeCarLighting(car, lightInside);
   car.traverse((o) => {
     if (o.isMesh) {
       o.castShadow = false;
@@ -195,20 +301,33 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   });
   scene.add(car);
   const shadow = createContactShadow(scene, car);
+  // The shadow's own group, the last thing it added: free roam (`free`)
+  // carries it up the ramp with the car.
+  const contact = scene.children[scene.children.length - 1];
   // The city is darker than the plate the drift was tuned over, and it has
   // real bloom: the beams, the pools and the smoke come down to match.
   const lamps = createLamps(car, { depthTest: true, lift: 0.5, layer, reverse: true, directional: true, glow: 0.55, near: [6, 16], beam: 0.028 });
-  const ground = createGroundLight(scene, { size: 70, fade: [14, 34], y: 0.03, follow: true, lamps: 0.6 });
+  const pool = 0.6;
+  const ground = createGroundLight(scene, { size: 70, fade: [14, 34], y: 0.03, follow: true, lamps: pool });
   const drift = createDrift(scene, car, rig, { smokeRgb: [0.3, 0.29, 0.33] });
 
   // ---- light -------------------------------------------------------------
   const pmrem = new THREE.PMREMGenerator(renderer);
   const night = nightEnvironment();
-  const envMap = pmrem.fromScene(night.scene, 0.04).texture;
+  const roadEnvironment = pmrem.fromScene(night.scene, 0.04);
+  const envMap = roadEnvironment.texture;
   night.dispose();
   pmrem.dispose();
   scene.environment = envMap;
   scene.environmentIntensity = 0.32;
+  // The road's car carries the night street itself, as the scene's
+  // environment gave it, so that inside the garage it can trade it for the
+  // workshop's (setProbe).
+  const reflecting = [...new Set(roadMeshes.flatMap((o) => [].concat(o.material)))].filter((m) => m.isMeshStandardMaterial);
+  for (const m of reflecting) {
+    m.envMap = envMap;
+    m.envMapIntensity = scene.environmentIntensity;
+  }
   const lights = new THREE.Group();
   lights.name = "car_lights";
   const hemi = new THREE.HemisphereLight(0x8fb4ff, 0x1a0a14, 0.5);
@@ -253,30 +372,25 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   };
   const curbFor = (aspect) => (aspect < 1 ? stops.curbPortrait : stops.curb);
 
-  // In the bay the room lights it as the garage's viewer lights its own
-  // (src/three/garage-room.js): area lights for the kit's two white tubes
-  // overhead and for the magenta and cyan tubes high on the walls either
-  // side, faded in as it drives through the door. Always there, at nothing
-  // outside the bay, so the paint's program never changes on the way in.
-  // The area lights' lookup tables once a page: init() makes four new
-  // textures every time, and every renderer that drew the old ones keeps
-  // them.
-  if (!THREE.UniformsLib.LTC_FLOAT_1) RectAreaLightUniformsLib.init();
+  // In the garage the room's rig lights it, made with the car and never
+  // added or taken away, so the paint's program never changes on the way
+  // in. How far inside it is: 0 out on the street, 1 a few metres in from
+  // the door, by where it is (or what setInside says).
+  const lighting = createGarageLighting({ scene, renderer, layer, fixtures: fixturesFrom(anchors), tier });
   const bayAt = at("anchor_garage_bay") ?? road.pointAt(road.length, new THREE.Vector3());
-  const bayLights = new THREE.Group();
-  bayLights.name = "car_bay_lights";
-  const area = (color, nits, width, height, [x, y, z], [tx, ty, tz]) => {
-    const l = new THREE.RectAreaLight(color, 0, width, height);
-    l.position.set(bayAt.x + x, y, bayAt.z + z);
-    l.lookAt(bayAt.x + tx, ty, bayAt.z + tz);
-    l.userData.nits = nits;
-    l.layers.enable(layer);
-    bayLights.add(l);
-  };
-  for (const z of [-4.5, 4.5]) area("#d5e5f6", 30, 18, 0.3, [2, 7.6, z], [2, 0, z]);
-  area("#ff278d", 6, 12, 2.5, [2, 6.5, 14.4], [2, 1, 0]);
-  area("#27dcf2", 6, 12, 2.5, [2, 6.5, -14.4], [2, 1, 0]);
-  scene.add(bayLights);
+  const doorX = at("anchor_garage_portal_door")?.x ?? bayAt.x - 10;
+  let insideOverride = null;
+  let inside = 0;
+  const insideAt = (x, z) => insideOverride ?? smoothstep(doorX - 1, doorX + 3, x) * (1 - smoothstep(14, 16, Math.abs(z - bayAt.z)));
+  // The workshop's environment, once the garage has filtered it (setProbe).
+  let probe = null;
+  let probeGain = 0;
+  // The garage's car while it stands in for this one (setInspection), and
+  // what keeps this one in its bay (setHold).
+  let inspection = null;
+  let hold = null;
+  let held = false;
+  let departing = false;
   const stopFor = (id, local, aspect) => {
     switch (SHOTS[id]?.car) {
       case "curb": return curbFor(aspect);
@@ -313,6 +427,7 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   // "road": on the road at u metres, v metres a second (negative backs up).
   // "drift": the intro has it, on the song clock.
   // "park": the intro let go while the car was still parking.
+  // "free": the braindance's free roam has it (see `free`).
   let mode = "road";
   let u = stops.curb;
   let v = 0;
@@ -403,12 +518,29 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   const finish = (now, dt) => {
     answer(dt);
     const k0 = 1 - Math.exp(-dt * 2);
-    stageLight += ((mode === "road" ? 0 : 1) - stageLight) * (dt > 0 ? k0 : 1);
+    stageLight += ((mode === "road" || mode === "free" ? 0 : 1) - stageLight) * (dt > 0 ? k0 : 1);
     key.intensity = 0.55 + 0.15 * stageLight;
     rimM.intensity = (0.55 + 0.95 * stageLight) * rims;
     rimC.intensity = (0.35 + 0.65 * stageLight) * rims;
-    const bay = mode === "road" ? smoothstep(stops.bay - 12, stops.bay - 4, u) : 0;
-    for (const l of bayLights.children) l.intensity = l.userData.nits * bay;
+    // Inside, the road's light goes and the room's takes over; the night
+    // street fades to nothing at the door and the workshop's comes up from
+    // there, so their reflections never show at once.
+    inside = insideAt(car.position.x, car.position.z);
+    lightInside.value = inside;
+    // The headlamps stay lit; their pool on the floor is the road's, and in
+    // the lit workshop it would lie on the concrete like fog.
+    ground.material.uniforms.uLamps.value = pool * (1 - inside * (1 - GARAGE_LIGHT_LOOK.lampPool));
+    hemi.intensity = 0.5;
+    const want = probe && inside > 0.5 ? probe : envMap;
+    const gain = probe && want === probe ? probeGain * (2 * inside - 1) : scene.environmentIntensity * (probe ? Math.max(0, 1 - 2 * inside) : 1);
+    for (const m of reflecting) {
+      m.envMap = want;
+      m.envMapIntensity = gain;
+    }
+    if (inspection?.root.visible) {
+      for (let i = 0; i < inspection.wheels.length; i++) inspection.wheels[i].rotation.x = rig.wheels[i].rotation.x;
+      for (let i = 0; i < inspection.steers.length; i++) inspection.steers[i].rotation.y = rig.steers[i].rotation.y;
+    }
     car.updateMatrixWorld(true);
     shadow.update();
     ground.update(car, lamps, car.position);
@@ -441,6 +573,60 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
     car,
     /** Resolves once a phone's car is simplified (at once elsewhere). */
     ready,
+    /** The garage's rig (src/world/garage-lighting.js). */
+    lighting,
+    /** How far inside the garage the car is, 0..1, as of the last frame. */
+    get inside() {
+      return inside;
+    },
+    /** Whether it stands still in its bay. */
+    get atBay() {
+      return Math.abs(v) < 0.05 && Math.hypot(car.position.x - bayAt.x, car.position.z - bayAt.z) < 0.1;
+    },
+    /** How far inside it is, 0..1, whatever its position says; null goes
+     *  back to its position. */
+    setInside(k) {
+      insideOverride = k == null ? null : clamp(k, 0, 1);
+    },
+    /** The workshop's environment and how strongly the paint reflects it. */
+    setProbe(texture, gain = 0.5) {
+      probe = texture;
+      probeGain = gain;
+    },
+    /**
+     * Hang `root` (a rigged S4 from object.js, the garage's) from this car,
+     * so it goes where this one goes, and draw it in this one's place while
+     * `on`; null takes it away. Its wheels turn and steer as these do.
+     */
+    setInspection(root, on = true) {
+      if ((inspection?.root ?? null) !== root) {
+        if (inspection) car.remove(inspection.root);
+        inspection = null;
+        if (root) {
+          scopeCarLighting(root, lightInside);
+          const parts = root.userData.parts ?? {};
+          inspection = { root, wheels: rig.wheels.map((w) => parts[w.name]), steers: rig.steers.map((st) => parts[st.name]) };
+          root.position.set(0, 0, 0);
+          root.quaternion.identity();
+          car.add(root);
+        }
+      }
+      const shown = Boolean(root) && on;
+      if (inspection) inspection.root.visible = shown;
+      for (const o of roadMeshes) o.visible = !shown;
+    },
+    /**
+     * While `fn()` is true the page cannot drive the car out of its bay
+     * (the garage holds it until its hood is shut); null lets it go.
+     * `held` says whether it held the car back on the last frame.
+     */
+    setHold(fn) {
+      hold = fn;
+    },
+    get held() {
+      return held;
+    },
+    get departing() { return departing; },
     /** Blink the lamps, as a key fob does. */
     flash() {
       fob = 0;
@@ -464,7 +650,10 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
      */
     drive(dt, { ids, position, locals, aspect, jump = false, goal = null }) {
       clock += dt;
-      const want = goal ?? goalFor(ids, position, locals, aspect);
+      let want = goal ?? goalFor(ids, position, locals, aspect);
+      departing = mode === "road" && u >= stops.bay - 0.1 && want < u;
+      held = departing && Boolean(hold?.({ mode: "road", cut: jump }));
+      if (held) want = u;
       if (mode === "drift") {
         // The intro let go. If the drift itself was cut short, there is no
         // parking to finish: the car is simply at the curb.
@@ -536,9 +725,13 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
      */
     directed(dt, { u: at, v: speed = 0 }) {
       clock += dt;
+      held = false;
       mode = "road";
       car.visible = true;
-      const next = clamp(at, 0, road.length);
+      let next = clamp(at, 0, road.length);
+      departing = u >= stops.bay - 0.1 && next < u;
+      held = departing && Boolean(hold?.({ mode: "directed", cut: Math.abs(next - u) > 6 }));
+      if (held) { next = u; speed = 0; }
       const ds = next - u;
       const cut = !placed || Math.abs(ds) > 6;
       const before = v;
@@ -557,6 +750,62 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
       setLamps();
       if (!cut && Math.abs(v) > 0.5) drift.pushTrails(lamps.tailL, lamps.tailR, Math.abs(v), clock);
       finish(clock, Math.abs(dt));
+    },
+
+    /**
+     * One frame of the braindance's free roam (src/braindance/roam): the
+     * car where the player's simulation has it, at `x, y, z` (its wheels'
+     * contact height), turned to `heading` (0 faces +z), tipped by `pitch`
+     * and `roll` on a slope, moving at `speed` metres a second along its
+     * nose (negative backs up), its front wheels at `steer` radians, having
+     * rolled `ds` metres since the last frame. `brake` and `reverse` are the
+     * lamps, 0..1. `cut` is a jump (a spawn, a reset): no wheel spin across
+     * it and the light trails start again. Call `endFree` on the way out.
+     */
+    free(dt, { x, y = 0, z, heading, pitch = 0, roll = 0, speed = 0, steer: toSteer = 0, ds = 0, brake: toBrake = 0, reverse: toReverse = 0, cut = false }) {
+      clock += dt;
+      held = false;
+      if (mode !== "free" || cut || !placed) drift.reset();
+      mode = "free";
+      placed = true;
+      car.visible = true;
+      const before = v;
+      v = speed;
+      accel = cut || dt <= 0 ? 0 : (v - before) / dt;
+      departing = Math.hypot(car.position.x - bayAt.x, car.position.z - bayAt.z) < 0.15 && Math.hypot(x - car.position.x, z - car.position.z) > 0.0001;
+      if (departing) {
+        held = Boolean(hold?.({ mode: "free", cut }));
+        if (held) { x = car.position.x; y = car.position.y; z = car.position.z; heading = car.rotation.y; pitch = car.rotation.x; roll = car.rotation.z; speed = 0; ds = 0; v = 0; }
+      }
+      car.position.set(x, y, z);
+      // Heading first, then the slope in the car's own frame.
+      car.rotation.set(pitch, heading, roll, "YXZ");
+      steer = cut ? toSteer : steer + (toSteer - steer) * (1 - Math.exp(-dt * 14));
+      for (const st of rig.steers) st.rotation.y = steer;
+      if (!cut) for (const w of rig.wheels) w.rotation.x += ds / rig.radius;
+      brake += (toBrake - brake) * (1 - Math.exp(-dt * 12));
+      reverse += (toReverse - reverse) * (1 - Math.exp(-dt * 8));
+      setLamps();
+      if (!cut && Math.abs(v) > 0.5) drift.pushTrails(lamps.tailL, lamps.tailR, Math.abs(v), clock);
+      finish(clock, dt);
+      // The shadow and the headlamps' pool lie on the ground the car is on.
+      contact.position.y = y;
+      contact.rotation.set(pitch, heading, roll, "YXZ");
+      ground.mesh.position.y = y + 0.03;
+    },
+
+    /** Free roam is over: the car is the road's again (`directed`, `drive`). */
+    endFree() {
+      if (mode !== "free") return;
+      mode = "road";
+      placed = false;
+      v = 0;
+      accel = 0;
+      car.rotation.set(0, car.rotation.y, 0, "XYZ");
+      contact.rotation.set(0, car.rotation.y, 0, "XYZ");
+      contact.position.y = 0;
+      ground.mesh.position.y = 0.03;
+      drift.reset();
     },
 
     setRims(k) {
@@ -597,7 +846,11 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
     },
 
     dispose() {
-      scene.remove(car, lights, bayLights);
+      if (inspection) car.remove(inspection.root);
+      inspection = null;
+      scene.remove(car, lights);
+      lighting.dispose();
+      preparedGeometries.forEach((g) => g.dispose());
       slimmed.geometries.forEach((g) => g.dispose());
       slimmed.material?.dispose();
       standIn.geometry.dispose();
@@ -607,7 +860,7 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
       ground.dispose();
       drift.dispose();
       if (scene.environment === envMap) scene.environment = null;
-      envMap.dispose();
+      roadEnvironment.dispose();
       car.userData.dispose();
     },
   };

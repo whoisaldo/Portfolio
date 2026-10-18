@@ -13,18 +13,25 @@
 // shared mesh and a handful of numbers of its own: up to four stacked tiers
 // (a podium, a shaft, its setbacks, a crown or a spire), each on a square
 // plan or, for a tower, one with its corners cut back, a parapet round
-// whatever roof is on top, and a cap on every setback for a terrace. The
-// low blocks wear the avenue's painted elevations; the towers are one of a
-// few kinds a night city is made of (stepped back twice, a slab with its
-// plant on top, a ziggurat, a dark glass crown with lit edges, a podium and
-// a spire), some lit at their setbacks, a few carrying a screen the height
-// of a dozen floors. Every placement, footprint and height cap is what it
-// was when these were boxes, so the hero's band of sky and Contact's moon
-// keep the clearances they were framed with; a spire or a mast only stands
-// where nothing was capped. Two draws for the buildings (blocks and towers),
-// four for what stands on the roofs (a kit per kind of roof: tanks and a
-// stair hut, plant and cooling towers, a telecom mast, a neon sign), one for
-// the aviation lamps.
+// whatever roof is on top, and a cap on every setback for a terrace. Their
+// walls are the kit's own tinted walls and windows, so the city goes on
+// past the last lot line in the same hand. The low blocks have shops at
+// their feet, string courses, piers, balconies, air conditioners and small
+// lit boards; the towers are one of a few kinds a night city is made of
+// (stepped back twice, a slab with its plant on top, a ziggurat, a glass
+// crown lit from inside, a podium and a spire), most lit in bands floor by
+// floor as the show paints them, some lit at their setbacks, some wearing a
+// vertical blade of light or a mark under the roof, a few carrying a screen
+// the height of a dozen floors. Round the kit stand the show's screen
+// towers, slim shafts whose faces are columns of stacked screens, and
+// behind them hologram columns (sky-columns.js). Every dealt lot's place,
+// footprint and height cap is what it was when these were boxes, so the
+// hero's band of sky and Contact's moon keep the clearances they were
+// framed with; a spire, a mast, a screen tower or a column only stands
+// where nothing was capped. Three draws for the buildings (blocks, square
+// towers and cut ones), four for what stands on the roofs (a kit per kind
+// of roof: tanks and a stair hut, plant and cooling towers, a telecom mast,
+// a sign), one for the aviation lamps, one for the columns.
 //
 // The sky is a dome: near-black overhead, and near the horizon the lit
 // city's glow hanging in wet air, violet and pink rather than blue, because
@@ -33,16 +40,49 @@
 import * as THREE from "three";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { COMMON, WINDOWS } from "./glsl.js";
+import { ADVERT, createSkyColumns } from "./sky-columns.js";
+import { BOX, createFarStreet } from "./far-street.js";
+import { createSkyWords, LOGOS } from "./sky-words.js";
+import { LANES } from "./traffic-sky.js";
 
-// Rectangles (x0, z0, x1, z1) the far city stays out of.
+// Rectangles (x0, z0, x1, z1) the far city stays out of: the kit's whole
+// footprint (BIBLE.md), so it starts behind the last lot line every street
+// of the loop is built to.
 const KEEP_OUT = [
-  [-60, -740, 60, 80], // the avenue, its canyon and the intersection
-  [0, -420, 300, -130], // the plaza, and corpo row's west end
-  // Corpo row's east end, the rooftop and the garage: the kit stops at the
-  // rooftop's east wall (484) and the garage block's north face (-176), so
-  // the city comes up to Contact's lens.
-  [300, -420, 490, -176],
-  [-70, 20, 70, 140], // behind the hero camera
+  // The kit east of the west street's east lots to the x 120 road, the
+  // megabuilding to the depot past the avenue's south arm; the
+  // megabuilding's west corner; Japantown out to x -170 and the block that
+  // closes the west street's south end.
+  [-66, -800, 135, 125],
+  [-94, -800, -66, -745],
+  [-175, -745, -66, 42],
+  // The east lobe: corpo row's towers to Santo Domingo's south side, out to
+  // the garage street's east lots.
+  [100, -380, 490, 48],
+];
+// Where the kit has grown since: the lots are still dealt from the
+// rectangles above (a lot skipped there takes none of the draws, so one more
+// skipped would deal every lot after it differently, the hero's and
+// Contact's among them), and a lot dealt onto ground the kit has since taken
+// is left out afterwards. These are the ground itself, not a margin round a
+// centre: a lot is left out when its footprint, turned, reaches into one.
+const KEEP_OUT_SINCE = [
+  // Corpo Row's service lane, elevated track and back blocks, behind its
+  // towers out to z -420.
+  [100, -420, 470, -380],
+  // The Afterlife Block's east part, built out to x 508, and the block that
+  // closes the boulevard's east end, its north face on z -344.
+  [470, -344, 510, -176],
+];
+// Lots stood by hand after the deal, where it left bare ground the loop
+// looks at: x, z, width, depth, height. The corner outside the loop's turn
+// at the boulevard's east end, between Corpo Row's last lot (x 470), the
+// closing block's back (z -344) and the dealt lots from x 502: it was dealt
+// as the kit's (the east lobe's rectangle runs to x 490) and no district
+// builds on it.
+const EXTRA_LOTS = [
+  [489, -369, 30, 34, 46],
+  [485, -405, 22, 26, 29],
 ];
 // Where the moon rises for the Contact shot: lit roofs stay low there, and
 // right by the garage they are not there at all. A few towers stand under
@@ -62,12 +102,30 @@ const UNDER_THE_MOON = [
   [650, 30, 24, 64],
   [520, 60, 20, 58],
 ];
+// What Contact's lens frames, as bearings from it in degrees (from east,
+// toward south): a 16:9 screen's frame and the moon shot's, with a margin.
+// Outside it the low zone need not be low.
+const FRAMED = [7, 84];
+// The far layer of megabuildings, seen from the lenses whose pictures hold,
+// stands no higher than this: lens x, y, z, the bearings it frames and the
+// elevation in degrees. Contact left of the moon, Contact under the moon
+// (its lower edge is 13.1 degrees up, the moon shot's frame 12.6), and
+// Corpo Row's low angle, whose frame starts 9 degrees up.
+const FAR_UNDER = [
+  [456, 10.4, -203, 7, 46, 13.5],
+  [456, 10.4, -203, 46, 84, 11.5],
+  [120, 30, -230, -96, -27, 7.5],
+];
+// How far past the kit's ground the streets are dressed for a walker
+// looking out from the loop (a kerb and paving under every block, a post
+// under every lamp, parked cars): the first three blocks.
+const DRESSED = 141.3;
 // Aviation lights on anything this tall, blinking red in three groups.
 const BEACON_OVER = 92;
 // The cloud deck's height, over the tallest roofs.
 const CLOUD_H = 520;
-// Under this a building is a block (painted, one or two tiers, square);
-// over it, a tower.
+// Under this a building is a block (one or two tiers, square, shops at its
+// foot); over it, a tower.
 const TOWER_FROM = 60;
 // What stands on a roof, by kind (see roofKits).
 const KIT = { home: 0, plant: 1, mast: 2, sign: 3 };
@@ -453,13 +511,13 @@ function cullable(mesh, names, spheres) {
   let shown = -1;
   const sphere = new THREE.Sphere();
   return {
-    update(frustum) {
+    update(frustum, visibleSphere) {
       let k = 0;
       let changed = false;
       for (let i = 0; i < n; i++) {
         sphere.center.set(spheres[i * 4], spheres[i * 4 + 1], spheres[i * 4 + 2]);
         sphere.radius = spheres[i * 4 + 3];
-        if (!frustum.intersectsSphere(sphere)) continue;
+        if (!frustum.intersectsSphere(sphere) || visibleSphere && !visibleSphere(sphere.center.x, sphere.center.y, sphere.center.z, sphere.radius)) continue;
         if (order[k] !== i) {
           order[k] = i;
           changed = true;
@@ -500,8 +558,32 @@ function topCentre(b, s) {
   return [b.x + Math.cos(b.yaw) * ox + Math.sin(b.yaw) * oz, b.z - Math.sin(b.yaw) * ox + Math.cos(b.yaw) * oz];
 }
 
-export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduced = false, facades = [] } = {}) {
+export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduced = false } = {}) {
+  // The city's adverts: the kit's billboards own the atlas (materials.js),
+  // and the far city's boards, screens and columns show the same set.
+  // Until it has landed (or were the kit ever without a billboard) they
+  // show what they drew before there was one.
+  let ads = { uAds: { value: null }, uHasAds: { value: 0 } };
+  scene.traverse((o) => {
+    for (const m of [].concat(o.material ?? [])) if (m.name === "billboard") ads = { uAds: m.uniforms.uAds, uHasAds: m.uniforms.uHasAds };
+  });
+  // And its signs' words, which ride with the adverts into every material
+  // that draws a board.
+  const words = createSkyWords();
+  // (1 for a free eye, 0 at the page's own lenses: what the far city's air
+  // does past the districts' veil is for the eyes that roam.)
+  const farFree = { value: 1 };
+  ads = { ...ads, ...words.uniforms, uFarFree: farFree };
   const r = rng(90210);
+  // A number of a lot's own from where it was dealt, by the hash the shader
+  // uses, in the GPU's precision: what is decided after the deal is decided
+  // from these, so no stream of draws is disturbed.
+  const f32 = Math.fround;
+  const at = (b) => f32(f32(f32(b.ox ?? b.x) * f32(0.013)) + f32(f32(b.oz ?? b.z) * f32(0.071)));
+  const hash11 = (n) => {
+    const v = f32(f32(Math.sin(f32(n))) * f32(43758.5453123));
+    return v - Math.floor(v);
+  };
   // Where each building stands, its footprint, its height, which way it
   // turns, and whether anything capped its height (a spire or a mast only
   // goes where nothing did). The draws from `r` are the boxes' own, in the
@@ -520,6 +602,8 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       const dd = 16 + r() * 22;
       let h = 24 + Math.pow(r(), 2.2) * 150 + Math.min(80, d * 0.05);
       if (r() < 0.05) h += 90 + r() * 110;
+      // What it was dealt, before anything below caps it.
+      const tall = h;
       let free = true;
       let cone = false;
       const [lx0, lz0, lx1, lz1] = LOW;
@@ -544,7 +628,12 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         free = false;
         cone = true;
       }
-      lots.push({ x, z, w, d: dd, h, yaw: (r() - 0.5) * 0.3, free, cone, hero: false });
+      const yaw = (r() - 0.5) * 0.3;
+      // Half its footprint's reach along x and z, turned.
+      const [cs, sn] = [Math.abs(Math.cos(yaw)), Math.abs(Math.sin(yaw))];
+      const [ex, ez] = [(w * cs + dd * sn) / 2, (w * sn + dd * cs) / 2];
+      const gone = KEEP_OUT_SINCE.some(([x0, z0, x1, z1]) => x + ex > x0 && x - ex < x1 && z + ez > z0 && z - ez < z1);
+      lots.push({ x, z, w, d: dd, h, tall, yaw, free, cone, hero: false, gone });
     }
   }
   // More candidates than the tier draws (a phone's 1,200): keep the nearest
@@ -585,20 +674,1523 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       { ...b, x: xb, z: zb, w: alongX ? lb : b.w, d: alongX ? b.d : lb, h: Math.max(8, hb), block: b, second: true });
   }
 
+  // The lots stood by hand go last, after the split, so every dealt lot
+  // keeps its own draws from each stream.
+  for (const [x, z, w, d, h] of EXTRA_LOTS) lots.push({ x, z, w, d, h, yaw: 0, free: false, cone: false, hero: false, extra: true });
+
   const f = rng(31337);
   const forms = lots.map((b) => formOf(b, f));
 
+  // What stands on each roof, and which aviation lamps blink together, drawn
+  // here for the lots as dealt, so that whatever is changed below (a lot
+  // made into a screen tower) leaves every other lot its own draws. A kit
+  // on most roofs, made for a 20 m roof and scaled to the top tier's
+  // footprint, turned a quarter at random so no two read the same. Homes
+  // and plant on the blocks and the capped towers; a mast or a sign only
+  // where nothing was capped, so they never stand in a framed sky.
+  const fk = rng(4040);
+  const kitOf = lots.map((b, i) => {
+    const s = forms[i];
+    if (s.style === 2 || s.style === 3 || b.hero) return null;
+    // Past a kilometre (three quarters of one on a phone's thinner city) a
+    // roof's plant is under a pixel and in the fog.
+    if (Math.hypot(b.x - 250, b.z + 300) > (count < 2000 ? 750 : 1000)) return null;
+    const top = topTier(s);
+    const fw = b.w * s.inset[top];
+    const fd = b.d * s.inset[top];
+    if (Math.min(fw, fd) < 9 || fk() < 0.22) return null;
+    const tower = b.h >= TOWER_FROM;
+    const roll = fk();
+    let kit = tower ? (roll < 0.66 ? KIT.plant : KIT.home) : roll < 0.7 ? KIT.home : KIT.plant;
+    if (!b.cone && roll > (tower ? 0.78 : 0.8)) kit = b.free && fk() < 0.5 ? KIT.mast : KIT.sign;
+    const k = Math.min(1.5, Math.max(0.55, Math.min(fw, fd) / 20));
+    const [cx, cz] = topCentre(b, s);
+    const turn = b.yaw + Math.floor(fk() * 4) * (Math.PI / 2);
+    return { kit, at: [cx, s.roof, cz, turn], look: [k, Math.floor(fk() * SIGN_NEON.length), fk(), 0] };
+  });
+  // Aviation lights on every tall roof: which of the three groups each
+  // blinks with (-1: too low for one).
+  const beaconOf = lots.map((b, i) => (forms[i].roof + forms[i].spire < BEACON_OVER && !b.hero ? -1 : Math.floor(r() * 3)));
+
+  // ---- the screen towers ------------------------------------------------------
+  // The show's skyline is a low glowing city under a handful of slim towers
+  // whose whole faces are columns of stacked screens, the brightest things
+  // in it. Round the kit, a sector of the compass at a time, one lot in the
+  // near ring and one in the far (a phone's thinner city has the one ring)
+  // is rebuilt as one: a podium, a slim shaft of screens, a dark cap and a
+  // red lamp. Only where nothing capped the lot's height, so never up the
+  // hero's avenue nor under Contact's moon, and from draws of their own.
+  const edit = rng(52011);
+  // Contact looks south-east from the garage's roof, and sees past the end
+  // of the low roofs: nothing new stands tall anywhere in that quarter.
+  const underMoon = (b) => {
+    const a = Math.atan2(b.z - CONTACT_LENS[1], b.x - CONTACT_LENS[0]) * (180 / Math.PI);
+    return a > -10 && a < 100;
+  };
+  const SECTORS = 24;
+  const rings = count < 2000 ? [[150, 520, 190, 110]] : [[150, 420, 190, 110], [420, 1000, 260, 170]];
+  // How far a lot stands from the kit, and which sector of the compass it
+  // is in, seen from the kit's middle.
+  const gapOf = (b) => Math.min(...KEEP_OUT.map(([x0, z0, x1, z1]) => Math.hypot(Math.max(x0 - b.x, 0, b.x - x1), Math.max(z0 - b.z, 0, b.z - z1))));
+  const sectorOf = (b) => Math.min(SECTORS - 1, Math.floor((Math.atan2(b.z + 330, b.x - 160) / (Math.PI * 2) + 0.5) * SECTORS));
+  const ringOf = lots.map((b) => {
+    if (!b.free || b.gone || b.block || Math.min(b.w, b.d) < 22 || underMoon(b)) return -1;
+    const gap = gapOf(b);
+    const ring = rings.findIndex(([g0, g1]) => gap >= g0 && gap < g1);
+    return ring < 0 ? -1 : sectorOf(b) * rings.length + ring;
+  });
+  for (let slot = 0; slot < SECTORS * rings.length; slot++) {
+    const from = [];
+    ringOf.forEach((v, i) => v === slot && from.push(i));
+    const skip = edit() < 0.2;
+    const pick = from[Math.floor(edit() * from.length)];
+    if (skip || pick === undefined) continue;
+    const [, , h0, dh] = rings[slot % rings.length];
+    const h = h0 + edit() * dh;
+    const podium = 10 + edit() * 8;
+    const cap = 5 + edit() * 9;
+    lots[pick] = { ...lots[pick], h, screens: true };
+    forms[pick] = { tiers: [podium, h - podium - cap, cap, 0], inset: [1, 0.6 + edit() * 0.14, 0.36 + edit() * 0.14, 1], offset: [0, 0, 0, 0], chamfer: 0, style: 5, parapet: 0.5, screen: 0, roof: h, spire: 0 };
+    kitOf[pick] = null;
+    if (beaconOf[pick] < 0) beaconOf[pick] = Math.floor(edit() * 3);
+  }
+
+  // The blocks nearest the kit are what its last row is seen against: two in
+  // five of their roofs carry a lit board in place of their plant, so the
+  // signs go on past the last lot line. Not up the hero's avenue, where a
+  // roof sign was never dealt, nor under Contact's moon.
+  lots.forEach((b, i) => {
+    const k = kitOf[i];
+    if (!k || b.cone || b.gone || b.h >= TOWER_FROM || underMoon(b) || gapOf(b) > 200 || (k.kit !== KIT.home && k.kit !== KIT.plant)) return;
+    if (edit() < 0.4) k.kit = KIT.sign;
+  });
+
+  // ---- the hologram columns ---------------------------------------------------
+  // Columns of adverts in the sky (sky-columns.js), the tallest things in
+  // it, two to four times a tower's height: a group of seven west of the
+  // kit, where every roof, deck and flying car of it sees them stand
+  // together, and one each to the south and the east. Each rises out of a
+  // lot nothing capped, so never up the hero's avenue nor in the quarter
+  // Contact looks into.
+  const holo = rng(4242);
+  const columns = [];
+  // (And since: three east of the kit, three south, two south-west, each
+  // group outside the hero's cone, Corpo Row's frame and the quarter
+  // Contact looks into, and taller: up into the cloud.)
+  for (const [cx, cz, reach, many, taller] of [[-500, -190, 190, 7, 0], [250, 540, 120, 1, 0], [900, -480, 120, 1, 0], [1000, -430, 170, 3, 1], [230, 660, 170, 3, 1], [-430, 480, 160, 2, 1]]) {
+    const from = lots.filter((b) => b.free && !b.gone && !b.screens && !underMoon(b) && Math.hypot(b.x - cx, b.z - cz) < reach);
+    const stood = [];
+    for (let tries = 0; tries < 60 && stood.length < many && from.length; tries++) {
+      const b = from[Math.floor(holo() * from.length)];
+      if (stood.some((o) => Math.hypot(o.x - b.x, o.z - b.z) < 64)) continue;
+      stood.push(b);
+      columns.push(b.x, b.z, 26 + holo() * 14, 540 + holo() * 360 + taller * 260, taller ? 1 + Math.floor(holo() * 5) : Math.floor(holo() * 5), holo());
+    }
+  }
+
+  // ---- the ring ---------------------------------------------------------------
+  // Something stands on the horizon on every bearing. South-east the lots
+  // were all dealt low for Contact's moon, and from the air the low roofs
+  // ran out to a fog line. Outside Contact's own frame (and the moon
+  // shot's), seen from its lens, they stand as tall as they were dealt, as
+  // the north and the west do; a split block is one lot again under its
+  // tower. Inside the frame every lot is as it was.
+  const ring = rng(60606);
+  const lensAz = (x, z) => Math.atan2(z - CONTACT_LENS[1], x - CONTACT_LENS[0]) * (180 / Math.PI);
+  // How high, in degrees from Contact's lens, anything new may stand on a
+  // bearing. Left of the moon megatowers loom over the near roofs, highest
+  // at the frame's left edge and stepping down toward the moon. From
+  // bearing 46 on, nothing new comes into the moon shot's frame (12.6
+  // degrees up) nor into the moon's disc or the band of sky one of its
+  // radii wide round it (the disc as a wide screen draws it, 105 m across
+  // at 780 m: 7.7 degrees, about bearing 64.7 and 24.2 degrees up).
+  // The kit's flying cars have lanes out among these towers, each set in a
+  // corridor where nothing stood as high as the lane (traffic-sky.js). What
+  // is stood or raised here since keeps under them: the lowest belly of any
+  // lane whose sweep comes within reach of a point (Infinity where none does).
+  const laneBelly = (x, z, reach) => {
+    let low = Infinity;
+    for (const l of LANES) {
+      let off;
+      if (l.a) {
+        const [ax, az, bx, bz] = [l.a[0], l.a[1], l.b[0] - l.a[0], l.b[1] - l.a[1]];
+        const t = Math.min(1, Math.max(0, ((x - ax) * bx + (z - az) * bz) / (bx * bx + bz * bz)));
+        off = Math.hypot(x - ax - bx * t, z - az - bz * t) - l.half;
+      } else {
+        off = Math.abs(Math.hypot((x - l.c[0]) / l.r[0], (z - l.c[1]) / l.r[1]) - 1) * Math.min(l.r[0], l.r[1]);
+      }
+      if (off < reach + 4) low = Math.min(low, l.y + Math.min(l.lift ?? 0, 0));
+    }
+    return low;
+  };
+  const MOON_FROM_LENS = [64.7, 24.2, 7.74];
+  const capEl = (az) => {
+    if (az < FRAMED[0] || az > FRAMED[1]) return 90;
+    if (az < 30) return 36;
+    if (az < 46) return 36 - ((az - 30) / 16) * 22;
+    const [maz, mel, mr] = MOON_FROM_LENS;
+    const reach = mr * 2 + 1;
+    const off = Math.abs(az - maz);
+    return Math.min(12, off < reach ? mel - Math.sqrt(reach * reach - off * off) - 0.5 : 90);
+  };
+  // The most a thing so wide may stand, in metres, where it is.
+  const capAt = (x, z, wide) => {
+    const dist = Math.hypot(x - CONTACT_LENS[0], z - CONTACT_LENS[1]);
+    const [az, half] = [lensAz(x, z), Math.atan2(wide / 2, dist) * (180 / Math.PI)];
+    return 10.4 + dist * Math.tan(Math.min(capEl(az - half), capEl(az), capEl(az + half)) * (Math.PI / 180));
+  };
+  // The garage street's lens (437, 2.2, -292) looks down its own street:
+  // what stands on these bearings from it shows over the street's end, and
+  // stays as it was.
+  const downGarageStreet = (x, z) => {
+    const a = Math.atan2(z + 292, x - 437) * (180 / Math.PI);
+    return a > 66 && a < 102;
+  };
+  const reform = (i, b) => {
+    lots[i] = b;
+    forms[i] = formOf(b, ring);
+    kitOf[i] = null;
+    beaconOf[i] = forms[i].roof + forms[i].spire < BEACON_OVER ? -1 : Math.floor(ring() * 3);
+  };
+  for (let i = 0; i < lots.length; i++) {
+    const b = lots[i];
+    const whole = b.block ?? b;
+    if (b.second || b.hero || b.gone || whole.cone || !whole.tall || whole.tall < TOWER_FROM || whole.tall <= whole.h) continue;
+    const az = lensAz(whole.x, whole.z);
+    if ((az > FRAMED[0] && az < FRAMED[1]) || Math.hypot(whole.x - CONTACT_LENS[0], whole.z - CONTACT_LENS[1]) < 260) continue;
+    if (b.block) lots[i + 1] = { ...lots[i + 1], gone: true };
+    reform(i, { ...whole, h: whole.tall, free: true, block: undefined });
+  }
+  // And behind the last dealt lot, past the grid's edge, a further layer:
+  // megabuildings a mile off, dark against the horizon, their windows
+  // pinpoints, a red lamp on each. Not up the hero's avenue, where the band
+  // of sky is the landmark towers'; and from each framed lens no taller
+  // than the elevation its picture has room for (under Contact's moon,
+  // clear of its lower edge and of the five towers that reach it).
+  for (let gx = -1320; gx < 1920; gx += 92) {
+    for (let gz = -2120; gz < 1320; gz += 92) {
+      const x = gx + (ring() - 0.5) * 50;
+      const z = gz + (ring() - 0.5) * 50;
+      const [w, d, k, skip] = [38 + ring() * 44, 38 + ring() * 44, ring(), ring()];
+      const out = Math.max(-940 - x, x - 1530, -1740 - z, z - 916);
+      if (out < 36 || skip < 0.22 || (10 - z > 0 && Math.abs(x - 0.6) < (10 - z) * 0.9)) continue;
+      let h = 150 + 190 * Math.pow(k, 1.4) + out * 0.25;
+      for (const [lx, ly, lz, a0, a1, elevation] of FAR_UNDER) {
+        const a = Math.atan2(z - lz, x - lx) * (180 / Math.PI);
+        if (a > a0 && a < a1) h = Math.min(h, (ly + Math.hypot(x - lx, z - lz) * Math.tan(elevation * (Math.PI / 180))) * (0.56 + 0.44 * k));
+      }
+      lots.push({ x, z, w, d, h, yaw: (ring() - 0.5) * 0.3, free: false, cone: false, hero: false, far: true });
+      forms.push({ ...formOf(lots[lots.length - 1], ring), style: 6, screen: 0 });
+      kitOf.push(null);
+      beaconOf.push(Math.floor(ring() * 3));
+    }
+  }
+
+  // Outside what the page's lenses frame that layer is not a fence: one
+  // in four is left out (gaps), the rest stand anything from a hundred
+  // metres to four hundred and more, and one in twelve is a landmark, half
+  // as tall again, a quarter wider. Each keeps its draws, so within those
+  // frames every one is where and as it was: Contact's, the rooftop's
+  // (west-north-west from its lens) and the garage street's (south from
+  // its own); lens x, z and the bearings it frames, with a margin.
+  // (Contact's far skyline is no longer held: there the layer stands under
+  // capEl. The garage street's wedge is what its lens sees down the street.)
+  // (The garage street's lens sees the far layer only in the slot between
+  // its walls at the street's end, 79 to 98 degrees: a tenth of a per cent
+  // of its frame. Wider, the wedge held the whole south of the far ring as
+  // a fence of one height.)
+  const FAR_AS_DEALT = [[476, -266, 169, 181], [476, -266, -181, -112], [437, -292, 78, 100]];
+  const farAsDealt = (b) => FAR_AS_DEALT.some(([lx, lz, a0, a1]) => {
+    const a = Math.atan2(b.z - lz, b.x - lx) * (180 / Math.PI);
+    return a > a0 && a < a1;
+  });
+  // The far ring's own downtowns: east, south-east, south, south-west,
+  // west and north-east of the kit, each a few hundred metres across, where
+  // its towers stand up to twice as tall (x, z, how much taller).
+  const FAR_CLUSTERS = [[1750, -350, 1.0], [1450, 1150, 0.9], [250, 1180, 0.8], [-1150, 950, 1.0], [-1180, -500, 0.8], [1500, -1750, 0.9]];
+  const farCluster = (x, z) => FAR_CLUSTERS.reduce((s, [cx, cz, k]) => s + k * Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / (330 * 330)), 0);
+  lots.forEach((b, i) => {
+    if (!b.far) return;
+    if (farAsDealt(b)) return;
+    const own = at(b);
+    if (hash11(own + 71.1) < 0.26) {
+      lots[i] = { ...b, gone: true };
+      return;
+    }
+    const out = Math.max(-940 - b.x, b.x - 1530, -1740 - b.z, b.z - 916);
+    const k = hash11(own + 73.3);
+    const landmark = hash11(own + 75.5) < 0.085;
+    let h = landmark ? 420 + 150 * k + out * 0.2 : 105 + 300 * k * k + out * 0.25;
+    // (The ring rises toward a few clusters of taller towers, downtowns of
+    // its own, so from the air it recedes as a city and not a wall of one
+    // height. Under every cap as before.)
+    const cluster = farCluster(b.x, b.z);
+    h = Math.min(h * (1 + cluster), 640);
+    let capped = false;
+    // (The lowest any lens's cap allows here, kept for what stands on the
+    // roof: a crown and its mast stay under it.)
+    let cap = Infinity;
+    for (const [lx, ly, lz, a0, a1, elevation] of FAR_UNDER.slice(2)) {
+      const a = Math.atan2(b.z - lz, b.x - lx) * (180 / Math.PI);
+      const most = (ly + Math.hypot(b.x - lx, b.z - lz) * Math.tan(elevation * (Math.PI / 180))) * (0.56 + 0.44 * k);
+      if (a > a0 && a < a1) cap = Math.min(cap, most / (0.56 + 0.44 * k));
+      if (a > a0 && a < a1 && h > most) {
+        h = most;
+        capped = true;
+      }
+    }
+    // From Contact's lens: under capEl (a landmark with its mast, or it is
+    // no landmark).
+    if (landmark && h > capAt(b.x, b.z, Math.hypot(b.w, b.d) * 1.25) - 85) {
+      h = 105 + 300 * k * k + out * 0.25;
+      capped = true;
+    }
+    const most = capAt(b.x, b.z, Math.hypot(b.w, b.d)) * (0.62 + 0.38 * k);
+    cap = Math.min(cap, capAt(b.x, b.z, Math.hypot(b.w, b.d) * 1.25));
+    if (h > most) {
+      h = most;
+      capped = true;
+    }
+    // (And never a fence of one height: two in five stand a third to three
+    // fifths of what they may, the rest most of it, so the ring's roofline
+    // breaks two to three times over. Only ever lower than the caps. In a
+    // cluster fewer stand low.)
+    if (!landmark) {
+      const vary = hash11(own + 79.9);
+      const low = vary < 0.4 ? 0.32 + 0.68 * vary : 0.8 + 0.2 * ((vary - 0.4) / 0.6);
+      h *= low + (1 - low) * Math.min(1, cluster / 0.6) * 0.7;
+    }
+    const grow = h / b.h;
+    const wider = landmark && !capped ? 1.25 : 1;
+    lots[i] = { ...b, h, w: b.w * wider, d: b.d * wider, landmark: landmark && !capped, cap };
+    forms[i] = { ...forms[i], tiers: forms[i].tiers.map((t) => t * grow), roof: h };
+  });
+
+  // Landmarks nearer in, where a view east, south or south-west from the
+  // kit had none: megabuildings stepped back three times, their frames
+  // braced across every face, lit at each step. Each stands outside what
+  // Contact frames, outside the hero's cone and under no other lens's cap,
+  // and whatever was dealt onto its ground is left out. x, z, width,
+  // depth, height.
+  const LANDMARKS = [
+    [760, -250, 64, 58, 330],
+    [930, -170, 56, 60, 270],
+    [800, -520, 60, 60, 380],
+    [300, 330, 62, 66, 340],
+    [470, 520, 58, 58, 300],
+    [-330, 260, 66, 60, 360],
+  ];
+  for (const [x, z, w, d, h] of count < 2000 ? LANDMARKS.slice(0, 4) : LANDMARKS) {
+    lots.forEach((b, i) => {
+      if (b.gone || b.hero) return;
+      const [cs, sn] = [Math.abs(Math.cos(b.yaw)), Math.abs(Math.sin(b.yaw))];
+      if (Math.abs(b.x - x) < (w + b.w * cs + b.d * sn) / 2 + 5 && Math.abs(b.z - z) < (d + b.w * sn + b.d * cs) / 2 + 5) lots[i] = { ...b, gone: true };
+    });
+    lots.push({ x, z, w, d, h, yaw: 0, free: true, cone: false, hero: false, landmark: true });
+    forms.push({ tiers: [h * 0.09, h * 0.5, h * 0.26, h * 0.15], inset: [1, 0.86, 0.66, 0.44], offset: [0, 0, 0, 0], chamfer: 0.12, style: 4, parapet: 1.2, screen: 0, roof: h, spire: 0 });
+    kitOf.push(null);
+    beaconOf.push(lots.length % 3);
+  }
+
+  // ---- megatowers stood by hand, and the ground they and the columns take ------
+  // East and south-east of the kit the skyline was the lots as dealt: from
+  // Contact's lens a low band on the horizon and nothing between it and the
+  // near roofs, from the air a fence of slabs of one height. Megatowers
+  // stand there now, behind the near roofs (none nearer than 340 m, so none
+  // in front of a roof whose sign the frame is made of), in three rows of
+  // depth, highest at the frame's left and stepping down toward the moon
+  // (capEl), and three more east of the kit outside the frame. Each: its
+  // bearing and distance from Contact's lens, width, depth, height, shape
+  // (a slab with a cantilever, two shafts joined by bridges, an octagonal
+  // drum with a landing pad round it, a braced megastructure, a shaft
+  // stepped back twice), its windows' kind, its accent, what it carries.
+  const MEGATOWERS = [
+    [13.5, 410, 46, 30, 235, "slab", 1, 0, ["screen", "cantilever"]],
+    [26, 350, 22, 26, 150, "twin", 6, 5, ["bridge", "mast"]],
+    // (At (792, 106): between the lanes along z 60 and z 152 and west of x 828's.)
+    [42.6, 456.5, 34, 34, 128, "drum", 1, 0, ["pad"]],
+    [22, 700, 44, 44, 350, "drum", 6, 1, ["pad", "screen", "mast"]],
+    [31, 610, 50, 46, 255, "stepped", 0, 1, ["gantry"]],
+    [42, 740, 24, 30, 195, "twin", 1, 0, ["bridge"]],
+    // The landmark: a braced megabuilding half a kilometre high.
+    [18.3, 1150, 88, 80, 520, "braced", 5, 0, ["mast", "boards"]],
+    [28.5, 1040, 64, 36, 470, "slab", 6, 5, ["screen", "cantilever", "mast"]],
+    [35.5, 1180, 56, 52, 330, "stepped", 1, 3, ["mast"]],
+    [44.5, 1080, 54, 50, 250, "braced", 0, 1, []],
+    [-14, 520, 24, 30, 260, "twin", 1, 0, ["bridge", "mast"]],
+    [-27, 760, 46, 46, 340, "drum", 6, 1, ["pad", "screen"]],
+    [-5, 900, 62, 34, 420, "slab", 0, 1, ["screen", "cantilever", "mast"]],
+  ].map(([az, dist, w, d, h, shape, kind, accent, carries]) => {
+    const [x, z] = [CONTACT_LENS[0] + dist * Math.cos(az * (Math.PI / 180)), CONTACT_LENS[1] + dist * Math.sin(az * (Math.PI / 180))];
+    // Two shafts stand side by side across the lens's line of sight (along
+    // z), a gap of their own width and a half between them.
+    return { x, z, w, d, h, shape, kind, accent, carries, span: shape === "twin" ? w * 3.5 : w };
+  });
+  // Two columns of adverts among them (the far city's others stand west,
+  // south and east: see the hologram columns): bearing, distance, width,
+  // height, tone, seed.
+  for (const [az, dist, w, h, tone, seed] of [[15.5, 900, 26, 760, 0, 0.37], [34.5, 920, 24, 590, 4, 0.81]]) {
+    columns.push(CONTACT_LENS[0] + dist * Math.cos(az * (Math.PI / 180)), CONTACT_LENS[1] + dist * Math.sin(az * (Math.PI / 180)), w, h, tone, seed);
+  }
+  // And one on the axis of each street that left the city toward nothing
+  // but a dim tower a kilometre off (a column keeps its light through the
+  // haze): south down the west street, and west along the south street.
+  // Neither is in any of the page's frames. x, z, width, height, tone, seed.
+  for (const column of [[-82, 190, 28, 640, 1, 0.23], [-440, 2, 26, 600, 2, 0.58]]) columns.push(...column);
+  // And two north, where the landmark towers' views and the air over Corpo
+  // Row's back had none: one north-west, left of the needle seen from over
+  // the canyon's end, one north-east, its top clear over the skyline from
+  // the air north of the boulevard. Each is behind the avenue's walls from
+  // the hero's lens (25 and 28 degrees off its line, where its band of sky
+  // is 16 and 20 wide).
+  for (const column of [[-700, -1500, 30, 780, 3, 0.41], [700, -1300, 28, 640, 0, 0.67]]) columns.push(...column);
+  // Whatever was dealt onto a megatower's ground, or stands where a column
+  // does (a column is a solid stack of screens now, and nothing crosses
+  // it), is left out: marked here, while every pass below still takes its
+  // draws for it, and taken out once they have.
+  {
+    const grounds = MEGATOWERS.map((m) => (m.shape === "twin" ? [m.x, m.z, m.d, m.span] : [m.x, m.z, m.w, m.d]));
+    for (let c = 0; c < columns.length; c += 6) grounds.push([columns[c], columns[c + 1], columns[c + 2], columns[c + 2]]);
+    lots.forEach((b, i) => {
+      if (b.gone || b.hero) return;
+      const [cs, sn] = [Math.abs(Math.cos(b.yaw)), Math.abs(Math.sin(b.yaw))];
+      const [ex, ez] = [(b.w * cs + b.d * sn) / 2, (b.w * sn + b.d * cs) / 2];
+      if (grounds.some(([x, z, w, d]) => Math.abs(b.x - x) < w / 2 + ex + 4 && Math.abs(b.z - z) < d / 2 + ez + 4)) lots[i] = { ...b, cleared: true };
+    });
+  }
+
+  // ---- the first streets past the kit -----------------------------------------
+  // Where the far city meets the kit a walker on the loop sees its first
+  // rows from across a street. There each block of the grid is a paved slab
+  // with a kerb, the buildings dealt onto it are moved and, where they must
+  // be, narrowed to stand on it with a pavement round them (their height is
+  // what it was), a post stands under every lamp the dome lights, and cars
+  // are parked along the kerbs. Not in the quarter Contact and the boston
+  // clue look into, nor north of the megabuilding in the hero's band of sky,
+  // where every lot stays where it was dealt.
+  const kitRects = [...KEEP_OUT, ...KEEP_OUT_SINCE];
+  const solid = [...kitRects, ...keepOut];
+  const kitGap = (x, z) => Math.min(...kitRects.map(([x0, z0, x1, z1]) => Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1))));
+  const dressedAt = (x, z) => kitGap(x, z) < DRESSED && !(x > 430 && z > -212) && !(z < -700 && x > -110 && x < 150);
+  const clearOf = (x, z, m) => !solid.some(([x0, z0, x1, z1]) => x > x0 - m && x < x1 + m && z > z0 - m && z < z1 + m);
+  const inCell = new Map();
+  lots.forEach((b, i) => {
+    if (b.gone || b.far || b.hero || b.extra) return;
+    const o = b.block ?? b;
+    const key = Math.round((o.x + 900) / cell) * 1000 + Math.round((o.z + 1700) / cell);
+    if (!inCell.has(key)) inCell.set(key, []);
+    inCell.get(key).push(i);
+  });
+  const half = (b) => {
+    const [cs, sn] = [Math.abs(Math.cos(b.yaw)), Math.abs(Math.sin(b.yaw))];
+    return [(b.w * cs + b.d * sn) / 2, (b.w * sn + b.d * cs) / 2];
+  };
+  const boxes = [];
+  const box = (kind, x, y, z, sx, sy, sz, turn = 0, own = [0, 0, 0]) => boxes.push(x, y, z, turn, sx, sy, sz, kind, own[0], own[1], own[2], own[3] ?? 0);
+  const KERB = 0.16;
+  // A thing fixed to a tower's face: f is the face by the tower's own plan
+  // (0 +x, 1 +z, 2 -x, 3 -z), tier whose face, u how far across it (-0.5 to
+  // 0.5), out how far it stands off the wall. Returns where, and the turn
+  // that sets a box's own z along the face's normal.
+  const onFace = (b, s, f, tier, u, out) => {
+    const n = [[1, 0], [0, 1], [-1, 0], [0, -1]][f];
+    const [hw, hd] = [(b.w * s.inset[tier]) / 2, (b.d * s.inset[tier]) / 2];
+    const [lx, lz] = f % 2 === 0 ? [n[0] * (hw + out), u * hd * 2] : [u * hw * 2, n[1] * (hd + out)];
+    const [cs, sn] = [Math.cos(b.yaw), Math.sin(b.yaw)];
+    const world = [cs * n[0] + sn * n[1], -sn * n[0] + cs * n[1]];
+    return { x: b.x + cs * lx + sn * lz, z: b.z - sn * lx + cs * lz, turn: Math.atan2(world[0], world[1]), wide: (f % 2 === 0 ? hd : hw) * 2 };
+  };
+  for (let i = 0; i < 53; i++) {
+    for (let j = 0; j < 57; j++) {
+      const [gx, gz] = [i * cell - 900, j * cell - 1700];
+      if (!dressedAt(gx, gz)) continue;
+      // The slab: the block inside its four roads, cut back from the kit.
+      let slab = [gx - 17, gz - 17, gx + 17, gz + 17];
+      for (const [x0, z0, x1, z1] of solid) {
+        const k = [x0 - 0.5, z0 - 0.5, x1 + 0.5, z1 + 0.5];
+        if (!(slab[2] > k[0] && slab[0] < k[2] && slab[3] > k[1] && slab[1] < k[3])) continue;
+        const area = (c) => Math.max(0, c[2] - c[0]) * Math.max(0, c[3] - c[1]);
+        slab = [[slab[0], slab[1], Math.min(slab[2], k[0]), slab[3]], [Math.max(slab[0], k[2]), slab[1], slab[2], slab[3]],
+          [slab[0], slab[1], slab[2], Math.min(slab[3], k[1])], [slab[0], Math.max(slab[1], k[3]), slab[2], slab[3]]].sort((a, b) => area(b) - area(a))[0];
+      }
+      const [sw, sd] = [slab[2] - slab[0], slab[3] - slab[1]];
+      if (Math.min(sw, sd) >= 4) box(BOX.slab, (slab[0] + slab[2]) / 2, KERB / 2, (slab[1] + slab[3]) / 2, sw, KERB, sd);
+      // Its buildings, onto it with 2.6 m of pavement round them.
+      const group = inCell.get(i * 1000 + j) ?? [];
+      if (group.length && Math.min(sw, sd) >= 11.2) {
+        let [x0, z0, x1, z1] = [1e9, 1e9, -1e9, -1e9];
+        for (const k of group) {
+          const b = lots[k];
+          const [ex, ez] = half(b);
+          [x0, z0, x1, z1] = [Math.min(x0, b.x - ex), Math.min(z0, b.z - ez), Math.max(x1, b.x + ex), Math.max(z1, b.z + ez)];
+        }
+        const [kx, kz] = [Math.min(1, ((sw - 5.2) / (x1 - x0)) * 0.97), Math.min(1, ((sd - 5.2) / (z1 - z0)) * 0.97)];
+        const [mx, mz] = [(x0 + x1) / 2, (z0 + z1) / 2];
+        const [hx, hz] = [((x1 - x0) * kx) / 2, ((z1 - z0) * kz) / 2];
+        const nx = Math.min(Math.max(mx, slab[0] + 2.6 + hx), slab[2] - 2.6 - hx);
+        const nz = Math.min(Math.max(mz, slab[1] + 2.6 + hz), slab[3] - 2.6 - hz);
+        for (const k of group) {
+          const b = lots[k];
+          // Where it was dealt stays its own (its look is hashed from it).
+          lots[k] = { ...b, ox: b.x, oz: b.z, x: nx + (b.x - mx) * kx, z: nz + (b.z - mz) * kz, w: b.w * kx, d: b.d * kz };
+          if (kitOf[k]) {
+            const [cx, cz] = topCentre(lots[k], forms[k]);
+            kitOf[k].at[0] = cx;
+            kitOf[k].at[2] = cz;
+            kitOf[k].look[0] *= Math.min(kx, kz);
+          }
+        }
+      }
+      // What a walker reads a shop street by, on every building of the
+      // block: over about half its shops an awning, at some of the piers
+      // between them a lightbox sign standing out at head height, and
+      // outside a few a board stood on the pavement. (All by the hash of
+      // where the building was dealt: no stream is touched.)
+      const within = (x, z, m) => x > slab[0] + m && x < slab[2] - m && z > slab[1] + m && z < slab[3] - m;
+      const inLot = (x, z, m, skip = -1) => group.some((k) => {
+        if (k === skip || lots[k].cleared) return false;
+        const o = lots[k];
+        const [cs, sn] = [Math.cos(o.yaw), Math.sin(o.yaw)];
+        const [dx, dz] = [x - o.x, z - o.z];
+        return Math.abs(cs * dx - sn * dz) < o.w / 2 + m && Math.abs(sn * dx + cs * dz) < o.d / 2 + m;
+      });
+      for (const k of group) {
+        const [b, s] = [lots[k], forms[k]];
+        if (b.cleared || b.ox === undefined || s.tiers[0] < 4.6) continue;
+        for (let f = 0; f < 4; f++) {
+          const wide = onFace(b, s, f, 0, 0, 0).wide;
+          const shops = Math.floor(wide / 6.4);
+          const seed = hash11(f32(b.ox * 0.731 + b.oz * 0.377 + f * 5.1));
+          for (let n = 0; n < shops; n++) {
+            if (s.chamfer > 0.05 && (n === 0 || n === shops - 1)) continue;
+            const hn = hash11(seed * 61.3 + n * 9.7);
+            const u = (3.2 + 6.4 * n) / wide - 0.5;
+            const front = onFace(b, s, f, 0, u, 1.1);
+            if (!within(front.x, front.z, 0.3) || !clearOf(front.x, front.z, 1.2) || inLot(front.x, front.z, 0.5, k)) continue;
+            if (hn < 0.52) {
+              const a = onFace(b, s, f, 0, u, 0.72);
+              box(BOX.awning, a.x, 3.46, a.z, 5.6, 0.34, 1.44, a.turn, [hash11(hn * 37.1), hash11(hn * 11.9) < 0.6 ? 1 : 0, 0]);
+            }
+            if (n > 0 && hash11(hn * 71.3) < 0.44) {
+              const g = onFace(b, s, f, 0, u - 3.2 / wide, 0.64);
+              const tall = 2.2 + 1.5 * hash11(hn * 3.1);
+              box(BOX.sign, g.x, 3.0 + tall / 2 + 0.9 * hash11(hn * 5.3), g.z, 0.86, tall, 0.2, g.turn + Math.PI / 2, [hash11(hn * 13.7), hash11(hn * 29.3), 0]);
+            }
+            if (count >= 2000 && hash11(hn * 83.9) < 0.18) {
+              const g = onFace(b, s, f, 0, u + 1.5 / wide, 1.5);
+              box(BOX.sign, g.x, KERB + 0.56, g.z, 0.62, 1.04, 0.1, g.turn + (hn - 0.26) * 0.9, [hash11(hn * 43.1), hash11(hn * 59.9), 0]);
+            }
+          }
+        }
+      }
+      // A post under every lamp on the block's four kerbs (the dome lights
+      // a lamp here by the same rule, kerbLamps): not in a junction, not on
+      // the kit's ground. And now and then a car at the kerb.
+      for (const [alongZ, side] of [[1, 1], [1, -1], [0, 1], [0, -1]]) {
+        const streetAt = (alongZ ? gx : gz) - side * 23;
+        const mid = alongZ ? gz : gx;
+        const index = Math.round((streetAt + (alongZ ? 877 : 1677)) / cell);
+        const place = (across, along) => (alongZ ? [streetAt + side * across, along] : [along, streetAt + side * across]);
+        for (let a = Math.ceil((mid - 16.4) / 11.5); a * 11.5 <= mid + 16.4; a++) {
+          const [px, pz] = place(6.5, a * 11.5);
+          if (!clearOf(px, pz, 1.1)) continue;
+          box(BOX.post, px, KERB + 3.1, pz, 0.16, 6.2, 0.16);
+          const [ax, az] = place(5.0, a * 11.5);
+          box(BOX.head, ax, KERB + 6.25, az, alongZ ? 3.1 : 0.36, 0.22, alongZ ? 0.36 : 3.1, 0, [index, alongZ ? 0 : 1, -side]);
+        }
+        // Who is out on this pavement: up to three people along it, half
+        // of them under an umbrella, and on one kerb in three a vending
+        // machine against the wall. (By the hash, not the stream: the cars
+        // below keep their draws.)
+        const onSlab = (x, z) => x > slab[0] + 0.4 && x < slab[2] - 0.4 && z > slab[1] + 0.4 && z < slab[3] - 0.4;
+        const here = hash11(f32(gx * 0.37 + gz * 0.61 + (alongZ ? 3.1 : 7.7) + side));
+        // (Since: up to three more on a wide screen, and nobody inside a wall.)
+        for (let k = 0; k < Math.floor(here * 4) + (count < 2000 ? 0 : Math.floor(hash11(here * 5.9) * 3.6)); k++) {
+          const hk = hash11(here * 91.7 + k * 13.3);
+          const [qx, qz] = place(6.9 + 1.4 * hash11(hk * 57.1), mid + (hk - 0.5) * 30);
+          if (!onSlab(qx, qz) || !clearOf(qx, qz, 1.2) || inLot(qx, qz, 0.3)) continue;
+          const tall = 1.58 + 0.24 * hash11(hk * 31.9);
+          box(BOX.person, qx, KERB + tall / 2, qz, 0.46, tall, 0.3, hk * 6.283, [hash11(hk * 17.3), 0, 0]);
+          if (hash11(hk * 23.9) < 0.5) box(BOX.umbrella, qx, KERB + tall + 0.32, qz, 1.1, 0.1, 1.1, hk * 3.1, [hash11(hk * 41.3), 0, 0]);
+        }
+        if (here > 0.4) {
+          const [vx, vz] = place(8.25, mid + (hash11(here * 7.7) - 0.5) * 24);
+          if (onSlab(vx, vz) && clearOf(vx, vz, 1.2) && !inLot(vx, vz, 0.2)) box(BOX.vending, vx, KERB + 0.95, vz, 1.1, 1.9, 0.7, alongZ ? Math.PI / 2 : 0, [hash11(here * 19.1), 0, 0]);
+        }
+        // Along the kerb, what a pavement collects: a bin, a stack of
+        // crates, a cabinet, and where something is being dug a striped
+        // barrier. Two to five things a kerb (none on a phone: under a
+        // pixel there).
+        for (let k = 0; k < (count < 2000 ? 0 : 2 + Math.floor(hash11(here * 3.7) * 4)); k++) {
+          const hk = hash11(here * 67.1 + k * 21.7);
+          const what = hash11(hk * 9.1);
+          const [qx, qz] = place(what < 0.45 ? 6.5 : 7.9 + 1.1 * hash11(hk * 33.3), mid + (hk - 0.5) * 31);
+          if (!onSlab(qx, qz) || !clearOf(qx, qz, 1.2) || inLot(qx, qz, 0.5)) continue;
+          const turn = (alongZ ? Math.PI / 2 : 0) + (hash11(hk * 77.7) - 0.5) * 0.3;
+          if (what < 0.25) box(BOX.clutter, qx, KERB + 0.5, qz, 0.56, 1.0, 0.56, turn, [0.1 + 0.8 * hash11(hk * 5.5), 0, 0]);
+          else if (what < 0.45) box(BOX.clutter, qx, KERB + 0.5, qz, 1.9, 1.0, 0.12, turn, [0.5, 1, 0]);
+          else if (what < 0.8) box(BOX.clutter, qx, KERB + 0.2 * (1 + Math.floor(hash11(hk * 3.9) * 4)), qz, 0.62, 0.4 * (1 + Math.floor(hash11(hk * 3.9) * 4)), 0.44, turn, [hash11(hk * 15.1), 0, 0]);
+          else box(BOX.clutter, qx, KERB + 0.7, qz, 0.9, 1.4, 0.4, turn, [0.86 + 0.13 * hash11(hk * 2.3), 0, 0]);
+        }
+        let parkedAt = null;
+        if (ring() < 0.5) {
+          const along = mid + (ring() - 0.5) * 22;
+          const [cx, cz] = place(4.85, along);
+          const [paint, turn, nose] = [ring(), alongZ ? Math.PI / 2 : 0, ring() < 0.5 ? 1 : -1];
+          if (clearOf(cx, cz, 3)) {
+            parkedAt = along;
+            box(BOX.car, cx, 0.2 + 0.36, cz, 4.4, 0.72, 1.8, turn, [paint, nose, 0]);
+            box(BOX.cabin, cx + (alongZ ? 0 : -0.3 * nose), 0.92 + 0.27, cz + (alongZ ? 0.3 * nose : 0), 2.3, 0.54, 1.62, turn, [paint, 0, 0]);
+          }
+        }
+        // Every kerb of the kit is parked, and so are these: four bays a
+        // kerb, about three in five taken (by the hash: the car the stream
+        // dealt keeps its place and its draws).
+        for (let k = 0; k < 4; k++) {
+          const hk = hash11(here * 53.3 + k * 7.7);
+          const along = mid - 12.6 + k * 8.4 + (hash11(hk * 3.3) - 0.5) * 1.8;
+          if (hk < 0.4 || (parkedAt !== null && Math.abs(along - parkedAt) < 5.4)) continue;
+          const [cx, cz] = place(4.85, along);
+          if (!clearOf(cx, cz, 3)) continue;
+          const [paint, turn, nose] = [hash11(hk * 19.9), alongZ ? Math.PI / 2 : 0, hash11(hk * 27.1) < 0.5 ? 1 : -1];
+          box(BOX.car, cx, 0.2 + 0.36, cz, 4.4, 0.72, 1.8, turn, [paint, nose, 0]);
+          box(BOX.cabin, cx + (alongZ ? 0 : -0.3 * nose), 0.92 + 0.27, cz + (alongZ ? 0.3 * nose : 0), 2.3, 0.54, 1.62, turn, [paint, 0, 0]);
+        }
+      }
+    }
+  }
+  // Past the gate that closes the avenue's south arm the street goes on
+  // (the grid's street along x -3): a checkpoint's gantry stands over it,
+  // two posts, a beam, a lit board, a floodlit bar under the beam; and
+  // seventy metres past the gate a bridge crosses the street on two
+  // pylons, thirty metres up, two floors of lit windows in a truss with
+  // boards standing on it, so that over the gate (which hides the street)
+  // the city is seen to carry on.
+  for (const [gz, seed] of [[246, 0.77]]) {
+    for (const e of [-8.5, 8.5]) box(BOX.steel, -3 + e, 4.8, gz, 0.6, 9.6, 0.6);
+    box(BOX.steel, -3, 9.3, gz, 18, 0.7, 0.9);
+    box(BOX.board, -3, 11.6, gz, 11, 3.2, 0.5, 0, [seed, Math.floor(seed * 16), 0]);
+    box(BOX.head, -3, 8.7, gz, 14, 0.22, 0.4, 0, [1, 1, 1]);
+  }
+  for (const e of [-7.6, 7.6]) box(BOX.steel, -3 + e, 15, 168, 2.2, 30, 2.2, 0, [0.3, 0, 0]);
+  box(BOX.deck, -3, 33.8, 168, 46, 7.6, 9, 0, [0.42, 0, 0]);
+  box(BOX.board, -12, 43.2, 168, 16, 8.4, 0.7, 0, [0.63, 3, 0]);
+  box(BOX.board, 9, 41.4, 168, 12, 4.8, 0.7, 0, [0.18, 12, 0]);
+
+  // ---- the towers' heads, and what spans between them ------------------------
+  // One crown stood on tower after tower: the dark glass box with lit edges.
+  // Two keep it. The rest are a setback floor like any other, and the roofs
+  // nothing capped carry what a tower's roof carries, each its own: a mast
+  // with its yards, a cluster of aerials, dishes on a hut, a penthouse
+  // stepped back twice, all boxes in the street's draw. Within what Contact
+  // frames every tower is as it was, and up the hero's avenue nothing rises
+  // above a roof.
+  const top = rng(8801);
+  const framed = (b) => {
+    const az = lensAz(b.ox ?? b.x, b.oz ?? b.z);
+    return az > FRAMED[0] && az < FRAMED[1];
+  };
+  const tips = [];
+  // (A lot whose ground has been taken still takes its draws, and what it
+  // stood on its roof is taken away again.)
+  const unlessCleared = (stand) => (b, i) => {
+    const [nb, nt] = [boxes.length, tips.length];
+    stand(b, i);
+    if (lots[i].cleared) {
+      boxes.length = nb;
+      tips.length = nt;
+    }
+  };
+  // Which towers this gives a head (the rest are given one further down).
+  const crowned = new Set();
+  let glassCrowns = 0;
+  lots.forEach(unlessCleared((b, i) => {
+    const s = forms[i];
+    if (b.gone || b.far || b.hero || b.screens || b.h < TOWER_FROM || framed(b)) return;
+    if (s.style === 3) {
+      const gap = gapOf(b);
+      if (glassCrowns < 2 && b.free && gap > 150 && gap < 420) glassCrowns++;
+      else forms[i] = { ...s, style: 0, parapet: 0.7 };
+    }
+    const roll = top();
+    const [t, turn, k1, k2] = [topTier(s), b.yaw + Math.floor(top() * 4) * (Math.PI / 2), top(), top()];
+    if (forms[i].style === 2 || forms[i].style === 3) crowned.add(i);
+    if (!b.free || forms[i].style === 2 || forms[i].style === 3 || kitOf[i] || roll < 0.18) return;
+    crowned.add(i);
+    const [fw, fd] = [b.w * s.inset[t], b.d * s.inset[t]];
+    const r0 = Math.min(fw, fd);
+    const [cx, cz] = topCentre(b, s);
+    const y = s.roof;
+    const at = (lx, lz) => [cx + Math.cos(turn) * lx + Math.sin(turn) * lz, cz - Math.sin(turn) * lx + Math.cos(turn) * lz];
+    if (roll < 0.42) {
+      // A mast: a hut, the mast, two yards across it, a lamp at its tip.
+      const tall = Math.min(b.h * 0.3, 16 + 34 * k1);
+      const [mx, mz] = at(r0 * 0.18, -r0 * 0.12);
+      box(BOX.block, mx, y + 1.6, mz, r0 * 0.34, 3.2, r0 * 0.3, turn, [k2, 0, 0]);
+      // (A lattice in two sections, a lamp at each one's top: a stick with
+      // one red dot was no mast.)
+      box(BOX.lattice, mx, y + 3.2 + tall * 0.3, mz, 2.8, tall * 0.6, 2.8, turn);
+      box(BOX.lattice, mx, y + 3.2 + tall * 0.8, mz, 1.6, tall * 0.4, 1.6, turn);
+      box(BOX.steel, mx, y + 3.2 + tall * 0.55, mz, 5.4, 0.4, 0.4, turn);
+      box(BOX.steel, mx, y + 3.2 + tall * 0.78, mz, 0.4, 0.4, 3.8, turn);
+      tips.push(mx, y + 3.2 + tall * 0.6 + 0.3, mz);
+      tips.push(mx, y + 3.2 + tall + 0.5, mz);
+    } else if (roll < 0.62) {
+      // Aerials: a rack and four or five whips of different heights.
+      const [ax, az] = at(-r0 * 0.15, r0 * 0.1);
+      box(BOX.block, ax, y + 0.9, az, r0 * 0.42, 1.8, r0 * 0.2, turn, [k2, 0, 0]);
+      for (let a = 0; a < 5; a++) {
+        const whip = 6 + 16 * top();
+        const [wx, wz] = at(-r0 * 0.15 + (a - 2) * r0 * 0.09, r0 * 0.1);
+        if (a === 2 && k1 < 0.4) continue;
+        box(BOX.steel, wx, y + 1.8 + whip / 2, wz, 0.5, whip, 0.5, turn);
+        if (a === 0) tips.push(wx, y + 1.8 + whip + 0.4, wz);
+      }
+    } else if (roll < 0.8) {
+      // Dishes: a hut, a short mast, three panels facing out.
+      const [hx, hz] = at(0, 0);
+      box(BOX.block, hx, y + 1.5, hz, r0 * 0.3, 3.0, r0 * 0.3, turn, [k2, 0, 0]);
+      box(BOX.steel, hx, y + 3 + 4.5, hz, 0.9, 9, 0.9, turn);
+      for (const [dx, dz, dy, face] of [[1.6, 0, 4, 0], [-1.6, 0.4, 6.4, 0], [0, 1.6, 8, 1]]) {
+        const [px2, pz2] = at(dx, dz);
+        box(BOX.steel, px2, y + 3 + dy, pz2, face ? 2.8 : 0.35, 2.8, face ? 0.35 : 2.8, turn, [1, 0, 0]);
+      }
+      tips.push(hx, y + 12.5, hz);
+    } else {
+      // A penthouse stepped back twice, a line of light under each roof.
+      const h1 = 5 + 4 * k1;
+      const [qx, qz] = at(r0 * 0.08 * (k2 - 0.5), 0);
+      box(BOX.block, qx, y + h1 / 2, qz, fw * 0.62, h1, fd * 0.62, b.yaw, [k2, 1, 0]);
+      box(BOX.block, qx, y + h1 + 2, qz, fw * 0.34, 4, fd * 0.34, b.yaw, [k1, 1, 0]);
+      tips.push(qx, y + h1 + 4.6, qz);
+    }
+  }));
+  // Megastructures: three decks at mid height between two towers a block or
+  // two apart, two floors of lit windows in a truss, and standing on each a
+  // stack of boards. Only between towers nothing capped, clear of the framed
+  // skies, and over whatever stands between them.
+  const spans = [];
+  const piers = lots.map((b, i) => ({ b, i })).filter(({ b, i }) => b.free && !b.gone && !b.far && !b.screens && !b.cone && !underMoon(b) && b.h >= 110 && forms[i].style !== 2 && gapOf(b) > 120 && gapOf(b) < 520);
+  for (const p of piers) {
+    for (const q of piers) {
+      if (q.i <= p.i) continue;
+      const [dx, dz] = [q.b.x - p.b.x, q.b.z - p.b.z];
+      const len = Math.hypot(dx, dz);
+      if (len < 70 || len > 150 || Math.min(Math.abs(dx), Math.abs(dz)) > 16) continue;
+      const y = Math.min(p.b.h, q.b.h) * (0.46 + 0.14 * top());
+      const [mx, mz] = [(p.b.x + q.b.x) / 2, (p.b.z + q.b.z) / 2];
+      if (lots.some((b) => !b.gone && b !== p.b && b !== q.b && Math.hypot(b.x - mx, b.z - mz) < len / 2 && b.h > y - 6)) continue;
+      spans.push({ mx, mz, len, y, turn: Math.atan2(-dz, dx), sector: sectorOf(p.b), gap: gapOf(p.b) });
+    }
+  }
+  spans.sort((a, b) => a.gap - b.gap);
+  const spanned = [];
+  for (const sp of spans) {
+    if (spanned.length === 3 || spanned.some((o) => Math.abs(o.sector - sp.sector) < 4 || Math.abs(o.sector - sp.sector) > SECTORS - 4)) continue;
+    spanned.push(sp);
+    const along = (a, across = 0) => [sp.mx + Math.cos(sp.turn) * a + Math.sin(sp.turn) * across, sp.mz - Math.sin(sp.turn) * a + Math.cos(sp.turn) * across];
+    box(BOX.deck, sp.mx, sp.y, sp.mz, sp.len, 7.6, 10, sp.turn, [top(), 0, 0]);
+    for (const [a, w, h, up, across] of [[-0.24, 0.3, 11, 0, 3], [0.1, 0.26, 9, 0, -3], [0.3, 0.2, 13, 0, 3.4], [-0.02, 0.22, 8, 10.4, -3]]) {
+      const [bx2, bz2] = along(a * sp.len, across);
+      const kb = top();
+      box(BOX.board, bx2, sp.y + 3.8 + 1.2 + up + h / 2, bz2, w * sp.len, h, 0.7, sp.turn, [kb, Math.floor(kb * 977) % 24, 0]);
+      for (const e of [-0.4, 0.4]) {
+        const [px2, pz2] = along(a * sp.len + e * w * sp.len, across);
+        box(BOX.steel, px2, sp.y + 3.8 + (1.2 + up) / 2, pz2, 0.5, 1.2 + up, 0.5, sp.turn);
+      }
+    }
+    for (const e of [-0.5, 0.5]) tips.push(...along(e * sp.len * 0.9).flatMap((v, k) => (k ? [sp.y + 4.4, v] : [v])));
+  }
+
+  // (The far city flew AVs of its own here on twelve straight lanes. None
+  // had been laid between the towers: every lane went through two to eight
+  // of them. The kit's flying cars have lanes out here since, set in the
+  // corridors between the towers and each craft with its streak
+  // (src/world/traffic-sky.js), so these are gone, and what stands out here
+  // keeps out of those lanes: see laneBelly.)
+
+  // ---- every tower its own face ------------------------------------------------
+  // A tower is one of eight kinds, and no two neighbours are the same kind:
+  // amber offices, a cyan curtain wall, a pale slab between piers, homes, a
+  // teal lattice, dark glass under lines of light, floors of sodium yellow,
+  // glass in vertical strips. Its floors are lit in zones (see the shader).
+  // And each wears one thing a street away can name it by, on the face that
+  // looks at the kit: a screen a dozen floors high, a vertical sign, a board
+  // under the roof, light up its corners. Dealt nearest the kit first, each
+  // taking the first of its own order of kinds (and of adverts) that nothing
+  // beside it has. A block of ten floors or more is dealt a kind too (homes,
+  // offices, a slab, yellow floors, strips) and nothing to wear. Within what
+  // Contact frames a building keeps its form and what hangs on it, and is
+  // lit by its kind only for an eye above the roofs (the shader's `lift`):
+  // from the garage's roof it is as it was.
+  const KINDS = 8;
+  const FEATURE = { none: 0, screen: 1, blade: 2, mark: 3, strips: 4 };
+  const faces = lots.map(() => null);
+  const bucket = new Map();
+  const bucketOf = (b) => Math.floor(b.x / 160) * 4096 + Math.floor(b.z / 160);
+  const beside = (b, reach, self) => {
+    const out = [];
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        for (const j of bucket.get(bucketOf({ x: b.x + dx * 160, z: b.z + dz * 160 })) ?? []) if (j !== self && !lots[j].gone && Math.hypot(lots[j].x - b.x, lots[j].z - b.z) < reach) out.push(faces[j]);
+      }
+    }
+    return out;
+  };
+  const order = (seed, n) => Array.from({ length: n }, (_, k) => k).sort((p, q) => hash11(seed + p * 1.31) - hash11(seed + q * 1.31));
+  const dealFace = (i) => {
+    const b = lots[i];
+    const own = at(b);
+    const gap = gapOf(b);
+    const [close, around, wide] = [beside(b, 80, i), beside(b, 150, i), beside(b, 300, i)];
+    const first = (list, ...taken) => taken.map((t) => list.find((k) => !t.includes(k))).find((k) => k !== undefined) ?? list[0];
+    // (A megabuilding past the grid is dealt a kind and a band and
+    // nothing else: it keeps the dark glass it was drawn with, and its
+    // frame's braces.)
+    const tower = b.h >= TOWER_FROM && !b.far;
+    const kind = first(tower ? order(own + 41.7, KINDS) : order(own + 41.7, 5).map((k) => [3, 0, 2, 6, 7][k]), around.map((o) => o.kind), close.map((o) => o.kind));
+    // (What stands behind Contact's near roofs since, `mid`, is not held.)
+    const held = (framed(b) && !b.mid) || b.hero;
+    // What it is known by. A screen needs a face wide enough to carry one
+    // and a tower tall enough to hold it over the roofs in front.
+    const s = forms[i];
+    const tallest = s.tiers[1] > s.tiers[0] ? (s.tiers[2] > s.tiers[1] ? 2 : 1) : 0;
+    const faceW = Math.min(b.w, b.d) * s.inset[tallest];
+    const can = [FEATURE.strips, FEATURE.none];
+    if (b.h >= 70) can.unshift(FEATURE.blade);
+    if (b.h >= 90 && faceW >= 13) can.unshift(FEATURE.mark);
+    if (b.h >= 75 && faceW >= 15 && s.style !== 2) can.unshift(FEATURE.screen);
+    const roll = hash11(own + 43.9);
+    // (Behind Contact's near roofs fewer wear a screen: the megatowers do.)
+    const weights = b.mid ? [0.42, 0.14, 0.24, 0.08, 0.12] : gap < 450 ? [0.17, 0.3, 0.24, 0.2, 0.09] : [0.46, 0.1, 0.2, 0.12, 0.12];
+    let want = FEATURE.none;
+    for (let k = 0, sum = 0; k < 5; k++) {
+      sum += weights[k];
+      if (roll < sum) {
+        want = k;
+        break;
+      }
+    }
+    // Dark glass has to wear something.
+    if (kind === 5 && (want === FEATURE.none || want === FEATURE.strips)) want = FEATURE.screen;
+    if (!can.includes(want)) want = can[0];
+    if (!tower || held) want = FEATURE.none;
+    const big = (k) => k === FEATURE.screen || k === FEATURE.mark;
+    if (big(want) && close.some((o) => o.feature === want)) want = can.find((k) => !big(k)) ?? FEATURE.none;
+    // (One of eight pairs of adverts: its screen shows one of the pair,
+    // a sign on its roof the other.)
+    const shown = (list) => list.filter((o) => o.feature === FEATURE.screen || o.feature === FEATURE.mark).map((o) => o.ad);
+    // (Of sixteen since: with eight, one advert came three times to a view.)
+    const ad = first(order(own + 47.3, 16), shown(wide), shown(around), shown(close));
+    const tone = hash11(own + 51.1);
+    // Which way the kit is from here: the face that wears it.
+    const [kx, kz] = kitRects.map(([x0, z0, x1, z1]) => [Math.min(Math.max(b.x, x0), x1) - b.x, Math.min(Math.max(b.z, z0), z1) - b.z]).sort((p, q) => Math.hypot(...p) - Math.hypot(...q))[0];
+    faces[i] = {
+      kind,
+      feature: want,
+      ad,
+      // The face by its own plan (0 +x, 1 +z, 2 -x, 3 -z), and by the
+      // compass the shader reads off a wall's normal.
+      face: Math.abs(kx) >= Math.abs(kz) ? (kx > 0 ? 0 : 2) : kz > 0 ? 1 : 3,
+      compass: ((Math.round((Math.atan2(kz, kx) + Math.PI) / (Math.PI / 2)) % 4) + 4) % 4,
+      // Its accent (its lines, its corners, the band under its roof):
+      // amber, cyan, pale, pink, teal or yellow.
+      accent: tone < 0.3 ? 1 : tone < 0.58 ? 0 : tone < 0.73 ? 2 : tone < 0.83 ? 4 : tone < 0.92 ? 3 : 5,
+      band: (tower && !held && (kind === 5 || hash11(own + 53.3) < 0.45)) || (b.far && (b.landmark || hash11(own + 53.3) < 0.55)) || b.landmark === true,
+      strips: tower && !held && want === FEATURE.strips,
+      worn: tower && !held,
+      braced: b.far || b.landmark === true,
+    };
+    lots[i] = { ...b, kind };
+    if (!bucket.has(bucketOf(b))) bucket.set(bucketOf(b), []);
+    if (!bucket.get(bucketOf(b)).includes(i)) bucket.get(bucketOf(b)).push(i);
+    if (faces[i].worn) forms[i] = { ...s, screen: want === FEATURE.screen ? 1 + Math.floor(hash11(own + 55.5) * 4) : 0 };
+  };
+  lots.map((b, i) => i)
+    .filter((i) => lots[i].h >= 30 && !lots[i].gone && !lots[i].screens)
+    .sort((p, q) => gapOf(lots[p]) - gapOf(lots[q]) || p - q)
+    .forEach(dealFace);
+  // And a head on every tower nothing capped that has none yet (the first
+  // pass left a roof in five bare, and every roof with plant on it): a
+  // lattice mast in three sections with a red lamp on each, a sign on a
+  // steel frame along the roof's edge toward the kit, a spire stepped in
+  // three with its lamps, an open crown of trusses under a line of light.
+  // No two neighbours the same, as with the faces.
+  const crownRng = rng(7117);
+  const HEAD = { mast: 0, sign: 1, spire: 2, truss: 3 };
+  const headBucket = new Map();
+  const headOn = (b, i, draw, forced) => {
+    const dealt = faces[i];
+    if (!dealt?.worn || !b.free || crowned.has(i)) return;
+    const s = forms[i];
+    const t = topTier(s);
+    const [fw, fd] = [b.w * s.inset[t], b.d * s.inset[t]];
+    const r0 = Math.min(fw, fd);
+    const [k1, k2, k3] = [draw(), draw(), draw()];
+    if (r0 < 8) return;
+    const key = bucketOf(b);
+    const taken = [];
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dz = -1; dz <= 1; dz++) {
+        for (const [j, h] of headBucket.get(bucketOf({ x: b.x + dx * 160, z: b.z + dz * 160 })) ?? []) if (Math.hypot(lots[j].x - b.x, lots[j].z - b.z) < 130) taken.push(h);
+      }
+    }
+    const head = forced ?? (b.landmark ? HEAD.mast : (order(at(b) + 61.3, 4).find((h) => !taken.includes(h)) ?? Math.floor(k3 * 4)));
+    if (!headBucket.has(key)) headBucket.set(key, []);
+    headBucket.get(key).push([i, head]);
+    lots[i] = { ...lots[i], crown: head };
+    const [cx, cz] = topCentre(b, s);
+    const y = s.roof;
+    const at2 = (lx, lz) => [cx + Math.cos(b.yaw) * lx + Math.sin(b.yaw) * lz, cz - Math.sin(b.yaw) * lx + Math.cos(b.yaw) * lz];
+    if (head === HEAD.mast) {
+      // Three sections, each narrower, a lamp at each one's top.
+      const tall = b.landmark || b.mega ? 46 + 24 * k1 : Math.min(b.h * 0.34, 20 + 30 * k1);
+      const [mx, mz] = at2(r0 * 0.2 * (k2 - 0.5), r0 * 0.2 * (k3 - 0.5));
+      let foot = y;
+      for (const [share, width] of [[0.42, 3.4], [0.34, 2.3], [0.24, 1.3]]) {
+        box(BOX.lattice, mx, foot + (tall * share) / 2, mz, width, tall * share, width, b.yaw);
+        foot += tall * share;
+        tips.push(mx, foot + 0.3, mz);
+      }
+      box(BOX.steel, mx, foot + 2.5, mz, 0.3, 5, 0.3, b.yaw);
+    } else if (head === HEAD.sign) {
+      // A board the width of the roof, on a frame, facing the kit.
+      const alongX = dealt.face % 2 === 0;
+      const out = dealt.face < 2 ? 1 : -1;
+      const width = (alongX ? fd : fw) * 0.86;
+      const high = Math.min(Math.max(width * 0.3, 4.5), 11);
+      const reach = (alongX ? fw : fd) * 0.5 - 1.2;
+      const [sx, sz] = alongX ? at2(out * reach, 0) : at2(0, out * reach);
+      const turn = b.yaw + (alongX ? Math.PI / 2 : 0);
+      // (Its face is toward the kit; the other side is its back.)
+      box(BOX.board, sx, y + 2.6 + high / 2, sz, width, high, 0.8, turn, [k1, dealt.ad + 8, out > 0 ? 1 : 2]);
+      for (const e of [-0.42, 0, 0.42]) {
+        const [px2, pz2] = alongX ? at2(out * reach, e * width) : at2(e * width, out * reach);
+        box(BOX.steel, px2, y + (2.6 + high) / 2, pz2, 0.45, 2.6 + high, 0.45, turn);
+      }
+    } else if (head === HEAD.spire) {
+      const tall = Math.min(b.h * 0.3, 18 + 26 * k1);
+      let foot = y;
+      for (const [share, width] of [[0.3, r0 * 0.3], [0.3, r0 * 0.16], [0.4, Math.max(0.5, r0 * 0.05)]]) {
+        box(BOX.steel, cx, foot + (tall * share) / 2, cz, width, tall * share, width, b.yaw, [0.4, 0, 0]);
+        foot += tall * share;
+        tips.push(cx, foot + 0.3, cz);
+      }
+    } else {
+      // An open crown: a ring of trusses round the roof, a lit line on it.
+      const high = 6 + 6 * k1;
+      box(BOX.lattice, cx, y + high / 2, cz, fw * 0.94, high, fd * 0.94, b.yaw);
+      box(BOX.block, cx, y + high + 0.6, cz, fw * 0.98, 1.2, fd * 0.98, b.yaw, [k2, 1, 0]);
+      tips.push(...at2(fw * 0.45, fd * 0.45).flatMap((v, k) => (k ? [y + high + 1.6, v] : [v])));
+    }
+  };
+  lots.forEach(unlessCleared((b, i) => headOn(b, i, crownRng)));
+  // The landmarks past the grid carry a mast too, and a lamp at each of
+  // its sections and on the corners of their roofs.
+  lots.forEach((b, i) => {
+    if (!b.far || !b.landmark || b.gone || b.cleared) return;
+    const s = forms[i];
+    const [cx, cz] = topCentre(b, s);
+    const tall = 50 + 30 * hash11(at(b) + 63.1);
+    let foot = s.roof;
+    for (const [share, width] of [[0.42, 5.0], [0.34, 3.4], [0.24, 1.8]]) {
+      box(BOX.lattice, cx, foot + (tall * share) / 2, cz, width, tall * share, width, b.yaw);
+      foot += tall * share;
+      tips.push(cx, foot + 0.3, cz);
+    }
+    const t = topTier(s);
+    for (const [ex, ez] of [[-1, -1], [1, 1]]) tips.push(cx + ex * b.w * s.inset[t] * 0.45, s.roof + 1, cz + ez * b.d * s.inset[t] * 0.45);
+  });
+
+  // ---- the south-east: what stands behind Contact's near roofs ------------------
+  // Every stream above has been consumed: from here on, draws of its own.
+  const mid = rng(41041);
+  const midFrom = [boxes.length, tips.length];
+  lots.forEach((b, i) => {
+    if (b.cleared && !b.gone) lots[i] = { ...b, gone: true };
+  });
+  // Which of a tower's faces looks most at a point.
+  const faceToward = (b, x, z) => {
+    const [cs, sn] = [Math.cos(b.yaw), Math.sin(b.yaw)];
+    const [dx, dz] = [x - b.x, z - b.z];
+    const [lx, lz] = [cs * dx - sn * dz, sn * dx + cs * dz];
+    return Math.abs(lx) >= Math.abs(lz) ? (lx > 0 ? 0 : 2) : lz > 0 ? 1 : 3;
+  };
+  const MEGA_FORMS = {
+    slab: (h) => ({ tiers: [h - 7, 7, 0, 0], inset: [1, 0.62, 1, 1], chamfer: 0, style: 1, parapet: 0.5 }),
+    twin: (h) => ({ tiers: [h * 0.1, h * 0.9 - 6, 6, 0], inset: [1, 0.9, 0.6, 1], chamfer: 0, style: 1, parapet: 0.5 }),
+    drum: (h) => ({ tiers: [h * 0.07, h * 0.7, h * 0.23, 0], inset: [1, 0.8, 0.58, 1], chamfer: 0.293, style: 1, parapet: 0.6 }),
+    braced: (h) => ({ tiers: [h * 0.09, h * 0.5, h * 0.26, h * 0.15], inset: [1, 0.86, 0.66, 0.44], chamfer: 0.12, style: 4, parapet: 1.2 }),
+    stepped: (h) => ({ tiers: [h * 0.14, h * 0.5, h * 0.36, 0], inset: [1, 0.82, 0.6, 1], chamfer: 0.1, style: 4, parapet: 0.9 }),
+  };
+  // The megatowers' boards each show their own advert (100 and up: that
+  // one and no other), dealt in turn from the sixteen wide ones.
+  let adTurn = 0;
+  const nextAd = () => 100 + ((adTurn++ * 5 + 3) % 16);
+  const megaLot = (m, x, z, w, d, h, yaw) => {
+    const i = lots.length;
+    lots.push({ x, z, w, d, h, yaw, free: true, cone: false, hero: false, mid: true, mega: true, kind: m.kind });
+    forms.push({ ...MEGA_FORMS[m.shape](h), offset: [0, 0, 0, 0], screen: 0, roof: h, spire: 0 });
+    kitOf.push(null);
+    beaconOf.push(i % 3);
+    const f = faceToward(lots[i], CONTACT_LENS[0], CONTACT_LENS[1]);
+    const [kx, kz] = [CONTACT_LENS[0] - x, CONTACT_LENS[1] - z];
+    faces[i] = {
+      kind: m.kind, feature: FEATURE.none, ad: Math.floor(mid() * 8), face: f,
+      compass: ((Math.round((Math.atan2(kz, kx) + Math.PI) / (Math.PI / 2)) % 4) + 4) % 4,
+      accent: m.accent, band: true, strips: m.shape === "slab" || m.shape === "twin", worn: true, braced: m.shape === "braced",
+    };
+    if (!bucket.has(bucketOf(lots[i]))) bucket.set(bucketOf(lots[i]), []);
+    bucket.get(bucketOf(lots[i])).push(i);
+    return i;
+  };
+  for (const m of MEGATOWERS) {
+    const turn = (mid() - 0.5) * 0.16;
+    if (m.shape === "twin") {
+      // Two shafts along z, the second a little lower, and between them
+      // two bridges of lit floors.
+      const yaw = -Math.PI / 2 + turn;
+      const off = m.w * 1.25;
+      const [a, b] = [megaLot(m, m.x + Math.sin(turn) * off, m.z - off, m.w, m.d, m.h, yaw), megaLot(m, m.x - Math.sin(turn) * off, m.z + off, m.w, m.d, m.h * 0.86, yaw)];
+      for (const up of [0.46, 0.74]) box(BOX.deck, m.x, m.h * 0.86 * up, m.z, m.w * 1.5 + 5, 7.6, m.d * 0.5, yaw, [mid(), 0, 0]);
+      box(BOX.board, m.x, m.h * 0.86 * 0.74 + 3.8 + 1.2 + 5, m.z, m.w * 1.1, 10, 0.7, yaw, [mid(), nextAd(), 0]);
+      if (m.carries.includes("mast")) headOn(lots[a], a, mid, HEAD.mast);
+      headOn(lots[b], b, mid, HEAD.truss);
+      continue;
+    }
+    // (A slab stands broadside to the lens, its cantilever out of one end.)
+    const i = megaLot(m, m.x, m.z, m.w, m.d, m.h, m.shape === "slab" ? -Math.PI / 2 + turn : turn);
+    const [b, s] = [lots[i], forms[i]];
+    const tallest = s.tiers[1] > s.tiers[0] ? 1 : 0;
+    const base = tallest ? s.tiers[0] : 0;
+    const f = faces[i].face;
+    if (m.carries.includes("screen")) {
+      // A screen up the face that looks at the kit: a third of the face
+      // wide, half the shaft high, to one side.
+      const side = mid() < 0.5 ? -1 : 1;
+      const at = onFace(b, s, f, tallest, m.shape === "drum" ? 0 : side * 0.2, 0.7);
+      const [sw, sh] = [at.wide * (m.shape === "drum" ? 0.32 : 0.3), s.tiers[tallest] * 0.5];
+      box(BOX.screen, at.x, base + s.tiers[tallest] * 0.56, at.z, sw, sh, 1.2, at.turn, [mid(), 0, 1]);
+    }
+    if (m.carries.includes("cantilever")) {
+      // A block of lit floors standing out of one end, and a board on it.
+      const end = mid() < 0.5 ? 0 : 2;
+      const len = b.w * 0.5;
+      const at = onFace(b, s, end, 0, 0, len / 2 - 2);
+      const y = b.h * 0.6;
+      box(BOX.deck, at.x, y, at.z, len, 22.8, b.d * 0.84, b.yaw, [mid(), 0, 0]);
+      box(BOX.board, at.x, y + 11.4 + 1 + 6, at.z, len * 0.8, 12, 0.7, b.yaw, [mid(), nextAd(), 0]);
+      tips.push(at.x + Math.cos(b.yaw) * (end ? -1 : 1) * len * 0.45, y + 12, at.z - Math.sin(b.yaw) * (end ? -1 : 1) * len * 0.45);
+    }
+    if (m.carries.includes("pad")) {
+      // A landing pad round the drum where its head steps in, and one on
+      // its roof.
+      const y = s.tiers[0] + s.tiers[1];
+      box(BOX.pad, b.x, y + 0.8, b.z, b.w * 1.24, 1.6, b.d * 1.24, b.yaw, [mid(), 0, 0]);
+      box(BOX.pad, b.x, b.h + 1.3, b.z, b.w * 0.5, 0.7, b.d * 0.5, b.yaw, [mid(), 0, 0]);
+    }
+    if (m.carries.includes("gantry")) {
+      // A billboard gantry on the terrace of its first setback, toward
+      // the kit: two lattice legs, a beam, three boards.
+      const y = s.tiers[0] + s.tiers[1];
+      const at = onFace(b, s, f, 1, 0, -2.5);
+      const along = [Math.cos(at.turn), -Math.sin(at.turn)];
+      for (const e of [-0.44, 0.44]) box(BOX.lattice, at.x + along[0] * e * at.wide, y + 13, at.z + along[1] * e * at.wide, 2.4, 26, 2.4, at.turn);
+      box(BOX.steel, at.x, y + 25.4, at.z, at.wide * 0.94, 1.2, 1.2, at.turn);
+      for (const [e, w, h] of [[-0.29, 0.3, 15], [0.02, 0.28, 19], [0.31, 0.26, 12]]) box(BOX.board, at.x + along[0] * e * at.wide, y + 24.6 - h / 2, at.z + along[1] * e * at.wide, w * at.wide, h, 0.8, at.turn, [mid(), nextAd(), 0]);
+    }
+    if (m.carries.includes("boards")) {
+      // Boards the size of a block on the two faces toward the kit.
+      for (const [g, up, u] of [[f, 0.42, -0.14], [(f + 1) % 4, 0.6, 0.1], [(f + 3) % 4, 0.5, 0]]) {
+        const at = onFace(b, s, g, 1, u, 0.8);
+        box(BOX.board, at.x, s.tiers[0] + s.tiers[1] * up, at.z, at.wide * 0.42, at.wide * 0.3, 0.9, at.turn, [mid(), nextAd(), 0]);
+      }
+    }
+    if (m.carries.includes("mast")) headOn(b, i, mid, HEAD.mast);
+    else if (m.shape !== "drum") headOn(b, i, mid, m.shape === "slab" ? HEAD.sign : HEAD.truss);
+  }
+  // And the lots dealt there low stand as tall as they were dealt, as the
+  // rest of the city does, under the same cap: not the near roofs (within
+  // 300 m of the lens: the roofs whose signs the frame is made of, and the
+  // box the braindance's clue is in), not down the garage street's view.
+  const raised = [];
+  for (let i = 0; i < lots.length; i++) {
+    const b = lots[i];
+    const whole = b.block ?? b;
+    if (b.second || b.hero || b.gone || b.far || b.extra || b.mid || b.screens || !framed(whole)) continue;
+    if (Math.hypot(whole.x - CONTACT_LENS[0], whole.z - CONTACT_LENS[1]) < 300 || downGarageStreet(whole.x, whole.z)) continue;
+    // (Under Contact's cap, and eight metres under any flying lane over it.)
+    const most = Math.min(capAt(whole.x, whole.z, Math.hypot(whole.w, whole.d)), laneBelly(whole.x, whole.z, Math.hypot(whole.w, whole.d) / 2) - 5);
+    const h = Math.min(whole.tall ?? 0, most - 3);
+    if (h >= TOWER_FROM && h >= b.h + 10) {
+      if (b.block) lots[i + 1] = { ...lots[i + 1], gone: true };
+      lots[i] = { ...whole, kind: b.kind, h, free: h * 1.36 + 8 < most, mid: true, block: undefined };
+      forms[i] = formOf(lots[i], mid);
+      kitOf[i] = null;
+      beaconOf[i] = Math.floor(mid() * 3);
+    } else if (b.h >= TOWER_FROM && !b.block) {
+      // (A tower already: as tall as it was, and the city's like the rest.)
+      lots[i] = { ...b, mid: true, free: b.free && b.h * 1.36 + 8 < most };
+    } else continue;
+    raised.push(i);
+  }
+  raised.sort((p, q) => gapOf(lots[p]) - gapOf(lots[q]) || p - q).forEach(dealFace);
+  // (Its face toward Contact's lens is the one that wears what it wears.)
+  for (const i of raised) {
+    const b = lots[i];
+    const [kx, kz] = [CONTACT_LENS[0] - b.x, CONTACT_LENS[1] - b.z];
+    faces[i] = { ...faces[i], face: faceToward(b, CONTACT_LENS[0], CONTACT_LENS[1]), compass: ((Math.round((Math.atan2(kz, kx) + Math.PI) / (Math.PI / 2)) % 4) + 4) % 4 };
+    if (forms[i].style === 3) forms[i] = { ...forms[i], style: 0, parapet: 0.7 };
+    if (forms[i].style === 2) crowned.add(i);
+    headOn(lots[i], i, mid);
+  }
+  // ---- the landmark towers, dressed as the show's megabuildings ---------------
+  // The five towers the kit stands north of the megabuilding (skyline.py)
+  // were office towers from the air: a stepped shaft and a spire, a slab, a
+  // frame. Their outlines over the avenue are the hero's skyline, and its
+  // lens sees each only above a line (the needle above 295 m, the blade
+  // above 440, the frame above 340, Corpo Row's lens the frame above 388,
+  // the stack not at all), so below those lines each is given what the
+  // show's are built of: blocks of lit floors standing out of a face on
+  // angled struts, lit bands at its steps, tubes of neon up its corners, a
+  // crown of masts with red lamps on the one nobody's frame holds, and its
+  // name, big enough to read a kilometre off. Nothing drawn: all boxes.
+  {
+    const tube = (x, y, z, sx, sy, sz, hue, turn = 0) => box(BOX.tube, x, y, z, sx, sy, sz, turn, [hue, 2.2, 0]);
+    const name = (x, y, z, w, h, id, down, turn = 0) => box(BOX.logo, x, y, z, w, h, 1.2, turn, [id, LOGOS[id].length, down ? 1 : 0]);
+    const strut = (ax, ay, az, bx, by, bz, t = 1.8) => {
+      const [dx, dy, dz] = [bx - ax, by - ay, bz - az];
+      box(BOX.strut, (ax + bx) / 2, (ay + by) / 2, (az + bz) / 2, t, Math.hypot(dx, dy, dz), t, Math.atan2(dx, dz), [0, 0, Math.atan2(Math.hypot(dx, dz), dy)]);
+    };
+    // A block of lit floors out of a face (its windows on its +z and -z
+    // sides), a strut under each end of its outer edge back to the wall.
+    const cantilever = (x, y, z, sx, sy, sz, seed, struts) => {
+      box(BOX.deck, x, y, z, sx, sy, sz, 0, [seed, 0, 0]);
+      for (const [ax, ay, az, bx, bz] of struts) strut(ax, ay, az, bx, y - sy / 2 - 0.5, bz, 2.2);
+    };
+    // The needle (-150, -900): south face z -875 (to 181 m), east face x -125;
+    // its second tier (181..257) x -130.5, z -880.5.
+    cantilever(-116.5, 210, -893, 28, 28, 22, 0.17, [[-125, 150, -885, -104, -885], [-125, 150, -901, -104, -901]]);
+    cantilever(-160, 246, -869.5, 18, 20, 22, 0.53, [[-166, 200, -880.5, -166, -861], [-154, 200, -880.5, -154, -861]]);
+    name(-148, 134, -874.2, 13, 88, 0, true);
+    name(-139, 220, -879.7, 10.5, 68, 0, true);
+    name(-160, 259.5, -859.5, 26, 6, 0, false);
+    for (const y of [96, 128, 160]) {
+      tube(-150, y, -874.6, 34, 0.7, 0.4, 0);
+      tube(-124.6, y, -900, 0.4, 0.7, 34, 0);
+    }
+    // (From over the canyon's end the megabuilding hides the needle below
+    // 260 m: its third tier, 257..297, is lit in bands up to the hero's line.)
+    for (const y of [265, 276, 287]) {
+      tube(-150, y, -884.6, 30, 0.8, 0.4, y === 276 ? 1 : 0);
+      tube(-134.6, y, -900, 0.4, 0.8, 30, y === 276 ? 1 : 0);
+    }
+    tube(-128.3, 102.5, -878.3, 1.2, 157, 0.4, 0, Math.PI / 4);
+    tube(-171.7, 102.5, -878.3, 1.2, 157, 0.4, 4, -Math.PI / 4);
+    // The stack (-300, -1150): four blocks, each over to its own side; the
+    // second's east face x -271.2, the third's south face z -1126.6.
+    cantilever(-256.2, 239, -1158, 30, 28, 24, 0.29, [[-271.2, 190, -1150, -244, -1150], [-271.2, 190, -1166, -244, -1166]]);
+    cantilever(-300, 311, -1114.6, 30, 22, 24, 0.71, [[-312, 272, -1126.6, -312, -1104], [-288, 272, -1126.6, -288, -1104]]);
+    name(-305, 225, -1125.8, 14, 80, 1, true);
+    name(-300, 326.5, -1103.4, 30, 9, 1, false);
+    for (const [y, x0, x1, z0, z1, hue] of [[176.4, -330, -270, -1180, -1120, 1], [268.8, -319.2, -271.2, -1178.2, -1126.6, 0], [352.8, -319.2, -280.8, -1166.2, -1126.6, 1]]) {
+      tube((x0 + x1) / 2, y - 0.6, z1 + 0.25, x1 - x0, 1.0, 0.4, hue);
+      tube(x1 + 0.25, y - 0.6, (z0 + z1) / 2, 0.4, 1.0, z1 - z0, hue);
+    }
+    // Its crown: four lattice masts of their own heights on the last block
+    // (x -310.8..-284.4, z -1157.8..-1130.2, roof 420), a red lamp on each.
+    for (const [x, z, h] of [[-307, -1154, 58], [-288, -1153, 40], [-306, -1134, 30], [-289, -1135, 24]]) {
+      box(BOX.lattice, x, 420 + h / 2, z, 3, h, 3, 0.3);
+      tips.push(x, 420 + h + 1.5, z);
+    }
+    box(BOX.steel, -297.6, 421.5, -1144, 22, 3, 22, 0, [0.4, 0, 0]);
+    // The blade (-190, -1400): its raked head from 384 m, south face z -1386.
+    cantilever(-184, 404, -1374, 36, 24, 24, 0.83, [[-202, 350, -1384.6, -202, -1363], [-166, 350, -1384.6, -166, -1363]]);
+    name(-184, 422, -1362.8, 50, 12, 2, false);
+    for (const x of [-216.5, -163.5]) tube(x, 204, -1384.4, 1.0, 360, 0.4, 3);
+    tips.push(-202, 417, -1362, -166, 417, -1362);
+    // The frame (120, -1400): south face z -1370, east face x 150, to 312 m.
+    cantilever(164, 283, -1392, 28, 26, 24, 0.41, [[150, 232, -1384, 176, -1384], [150, 232, -1400, 176, -1400]]);
+    name(110, 230, -1369.2, 18, 140, 3, true);
+    tube(147.2, 168, -1372.8, 1.2, 276, 0.4, 0, Math.PI / 4);
+    tube(92.8, 168, -1372.8, 1.2, 276, 0.4, 3, -Math.PI / 4);
+    tips.push(176, 297, -1392);
+    // The ziggurat (330, -1000): south face z -977, under the slice of it
+    // the hero's lens sees (160 m and up).
+    name(322, 104, -976.2, 13, 88, 4, true);
+    tube(353.2, 88, -976.8, 0.8, 120, 0.4, 2);
+    tube(306.8, 88, -976.8, 0.8, 120, 0.4, 2);
+  }
+
+  // ---- the far ring: more city, not a backdrop -------------------------------
+  // What the show's far city has even a mile off: skybridges between its
+  // towers, lit from under; an elevated railway on pylons; up its faces
+  // tubes of cyan, magenta and yellow and small lit boards. Each far tower
+  // outside the page's frames that hold (the rooftop's, and the slot at the
+  // garage street's end) wears a tube or two and a board or two on the face it turns
+  // to the kit, and a neighbour within a block or so is joined to it by a
+  // bridge, under the lower roof and clear of every flying lane.
+  {
+    // The heights flying lanes take near a point: [lowest belly, highest top].
+    const lanesAt = (x, z, reach) => {
+      let [lo, hi] = [Infinity, -Infinity];
+      for (const l of LANES) {
+        let off;
+        if (l.a) {
+          const [ax, az, bx, bz] = [l.a[0], l.a[1], l.b[0] - l.a[0], l.b[1] - l.a[1]];
+          const t = Math.min(1, Math.max(0, ((x - ax) * bx + (z - az) * bz) / (bx * bx + bz * bz)));
+          off = Math.hypot(x - ax - bx * t, z - az - bz * t) - l.half;
+        } else off = Math.abs(Math.hypot((x - l.c[0]) / l.r[0], (z - l.c[1]) / l.r[1]) - 1) * Math.min(l.r[0], l.r[1]);
+        if (off < reach + 6) {
+          lo = Math.min(lo, l.y + Math.min(l.lift ?? 0, 0) - 6);
+          hi = Math.max(hi, l.y + Math.max(l.lift ?? 0, 0) + 20);
+        }
+      }
+      return [lo, hi];
+    };
+    const far = [];
+    lots.forEach((b, i) => {
+      if (b.far && !b.gone && !farAsDealt(b)) far.push(i);
+    });
+    let turnAd = 0;
+    // A far tower's crown (two in three, where its roof has room under
+    // every lens's cap and every flying lane): its top stepped in once or
+    // twice, each step lit floor by floor with a tube of light round it, a
+    // lattice mast with its red lamp on most, and on a tall one a block
+    // cantilevered out of one face near its top, lit from under. The
+    // ring's roofs were flat tops against the sky.
+    const crowned = new Set();
+    const crown = (i) => {
+      const [b, f] = [lots[i], forms[i]];
+      const own = at(b);
+      if (f.spire > 0 || hash11(own + 131.1) < 0.33) return;
+      const c = (k) => hash11(own + 133.7 + k * 3.1);
+      const t = topTier(f);
+      const [cx, cz] = topCentre(b, f);
+      const [hw, hd] = [(b.w * f.inset[t]) / 2, (b.d * f.inset[t]) / 2];
+      const [cs, sn] = [Math.cos(b.yaw), Math.sin(b.yaw)];
+      let y = f.roof + f.parapet;
+      let left = Math.min(b.cap ?? Infinity, lanesAt(cx, cz, Math.max(hw, hd))[0] - 4) - y;
+      if (left < 10 || hw < 8 || hd < 8) return;
+      crowned.add(i);
+      let [sw, sd] = [hw * 2, hd * 2];
+      for (let s = 0; s < (c(0) < 0.5 ? 2 : 1); s++) {
+        sw *= 0.58 + 0.12 * c(1 + s);
+        sd *= 0.58 + 0.12 * c(3 + s);
+        const sh = Math.min(left - 2, 9 + 16 * c(5 + s));
+        if (sh < 5) break;
+        box(BOX.crown, cx, y + sh / 2, cz, sw, sh, sd, b.yaw, [c(7 + s), 1, 0]);
+        box(BOX.tube, cx, y + sh - 1.4, cz, sw + 0.6, 1.0, sd + 0.6, b.yaw, [Math.floor(c(9 + s) * 3), 2.4, 0]);
+        y += sh;
+        left -= sh;
+      }
+      if (left > 16 && c(11) < 0.75) {
+        const mh = Math.min(left - 2, 18 + 40 * c(12));
+        box(BOX.lattice, cx, y + mh / 2, cz, 2.6, mh, 2.6, b.yaw);
+        tips.push(cx, y + mh + 0.8, cz);
+      }
+      if (f.roof > 200 && c(13) < 0.45) {
+        const cy = f.roof * (0.6 + 0.2 * c(14));
+        let [acc, ti] = [0, 0];
+        for (let q = 0; q < 4; q++) {
+          if (f.tiers[q] > 0.01 && cy >= acc) ti = q;
+          acc += f.tiers[q];
+        }
+        const off = ti === 0 ? [0, 0] : ti === 1 ? f.offset.slice(0, 2) : f.offset.slice(2, 4);
+        const [fw, fd] = [b.w * f.inset[ti], b.d * f.inset[ti]];
+        const alongX = c(15) < 0.5;
+        const sgn = c(16) < 0.5 ? -1 : 1;
+        const [ch, out] = [12 + 12 * c(17), 9 + 5 * c(18)];
+        const lx = off[0] * b.w + (alongX ? sgn * (fw / 2 + out / 2 - 2) : 0);
+        const lz = off[1] * b.d + (alongX ? 0 : sgn * (fd / 2 + out / 2 - 2));
+        const [x, z] = [b.x + cs * lx + sn * lz, b.z - sn * lx + cs * lz];
+        const [sx, sz] = alongX ? [out + 4, fd * 0.55] : [fw * 0.55, out + 4];
+        const [lo, hi] = lanesAt(x, z, Math.max(sx, sz) / 2);
+        if (cy + ch / 2 < lo - 2 || cy - ch / 2 > hi + 2) {
+          box(BOX.crown, x, cy, z, sx, ch, sz, b.yaw, [c(19), 1, 0]);
+          box(BOX.tube, x, cy - ch / 2 - 0.35, z, sx - 0.6, 0.5, sz - 0.6, b.yaw, [Math.floor(c(20) * 3), 2.6, 0]);
+        }
+      }
+    };
+    for (const i of far) {
+      const [b, f] = [lots[i], forms[i]];
+      const own = at(b);
+      const face = faceToward(b, 160, -330);
+      const tier = f.tiers[1] > 0 ? 1 : 0;
+      const base = tier ? f.tiers[0] : 0;
+      const shaft = f.tiers[tier];
+      for (let k = 0; k < 1 + Math.floor(hash11(own + 81.3) * 2); k++) {
+        const u = (k ? -1 : 1) * (0.22 + 0.2 * hash11(own + 83.1 + k));
+        const at1 = onFace(b, f, face, tier, u, 0.3);
+        const [from, to] = [0.08 + 0.3 * hash11(own + 85.7 + k), 0.6 + 0.38 * hash11(own + 87.9 + k)];
+        box(BOX.tube, at1.x, base + shaft * (from + to) / 2, at1.z, 3.2, shaft * (to - from), 0.4, at1.turn, [Math.floor(hash11(own + 89.3 + k) * 3), 3.0, 0]);
+      }
+      for (let k = 0; k < 1 + Math.floor(hash11(own + 91.1) * 2); k++) {
+        const at2 = onFace(b, f, (face + k * 3) % 4, tier, (hash11(own + 93.7 + k) - 0.5) * 0.5, 0.5);
+        const tall = hash11(own + 95.3 + k) < 0.5;
+        const [bw, bh] = tall ? [Math.min(13, at2.wide * 0.32), 22] : [Math.min(24, at2.wide * 0.5), 12];
+        box(BOX.board, at2.x, base + shaft * (0.3 + 0.55 * hash11(own + 97.1 + k)), at2.z, bw, bh, 0.8, at2.turn, [hash11(own + 99.9 + k), 100 + ((turnAd++ * 7 + 5) % 24), 0]);
+      }
+      crown(i);
+    }
+    // Roofs seen from above: a tower raised or stood since the roof kits
+    // were dealt (the ring's, the south-east's, the far layer's) had a bare
+    // flat roof from the air. Each now carries a plant room, vents, a tank,
+    // an aerial with a red lamp, a pad on a big one and lamps at its
+    // corners; under Contact's cap where it frames them (vents and lamps
+    // only there, unless it may carry a head), under every flying lane, and
+    // not on what a page's frame holds.
+    lots.forEach((b, i) => {
+      if (b.gone || b.hero || b.cone || kitOf[i] || b.h < TOWER_FROM || b.screens || crowned.has(i)) return;
+      if (b.far ? farAsDealt(b) : (framed(b) && !b.mid) || (downGarageStreet(b.x, b.z) && !b.mid)) return;
+      const f = forms[i];
+      const t = topTier(f);
+      const [cx, cz] = topCentre(b, f);
+      const [hw, hd] = [(b.w * f.inset[t]) / 2, (b.d * f.inset[t]) / 2];
+      if (hw < 5 || hd < 5) return;
+      const y = f.roof;
+      const own = at(b);
+      const r = (k) => hash11(own + 101.7 + k * 3.3);
+      const low = lanesAt(cx, cz, Math.max(hw, hd))[0];
+      const room = framed(b) && !b.free ? 1.5 : 20;
+      const most = Math.min(room, low - y - 4);
+      const [cs, sn] = [Math.cos(b.yaw), Math.sin(b.yaw)];
+      const put = (kind, lx, lz, sx, sy, sz, o = [0, 0, 0]) => {
+        if (sy <= most) box(kind, cx + cs * lx + sn * lz, y + sy / 2, cz - sn * lx + cs * lz, sx, sy, sz, b.yaw, o);
+        return sy <= most;
+      };
+      const pad = hw > 14 && hd > 14 && r(14) < 0.3;
+      put(BOX.block, (pad ? -0.55 : r(0) - 0.5) * hw, (pad ? -0.55 : r(1) - 0.5) * hd, Math.min(12, hw * 0.6), 3.4, Math.min(9, hd * 0.5), [r(2), r(3) < 0.5 ? 1 : 0, 0]);
+      if (!b.far) for (let k = 0; k < 3; k++) put(BOX.steel, (r(4 + k) - 0.5) * hw * 1.4, (r(7 + k) - 0.5) * hd * 1.4, 1.6, 1.3, 1.6, [0.2, 0, 0]);
+      put(BOX.steel, hw * 0.55 * (r(10) < 0.5 ? -1 : 1), hd * 0.55 * (r(11) < 0.5 ? 1 : -1), 4, 5, 4, [0.6, 0, 0]);
+      const aerial = 8 + r(13) * 10;
+      if (r(12) < 0.6 && put(BOX.lattice, -hw * 0.6, hd * 0.6, 1.4, aerial, 1.4)) tips.push(cx + cs * -hw * 0.6 + sn * hd * 0.6, y + aerial + 0.6, cz - sn * -hw * 0.6 + cs * hd * 0.6);
+      if (pad) put(BOX.pad, hw * 0.3, hd * 0.3, Math.min(hw, hd) * 1.0, 0.6, Math.min(hw, hd) * 1.0, [r(15), 0, 0]);
+      for (const [sx, sz] of [[-1, -1], [1, 1]]) put(BOX.tube, sx * (hw - 1.2), sz * (hd - 1.2), 0.6, 0.6, 0.6, [r(16) < 0.7 ? 2 : 0, 1.6, 0]);
+    });
+    // Bridges: between far towers 50 to 120 m apart, both over 150 m, one
+    // pair in two, at a height under the lower roof (two floors of lit
+    // rooms in a truss, lit from under).
+    for (let p = 0; p < far.length; p++) {
+      for (let q = p + 1; q < far.length; q++) {
+        const [a, c] = [lots[far[p]], lots[far[q]]];
+        const [dx, dz] = [c.x - a.x, c.z - a.z];
+        const dist = Math.hypot(dx, dz);
+        if (dist < 50 || dist > 120 || a.h < 150 || c.h < 150) continue;
+        const k = hash11(at(a) * 1.7 + at(c) * 0.31);
+        if (k < 0.5) continue;
+        const length = dist - 0.25 * (a.w + a.d) - 0.25 * (c.w + c.d) + 6;
+        if (length < 10) continue;
+        const [mx, mz] = [(a.x + c.x) / 2, (a.z + c.z) / 2];
+        const y = Math.min(a.h, c.h) * (0.38 + 0.4 * ((k - 0.5) * 2));
+        const [lo, hi] = lanesAt(mx, mz, length / 2);
+        if (y + 6 > lo && y - 6 < hi) continue;
+        box(BOX.deck, mx, y, mz, length, 7.6, 10, Math.atan2(-dz, dx), [k, 0, 0]);
+      }
+    }
+    // Two elevated railways across the far city on pylons, lit from under,
+    // south-east of the kit and north-east of Corpo Row, low (46 and 52 m),
+    // under every flying lane they cross and outside the page's frames.
+    for (const [x0, z0, x1, z1, y] of [[760, -40, 1400, 260, 46], [520, -700, 1120, -900, 52]]) {
+      const len = Math.hypot(x1 - x0, z1 - z0);
+      const turn = Math.atan2(-(z1 - z0), x1 - x0);
+      const n = Math.floor(len / 40);
+      for (let k = 0; k < n; k++) {
+        const t = (k + 0.5) / n;
+        const [x, z] = [x0 + (x1 - x0) * t, z0 + (z1 - z0) * t];
+        box(BOX.steel, x, y, z, len / n + 0.2, 3.2, 7, turn, [0.3, 0, 0]);
+        box(BOX.tube, x, y - 1.75, z, len / n + 0.2, 0.3, 0.6, turn, [k % 7 === 3 ? 2 : 0, 2.0, 0]);
+        if (k % 2 === 0) box(BOX.steel, x, (y - 1.6) / 2, z, 2.6, y - 1.6, 2.6, turn, [0.1, 0, 0]);
+      }
+    }
+    // The skyways: three long decks across the middle distance from one
+    // tall tower to another (the front towers each view sees: behind them
+    // a deck was hidden), each two floors lit bay by bay in its truss
+    // and lit from under, a row of lit boards hung under it, each its own
+    // advert, as the show strings them across its far city. East, across
+    // what Contact's lens and far-low look at, left of and under the moon
+    // (moon-check); west, across the deck's and the avenue's looks from the
+    // air; south, across the avenue's look south and the south air. The
+    // west and south ones stand for a free eye only (the page's lenses keep
+    // their frames). No board hangs where a flying lane passes under.
+    // (Each end the tallest tower standing within 30 m of its point.)
+    const SKYWAYS = [
+      [855, -107, 713, 7, 90, 0, 6],
+      [-210, -178, -213, -44, 125, 2, 4],
+      [-213, -44, -210, 94, 125, 2, 4],
+      [-118, 186, 70, 188, 110, 2, 6],
+    ];
+    const towerAt = (x, z, over) => {
+      let best = -1;
+      lots.forEach((b, i) => {
+        if (!b.gone && b.h >= over && Math.hypot(b.x - x, b.z - z) < 30 && (best < 0 || b.h > lots[best].h)) best = i;
+      });
+      return best;
+    };
+    for (const [x0, z0, x1, z1, y, gate, count] of SKYWAYS) {
+      const [ia, ic] = [towerAt(x0, z0, y + 12), towerAt(x1, z1, y + 12)];
+      if (ia < 0 || ic < 0) continue;
+      const [a, c] = [lots[ia], lots[ic]];
+      const [dx, dz] = [c.x - a.x, c.z - a.z];
+      const dist = Math.hypot(dx, dz);
+      const [ux, uz] = [dx / dist, dz / dist];
+      const [ra, rc] = [0.25 * (a.w + a.d), 0.25 * (c.w + c.d)];
+      const length = dist - ra - rc + 8;
+      const t0 = ra - 4;
+      const [mx, mz] = [a.x + ux * (t0 + length / 2), a.z + uz * (t0 + length / 2)];
+      const turn = Math.atan2(-dz, dx);
+      const own = at(a) + at(c);
+      box(BOX.deck, mx, y, mz, length, 7.6, 12, turn, [hash11(own + 3.3), 0, 0, gate]);
+      for (let k = 0; k < count; k++) {
+        const s = t0 + length * (0.1 + (0.8 * (k + 0.5)) / count);
+        const [bx, bz] = [a.x + ux * s, a.z + uz * s];
+        const [bw, bh] = [14 + 8 * hash11(own + 5.1 + k), 8 + 4 * hash11(own + 7.3 + k)];
+        const by = y - 3.8 - 1.8 - bh / 2;
+        const [lo, hi] = lanesAt(bx, bz, bw / 2 + 2);
+        if (by + bh / 2 > lo && by - bh / 2 < hi) continue;
+        box(BOX.board, bx, by, bz, bw, bh, 0.8, turn, [hash11(own + 9.7 + k), 100 + ((k * 5 + ia + ic) % 24), 0, gate]);
+        for (const side of [-0.35, 0.35]) box(BOX.steel, bx + ux * bw * side, y - 3.8 - 0.9, bz + uz * bw * side, 0.3, 1.8, 0.3, turn, [0.2, 0, 0, gate]);
+      }
+    }
+  }
+
+  // The columns: each a solid stack of screens on its own ground, 0.72 of
+  // its height (the rest is its beam, sky-columns.js).
+  // (A column the rooftop's lens frames, west-north-west from the
+  // Afterlife's roof, or the garage street's, south down its street, is
+  // the hologram it was from under the roofs' height, and solid only for an
+  // eye above them: those two pictures hold.)
+  const columnHeld = (x, z) => {
+    const [roof, street] = [Math.atan2(z + 266, x - 476) * (180 / Math.PI), Math.atan2(z + 292, x - 437) * (180 / Math.PI)];
+    return roof > 170 || roof < -113 || (street > 41 && street < 127);
+  };
+  for (let c = 0; c < columns.length; c += 6) {
+    const [x, z, w, h, tone, seed] = columns.slice(c, c + 6);
+    // (Where a flying lane passes, the stack begins over it: the craft go
+    // under it between the two lines of light its edges are.)
+    const belly = laneBelly(x, z, w * 0.4);
+    const foot = belly < Infinity ? belly + 24 : 0;
+    box(BOX.screen, x, (foot + h * 0.72) / 2, z, w * 0.8, h * 0.72 - foot, w * 0.8, (seed - 0.5) * 0.5, [seed, [0, 0, 1, 0, 2, 3][tone % 6], 0, columnHeld(x, z) ? 1 : 0]);
+  }
+  const skyColumns = createSkyColumns(scene, shared, columns, { reduced, ads, held: columnHeld });
+
+  // The dome's lamps, as GLSL the slabs share: a lamp every eleven and a
+  // half metres down each kerb, a pool of light under it. Past a pixel a
+  // lamp is spread into its street rather than sparkling. On the dressed
+  // streets a lamp is lit where a post stands, by the rule above.
+  const g1 = (v) => v.toFixed(1);
+  // Santo Domingo's air is sodium (glsl.js, santoAt), over its own ground:
+  // from the air it was a sheet of orange with a straight edge where the
+  // far city's ground began. Past that edge the far city carries it on,
+  // thinning over a few hundred metres, low over the ground.
+  const BEYOND = /* glsl */ `
+      vec3 sodiumBeyond(vec3 col, vec3 p) {
+        vec2 away = max(max(vec2(170.0, -176.0) - p.xz, p.xz - vec2(490.0, 48.0)), 0.0);
+        // (For an eye above the roofs: from the street it was never a sheet.)
+        float k = exp(-length(away) / 130.0) * (1.0 - santoAt(p.xz)) * exp(-max(p.y, 0.0) * 0.035) * uHaze * smoothstep(40.0, 62.0, uCam.y);
+        // (Half what it was: the district's own air is read along the look
+        // now and has no edge to hide, and over the low blocks beside it
+        // this was a brown murk.)
+        return mix(col, SODIUM, k * 0.3 * smoothstep(20.0, 200.0, length(p - uCam)));
+      }
+      uniform float uFarFree;
+      // The districts' depth veil (glsl.js, cityFog: laid on after the fog,
+      // for every free eye): its colour, and how much of it a point takes.
+      // Keep in step with cityFog.
+      vec4 depthVeil(vec3 p, float emissive) {
+        vec3 d = p - uCam;
+        float dd = length(d) * (1.0 / 360.0);
+        float w = (1.0 - exp(-dd * dd)) * exp(-max(p.y, 0.0) * 0.003) * freeEye() * uHaze * mix(1.0, 0.75, emissive) * (1.0 - santoAt(p.xz)) * 0.62;
+        return vec4(mix(vec3(0.022, 0.045, 0.09), hazeAt(d) * 1.6, downtown(d)) + uGlowColor * 0.08, w);
+      }
+      // Past the districts the same air goes on thickening: by two
+      // kilometres a block is mostly the veil's blue with its lights in it,
+      // and a light that far is greyed toward the veil's own cold. Lower
+      // air is thicker. (For a free eye only: the page's lenses keep their
+      // frames.)
+      vec3 farHaze(vec3 col, vec3 p, float emissive) {
+        vec3 d = p - uCam;
+        float k = smoothstep(220.0, 1700.0, length(d)) * exp(-max(p.y, 0.0) * 0.001) * freeEye() * uFarFree * uHaze * (1.0 - santoAt(p.xz));
+        vec3 veil = mix(vec3(0.022, 0.045, 0.09), hazeAt(d) * 1.6, downtown(d)) + uGlowColor * 0.08;
+        // (A lit strip keeps its line and most of its colour through it:
+        // tinted by the haze, not drowned in it.)
+        col = mix(col, dot(col, vec3(0.2126, 0.7152, 0.0722)) * vec3(0.7, 0.95, 1.25), k * emissive * 0.35);
+        return mix(col, veil, k * mix(0.85, 0.3, emissive));
+      }
+      // The city's fog on the far city, and for an eye above the roofs a
+      // thinner one (the low blocks keep their lights under it) that is the
+      // night's blue-teal toward downtown too: the haze's red is held to
+      // what the thing itself has, or three quarters of the haze's green.
+      // From the streets and the page's roofs it is the city's fog as it is.
+      // The districts' veil is in it whole for every free eye: thinned with
+      // the fog from the air it was a quarter short, so a far block stood
+      // as dark and as coloured as a near one.
+      vec3 airFog(vec3 col, vec3 p, float emissive) {
+        vec3 fogged = cityFog(col, p, emissive);
+        // (For a free eye a light keeps half of itself through the air: a
+        // kilometre and a half off the fog took five sixths of a lit strip,
+        // and the far city's windows were faint dots in a grey wall. The
+        // refs' far towers carry crisp strips, tinted by the haze.)
+        fogged = mix(fogged, mix(col, fogged, 0.5), clamp(emissive, 0.0, 1.0) * freeEye() * uFarFree);
+        vec3 thin = mix(col, fogged, 0.72);
+        thin.r = min(thin.r, max(col.r, thin.g * 0.75));
+        vec4 v = depthVeil(p, emissive);
+        thin = mix(thin, v.rgb, 0.28 * v.w / max(1.0 - 0.72 * v.w, 0.05) * uFarFree);
+        return farHaze(mix(fogged, thin, smoothstep(40.0, 62.0, uCam.y)), p, emissive);
+      }
+  `;
+  const STREET = /* glsl */ `
+${BEYOND}
+      float kitGap(vec2 p) {
+        float g = 1e5;
+${kitRects.map(([x0, z0, x1, z1]) => `        g = min(g, length(max(max(vec2(${g1(x0)}, ${g1(z0)}) - p, p - vec2(${g1(x1)}, ${g1(z1)})), 0.0)));`).join("\n")}
+        return g;
+      }
+      float dressedAt(vec2 p) {
+        // (Nowhere near the kit: not worth the rectangles.)
+        if (p.x < -320.0 || p.x > 655.0 || p.y < -945.0 || p.y > 270.0) return 0.0;
+        return step(kitGap(p), ${DRESSED}) * (1.0 - step(430.0, p.x) * step(-212.0, p.y)) * (1.0 - step(p.y, -700.0) * step(-110.0, p.x) * step(p.x, 150.0));
+      }
+      float clearOfKit(vec2 p) {
+        float k = 1.0;
+${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x) * step(p.x, ${g1(x1 + 1.1)}) * step(${g1(z0 - 1.1)}, p.y) * step(p.y, ${g1(z1 + 1.1)});`).join("\n")}
+        return k;
+      }
+      vec3 kerbLamps(float across, float along, float street, float k, float px) {
+        float dz = abs(fract(along / 11.5 + 0.5) - 0.5) * 11.5;
+        float dk = abs(abs(across) - 4.2);
+        float d2 = dk * dk + dz * dz;
+        float r = max(0.9, px);
+        float lamp = exp(-d2 / (r * r)) * (0.81 / (r * r));
+        float on = step(0.12, hash12(vec2(floor(along / 11.5 + 0.5), street * 3.1 + k)));
+        // Each lamp's pool runs into the next, so a street reads as a line.
+        float pool = exp(-dk * dk / 8.0 - dz * dz / 45.0) * 0.12;
+        vec3 sodium = mix(vec3(1.0, 0.55, 0.2), vec3(0.85, 0.9, 1.0), step(0.7, hash12(vec2(street, k + 3.0))));
+        float lampAlong = floor(along / 11.5 + 0.5) * 11.5;
+        float side = across < 0.0 ? -1.0 : 1.0;
+        float streetAt = street * ${cell}.0 - (k < 0.5 ? 877.0 : 1677.0);
+        float base = k < 0.5 ? 1700.0 : 900.0;
+        float mid = floor((lampAlong + base) / ${cell}.0 + 0.5) * ${cell}.0 - base;
+        vec2 c = k < 0.5 ? vec2(streetAt + side * 23.0, mid) : vec2(mid, streetAt + side * 23.0);
+        vec2 post = k < 0.5 ? vec2(streetAt + side * 6.5, lampAlong) : vec2(lampAlong, streetAt + side * 6.5);
+        float dressed = dressedAt(c);
+        float stands = step(abs(lampAlong - mid), 16.4) * clearOfKit(post);
+        on = mix(on, stands, dressed);
+        return sodium * (lamp * 1.4 * on * mix(0.25, 1.0, smoothstep(0.1, 0.8, px)) + pool * (0.4 + 0.6 * on)) * mix(1.0, stands, dressed);
+      }
+      // Both streets' lamps at a point on the ground.
+      vec3 streetLamps(vec3 p, float px) {
+        vec2 q = (p.xz + vec2(${900 - cell / 2}.0, ${1700 - cell / 2}.0)) / ${cell}.0;
+        vec2 off = (fract(q + 0.5) - 0.5) * ${cell}.0;
+        vec2 id = floor(q + 0.5);
+        return kerbLamps(off.x, p.z, id.x, 0.0, px) * step(abs(off.x), 9.0 + px) + kerbLamps(off.y, p.x, id.y, 1.0, px) * step(abs(off.y), 9.0 + px);
+      }
+  `;
+  const farStreet = createFarStreet(scene, shared, boxes, { street: STREET, ads });
+
   // ---- the buildings: blocks on a square plan, towers on a cut one ----------
-  const painted = facades.filter(Boolean).length === 3;
   const material = new THREE.ShaderMaterial({
-    uniforms: {
-      ...shared,
-      uFacade0: { value: painted ? facades[0] : null },
-      uFacade1: { value: painted ? facades[1] : null },
-      uFacade2: { value: painted ? facades[2] : null },
-      uMotion: { value: reduced ? 0 : 1 },
-    },
-    defines: painted ? { PAINTED: "" } : {},
+    uniforms: { ...shared, ...ads, uMotion: { value: reduced ? 0 : 1 } },
     vertexShader: /* glsl */ `
       attribute vec2 aDir;
       attribute vec4 aPart;
@@ -609,7 +2201,11 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       attribute vec4 aForm;
       attribute vec4 aOffset;
       attribute vec4 aLook;
-      attribute vec4 aPaint;
+      attribute vec4 aDress;
+      attribute vec4 aKind;
+      varying vec4 vDress;
+      varying vec4 vKind;
+      varying vec4 vPlan;
       varying vec3 vWorld;
       varying vec3 vNormalW;
       varying vec2 vCells;
@@ -617,7 +2213,6 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       varying float vRoof;
       varying vec2 vCrown;
       varying vec4 vHero;
-      varying vec3 vPaint;
       varying vec4 vTier;
       varying vec4 vForm;
       float pick(vec4 v, float i) { return i < 0.5 ? v.x : i < 1.5 ? v.y : i < 2.5 ? v.z : v.w; }
@@ -654,13 +2249,19 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         vRoof = max(step(0.5, n.y), step(0.5, kind));
         // Window cells from world position, along whichever way the face runs.
         float along = dot(w.xz, vec2(n.z, -n.x));
-        vCells = vec2(along / 3.2, (w.y - 4.6) / 3.4);
+        // (Each fresh tower its own bays and floors, give or take: on the
+        // kit's own 3.2 by 3.4 m cells, one window grid was tiled up tower
+        // after tower. What Contact frames as it was keeps the kit's.)
+        float vary = step(0.0, aDress.y) * (1.0 - step(511.5, aDress.x));
+        vCells = vec2(along / (3.2 * mix(1.0, 0.8 + 0.5 * fract(aForm.w * 7.31), vary)), (w.y - 4.6) / (3.4 * mix(1.0, 0.92 + 0.2 * fract(aForm.w * 3.17), vary)));
+        // A megabuilding a mile off is read in cells of several floors.
+        if (aForm.y > 5.5) vCells /= 2.6;
         float seed = fract(aForm.w) * 100.0;
         vParams = aLook.xyz;
         vCells += vec2(aLook.w, 0.0);
         // The roof's height (under any spire), and which towers light a band
         // under it.
-        vCrown = vec2(aSize.z, aPaint.w);
+        vCrown = vec2(aSize.z, aDress.z);
         // What kind of building (0 a tower, 1 one of Contact's dressed
         // towers, 2 a block), where this is across its face, the face's
         // width in metres and which face it is (for what is hung on it).
@@ -670,10 +2271,6 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         // corner their plan's x and z start from.
         float across = abs(normal.x) > 0.5 ? position.z + 0.5 : position.x + 0.5;
         vHero = vec4(aForm.z, abs(aForm.z - 1.0) < 0.1 ? across : aPart.w, faceW, faceId + ti * 4.0);
-        // Painted: which of the three elevations (-1 for windows), and where
-        // on it, a tile 16 m wide and 24 m tall, each block from its own
-        // place in the picture.
-        vPaint = vec3((along + aPaint.x) / 16.0, (w.y - 4.6) / 24.0 + aPaint.y, aPaint.z);
         // This tier: its roof's height, its foot, whether it is the top, and
         // where across the face this is.
         vTier = vec4(base + h, base, isTop, aPart.w);
@@ -681,12 +2278,19 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         // screen's), and this tier.
         float tallest = aTier.y > aTier.x ? (aTier.z > aTier.y ? 2.0 : 1.0) : 0.0;
         vForm = vec4(aForm.y, floor(aForm.w) + 0.1 * step(abs(ti - tallest), 0.1), seed, ti);
+        // How it is dressed, and where on its tier's plan this is, in
+        // metres from the middle, with half the tier's footprint.
+        vDress = aDress;
+        vKind = aKind;
+        vPlan = vec4(position.xz * foot, foot * 0.5);
         gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
       }
     `,
     fragmentShader: /* glsl */ `
       ${COMMON}
       ${WINDOWS}
+      ${ADVERT}
+      ${BEYOND}
       uniform float uMotion;
       varying vec3 vWorld;
       varying vec3 vNormalW;
@@ -695,14 +2299,11 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       varying float vRoof;
       varying vec2 vCrown;
       varying vec4 vHero;
-      varying vec3 vPaint;
       varying vec4 vTier;
       varying vec4 vForm;
-      #ifdef PAINTED
-      uniform sampler2D uFacade0;
-      uniform sampler2D uFacade1;
-      uniform sampler2D uFacade2;
-      #endif
+      varying vec4 vDress;
+      varying vec4 vKind;
+      varying vec4 vPlan;
       vec3 neonOf(float k) {
         return k < 1.0 ? vec3(1.0, 0.22, 0.62) : k < 2.0 ? vec3(0.16, 0.9, 1.0) : k < 3.0 ? vec3(1.0, 0.58, 0.22) : vec3(0.64, 0.3, 1.0);
       }
@@ -710,9 +2311,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       // tube round its edge, a stack of characters' worth of strokes drawn
       // from a hash (lettering from across the city, without being any),
       // and now and then a tube that drops out. Far off, its glow.
-      vec3 hangingSign(vec2 s, float cells, float seed, float t) {
-        vec3 c = neonOf(floor(hash12(vec2(seed, 2.0)) * 4.0));
-        if (hash12(vec2(seed, 9.0)) > 0.7) c = vec3(1.0, 0.86, 0.6);
+      vec3 hangingSign(vec2 s, float cells, float seed, float t, vec3 c, float drawn, float tall) {
         float frame = 1.0 - step(0.09, s.x) * step(s.x, 0.91) * step(0.02, s.y) * step(s.y, 0.98);
         vec2 g = vec2(s.x, s.y * cells);
         float cell = floor(g.y);
@@ -725,10 +2324,19 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         k += step(abs(f.y - 0.82), w) * step(abs(f.x - 0.5), 0.3) * step(0.55, h1);
         k += step(abs(f.x - 0.25), w) * step(abs(f.y - 0.5), 0.3) * step(0.7, h2);
         k += step(abs(f.y - 0.18), w) * step(abs(f.x - 0.5), 0.3) * step(0.6, h2);
+        // Drawn as characters (all but what Contact frames, which is as it was).
+        k = mix(k, kanji(vec2((f.x - 0.14) / 0.72, 1.0 - (f.y - 0.06) / 0.88), h1, h2) * step(0.06, f.y) * step(f.y, 0.94), drawn);
+        // And since, as a word: one of the far city's sixteen that fits
+        // the sign, down it, said again after a gap if the sign is long.
+        float word = wordDown(vec2((s.x - 0.1) / 0.8, (s.y - 0.02) / 0.96), tall * 1.2, hash12(vec2(seed, 7.9)));
+        k = mix(k, word, drawn * uHasWords);
         float px = max(fwidth(s.x), fwidth(g.y) * 0.3);
-        float lit = mix(max(frame, min(k, 1.0) * step(0.14, s.x) * step(s.x, 0.86)), 0.32, smoothstep(0.12, 0.4, px));
+        float lit = mix(max(max(frame, min(k, 1.0) * step(0.14, s.x) * step(s.x, 0.86)), 0.26 * (1.0 - frame)), mix(0.36, 0.3, drawn), smoothstep(0.12, 0.4, px));
         float cut = step(0.992, hash12(vec2(floor(t * 12.0), seed * 37.0)));
-        return vec3(0.01, 0.01, 0.014) + c * 2.3 * lit * (1.0 - 0.85 * cut);
+        // One sign in three is a lightbox: lit right across, its word dark.
+        float box = step(hash12(vec2(seed, 9.3)), 0.34) * drawn * uHasWords;
+        lit = mix(lit, mix(max(frame, 0.62 * (1.0 - min(k, 1.0))), 0.42, smoothstep(0.12, 0.4, px)), box);
+        return vec3(0.01, 0.01, 0.014) + c * mix(2.3, 1.7, box) * lit * (1.0 - 0.85 * cut);
       }
       // A screen the height of a dozen floors: an advert with no words, two
       // of the city's colours in a slow gradient, a shape that breathes (an
@@ -757,76 +2365,624 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         col *= 1.0 - 0.6 * smoothstep(0.92, 1.0, max(abs(s.x - 0.5), abs(s.y - 0.5)) * 2.0 - 0.0);
         return col * 1.7;
       }
+      // The street's light at a building's foot, one colour to a
+      // neighbourhood: sodium mostly, here and there the signs' cyan, pink
+      // or green.
+      vec3 quarterLight(float q, float held) {
+        if (held > 0.5) return q < 0.5 ? vec3(1.0, 0.6, 0.3) : q < 0.72 ? vec3(0.2, 0.85, 0.95) : q < 0.9 ? vec3(1.0, 0.25, 0.7) : vec3(0.45, 1.0, 0.6);
+        // The night is navy and teal: sodium and cyan, a teal, and pink for
+        // one quarter in twenty.
+        return q < 0.55 ? vec3(1.0, 0.6, 0.3) : q < 0.84 ? vec3(0.2, 0.85, 0.95) : q < 0.95 ? vec3(0.25, 0.95, 0.75) : vec3(1.0, 0.25, 0.7);
+      }
+      // A sign's colour in that night: cyan and amber, some pale, a few
+      // teal, and pink the accent.
+      vec3 signCol(float h) {
+        return h < 0.38 ? vec3(0.16, 0.9, 1.0) : h < 0.72 ? vec3(1.0, 0.58, 0.22) : h < 0.85 ? vec3(1.0, 0.86, 0.6) : h < 0.92 ? vec3(0.2, 1.0, 0.78) : vec3(1.0, 0.22, 0.62);
+      }
+      // A screen tower's shaft: a column of screens up each face, each an
+      // advert with no words (a field of one colour with a bar of light
+      // going down it, rows of blocks where lines of type would be, a ring
+      // and its dot, two fields split on a slant), changing every few
+      // seconds, a few of them dark. uv is across the face (0..1) and
+      // metres up the shaft; W the face's width and H the shaft's height.
+      // Returns the colour, and in a how much of it is lit.
+      vec4 screenColumn(vec2 uv, float W, float H, float seed, float t) {
+        float cu = (uv.x - 0.12) / 0.76;
+        float ch = W * (0.7 + 1.1 * hash12(vec2(seed, 1.7)));
+        float c = floor(uv.y / ch);
+        float fy = fract(uv.y / ch);
+        float inside = step(0.0, uv.y) * step(0.0, cu) * step(cu, 1.0) * step(0.05, fy) * step(fy, 0.95) * step((c + 1.0) * ch, H);
+        float h1 = hash12(vec2(c, seed));
+        float slot = floor(t / (7.0 + 6.0 * h1) + h1 * 10.0);
+        float hk = hash12(vec2(c + slot * 3.7, seed + 1.0));
+        float hp = hash12(vec2(c + slot * 1.3, seed + 5.0));
+        vec3 a = hk < 0.34 ? vec3(0.22, 0.45, 1.0) : hk < 0.58 ? vec3(0.72, 0.9, 1.0) : hk < 0.74 ? vec3(0.15, 0.9, 1.0) : hk < 0.88 ? vec3(1.0, 0.2, 0.72) : hk < 0.95 ? vec3(1.0, 0.16, 0.2) : vec3(1.0, 0.84, 0.25);
+        vec2 s = vec2(cu, (fy - 0.05) / 0.9);
+        float k;
+        if (hp < 0.3) {
+          k = 0.45 + 0.35 * s.y + 0.6 * smoothstep(0.08, 0.0, abs(fract(s.y + t * 0.07 + h1) - 0.5));
+        } else if (hp < 0.55) {
+          float row = floor(s.y * 7.0);
+          float len = 0.35 + 0.6 * hash12(vec2(row, c + slot + seed));
+          k = 0.22 + 0.9 * step(0.25, fract(s.y * 7.0)) * step(0.08, s.x) * step(s.x, len) * step(0.3, hash12(vec2(row + 9.0, c + seed)));
+        } else if (hp < 0.8) {
+          vec2 q = vec2((s.x - 0.5) * W * 0.76, (s.y - 0.55) * ch * 0.9);
+          float d = length(q) / (W * 0.26);
+          k = 0.25 + smoothstep(0.16, 0.0, abs(d - 0.85)) + smoothstep(0.4, 0.3, d);
+        } else {
+          k = mix(0.3, 1.0, step(0.5, s.y + (s.x - 0.5) * 0.5));
+        }
+        // Far off, a screen is its mean.
+        k = mix(k, 0.6, smoothstep(0.06, 0.2, fwidth(uv.y) / ch));
+        float on = step(h1, 0.9);
+        float tear = step(0.99, hash12(vec2(floor(t * 5.0), seed + c)));
+        // (No advert twice up a face: each screen the next but six.)
+        vec3 drawn = advert(s, W * 0.76 / (ch * 0.9), mod(floor(seed * 24.0) + c * 7.0 + slot * 5.0, 24.0)) * 1.55;
+        vec3 col = mix(a * k * 1.9, drawn, uHasAds) * (1.0 - 0.6 * tear) * on + vec3(0.012, 0.014, 0.02);
+        return vec4(mix(vec3(0.008, 0.009, 0.013), col, inside), inside * on);
+      }
+      // A strip of boards side by side across a face: s is across and up
+      // the strip (0..1), n how many times wider than tall it is. Each
+      // board one of the city's adverts, changing every so often (before
+      // they land, a lightbox in one of the signs' colours).
+      vec3 boardStrip(vec2 s, float n, float seed, float t, float base) {
+        float count = max(1.0, floor(n / 1.5 + 0.5));
+        float i = floor(s.x * count);
+        vec2 q = vec2(fract(s.x * count), s.y);
+        float h = hash12(vec2(i + floor(t / (8.0 + 5.0 * hash12(vec2(i, seed))) + seed), seed * 3.1));
+        vec3 a = h < 0.25 ? vec3(1.0, 0.2, 0.3) : h < 0.5 ? vec3(0.16, 0.85, 1.0) : h < 0.7 ? vec3(1.0, 0.62, 0.2) : h < 0.85 ? vec3(1.0, 0.25, 0.7) : vec3(0.9, 0.95, 1.0);
+        float blocks = step(0.5, hash12(floor(q * vec2(5.0, 3.0)) + i + h * 31.0));
+        float edge = 1.0 - step(0.03, q.x) * step(q.x, 0.97) * step(0.06, q.y) * step(q.y, 0.94);
+        // One of the city's adverts on each, once they have landed.
+        vec3 drawn = advert(q, n / count, base + i * 7.0 + floor(h * 3.0)) * 1.3;
+        return mix(mix(a * mix(1.3, 0.5, blocks), drawn, uHasAds), vec3(0.01), edge);
+      }
+      // A mark under a tower's roof, nobody's: a ring and its dot, a
+      // hexagon with a bar, three bars, a diamond. p is in the mark's own
+      // radius.
+      float markShape(vec2 p, float kind) {
+        vec2 a = abs(p);
+        if (kind < 1.5) return smoothstep(0.1, 0.04, abs(length(p) - 0.82)) + smoothstep(0.34, 0.28, length(p));
+        if (kind < 2.5) return smoothstep(0.1, 0.04, abs(max(a.x * 0.866 + a.y * 0.5, a.y) - 0.78)) + step(a.y, 0.09) * step(a.x, 0.42);
+        if (kind < 3.5) return step(a.x, 0.8) * step(abs(fract(p.y * 1.5 + 0.5) - 0.5), 0.2) * step(a.y, 0.95);
+        return smoothstep(0.1, 0.04, abs(a.x + a.y - 0.8)) + step(a.x + a.y, 0.3);
+      }
+      // The foot of a block: shops in 6.4 m fronts between pilasters, glass
+      // over a plinth with a mullion and a transom, a door, a room lit from
+      // its ceiling with its goods as patches of light, a sign board over
+      // each, some of them shut behind a shutter. um is metres along the
+      // face. Returns the colour, and in a how much of it is lit.
+      vec4 shopFront(float um, float y, float seed, vec3 wall, vec3 spill) {
+        float su = um / 6.4;
+        float shop = floor(su);
+        float fu = fract(su) * 6.4;
+        float hs = hash12(vec2(shop, seed));
+        float h2 = hash12(vec2(shop + 5.0, seed));
+        vec3 sc = hs > 0.88 ? vec3(1.0, 0.3, 0.62) : hs > 0.76 ? vec3(0.25, 0.85, 1.0) : hs > 0.66 ? vec3(0.45, 1.0, 0.6) : hs > 0.3 ? vec3(1.0, 0.66, 0.38) : vec3(0.95, 0.9, 0.8);
+        float open = step(0.2, h2);
+        float named = step(0.15, h2);
+        float pil = clamp(step(fu, 0.24) + step(6.16, fu), 0.0, 1.0);
+        float glassY = step(0.6, y) * step(y, 3.3);
+        float bars = clamp(step(abs(fu - 3.2), 0.05) + step(abs(y - 2.55), 0.035), 0.0, 1.0);
+        float door = step(abs(fu - (1.25 + 3.9 * step(0.5, fract(hs * 7.0)))), 0.6) * step(0.12, y) * step(y, 2.5);
+        float goods = hash12(vec2(floor(fu * 1.4 + hs * 9.0), floor(y * 2.4) + shop));
+        vec3 inside = sc * (0.07 + 0.36 * smoothstep(0.6, 3.3, y)) * (0.6 + 0.7 * goods * step(y, 2.5));
+        inside = mix(inside, sc * 0.3, door * 0.6);
+        vec3 shut = (vec3(0.02, 0.02, 0.025) + spill * 0.1) * (0.6 + 0.4 * step(0.5, fract(y * 9.0)));
+        float glazed = max(glassY, door);
+        vec3 col = mix(shut, inside, open) * glazed;
+        col = mix(col, vec3(0.01), bars * glassY * open * (1.0 - door));
+        float board = step(3.55, y) * step(y, 4.4) * step(0.4, fu) * step(fu, 6.0);
+        float stroke = step(0.45, hash12(vec2(floor(fu * 2.6), shop + seed))) * step(abs(y - 3.98), 0.2) * step(1.0, fu) * step(fu, 5.4) * step(0.12, fract(fu * 2.6));
+        vec3 sign = hs > 0.5 ? sc * (0.5 - 0.42 * stroke) : sc * (0.05 + 0.85 * stroke);
+        col = mix(col, sign * named, board);
+        float frame = max(pil, 1.0 - max(glazed, board));
+        col = mix(col, wall * 0.9, frame);
+        return vec4(col, max(open * glazed, board * named * 0.8) * (1.0 - frame));
+      }
+      // A dealt tower's floors are lit a run at a time. By its kind (see the
+      // deal): how many of its runs are lit right across and how many half
+      // lit (the rest are dark glass)...
+      vec2 zoneMix(float k) {
+        return k < 0.5 ? vec2(0.45, 0.82) : k < 1.5 ? vec2(0.4, 0.72) : k < 2.5 ? vec2(0.45, 0.8) : k < 3.5 ? vec2(0.16, 0.88)
+          : k < 4.5 ? vec2(0.34, 0.66) : k < 5.5 ? vec2(0.2, 0.46) : k < 6.5 ? vec2(0.5, 0.72) : vec2(0.42, 0.78);
+      }
+      // ...and a run's light: what a lit room's white is multiplied by, and
+      // in a how warm the room is. Each kind has its own and, for one run
+      // in four, a second.
+      vec4 zoneLight(float k, float h) {
+        vec4 yellow = vec4(1.0, 1.3, 0.85, 1.0);
+        vec4 amber = vec4(1.0, 1.0, 1.0, 1.0);
+        vec4 cyan = vec4(0.42, 1.12, 1.0, 0.0);
+        vec4 pale = vec4(1.15, 1.08, 1.0, 0.0);
+        vec4 teal = vec4(0.4, 1.12, 0.92, 0.0);
+        vec4 pink = vec4(1.0, 0.42, 2.2, 1.0);
+        vec4 home = vec4(1.0, 1.0, 1.0, 0.55);
+        bool other = h > 0.74;
+        if (k < 0.5) return other ? cyan : yellow;
+        if (k < 1.5) return other ? cyan : pale;
+        if (k < 2.5) return other ? pale : amber;
+        if (k < 3.5) return other ? (h > 0.93 ? pink : amber) : home;
+        if (k < 4.5) return other ? pale : teal;
+        if (k < 5.5) return other ? pale : cyan;
+        if (k < 6.5) return other ? amber : yellow;
+        return other ? amber : pale;
+      }
+      // A roof from the air. p is metres from the middle of the roof, hf
+      // half its size, sky the light that falls on it. Its covering is one
+      // of five (felt, gravel, a green coat, red oxide, a grey membrane) in
+      // sheets with seams. Cut across its length, each half is put to a
+      // use: plant in rows (a pale casing, a dark fan), panels (dark glass
+      // giving back the sky), skylights over lit rooms, a deck with
+      // planters under a string of bulbs, or nothing but a hatch. A big
+      // roof in six is a landing pad instead: a ring of lamps, a painted
+      // ring and a cross inside it, a red lamp at each quarter. Three in
+      // ten have a line of light inside the parapet, which lights the roof
+      // beside it. Returns the colour, and in a how much of it is light.
+      vec4 roofTop(vec2 p, vec2 hf, float seed, vec3 sky) {
+        float px = max(max(fwidth(p.x), fwidth(p.y)), 0.02);
+        float fine = 1.0 - smoothstep(0.2, 0.8, px);
+        float S = min(hf.x, hf.y) * 2.0;
+        float h0 = hash12(vec2(seed, 71.3));
+        vec3 alb = h0 < 0.3 ? vec3(0.03, 0.03, 0.036) : h0 < 0.55 ? vec3(0.062, 0.062, 0.066) : h0 < 0.7 ? vec3(0.02, 0.05, 0.042) : h0 < 0.84 ? vec3(0.07, 0.036, 0.026) : vec3(0.045, 0.055, 0.075);
+        vec2 sheet = p / 4.2;
+        alb *= (0.8 + 0.4 * hash12(floor(sheet) + seed)) * (1.0 - 0.35 * fine * step(min(fract(sheet.x), fract(sheet.y)), 0.03));
+        vec3 col = alb * sky;
+        float lit = 0.0;
+        float inEdge = min(hf.x - abs(p.x), hf.y - abs(p.y));
+        bool longX = hf.x >= hf.y;
+        float side = step(0.0, longX ? p.x : p.y);
+        float use = hash12(vec2(seed + side * 5.0, 73.9));
+        // Metres from the middle of this half, and the half's half size.
+        vec2 q = longX ? vec2(abs(p.x) - hf.x * 0.5, p.y) : vec2(p.x, abs(p.y) - hf.y * 0.5);
+        vec2 qh = longX ? vec2(hf.x * 0.5, hf.y) : vec2(hf.x, hf.y * 0.5);
+        float inHalf = step(abs(q.x), qh.x - 1.5) * step(abs(q.y), qh.y - 1.5);
+        float pad = step(20.0, S) * step(hash12(vec2(seed, 79.1)), 0.17);
+        if (pad > 0.5) {
+          float R = min(S * 0.36, 12.0);
+          float d = length(p);
+          float a = atan(p.y, p.x);
+          col = mix(col, vec3(0.07, 0.072, 0.08) * sky, step(d, R + 1.2));
+          col = mix(col, vec3(0.34, 0.26, 0.03) * sky, step(abs(d - R * 0.55), 0.22) * fine);
+          col = mix(col, vec3(0.3, 0.3, 0.3) * sky, step(min(abs(p.x), abs(p.y)), 0.3) * step(d, R * 0.4) * fine);
+          vec3 lampCol = hash12(vec2(seed, 81.7)) < 0.6 ? vec3(0.2, 0.9, 1.0) : vec3(1.0, 0.66, 0.26);
+          float ring = (1.0 - smoothstep(0.18, 0.18 + px, abs(d - R))) * mix(step(0.35, fract(a * 16.0 / 6.2832)), 0.65, smoothstep(0.3, 1.2, px));
+          col = mix(col, lampCol * 1.5, ring);
+          col += lampCol * 0.1 * exp(-abs(d - R) / 2.0);
+          float red = 1.0 - smoothstep(0.35, 0.35 + px, length(abs(p) - vec2(R + 2.2) * 0.7071));
+          col = mix(col, vec3(1.0, 0.08, 0.05) * 2.0, red);
+          lit = max(ring, red);
+        } else if (S > 9.0 && inHalf > 0.5) {
+          if (use < 0.27) {
+            vec2 g = q / vec2(3.4, 2.6);
+            vec2 f = (fract(g) - 0.5) * vec2(3.4, 2.6);
+            float there = step(0.28, hash12(floor(g) + seed * 7.0));
+            float unit = step(abs(f.x), 1.2) * step(abs(f.y), 0.85) * there;
+            float fan = step(length(f - vec2(0.3, 0.0)), 0.6);
+            vec3 casing = vec3(0.1, 0.104, 0.112) * sky * (1.0 - 0.75 * fan);
+            col = mix(col, mix(casing, vec3(0.068, 0.07, 0.076) * sky, smoothstep(0.5, 1.6, px)), mix(unit, 0.4 * there, smoothstep(0.5, 1.6, px)));
+          } else if (use < 0.45) {
+            vec2 g = q / vec2(2.2, 3.8);
+            vec2 f = fract(g);
+            float row = step(0.5, mod(floor(g.y), 3.0));
+            float glass = step(0.06, f.x) * step(f.x, 0.94) * step(0.05, f.y) * step(f.y, 0.95) * row;
+            vec3 panel = vec3(0.008, 0.014, 0.03) + sky * vec3(0.016, 0.03, 0.05) + uGlowColor * 0.1 * uHaze;
+            col = mix(col, panel, mix(glass, 0.58, smoothstep(0.4, 1.4, px)));
+          } else if (use < 0.66) {
+            vec2 g = q / vec2(5.2, 3.6);
+            vec2 f = (fract(g) - 0.5) * vec2(5.2, 3.6);
+            float on = step(0.3, hash12(floor(g) + seed * 11.0));
+            float glass = step(abs(f.x), 1.7) * step(abs(f.y), 0.85);
+            float bars = step(abs(fract(f.x / 0.85) - 0.5), 0.44);
+            vec3 glow = hash12(vec2(seed, 83.3)) < 0.55 ? vec3(1.0, 0.72, 0.42) : vec3(0.6, 0.82, 1.0);
+            float k = mix(glass * mix(1.0, bars, fine), 0.3, smoothstep(0.6, 1.8, px));
+            col = mix(col, mix(vec3(0.012, 0.016, 0.024), glow * 0.62, on), k);
+            lit = k * on;
+          } else if (use < 0.8) {
+            float plank = 0.85 + 0.15 * step(0.5, fract(q.y / 0.28));
+            col = vec3(0.085, 0.058, 0.036) * sky * mix(plank, 0.92, 1.0 - fine);
+            vec2 g = q / vec2(4.6, 4.6);
+            vec2 f = (fract(g) - 0.5) * 4.6;
+            float planter = step(max(abs(f.x), abs(f.y)), 0.9) * step(0.55, hash12(floor(g) + seed * 13.0));
+            col = mix(col, vec3(0.012, 0.045, 0.02) * sky, planter);
+            // Bulbs on a string down its middle and across it.
+            float bulbs = max((1.0 - smoothstep(0.12, 0.12 + px, length(vec2(q.x, (fract(q.y / 1.5) - 0.5) * 1.5)))), (1.0 - smoothstep(0.12, 0.12 + px, length(vec2((fract(q.x / 1.5) - 0.5) * 1.5, q.y)))));
+            bulbs = mix(bulbs, 0.05, smoothstep(0.3, 1.0, px));
+            col = mix(col, vec3(1.0, 0.72, 0.4) * 1.8, bulbs);
+            col += vec3(1.0, 0.72, 0.4) * 0.05 * (exp(-abs(q.x) / 1.6) + exp(-abs(q.y) / 1.6));
+            lit = bulbs;
+          } else {
+            // A hatch and the lamp over it.
+            vec2 f = q - (vec2(hash12(vec2(seed, 87.1)), hash12(vec2(seed, 89.3))) - 0.5) * qh;
+            col = mix(col, vec3(0.09, 0.092, 0.1) * sky, step(max(abs(f.x), abs(f.y)), 0.8));
+            float lamp = exp(-dot(f, f) / 9.0);
+            col += vec3(1.0, 0.7, 0.42) * 0.12 * lamp;
+          }
+        }
+        if (hash12(vec2(seed, 91.9)) < 0.38 && S > 9.0) {
+          float hl = hash12(vec2(seed, 93.7));
+          vec3 lc = hl < 0.4 ? vec3(0.16, 0.9, 1.0) : hl < 0.75 ? vec3(1.0, 0.6, 0.26) : hl < 0.9 ? vec3(0.9, 0.95, 1.0) : vec3(1.0, 0.22, 0.62);
+          float line = 1.0 - smoothstep(0.12, 0.12 + px, abs(inEdge - 0.4));
+          col += lc * 0.16 * exp(-max(inEdge, 0.0) / 2.4);
+          col = mix(col, lc * 1.4, line);
+          lit = max(lit, line);
+        }
+        return vec4(col, lit);
+      }
+      // A tower's accent: its lines, its corners, the band under its roof.
+      vec3 accentOf(float k) {
+        return k < 0.5 ? vec3(0.16, 0.9, 1.0) : k < 1.5 ? vec3(1.0, 0.58, 0.22) : k < 2.5 ? vec3(0.85, 0.93, 1.0) : k < 3.5 ? vec3(0.2, 1.0, 0.78) : k < 4.5 ? vec3(1.0, 0.22, 0.62) : vec3(1.0, 0.82, 0.25);
+      }
       void main() {
         vec3 n = normalize(vNormalW);
         float onWall = 1.0 - vRoof;
+        // Within what Contact frames (512 in the dress code) a building is
+        // drawn, and lit, as it was.
+        // (For an eye above the roofs it is the city's like the rest.)
+        float lift = smoothstep(40.0, 62.0, uCam.y);
+        float held = step(511.5, vDress.x) * (1.0 - lift);
+        // Across a face as one standing before it reads it: the walls' own
+        // u runs from right to left seen from outside, so every advert,
+        // word and board drawn on them came out mirrored. (What Contact
+        // frames is drawn as it was.)
+        float faceU = mix(vHero.y, 1.0 - vHero.y, 1.0 - held);
         // Above its roof line the wall is the parapet, a concrete band.
         float parapet = onWall * step(vTier.x, vWorld.y);
-        vec4 win = windows(vCells, vParams, vWorld, step(0.0, vCells.y) * (1.0 - parapet));
-        vec3 roofCol = vec3(0.012, 0.012, 0.016) + (uHazeColor * 0.3 + uGlowColor * 0.16) * uHaze * 0.35 * max(n.y, 0.25);
-        vec3 col = mix(win.rgb, roofCol, vRoof);
-        #ifdef PAINTED
-        // A painted block, as the kit's painted material draws its walls:
-        // tiles mirrored and some a floor darker, a smaller level far off.
-        vec2 tile = floor(vPaint.xy);
-        vec2 puv = vPaint.xy;
-        if (hash12(tile + 3.1) > 0.5) puv.x = tile.x + 1.0 - fract(vPaint.x);
-        puv.x += floor(hash12(vec2(tile.y, 9.3)) * 4.0) * 0.25;
-        float far = smoothstep(90.0, 260.0, length(vWorld - uCam));
-        vec2 grad = vec2(fwidth(vPaint.x), fwidth(vPaint.y)) * exp2(far * 1.5);
-        vec3 tex = vPaint.z < 0.5 ? textureGrad(uFacade0, puv, vec2(grad.x, 0.0), vec2(0.0, grad.y)).rgb
-          : vPaint.z < 1.5 ? textureGrad(uFacade1, puv, vec2(grad.x, 0.0), vec2(0.0, grad.y)).rgb
-          : textureGrad(uFacade2, puv, vec2(grad.x, 0.0), vec2(0.0, grad.y)).rgb;
-        if (vPaint.z > -0.5 && vRoof < 0.5) {
-          tex *= mix(1.0, 0.62, step(0.66, hash12(tile + 7.7)));
-          float lum = dot(tex, vec3(0.2126, 0.7152, 0.0722));
-          float room = smoothstep(0.12, 0.45, lum);
-          float distant = smoothstep(60.0, 220.0, length(vWorld - uCam));
-          vec3 p = tex * 1.05 * (0.9 + 1.4 * room * room * (1.0 - 0.9 * distant)) * (1.0 - 0.25 * distant);
-          p += tex * spillAt(vWorld) * 2.2 * (1.0 - room) + spillAt(vWorld) * 0.02;
-          // Street level: shopfronts in 3.2 m bays, a colour to each, lit
-          // brightest under the fascia, a sign band over them, some shut.
-          float bayU = vPaint.x * 16.0 / 3.2;
-          float bay = floor(bayU);
-          float front = hash12(vec2(floor(bay / 2.0), tile.y + vParams.z * 31.0));
-          vec3 shopCol = front > 0.9 ? vec3(1.0, 0.3, 0.62) : front > 0.8 ? vec3(0.25, 0.85, 1.0) : vec3(1.0, 0.66, 0.38);
-          float shop = step(vWorld.y, 4.6);
-          float y = vWorld.y;
-          float glassY = step(0.45, y) * step(y, 3.2);
-          float mull = step(min(fract(bayU), 1.0 - fract(bayU)), 0.03);
-          float open = step(0.35, front);
-          vec3 inside = shopCol * (0.05 + 0.3 * smoothstep(0.5, 3.1, y)) * (0.5 + 0.8 * hash12(vec2(bay, 4.0)));
-          vec3 shut = vec3(0.02, 0.02, 0.025) * (0.7 + 0.3 * step(0.5, fract(y * 10.0)));
-          vec3 street = mix(shut, inside, open) * glassY * (1.0 - mull);
-          float fascia = step(3.45, y) * step(y, 4.25);
-          street += mix(vec3(0.012), shopCol * 0.5, fascia * step(0.55, front) * step(0.15, fract(bayU * 0.5)));
-          street += spillAt(vWorld) * 0.15;
-          p = mix(p, street, shop);
-          col = p;
-          win.a = max(room * 0.7 * (1.0 - distant), shop * open * glassY);
+        // Whether it is dressed (see aDress): all but Contact's own towers,
+        // whose tint is the far city's old charcoal (-1). Dressed, a wall
+        // is one of the kit's own tinted walls.
+        float fresh = step(0.0, vDress.y);
+        // A dealt tower is lit in zones: runs of five to nine floors, cut
+        // again every seven to thirteen, each run lit right across, half lit
+        // or dark, in the tower's own light. Where the longer runs begin is
+        // a plant floor (or, on the kinds that wear them, a line of light).
+        float zoned = step(-0.5, vKind.x) * (1.0 - held);
+        // (What it wears is a dealt tower's, wherever the eye is.)
+        float worn = step(-0.5, vKind.x) * step(vHero.x, 0.5) * (1.0 - step(511.5, vDress.x));
+        float flags = vKind.w;
+        vec3 accent = accentOf(vKind.y);
+        vec3 params = vParams;
+        vec3 zoneTint = vec3(1.0);
+        float zoneStart = 0.0;
+        float zoneOdd = 0.0;
+        if (zoned > 0.001) {
+          float storey = floor(vCells.y);
+          // (A block's runs are two to four floors: ten floors of homes
+          // are not one zone.)
+          float low = step(1.5, vHero.x);
+          float LA = mix(5.0 + floor(hash12(vec2(vForm.z, 1.3)) * 5.0), 2.0 + floor(hash12(vec2(vForm.z, 1.3)) * 2.0), low);
+          float LB = mix(7.0 + floor(hash12(vec2(vForm.z, 2.9)) * 7.0), 3.0 + floor(hash12(vec2(vForm.z, 2.9)) * 2.0), low);
+          float sa = storey + floor(hash12(vec2(vForm.z, 4.1)) * LA);
+          float sb = storey + floor(hash12(vec2(vForm.z, 5.7)) * LB);
+          vec2 zone = vec2(floor(sa / LA), floor(sb / LB));
+          float zh = hash12(zone * vec2(3.1, 7.7) + vForm.z);
+          vec2 share = zoneMix(vKind.x);
+          vec4 light = zoneLight(vKind.x, hash12(zone * vec2(5.3, 1.9) + vForm.z + 9.5));
+          zoneTint = light.rgb;
+          zoneStart = step(mod(sb, LB), 0.5);
+          zoneOdd = mod(zone.y, 2.0);
+          // (A dark run seen close is a third lit: see below.)
+          float dark = mix(mix(0.1, 0.22, low), 0.34, (1.0 - smoothstep(90.0, 220.0, length(vWorld - uCam))) * step(vHero.x, 0.5));
+          params = mix(vParams, vec3(zh < share.x ? 1.25 : zh < share.y ? 0.45 + 0.3 * hash12(vec2(vForm.z, 6.6)) : dark, vParams.y, light.a), zoned);
         }
-        #endif
+        // (For a free eye a dressed tower or block is lit as the districts'
+        // towers now are: a near-black mass with its rooms lit here and
+        // there in runs, a third of its runs dark, each zone its own cut of
+        // window, so its signs carry the light. Not the far layer, whose
+        // big cells are what it is from two kilometres; not what Contact
+        // frames; not at the page's own lenses.)
+        // (And lit in strips as the kit's towers are now, runs of five to
+        // fourteen bays lit nearly bay by bay, a third to two thirds of a
+        // face: a window in five was a dim dot grid from the air. The far
+        // layer too, on its own cells: bays of 4.5 m and floors of 4.8, so
+        // its strips are still lines two kilometres off.)
+        float districts = fresh * (1.0 - held) * freeEye() * uFarFree;
+        vec2 cells = vCells;
+        if (vForm.x > 5.5 && districts > 0.5) cells *= vec2(2.6 * (0.8 + 0.5 * vForm.z * 0.0731) * 3.2 / 4.5, 2.6 * (0.92 + 0.2 * vForm.z * 0.0317) * 3.4 / 4.8);
+        // (As busy as the kit's busiest: more of its runs lit through.)
+        vec3 winParams = districts > 0.5 ? vec3(max(params.x, 0.85), params.yz) : params;
+        vec4 win = windowsK(cells, winParams, vWorld, step(0.0, vCells.y) * (1.0 - parapet), vDress.y, districts, 1.0);
+        // A tower seen close, from a street at the city's edge or a car in
+        // the air, is not a navy face with a few window strips: the rooms
+        // another run of its floors would have lit are lit as well (the same
+        // windows, dealt again along the floor). Not one the page holds.
+        // (Lit in strips it has its rooms already.)
+        float close = (1.0 - smoothstep(90.0, 220.0, length(vWorld - uCam))) * (1.0 - held) * step(vHero.x, 0.5);
+        if (close > 0.001 && districts < 0.5) {
+          vec4 more = windowsS(vCells + vec2(37.0, 0.0), params, vWorld, step(0.0, vCells.y) * (1.0 - parapet), vDress.y, districts);
+          win = mix(win, more, step(win.a + 0.01, more.a) * close);
+        }
+        // Lit glass in the zone's light, and brighter than a room is: an
+        // office floor left on. (A tower lit in strips keeps its own two
+        // lights: yellow strips under a cyan zone's tint were green, and a
+        // pink zone's pink, a face of confetti.)
+        float strip = step(0.5, districts);
+        // (And brighter the further off, so a strip a kilometre away is
+        // still a line of light and not a dim dash.)
+        win.rgb *= mix(mix(vec3(1.0), zoneTint * 1.3, zoned * clamp(win.a * 2.2, 0.0, 1.0)), vec3(1.3 + 0.6 * smoothstep(300.0, 1300.0, length(vWorld - uCam))), strip);
+        // A roof is lit by the sky, as the kit's are: from above it is a
+        // dark blue plane, not a hole.
+        vec3 roofCol = vec3(0.012, 0.012, 0.016) + (uHazeColor * 0.3 + uGlowColor * 0.16) * uHaze * mix(0.35, 0.72, fresh) * max(n.y, 0.25);
+        vec3 col = mix(win.rgb, roofCol, vRoof);
+        // A dressed wall: the street's light up its first floors, and close
+        // to, what a wall is made of. A block has shops at its foot and, over
+        // them, a string course every few floors, piers every few bays,
+        // balconies under some windows of a block of homes and an air
+        // conditioner under others. A tower has a lit lobby.
+        float footLit = 0.0;
+        if (fresh > 0.5 && onWall > 0.5 && parapet < 0.5) {
+          vec3 spill = spillAt(vWorld);
+          // A tower takes it on its first floors only: up a tall dark wall
+          // it was a slab of the lamp's colour.
+          vec3 street = quarterLight(vDress.w, held) * exp(-max(vWorld.y, 0.0) * 0.05) * mix(1.0, 0.55 * exp(-max(vWorld.y, 0.0) * 0.09), step(vHero.x, 0.5));
+          vec3 tintCol = wallTint(vDress.y);
+          vec3 wallC = tintCol * (vec3(0.6) + spill * 3.2 + street * 1.6);
+          col += tintCol * street * 1.6 * (1.0 - win.a);
+          float um = vHero.y * vHero.z;
+          float near = 1.0 - smoothstep(0.1, 0.45, max(fwidth(vCells.x), fwidth(vCells.y)));
+          if (vHero.x > 1.5 && vWorld.y < 4.6) {
+            vec4 front = shopFront(um, vWorld.y, vForm.z + mod(vHero.w, 4.0) * 3.0, wallC, spill);
+            col = front.rgb;
+            footLit = front.a;
+          } else if (vHero.x > 1.5 && near > 0.01) {
+            float storey = floor(vCells.y);
+            float fy = fract(vCells.y);
+            float bay = floor(vCells.x);
+            float fx = fract(vCells.x);
+            float sb = vForm.z;
+            float hb = hash12(vec2(sb, 3.3));
+            float course = step(mod(storey, 2.0 + floor(hash12(vec2(sb, 4.1)) * 3.0)), 0.5) * step(fy, 0.08);
+            float pier = step(mod(bay, 2.0 + floor(hash12(vec2(sb, 5.2)) * 3.0)), 0.5) * step(fx, 0.1) * step(0.35, hb);
+            float balcony = step(hb, 0.6) * step(0.5, hash12(vec2(bay, storey) + sb)) * step(0.05, fx) * step(fx, 0.95) * step(fy, 0.21);
+            float unit = step(0.84, hash12(vec2(bay * 1.7, storey * 2.3) + sb)) * step(0.6, fx) * step(fx, 0.86) * step(0.03, fy) * step(fy, 0.17) * (1.0 - balcony);
+            col = mix(col, wallC * 3.0, course * near);
+            col = mix(col, wallC * 1.9, pier * near);
+            col = mix(col, wallC * mix(0.4, 3.2, step(0.17, fy)), balcony * near);
+            col = mix(col, vec3(0.07, 0.072, 0.08) * (vec3(0.6) + spill * 3.0 + street) * (0.7 + 0.5 * step(0.1, fy)), unit * near);
+            // Up to three small boards over the shops, lightboxes in the
+            // signs' colours, their strokes dark: the stacks of red and
+            // orange boards the show hangs on every block.
+            float faceSeed = sb * 17.0 + mod(vHero.w, 4.0) * 5.0;
+            for (int i = 0; i < 3; i++) {
+              float bi = float(i);
+              float hw = hash12(vec2(faceSeed, bi + 0.3));
+              if (hw < 0.3) continue;
+              float bw = 2.0 + 2.6 * hash12(vec2(faceSeed, bi + 1.7));
+              float bh = 1.1 + 1.3 * hash12(vec2(faceSeed, bi + 2.9));
+              float bu = 0.6 + (vHero.z - bw - 1.2) * hash12(vec2(faceSeed, bi + 4.1));
+              float by = 5.0 + 9.0 * hash12(vec2(faceSeed, bi + 5.3));
+              vec2 q = vec2((um - bu) / bw, (vWorld.y - by) / bh);
+              if (q.x < 0.0 || q.x > 1.0 || q.y < 0.0 || q.y > 1.0 || by + bh > vTier.x - 1.0) continue;
+              vec3 bc = hw > 0.82 ? vec3(1.0, 0.16, 0.2) : hw > 0.66 ? vec3(1.0, 0.5, 0.16) : hw > 0.52 ? vec3(0.16, 0.9, 1.0) : hw > 0.42 ? vec3(1.0, 0.22, 0.62) : vec3(0.95, 0.9, 0.8);
+              float mark = step(0.4, hash12(vec2(floor(q.x * bw * 1.6), faceSeed + bi))) * step(abs(q.y - 0.5), 0.26) * step(0.12, fract(q.x * bw * 1.6)) * step(0.08, q.x) * step(q.x, 0.92);
+              float edge = step(min(min(q.x * bw, (1.0 - q.x) * bw), min(q.y * bh, (1.0 - q.y) * bh)), 0.09);
+              col = bc * mix(1.1, 0.14, max(mark * near, edge * near));
+              footLit = 1.0;
+            }
+          } else if (vHero.x < 0.5 && vWorld.y < 4.6 && vForm.x < 5.5) {
+            // A tower's podium storey: shops along its foot as a block has
+            // them (two towers in three; the third is shut at the street,
+            // shutters between its piers), and in the middle of each face
+            // its own door: glass doors between steel frames under a lit
+            // canopy, the hall behind them lit from its ceiling.
+            float hl = hash12(vec2(vForm.z, 6.6));
+            vec4 front = shopFront(um, vWorld.y, vForm.z + mod(vHero.w, 4.0) * 3.0, wallC, spill);
+            if (hl < mix(0.2, 0.33, held)) {
+              float pier = step(min(fract(um / 6.4), 1.0 - fract(um / 6.4)), 0.05);
+              float slat = 0.55 + 0.45 * step(0.5, fract(vWorld.y * 7.0));
+              // (Not its whole frontage: about every other shop still trades
+              // behind its glass, or its foot was a ribbed blank base.)
+              front = mix(vec4(mix((vec3(0.03, 0.031, 0.036) + wallC * 0.6) * slat, wallC, max(pier, step(3.5, vWorld.y))), 0.0), front, (1.0 - held) * step(0.5, hash12(vec2(floor(um / 6.4), vForm.z + 2.2))));
+            }
+            // (No two doors alike: each face's is its own width, a little
+            // off the middle, its hall one of five lights, its canopy a
+            // band of light or a dark slab under a lit name.)
+            float hd = hash12(vec2(vForm.z, 7.7 + mod(vHero.w, 4.0)));
+            float hd2 = hash12(vec2(vForm.z, 9.9 + mod(vHero.w, 4.0)));
+            float doorHalf = mix(3.2, 1.9 + 2.6 * hd, 1.0 - held);
+            float eu = um - vHero.z * (0.5 + (hd2 - 0.5) * 0.3 * (1.0 - held));
+            if (abs(eu) < doorHalf && vHero.z > 12.0) {
+              vec3 hallCol = hl > 0.6 ? vec3(0.78, 0.88, 1.0) : vec3(1.0, 0.74, 0.46);
+              if (held < 0.5) hallCol = hd2 < 0.3 ? vec3(1.0, 0.74, 0.46) : hd2 < 0.52 ? vec3(0.78, 0.88, 1.0) : hd2 < 0.7 ? vec3(0.3, 0.9, 1.0) : hd2 < 0.85 ? vec3(1.0, 0.36, 0.62) : vec3(0.7, 1.0, 0.8);
+              float frame = clamp(step(doorHalf - 0.2, abs(eu)) + step(abs(fract(eu / 1.6 + 0.5) - 0.5) * 1.6, 0.05) + step(abs(vWorld.y - 2.5), 0.04), 0.0, 1.0);
+              float desk = step(abs(eu + 0.9), 1.1) * step(vWorld.y, 1.1) * step(0.35, vWorld.y);
+              vec3 hall = hallCol * (0.07 + 0.3 * smoothstep(0.2, 3.3, vWorld.y)) * (1.0 - 0.6 * desk);
+              float canopy = step(3.3, vWorld.y) * step(vWorld.y, 3.7);
+              float named = step(0.5, hd) * (1.0 - held);
+              float name = step(abs(vWorld.y - 4.12), 0.24) * step(abs(eu), doorHalf * 0.7) * step(0.4, hash12(vec2(floor(eu * 2.2), vForm.z + hd))) * step(0.15, fract(eu * 2.2));
+              front = vec4(mix(mix(hall, wallC * 0.5, frame), mix(hallCol * 1.5, vec3(0.012, 0.013, 0.017), named), canopy), max(canopy * (1.0 - named), 0.6 * (1.0 - frame)));
+              if (vWorld.y > 3.7) front = vec4(mix(wallC, hallCol * 1.6, name * named), name * named);
+            }
+            col = front.rgb;
+            footLit = front.a;
+          }
+        }
+        // Seen from the air a low district is its roofs: a few small lights
+        // on each (a skylight, a lamp over a door, a sign's back), the
+        // show's sprinkle of cyan and pink over dark blocks. One 3 m cell
+        // in fourteen, spread as it shrinks under a pixel.
+        float roofLit = 0.0;
+        if (fresh > 0.5 && vRoof > 0.5 && n.y > 0.5) {
+          // (A roof within what Contact frames that its lens looks down on
+          // is as it was, but for an eye above the roofs.)
+          float roofNew = 1.0 - step(511.5, vDress.x) * (1.0 - lift) * step(vTier.x, 13.0);
+          if (roofNew > 0.001) {
+            // (For an eye above the roofs the sky's light on them is the
+            // lit air's: a roof's covering and what is on it read.)
+            vec4 above = roofTop(vPlan.xy, vPlan.zw, vForm.z + vTier.x * 0.37, (vec3(0.4) + (uHazeColor * 0.3 + uGlowColor * 0.16) * uHaze * 24.0) * mix(1.0, 1.8, lift) + spillAt(vWorld) * 6.0);
+            col = mix(col, above.rgb, roofNew);
+            roofLit = above.a * roofNew;
+          }
+          vec2 rc = vPlan.xy / 3.0;
+          float rh = hash12(floor(rc) + vForm.z * 31.0);
+          float rr = max(0.2, 0.8 * max(fwidth(rc.x), fwidth(rc.y)));
+          vec2 rd = fract(rc) - 0.5;
+          float speck = step(0.93, rh) * exp(-dot(rd, rd) / (rr * rr)) * (0.04 / (rr * rr));
+          col += (rh > 0.985 ? vec3(1.0, 0.25, 0.7) : rh > 0.965 ? vec3(0.2, 0.85, 0.95) : vec3(1.0, 0.7, 0.42)) * speck * 1.5;
+          roofLit = min(max(roofLit, speck), 1.0);
+        }
         // The parapet: coping-dark concrete taking the street's light and
         // the glow, with a hairline where the coping catches the sky.
         vec3 band = vec3(0.018, 0.018, 0.022) + spillAt(vWorld) * 0.35 + (uHazeColor * 0.2 + uGlowColor * 0.1) * uHaze * 0.3;
         band += (uHazeColor * 0.5 + uGlowColor * 0.3) * uHaze * smoothstep(-0.2, 0.0, vWorld.y - vTier.x - 0.9) * 0.5;
         col = mix(col, band, parapet);
+        // A tower's face, by its kind (see the dress code).
+        float dressCode = mod(floor(vDress.x + 0.5), 512.0);
+        float pattern = floor(dressCode / 64.0);
+        dressCode = mod(dressCode, 64.0);
+        float faceLit = 0.0;
+        if (pattern > 1.5 && vHero.x < 0.5 && onWall > 0.5 && parapet < 0.5 && vWorld.y > 4.6 && vForm.x < 4.5) {
+          vec3 solidWall = wallTint(vDress.y) * (vec3(0.6) + spillAt(vWorld) * 3.2);
+          float bay = floor(vCells.x);
+          float fx = fract(vCells.x);
+          float storey = floor(vCells.y);
+          float fy = fract(vCells.y);
+          float pxc = max(fwidth(vCells.x), fwidth(vCells.y));
+          float fine = 1.0 - smoothstep(0.3, 0.8, pxc);
+          if (pattern < 2.5) {
+            // Rooms scattered between piers every third bay and a ledge
+            // every sixth floor.
+            float pier = step(mod(bay, 3.0), 0.5) * step(fx, 0.3);
+            float ledge = step(mod(storey, 6.0), 0.5) * step(fy, 0.3);
+            col = mix(col, solidWall * 2.4, max(pier, ledge) * fine);
+          } else if (pattern < 3.5) {
+            // Strips: two bays of glass, two of solid wall, all the way up.
+            float shut = mix(step(1.5, mod(bay, 4.0)), 0.5, smoothstep(0.8, 1.8, fwidth(vCells.x)));
+            col = mix(col, solidWall * 0.8, shut);
+            win.a *= 1.0 - shut;
+          } else if (pattern < 4.5) {
+            // A dark face, a ledge every ninth floor, and across its
+            // tallest part one board.
+            float ledge = step(mod(storey, 9.0), 0.5) * step(fy, 0.3);
+            col = mix(col, solidWall * 2.2, ledge * fine);
+            float bandH = 5.0 + 4.0 * hash12(vec2(vForm.z, 3.4));
+            float y0 = mix(vTier.y, vTier.x, 0.52 + 0.24 * hash12(vec2(vForm.z, 2.2)));
+            vec2 sb = vec2((faceU - 0.05) / 0.9, (vWorld.y - y0) / bandH);
+            if (fract(vForm.y) > 0.05 && sb.x > 0.0 && sb.x < 1.0 && sb.y > 0.0 && sb.y < 1.0 && y0 + bandH < vTier.x - 2.0) {
+              col = boardStrip(sb, vHero.z * 0.9 / bandH, vForm.z + mod(vHero.w, 4.0) * 7.0, uTime * uMotion, vKind.z + mod(vHero.w, 4.0) * 3.0);
+              faceLit = 1.0;
+            }
+          } else if (pattern < 5.5) {
+            // A lattice of teal light over dark glass: a line every second
+            // bay and every third floor, and far off its sheen.
+            float lines = clamp(step(fract(vCells.x / 2.0), 0.045) + step(fract(vCells.y / 3.0), 0.04), 0.0, 1.0);
+            // (For a free eye it is lit in runs of seven floors, one run in
+            // three, as the districts' towers are: one grid of light from
+            // foot to roof was the whole tower.)
+            float run = mix(1.0, step(hash12(vec2(floor((storey + floor(hash12(vec2(vForm.z, 8.1)) * 7.0)) / 7.0), vForm.z + 4.4)), 0.36), districts);
+            float k = mix(lines, 0.085, smoothstep(0.08, 0.25, pxc)) * run;
+            col = mix(col * 0.8, vec3(0.1, 0.9, 0.78) * 0.8, k);
+            faceLit = k * 0.7;
+          } else {
+            // An office's ribbons between mullions every fourth bay.
+            float mull = step(mod(bay, 4.0), 0.5) * step(fx, 0.24);
+            col = mix(col, solidWall * 2.2, mull * fine);
+          }
+        }
+        if (pattern > 6.5 && onWall > 0.5 && parapet < 0.5 && vWorld.y > 4.6) {
+          // A megabuilding's frame, outside its glass: a brace crossing
+          // every face in bays of thirty-eight metres, a deep ledge every
+          // thirty-six up, and a line of light on each ledge's lip.
+          vec2 g = vec2(vHero.y * vHero.z, vWorld.y) / 38.0;
+          float brace = min(abs(fract(g.x + g.y) - 0.5), abs(fract(g.x - g.y) - 0.5)) * 26.9;
+          float up = fract(vWorld.y / 36.0) * 36.0;
+          float px = max(fwidth(vWorld.y), 0.05);
+          float member = max(1.0 - smoothstep(1.5, 1.5 + px, brace), step(up, 2.4));
+          col = mix(col, wallTint(vDress.y) * (vec3(1.3) + spillAt(vWorld) * 3.2) + uHazeColor * 0.2 * uHaze * (1.0 - held), member);
+          win.a *= 1.0 - member;
+          faceLit *= 1.0 - member;
+          float lip = step(up, 0.45) * mix(1.0, 0.3, smoothstep(0.4, 1.6, px)) * (1.0 - held);
+          col = mix(col, accent * 1.6, lip);
+          faceLit = max(faceLit, lip);
+        }
+        if (worn > 0.5 && onWall > 0.5 && parapet < 0.5 && vWorld.y > 4.6) {
+          float pxY = fwidth(vCells.y);
+          float fy = fract(vCells.y);
+          float lines = step(abs(vKind.x - 5.0), 0.1);
+          // (Seen close, every tower is banded: every other run of floors
+          // begins at a line of light, the rest at a plant floor.)
+          // (And not every close tower: two in five. One neon kit, a line
+          // up a corner and two floor bands, was every mid tower's.)
+          lines = max(lines, step(0.5, close) * step(0.5, zoneOdd) * mix(1.0, step(hash12(vec2(vForm.z, 31.1)), 0.4), step(0.5, freeEye() * uFarFree)));
+          if (zoneStart > 0.5 && lines > 0.5) {
+            // A line of light round the tower where a run of floors begins.
+            float k = mix(step(fy, 0.16), 0.16, smoothstep(0.35, 1.0, pxY));
+            col = mix(col, accent * 1.7, k);
+            faceLit = max(faceLit, k);
+          } else if (zoneStart > 0.5) {
+            // A plant floor: louvres and no glass, a service lamp every
+            // sixth bay.
+            float far = smoothstep(0.1, 0.3, pxY);
+            float slat = mix(0.45 + 0.55 * step(0.5, fract(vWorld.y * 2.6)), 0.72, far);
+            col = wallTint(vDress.y) * (vec3(0.6) + spillAt(vWorld) * 3.2) * 1.3 * slat;
+            win.a = 0.0;
+            faceLit = 0.0;
+            float lamp = step(mod(floor(vCells.x), 6.0), 0.5) * step(abs(fract(vCells.x) - 0.5), 0.1) * step(abs(fy - 0.75), 0.08) * (1.0 - far);
+            col = mix(col, vec3(1.0, 0.5, 0.2) * 1.6, lamp);
+          }
+          // Light up its corners, a hand wide.
+          if (flags > 7.5 && vWorld.y > 9.0) {
+            float edge = min(vHero.y, 1.0 - vHero.y) * vHero.z;
+            float k = 1.0 - smoothstep(0.26, 0.26 + max(fwidth(vHero.y) * vHero.z, 0.04), edge);
+            col = mix(col, accent * 1.5, k);
+            faceLit = max(faceLit, k);
+          }
+        }
         float style = vForm.x;
         float top = vCrown.x;
         float dressed = step(abs(vHero.x - 1.0), 0.1);
         float pick = mix(vCrown.y, 0.93 + 0.07 * vCrown.y, dressed);
-        vec3 crownCol = pick > 0.975 ? vec3(1.0, 0.22, 0.62) : pick > 0.955 ? vec3(0.16, 0.9, 1.0) : pick > 0.93 ? vec3(1.0, 0.58, 0.22) : vec3(0.8, 0.88, 1.0);
+        // The city's two lights, amber and cyan, and now and then its pink:
+        // a cold white band read from above as an empty frame in the sky.
+        vec3 crownCol = pick > 0.975 ? vec3(1.0, 0.22, 0.62) : pick > 0.955 ? vec3(0.16, 0.9, 1.0) : pick > 0.93 ? vec3(1.0, 0.58, 0.22) : fract(pick * 7.3) > 0.5 ? vec3(0.2, 0.82, 1.0) : vec3(1.0, 0.62, 0.3);
         // One tall tower in seven wears a lit band under its roof: white,
         // amber, or one of the city's neons; a tower lit at its setbacks
         // wears one at every step; Contact's towers all do, in the city's
         // neons, with a blade of light up one corner.
-        float banded = max(max(step(0.86, vCrown.y) * step(60.0, top), dressed), step(abs(style - 1.0), 0.1) * step(0.75, vCrown.y));
-        float crown = onWall * (1.0 - parapet) * banded * vTier.z * step(vTier.x - 3.4, vWorld.y) * step(vWorld.y, vTier.x - 2.1);
+        float banded = max(max(step(0.92, vCrown.y) * step(60.0, top), dressed), step(abs(style - 1.0), 0.1) * step(0.82, vCrown.y));
+        // (A dealt tower wears one if it was dealt one, in its accent.)
+        banded = mix(banded, step(3.5, mod(flags, 8.0)), worn);
+        // Seen from over the roof the band is a ring round nothing, an empty
+        // frame in the sky; it is a crown to look up at, so from above it is
+        // not lit.
+        float crown = onWall * (1.0 - parapet) * banded * vTier.z * step(vTier.x - mix(3.4, 4.2, worn), vWorld.y) * step(vWorld.y, vTier.x - mix(2.1, 1.6, worn)) * (1.0 - smoothstep(vTier.x, vTier.x + 25.0, uCam.y));
         // The towers built to wear one take it in a warmer light more often
         // than the cold white the odd one has.
         float bh = fract(vCrown.y * 29.7);
         vec3 bandCol = dressed > 0.5 || style > 1.5 || abs(style - 1.0) > 0.1 ? crownCol : bh > 0.7 ? vec3(1.0, 0.6, 0.28) : bh > 0.45 ? vec3(1.0, 0.86, 0.66) : crownCol;
-        col = mix(col, bandCol * 1.8, crown);
+        if (worn > 0.5) bandCol = accent;
+        // Close to, for an eye above the roofs, the band is a sign round the
+        // tower, not a slab of light that burns out to white: a word across
+        // each face lit in the band's colour on a dark band, a tube along
+        // its top and its foot. Far off, the line of light it was.
+        vec3 bandLook = bandCol * 1.8;
+        float bandPx = fwidth(vWorld.y);
+        // (Two bands in five are lettered; the rest a lit band between its
+        // tubes, or broken into lengths: a word on every crown was the same
+        // strip of lettering tower after tower.)
+        float wordBand = step(hash12(vec2(vForm.z, 23.3)), 0.4);
+        if (crown > 0.5 && lift > 0.001 && wordBand < 0.5) {
+          float by0 = vTier.x - mix(3.4, 4.2, worn);
+          float bys = (vWorld.y - by0) / (vTier.x - mix(2.1, 1.6, worn) - by0);
+          float tubes = step(bys, 0.14) + step(0.86, bys);
+          float lengths = step(0.5, hash12(vec2(vForm.z, 25.9))) * step(0.22, fract(faceU * (3.0 + floor(hash12(vec2(vForm.z, 27.1)) * 4.0))));
+          vec3 plain = mix(bandCol * mix(0.45, 1.5, lengths), bandCol * 1.8, min(tubes, 1.0));
+          bandLook = mix(bandLook, plain, lift * smoothstep(0.3, 0.08, bandPx / max(vTier.x - by0, 0.1)));
+        }
+        if (crown > 0.5 && lift > 0.001 && wordBand > 0.5) {
+          float by0 = vTier.x - mix(3.4, 4.2, worn);
+          vec2 bs = vec2(faceU, (vWorld.y - by0) / (vTier.x - mix(2.1, 1.6, worn) - by0));
+          float bpx = bandPx / (vTier.x - mix(2.1, 1.6, worn) - by0);
+          float tube = step(bs.y, 0.1) + step(0.9, bs.y);
+          float word = wordAcross(vec2((bs.x - 0.04) / 0.92, (bs.y - 0.5) / 0.74 + 0.5), vHero.z * 0.92 / (vTier.x - mix(2.1, 1.6, worn) - by0) / 0.74, hash12(vec2(vForm.z, 21.7) + mod(vHero.w, 4.0))) * step(0.04, bs.x) * step(bs.x, 0.96);
+          vec3 lettered = vec3(0.01, 0.011, 0.016) + bandCol * (min(tube, 1.0) * 1.1 + word * 1.3);
+          bandLook = mix(bandLook, mix(lettered, bandCol * 1.8, smoothstep(0.08, 0.3, bpx)), lift * uHasWords);
+        }
+        col = mix(col, bandLook, crown);
+        // Seen from above, a lit band round a dark roof is an empty frame
+        // in the sky: the band lights the roof inside it, from its edge in.
+        float inFromEdge = min(vPlan.z - abs(vPlan.x), vPlan.w - abs(vPlan.y));
+        col += bandCol * 0.5 * exp(-max(inFromEdge, 0.0) / 3.5) * banded * vTier.z * fresh * vRoof * step(0.5, n.y);
         // Lit setbacks: a thin line of light under each step's edge, in
         // the tower's own light (mostly warm white, now and then a neon),
         // on most of the towers built that way.
@@ -834,7 +2990,23 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         float sh = fract(vCrown.y * 17.3);
         vec3 stepCol = sh > 0.88 ? vec3(1.0, 0.22, 0.62) : sh > 0.76 ? vec3(0.16, 0.9, 1.0) : sh > 0.3 ? vec3(1.0, 0.6, 0.28) : vec3(1.0, 0.88, 0.72);
         col = mix(col, stepCol * 1.15, steps);
-        float blade = dressed * onWall * step(vHero.y, 0.035) * step(8.0, vWorld.y) * step(vWorld.y, top - 4.0);
+        // And each lit step lights its own terrace the same way.
+        col += stepCol * 0.4 * exp(-max(inFromEdge, 0.0) / 3.5) * step(abs(style - 4.0), 0.1) * step(0.5, vCrown.y) * (1.0 - vTier.z) * fresh * vRoof * step(0.5, n.y);
+        // A setback's terrace from the air: a dark wet deck with a line of
+        // lamps along its edge, where the sky's light made it a pale ring
+        // round the shaft, an unlit cornice.
+        float terrace = (1.0 - vTier.z) * fresh * vRoof * step(0.5, n.y) * lift * (1.0 - held);
+        if (terrace > 0.001) {
+          float alongEdge = abs(vPlan.x) * vPlan.w > abs(vPlan.y) * vPlan.z ? vPlan.y : vPlan.x;
+          float lamp = exp(-(inFromEdge - 1.2) * (inFromEdge - 1.2) / 0.35) * (0.35 + 0.65 * step(abs(fract(alongEdge / 5.0) - 0.5), 0.14));
+          vec3 lampCol = fract(vForm.z * 3.1) < 0.6 ? vec3(1.0, 0.7, 0.42) : vec3(0.3, 0.9, 1.0);
+          col = mix(col, vec3(0.007, 0.008, 0.011) + col * 0.3, terrace * 0.8) + lampCol * lamp * 0.9 * terrace;
+          roofLit = max(roofLit, lamp * terrace);
+        }
+        // Contact's towers wear their blade on the faces its lens sees: on
+        // all four, from the air every one of them had the same strip up
+        // every corner.
+        float blade = dressed * onWall * step(vHero.y, 0.035) * step(8.0, vWorld.y) * step(vWorld.y, top - 4.0) * step(0.0, dot(n.xz, vec2(${CONTACT_LENS[0]}.0, ${CONTACT_LENS[1]}.0) - vWorld.xz));
         col = mix(col, (vCrown.y > 0.5 ? vec3(0.16, 0.9, 1.0) : vec3(1.0, 0.22, 0.62)) * 2.2, blade);
         // A spire: dark steel catching the glow, a lit ring every few metres.
         float spire = step(abs(style - 2.0), 0.1) * vTier.z;
@@ -853,6 +3025,10 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
           float bands = step(vWorld.y, vTier.y + 0.6) + step(vTier.x - 0.6, vWorld.y);
           float ribs = step(0.82, fract(vWorld.y / 1.6));
           col = vec3(0.006, 0.007, 0.01) + (uHazeColor * 0.6 + uGlowColor * 0.4) * F + crownCol * 0.08 * ribs;
+          // Lit from inside, floor by floor: dark glass between lit edges
+          // reads from across the city as an empty frame in the sky.
+          float crownFloor = (vWorld.y - vTier.y) / 3.4;
+          col += crownCol * (0.14 + 0.5 * step(fract(crownFloor), 0.62) * (0.5 + 0.5 * hash12(vec2(floor(crownFloor), vForm.z)))) * fresh;
           col = mix(col, lit, clamp(edge + bands, 0.0, 1.0));
         }
         // Signs hung on the blocks: a vertical sign on some faces and a strip
@@ -869,14 +3045,17 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
             float y0 = 5.6 + 1.2 * hash12(vec2(fs, 6.0));
             float y1 = min(vTier.x - 1.5, y0 + 7.0 + 16.0 * hash12(vec2(fs, 7.0)));
             if (um > u0 && um < u0 + sw && vWorld.y > y0 && vWorld.y < y1) {
-              col = hangingSign(vec2((um - u0) / sw, 1.0 - (vWorld.y - y0) / (y1 - y0)), max(1.0, floor((y1 - y0) / (sw * 1.1))), fs * 91.0, uTime * uMotion);
+              vec3 sc = neonOf(floor(hash12(vec2(fs * 91.0, 2.0)) * 4.0));
+              if (hash12(vec2(fs * 91.0, 9.0)) > 0.7) sc = vec3(1.0, 0.86, 0.6);
+              if (held < 0.5) sc = signCol(hash12(vec2(fs * 91.0, 2.0)));
+              col = hangingSign(vec2((um - u0) / sw, 1.0 - (vWorld.y - y0) / (y1 - y0)), max(1.0, floor((y1 - y0) / (sw * 1.1))), fs * 91.0, uTime * uMotion, sc, 1.0 - held, (y1 - y0) / sw);
               sign = 1.0;
             }
           } else if (fs > 0.72) {
             float yl = 4.6 + 3.4 * floor(1.0 + 3.0 * hash12(vec2(fs, 11.0)));
             float edge = step(0.04, vHero.y) * step(vHero.y, 0.96);
             if (abs(vWorld.y - yl) < 0.08 && yl < vTier.x - 1.0 && edge > 0.5) {
-              col = neonOf(floor(hash12(vec2(fs, 12.0)) * 4.0)) * 2.0;
+              col = (held > 0.5 ? neonOf(floor(hash12(vec2(fs, 12.0)) * 4.0)) : signCol(hash12(vec2(fs, 12.0)))) * 2.0;
               sign = 1.0;
             }
           }
@@ -887,16 +3066,140 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
           float quadrant = (atan(n.z, n.x) + 3.14159) / 1.5708;
           float face = floor(quadrant + 0.5);
           float square = step(abs(quadrant - face), 0.3);
-          float want = floor(hash12(vec2(vForm.z, 4.2)) * 4.0);
+          float want = mix(floor(hash12(vec2(vForm.z, 4.2)) * 4.0), mod(flags, 4.0), worn);
           float y0 = mix(vTier.y, vTier.x, 0.38);
           float y1 = mix(vTier.y, vTier.x, 0.86);
           if (square > 0.5 && abs(mod(face, 4.0) - want) < 0.5 && vWorld.y > y0 && vWorld.y < y1 && vHero.y > 0.14 && vHero.y < 0.86) {
             vec2 s = vec2((vHero.y - 0.14) / 0.72, (vWorld.y - y0) / (y1 - y0));
             col = screenAd(s, floor(vForm.y), fract(vForm.z * 7.31), uTime * uMotion);
+            // One of the city's adverts, in place of the shape that stood
+            // for one, under the same scanlines and inside a dark frame.
+            if (held < 0.5 && uHasAds > 0.5) {
+              float edge = 1.0 - step(0.02, s.x) * step(s.x, 0.98) * step(0.012, s.y) * step(s.y, 0.988);
+              col = mix(boardFace(vec2(1.0 - s.x, s.y), 0.72 * vHero.z / (y1 - y0), vKind.z + floor(uTime * uMotion / 14.0 + fract(vForm.z) * 0.15), vForm.z) * 1.5 * (0.84 + 0.16 * step(0.5, fract(s.y * 140.0))), vec3(0.01), edge);
+            }
             screen = 1.0;
           }
         }
-        col = cityFog(col, vWorld, max(max(max(win.a * 0.8 * onWall * (1.0 - parapet), max(crown, steps)), max(blade, sign)), max(screen, glassCrown * 0.6)));
+        // A tower past the framed views: a vertical blade of light up one
+        // face of its tallest tier, the show's cyan more often than not, and
+        // on some a mark under the roof on two opposite faces.
+        if (dressCode > 0.5 && onWall > 0.5 && parapet < 0.5 && fract(vForm.y) > 0.05) {
+          float quadrant = (atan(n.z, n.x) + 3.14159) / 1.5708;
+          float squareOn = step(abs(quadrant - floor(quadrant + 0.5)), 0.3);
+          float code = dressCode;
+          float bladeFace = mod(code, 8.0) - 1.0;
+          float mark = floor(code / 8.0);
+          float faceId = mod(vHero.w, 4.0);
+          float W = vHero.z;
+          float um = vHero.y * W;
+          float hs = hash12(vec2(vForm.z, 12.4));
+          float hc = hash12(vec2(vForm.z, 15.8));
+          if (squareOn > 0.5 && abs(faceId - bladeFace) < 0.5) {
+            float bw = clamp(W * 0.17, 2.6, 5.2);
+            float u0 = hs > 0.5 ? W * 0.07 : W * 0.93 - bw;
+            float y0 = mix(vTier.y, vTier.x, 0.1) + 2.0;
+            float y1 = min(mix(vTier.y, vTier.x, 0.9), y0 + 84.0);
+            if (um > u0 && um < u0 + bw && vWorld.y > y0 && vWorld.y < y1) {
+              vec3 bc = hc < 0.55 ? vec3(0.16, 0.9, 1.0) : hc < 0.63 ? vec3(1.0, 0.22, 0.72) : hc < 0.9 ? vec3(1.0, 0.58, 0.22) : vec3(0.9, 0.95, 1.0);
+              // (A tower's sign is one of eight colours, not amber on every
+              // other one, and none is a white bar.)
+              float hb = hash12(vec2(vForm.z, 17.3));
+              if (held < 0.5) bc = hb < 0.24 ? vec3(0.16, 0.9, 1.0) : hb < 0.4 ? vec3(1.0, 0.58, 0.22) : hb < 0.54 ? vec3(1.0, 0.22, 0.62) : hb < 0.66 ? vec3(0.3, 1.0, 0.55) : hb < 0.77 ? vec3(1.0, 0.16, 0.12) : hb < 0.87 ? vec3(1.0, 0.86, 0.2) : hb < 0.94 ? vec3(0.3, 0.5, 1.0) : vec3(0.72, 0.36, 1.0);
+              col = hangingSign(vec2(mix((um - u0) / bw, 1.0 - (um - u0) / bw, 1.0 - held), 1.0 - (vWorld.y - y0) / (y1 - y0)), max(1.0, floor((y1 - y0) / (bw * 1.15))), vForm.z * 3.7, uTime * uMotion, bc, 1.0 - held, (y1 - y0) / bw);
+              sign = 1.0;
+            }
+          }
+          float R = min(W * 0.3, 11.0);
+          vec2 mp = vec2(um - W * 0.5, vWorld.y - (vTier.x - R - 4.0)) / R;
+          if (mark > 0.5 && squareOn > 0.5 && R > 4.0 && abs(mod(faceId, 2.0) - mix(floor(hs * 2.0), mod(flags, 2.0), worn)) < 0.5 && max(abs(mp.x), abs(mp.y)) < 1.12) {
+            vec3 mc = hc < 0.45 ? vec3(0.16, 0.9, 1.0) : hc < 0.65 ? vec3(0.9, 0.95, 1.0) : hc < 0.82 ? vec3(1.0, 0.12, 0.2) : vec3(1.0, 0.58, 0.22);
+            float k = clamp(markShape(mp, mark), 0.0, 1.0);
+            col = mix(vec3(0.008, 0.009, 0.012), mc * 2.2, k);
+            // A board bolted to the face with one of the city's adverts on
+            // it, a tube of light round it, in place of the mark.
+            if (held < 0.5 && uHasAds > 0.5) {
+              vec2 st = mp / 2.24 + 0.5;
+              float tube = step(0.465, max(abs(st.x - 0.5), abs(st.y - 0.5)));
+              col = mix(boardFace(vec2(1.0 - st.x, st.y), 1.0, vKind.z + 5.0 * faceId, vForm.z + 7.0 + faceId) * 1.35, mc * 1.8, tube);
+              k = 1.0;
+            }
+            sign = max(sign, k);
+          }
+        }
+        // For a free eye every face of a dealt or a far tower carries its
+        // own: a vertical sign (seven faces in ten) and a lit panel (one in
+        // two) on the other half of the face, each its own colour, words and
+        // advert. Seen from anywhere but the face that looks at the kit, a
+        // ring tower was a dark prism with its windows and nothing else.
+        if (strip > 0.5 && onWall > 0.5 && parapet < 0.5 && vHero.x < 0.5 && vKind.x > -0.5 && sign < 0.5 && screen < 0.5 && vWorld.y > 12.0 && vHero.z > 14.0) {
+          float quadrant = (atan(n.z, n.x) + 3.14159) / 1.5708;
+          float faceId = mod(vHero.w, 4.0);
+          float fs = vForm.z * 7.3 + faceId * 1.7 + floor(vHero.w / 4.0) * 5.1;
+          float W = vHero.z;
+          float um = faceU * W;
+          float bw = clamp(W * 0.08, 3.0, 6.5);
+          float u0 = (0.08 + 0.34 * hash12(vec2(fs, 1.3))) * (W - bw);
+          bool right = hash12(vec2(fs, 2.9)) < 0.5;
+          if (right) u0 = W - bw - u0;
+          float y0 = mix(vTier.y, vTier.x, 0.12 + 0.3 * hash12(vec2(fs, 4.1))) + 3.0;
+          float y1 = min(y0 + bw * (5.0 + 6.0 * hash12(vec2(fs, 5.3))), vTier.x - 4.0);
+          if (step(abs(quadrant - floor(quadrant + 0.5)), 0.3) > 0.5) {
+            if (hash12(vec2(fs, 6.7)) < 0.7 && y1 - y0 > bw * 2.0 && um > u0 && um < u0 + bw && vWorld.y > y0 && vWorld.y < y1) {
+              col = hangingSign(vec2((um - u0) / bw, 1.0 - (vWorld.y - y0) / (y1 - y0)), max(1.0, floor((y1 - y0) / (bw * 1.15))), fs * 3.1, uTime * uMotion, signCol(hash12(vec2(fs, 8.9))), 1.0, (y1 - y0) / bw);
+              sign = 1.0;
+            }
+            float pw = min(W * 0.3, 26.0);
+            float ph = pw * (0.38 + 0.25 * hash12(vec2(fs, 9.7)));
+            float pu = (right ? 0.3 : 0.7) * W - pw * 0.5;
+            float py = mix(vTier.y, vTier.x, 0.46 + 0.3 * hash12(vec2(fs, 11.3)));
+            vec2 st = vec2((um - pu) / pw, (vWorld.y - py) / ph);
+            if (hash12(vec2(fs, 12.1)) < 0.5 && py + ph < vTier.x - 3.0 && st.x > 0.0 && st.x < 1.0 && st.y > 0.0 && st.y < 1.0) {
+              float rim = 1.0 - step(0.03, st.x) * step(st.x, 0.97) * step(0.05, st.y) * step(st.y, 0.95);
+              col = mix(boardFace(st, pw / ph, floor(hash12(vec2(fs, 13.9)) * 48.0), fs) * 1.35, signCol(hash12(vec2(fs, 14.7))) * 1.6, rim);
+              sign = 1.0;
+            }
+          }
+        }
+        // A screen tower: its shaft a column of screens on every face
+        // between lit corners, its cap dark between two lines of the same
+        // light.
+        float screens = 0.0;
+        if (abs(style - 5.0) < 0.1 && onWall > 0.5 && parapet < 0.5 && vForm.w > 0.5) {
+          vec3 rim = hash12(vec2(vForm.z, 8.8)) > 0.12 ? vec3(0.16, 0.9, 1.0) : vec3(1.0, 0.22, 0.72);
+          if (vForm.w < 1.5) {
+            vec4 sc = screenColumn(vec2(faceU, vWorld.y - vTier.y - 2.0), vHero.z, vTier.x - vTier.y - 4.0, vForm.z + mod(vHero.w, 4.0) * 13.0, uTime * uMotion);
+            float corner = step(min(vHero.y, 1.0 - vHero.y), 0.03);
+            col = mix(sc.rgb, rim * 1.5, corner);
+            screens = max(sc.a, corner);
+          } else {
+            float lines = clamp(step(vWorld.y, vTier.y + 0.7) + step(vTier.x - 0.7, vWorld.y), 0.0, 1.0);
+            col = mix(vec3(0.008, 0.009, 0.013), rim * 1.7, lines);
+            screens = lines;
+          }
+        }
+        // The far layer: its lit rooms carry a mile, and what is not lit
+        // stands darker than the lit air behind it (until, at the edge of
+        // what is drawn at all, it is the air).
+        float farOff = step(5.5, style);
+        // The night's own light on a wall, and the street's a long way up
+        // it: a tower's body is navy against the sky, not black (but within
+        // what Contact frames, where a wall is as it was).
+        float unlit = 1.0 - min(1.0, max(max(win.a, faceLit), max(max(crown, steps), max(max(sign, screen), max(screens, footLit)))));
+        col += (uHazeColor * mix(0.5, 0.25, step(1.5, vHero.x)) + quarterLight(vDress.w, 0.0) * 0.012 * exp(-max(vWorld.y, 0.0) / 45.0)) * uHaze * onWall * fresh * (1.0 - held) * (1.0 - farOff) * unlit * mix(1.0, 0.4, districts);
+        col = mix(col, col * mix(4.0, 2.2, zoned), farOff * win.a * onWall * (1.0 - parapet));
+        // (For a free eye the far layer's dark is under the air and not
+        // over it: dimmed after the fog it was darker than the veil, so the
+        // furthest blocks stood off the sky as hard as the nearest.)
+        float farDim = mix(1.0, mix(0.6 + 0.4 * win.a * onWall, 1.0, smoothstep(1900.0, 2350.0, length(vWorld - uCam))), farOff);
+        float under = freeEye() * uFarFree;
+        col *= mix(1.0, farDim, under);
+        col = airFog(col, vWorld, max(max(max(win.a * 0.8 * onWall * (1.0 - parapet), max(crown, steps)), max(blade, sign)), max(max(screen, glassCrown * 0.6), max(screens, max(footLit, max(roofLit, faceLit))))));
+        col = sodiumBeyond(col, vWorld);
+        col *= mix(farDim, 1.0, under);
+        // For an eye above the roofs the air between is lit, as the sky
+        // behind is: what stands further off is paler, row behind row.
+        col += lift * vec3(0.003, 0.02, 0.07) * (1.0 - exp(-length(vWorld - uCam) / 1100.0)) * exp(-max(vWorld.y, 0.0) / 500.0) * uHaze;
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -907,44 +3210,99 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
 
   // Per building: where (x, z, turn), its footprint and roof and parapet, its
   // tiers' heights and footprints, its cut, kind, dressing and screen.
-  // What the shader once hashed per vertex, worked out once per building
-  // from where it stands, by the same hash in the GPU's own precision, so
-  // each building keeps the look it had as a box: its windows' lit
-  // fraction, style and warmth, where its cells start, its painted
-  // elevation (which, and where on it), and its crown's draw. A split
-  // block's two buildings keep the block's look, the second shifted along
-  // its picture and a half storey, so the pair does not read as one wall.
-  const f32 = Math.fround;
-  const at = (b) => f32(f32(f32(b.x) * f32(0.013)) + f32(f32(b.z) * f32(0.071)));
-  const hash11 = (n) => {
-    const v = f32(f32(Math.sin(f32(n))) * f32(43758.5453123));
-    return v - Math.floor(v);
-  };
-  const looks = lots.map((b) => {
+  // What the shader once hashed per vertex is worked out once per building
+  // from where it stands, by the same hash in the GPU's own precision: its
+  // windows' lit fraction, style and warmth, where its cells start, and its
+  // crown's draw. A split block's two buildings share the block's look.
+  const looks = lots.map((b, i) => {
     const block = b.block ?? b;
     const seed = at(block);
-    const pick = hash11(seed + 12.7);
-    const which = block.h < 100 && (pick > 0.06 || block.h < 40) && !b.hero ? Math.floor(((pick * 7) % 1) * 3) : -1;
     const look = [0.14 + 0.5 * hash11(seed), hash11(seed + 1.7) * 0.625, hash11(seed + 3.1), hash11(seed + 5.0) * 40];
     if (b.hero) {
       look[0] = 0.55;
       look[1] = 0.25;
     }
-    const along = hash11(seed + 6.1) * 160 + (b.second ? 61 : 0);
-    const storey = (hash11(seed + 8.3) < 0.5 ? 0 : 0.5) + (b.second ? 0.5 : 0);
-    return { look, paint: [along, storey % 1, which, hash11(seed + 9.3)], seed: hash11(at(b) + 14.9) };
+    // A split block's second building starts its windows a few bays along,
+    // so the pair does not read as one wall.
+    if (b.second) look[3] += 7;
+    // How it is dressed (Contact's own towers keep the dressing they have):
+    // what is hung on a tower (a vertical blade on one face, 1 to 4, and
+    // eight times a logo's kind under its roof, only where nothing capped
+    // it), its wall's colour (the kit's tints: the towers charcoal, navy and
+    // teal-black, the blocks any of them), and the colour of the street's
+    // light at its foot, shared by a neighbourhood.
+    const tower = b.h >= TOWER_FROM;
+    const own = at(b);
+    const hang = hash11(own + 21.3);
+    const face = Math.floor(hash11(own + 27.1) * 4);
+    let hung = 0;
+    const dealt = faces[i];
+    if (dealt?.worn) {
+      // What it was dealt above, on the face that looks at the kit.
+      if (dealt.feature === FEATURE.blade) hung += 1 + dealt.face;
+      if (dealt.feature === FEATURE.mark) hung += 8 * (1 + Math.floor(hash11(own + 29.9) * 4));
+    } else if (tower && b.free && !b.screens && !underMoon(b)) {
+      if (b.h >= 70 && hang < 0.4) hung += 1 + face;
+      if (b.h >= 105 && hang > 0.78) hung += 8 * (1 + Math.floor(hash11(own + 29.9) * 4));
+    }
+    // In the navy night a far wall is charcoal, navy or teal-black, a
+    // block now and then brown or concrete; the plum and the rust were the
+    // violet night's (and still are within what Contact frames).
+    const heldLot = framed(b) && !b.mid;
+    const tints = heldLot ? (tower ? [0, 1, 1, 2, 2, 3] : [0, 1, 2, 3, 4, 5, 6, 4, 2, 5]) : tower ? [0, 1, 1, 2, 2, 1] : [0, 1, 2, 1, 4, 5, 2, 4, 2, 5];
+    const tint = tints[Math.floor(hash11(seed + 23.9) * tints.length)];
+    const quarter = hash11(f32(Math.floor((b.ox ?? b.x) / 180) * 12.9898 + Math.floor((b.oz ?? b.z) / 180) * 78.233));
+    // A tower's face is one of six kinds (64 times its number, with what is
+    // hung on it): floors lit in bands, rooms scattered between piers and
+    // ledges, vertical strips of glass between solid ones, a dark face with
+    // one board across it, a lattice of teal light over glass, an office's
+    // ribbons between mullions. Not within what Contact frames, where a
+    // tower is as it was.
+    // (The lattice is the rarest: half of those dealt it are offices.)
+    // (By its kind, as dealt: offices' mullions, nothing over a curtain
+    // wall, piers and ledges on a slab and on homes, the lattice, the dark
+    // face and its boards, plain floors of yellow, the strips.)
+    const pattern = dealt?.braced ? 7 : dealt?.worn ? [6, 1, 2, 2, 5, 4, 1, 3][dealt.kind] : 0;
+    const dress = [hung + 64 * pattern + (heldLot ? 512 : 0), b.hero ? -1 : (tint + 0.5) / 8, b.landmark || b.mega ? 0.9 : hash11(seed + 9.3), quarter];
+    // The show's towers are lit in bands, floor by floor, more than in
+    // scattered rooms: most towers take the band or the ribbon, and some
+    // blocks the small windows of homes.
+    if (!b.hero) {
+      const cut = hash11(seed + 17.7);
+      if (tower && cut < 0.42) look[1] = 0.625;
+      else if (tower && cut < 0.62) look[1] = 0.25;
+      else if (!tower && cut > 0.78) look[1] = 0.75;
+      // People are home in the blocks, and no tower is a dark slab.
+      look[0] = tower ? Math.max(look[0], 0.24) : 0.3 + 0.4 * hash11(seed);
+    }
+    // Its glass, by its kind: an office's ribbon, a curtain wall, a pair or
+    // a tall single in a home.
+    const either = hash11(own + 35.1) < 0.5;
+    if (dealt && !heldLot) look[1] = [0.25, 0.5, 0.25, either ? 0 : 0.125, 0.5, 0.5, 0.25, either ? 0.125 : 0.5][dealt.kind];
+    // A megabuilding a mile off: few rooms lit, each a small window in a
+    // cell several floors high (the vertex shader's), so it is a pinpoint.
+    if (b.far) {
+      look[0] = 0.3 + 0.2 * hash11(seed);
+      look[1] = 0.375;
+    }
+    // Its kind (-1: none dealt), its accent, its advert, and in one number
+    // the face its screen is on, whether it wears a band under its roof and
+    // whether its corners are lit.
+    const kind = dealt ? [dealt.kind, dealt.accent, dealt.ad, dealt.compass + (dealt.band ? 4 : 0) + (dealt.strips ? 8 : 0)] : [-1, 0, Math.floor(hash11(own + 47.3) * 16), 0];
+    return { look, seed: hash11(at(b) + 14.9), dress, kind };
   });
   const cullers = [];
   const instanced = (list, slots, sides) => {
     const geometry = buildingGeometry(slots, sides);
-    const attrs = { aBase: [], aSize: [], aTier: [], aInset: [], aForm: [], aOffset: [], aLook: [], aPaint: [] };
+    const attrs = { aBase: [], aSize: [], aTier: [], aInset: [], aForm: [], aOffset: [], aLook: [], aDress: [], aKind: [] };
     const spheres = [];
     for (const i of list) {
       const b = lots[i];
       const s = forms[i];
       attrs.aBase.push(b.x, b.z, Math.cos(b.yaw), Math.sin(b.yaw));
       attrs.aLook.push(...looks[i].look);
-      attrs.aPaint.push(...looks[i].paint);
+      attrs.aDress.push(...looks[i].dress);
+      attrs.aKind.push(...looks[i].kind);
       const top = s.roof + s.spire + s.parapet;
       spheres.push(b.x, top / 2, b.z, 0.5 * Math.hypot(b.w, b.d, top) + 2);
       attrs.aSize.push(b.w, b.d, s.roof, s.parapet);
@@ -965,7 +3323,9 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   const blockList = [];
   const squareList = [];
   const cutList = [];
-  lots.forEach((b, i) => (b.h < TOWER_FROM && !b.hero ? blockList : forms[i].chamfer > 0 ? cutList : squareList).push(i));
+  lots.forEach((b, i) => {
+    if (!b.gone) (b.h < TOWER_FROM && !b.hero ? blockList : forms[i].chamfer > 0 ? cutList : squareList).push(i);
+  });
   const blocks = instanced(blockList, 2, 4);
   blocks.name = "skyline_blocks";
   const squares = instanced(squareList, 4, 4);
@@ -974,35 +3334,17 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   mesh.name = "skyline";
 
   // ---- the roofs --------------------------------------------------------------
-  // A kit on most roofs, made for a 20 m roof and scaled to the top tier's
-  // footprint, turned a quarter at random so no two read the same. Homes
-  // and plant on the blocks and the capped towers; a mast or a sign only
-  // where nothing was capped, so they never stand in a framed sky.
+  // The kit each roof drew above; a lot left out has none.
   const kitGeos = roofKits();
   const kitAt = kitGeos.map(() => []);
   const kitLook = kitGeos.map(() => []);
-  const fk = rng(4040);
-  lots.forEach((b, i) => {
-    const s = forms[i];
-    if (s.style === 2 || s.style === 3 || b.hero) return;
-    // Past a kilometre (three quarters of one on a phone's thinner city) a
-    // roof's plant is under a pixel and in the fog.
-    if (Math.hypot(b.x - 250, b.z + 300) > (count < 2000 ? 750 : 1000)) return;
-    const top = topTier(s);
-    const fw = b.w * s.inset[top];
-    const fd = b.d * s.inset[top];
-    if (Math.min(fw, fd) < 9 || fk() < 0.22) return;
-    const tower = b.h >= TOWER_FROM;
-    const roll = fk();
-    let kit = tower ? (roll < 0.66 ? KIT.plant : KIT.home) : roll < 0.7 ? KIT.home : KIT.plant;
-    if (!b.cone && roll > (tower ? 0.78 : 0.8)) kit = b.free && fk() < 0.5 ? KIT.mast : KIT.sign;
-    const k = Math.min(1.5, Math.max(0.55, Math.min(fw, fd) / 20));
-    const [cx, cz] = topCentre(b, s);
-    kitAt[kit].push(cx, s.roof, cz, b.yaw + Math.floor(fk() * 4) * (Math.PI / 2));
-    kitLook[kit].push(k, Math.floor(fk() * SIGN_NEON.length), fk(), 0);
+  kitOf.forEach((k, i) => {
+    if (!k || lots[i].gone) return;
+    kitAt[k.kit].push(...k.at);
+    kitLook[k.kit].push(k.look[0], k.look[1], k.look[2], framed(lots[i]) ? 1 : 0);
   });
   const roofMat = new THREE.ShaderMaterial({
-    uniforms: { ...shared, uNeon: { value: SIGN_NEON.map((c) => new THREE.Color(c)) }, uMotion: { value: reduced ? 0 : 1 } },
+    uniforms: { ...shared, ...ads, uNeon: { value: SIGN_NEON.map((c) => new THREE.Color(c)) }, uMotion: { value: reduced ? 0 : 1 } },
     vertexShader: /* glsl */ `
       attribute float aGlow;
       attribute vec2 aSignUv;
@@ -1028,6 +3370,8 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     `,
     fragmentShader: /* glsl */ `
       ${COMMON}
+      ${ADVERT}
+      ${BEYOND}
       uniform vec3 uNeon[${SIGN_NEON.length}];
       uniform float uMotion;
       varying vec3 vWorld;
@@ -1049,20 +3393,19 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         float cellX = floor(g.x);
         vec2 f = vec2(fract(g.x), g.y);
         float inside = step(0.0, g.x) * step(g.x, 4.0) * step(0.0, g.y) * step(g.y, 1.0);
-        float s = 0.0;
-        float h1 = hash12(vec2(cellX, seed));
-        float h2 = hash12(vec2(cellX + 7.0, seed));
-        float h3 = hash12(vec2(cellX + 13.0, seed));
-        float w = 0.07;
-        s += step(abs(f.x - 0.5), w) * step(0.3, h1);
-        s += step(abs(f.y - 0.5), w * 0.8) * step(abs(f.x - 0.5), 0.36) * step(0.5, h2);
-        s += step(abs(f.y - 0.9), w * 0.8) * step(abs(f.x - 0.5), 0.36) * step(0.4, h3);
-        s += step(abs(f.x - 0.18), w) * step(0.7, h2);
-        s += step(abs(f.x - 0.82), w) * step(0.6, h3) * step(f.y, 0.6);
-        s += step(abs(f.y - 0.1), w * 0.8) * step(abs(f.x - 0.5), 0.36) * step(0.65, h1);
+        // Each a character of bars, a stem and a box's sides, the same
+        // either way round (a stem down one side only read as a letter
+        // seen from behind).
+        float s = kanji(vec2((f.x - 0.1) / 0.8, f.y), hash12(vec2(cellX, seed)), hash12(vec2(cellX + 7.0, seed))) * step(0.1, f.x) * step(f.x, 0.9);
         float px = max(fwidth(uv.x), fwidth(uv.y));
-        float lit = max(frame, min(s, 1.0) * inside);
-        return mix(lit, 0.3, smoothstep(0.02, 0.06, px));
+        // Two boards in three are lightboxes, lit right across with their
+        // strokes dark on them; the rest are tubes on a board lit dimly
+        // from behind. Either way the board is light: a bright tube round
+        // a dark board reads from across the city as an empty frame.
+        float box = step(hash12(vec2(seed, 31.0)), 0.66);
+        float strokes = min(s, 1.0) * inside;
+        float lit = mix(max(max(frame, strokes), 0.3 * (1.0 - frame)), mix(0.62, 0.1, strokes) * (1.0 - 0.45 * frame), box);
+        return mix(lit, mix(0.38, 0.52, box), smoothstep(0.02, 0.06, px));
       }
       void main() {
         vec3 n = normalize(vNormalW);
@@ -1082,7 +3425,24 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
           // A rooftop sign, now and then dropping a tube out for a frame.
           float cut = step(0.993, hash12(vec2(floor(t * 12.0), seed * 91.0)));
           col = vec3(0.008, 0.008, 0.012) + neon(vLook.y) * 2.6 * glyphs(vSignUv, floor(seed * 50.0)) * (1.0 - 0.85 * cut);
+          // It has one face, toward the middle of the kit (toward Contact's
+          // lens, within what it frames). The other is its back: a dark
+          // sheet on its frame, the tubes' light coming round the edge.
+          float rear = step(dot(n.xz, (vLook.w > 0.5 ? vec2(${CONTACT_LENS[0]}.0, ${CONTACT_LENS[1]}.0) : vec2(160.0, -330.0)) - vWorld.xz), 0.0);
+          // Two of the city's adverts side by side in a tube of the sign's
+          // colour (but within what Contact frames, where a sign is as it
+          // was).
+          if (vLook.w < 0.5 && uHasAds > 0.5) {
+            vec2 st = vec2(fract(vSignUv.x * 2.0), vSignUv.y);
+            float tube = 1.0 - step(0.035, st.x) * step(st.x, 0.965) * step(0.07, st.y) * step(st.y, 0.93);
+            float ni = abs(vLook.y - 3.0) < 0.5 ? 1.0 : abs(vLook.y - 5.0) < 0.5 ? 2.0 : vLook.y;
+            col = mix(boardFace(st, 1.4, floor(seed * 50.0) + floor(vSignUv.x * 2.0) * 3.0, seed * 50.0 + floor(vSignUv.x * 2.0)) * 1.4, neon(ni) * 2.2, tube) * (1.0 - 0.85 * cut);
+          }
           emissive = 1.0;
+          if (rear > 0.5) {
+            col = signBack(vSignUv, 2.8, neon(vLook.y)) * (1.0 - 0.85 * cut);
+            emissive = 0.2;
+          }
         } else if (vGlow > 2.5 && vGlow < 3.5) {
           // An aviation lamp on the plant or the mast, blinking.
           float on = mix(0.6, step(0.5, fract(t * 0.6 + seed)), uMotion);
@@ -1093,7 +3453,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
           col = mix(col, vec3(0.5, 0.66, 1.0) * 0.55, step(0.55, seed));
           emissive = step(0.55, seed) * 0.6;
         }
-        col = cityFog(col, vWorld, emissive);
+        col = farHaze(cityFog(col, vWorld, emissive), vWorld, emissive);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -1124,42 +3484,61 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   const beacons = [];
   const groups = [];
   lots.forEach((b, i) => {
+    // Outside what Contact frames every tower has its lamp, not only the
+    // tallest, and it is a lamp to be seen across the city (groups 5 to 7).
+    const all = b.h >= TOWER_FROM && !b.hero && (!framed(b) || b.mid || (b.far && !farAsDealt(b)));
+    if ((beaconOf[i] < 0 && !all) || b.gone) return;
     const s = forms[i];
-    const top = s.roof + s.spire;
-    if (top < BEACON_OVER && !b.hero) return;
     const [cx, cz] = topCentre(b, s);
-    beacons.push(cx, top + (s.spire ? 0.4 : 0.8), cz);
-    groups.push(Math.floor(r() * 3));
+    beacons.push(cx, s.roof + s.spire + (s.spire ? 0.4 : 0.8), cz);
+    groups.push(all ? 5 + (beaconOf[i] < 0 ? i % 3 : beaconOf[i]) : beaconOf[i]);
   });
+  // And one on every mast, whip and deck end.
+  for (let i = 0; i < tips.length; i += 3) {
+    beacons.push(tips[i], tips[i + 1], tips[i + 2]);
+    groups.push(5 + ((i / 3) % 3));
+  }
   const beaconGeo = new THREE.BufferGeometry();
   beaconGeo.setAttribute("position", new THREE.Float32BufferAttribute(beacons, 3));
   beaconGeo.setAttribute("aGroup", new THREE.Float32BufferAttribute(groups, 1));
+  beaconGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(300, 120, -400), 2400);
   const beaconMat = new THREE.ShaderMaterial({
-    uniforms: { ...shared, uPixel: { value: 1 }, uMotion: { value: reduced ? 0 : 1 } },
+    uniforms: { ...shared, uPixel: { value: 1 }, uMotion: { value: reduced ? 0 : 1 }, uFarFree: farFree },
     vertexShader: /* glsl */ `
       attribute float aGroup;
       uniform float uTime;
       uniform float uPixel;
       uniform float uMotion;
+      uniform float uFarFree;
       varying float vOn;
       varying vec3 vWorld;
       void main() {
+        float tip = step(4.5, aGroup);
         vWorld = position;
         vec4 mv = modelViewMatrix * vec4(position, 1.0);
         gl_Position = projectionMatrix * mv;
-        float t = fract(uTime * 0.75 + aGroup / 3.0);
-        vOn = mix(0.6, smoothstep(0.0, 0.05, t) * (1.0 - smoothstep(0.42, 0.55, t)), uMotion);
-        gl_PointSize = clamp(2600.0 / -mv.z, 2.5, 6.0) * uPixel;
+        float t = fract(uTime * 0.75 + mod(aGroup, 5.0) / 3.0);
+        float blink = mix(0.6, smoothstep(0.0, 0.05, t) * (1.0 - smoothstep(0.42, 0.55, t)), uMotion);
+        // A tip's lamp never goes right out: it swells and falls.
+        blink = mix(blink, 0.45 + 0.55 * blink, tip);
+        vOn = blink;
+        // (Away from the page's lenses a tip's lamp is a lamp across the
+        // whole far city: a kilometre or two off it was under a pixel and
+        // greyed out by the air, and the ring's crowns had none to see.)
+        float far = uFarFree * tip;
+        gl_PointSize = mix(mix(clamp(2600.0 / -mv.z, 2.5, 6.0), clamp(4200.0 / -mv.z, 3.4, 9.0), tip), clamp(5600.0 / -mv.z, 4.6, 10.0), far) * uPixel;
       }
     `,
     fragmentShader: /* glsl */ `
       ${COMMON}
+      uniform float uFarFree;
       varying float vOn;
       varying vec3 vWorld;
       void main() {
         float d = length(gl_PointCoord - 0.5) * 2.0;
-        vec3 col = vec3(1.0, 0.06, 0.04) * 3.5 * vOn * exp(-d * d * 4.0);
-        col *= exp(-length(vWorld - uCam) * uFogDensity * 0.35);
+        vec3 lamp = vec3(1.0, 0.06, 0.04) * 3.5 * (1.0 + 0.4 * uFarFree);
+        vec3 col = lamp * vOn * exp(-d * d * 4.0);
+        col *= exp(-length(vWorld - uCam) * uFogDensity * mix(0.35, 0.16, uFarFree));
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -1178,8 +3557,29 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   // its cloud, the searchlights, and below the horizon the far city's
   // ground, where no tower stands on it.
   const skyGeo = new THREE.SphereGeometry(2200, 32, 16);
+  // Which way the advert columns stand from the eye, for the low glow.
+  const colGlow = [];
+  for (let c = 0; c < columns.length; c += 6) colGlow.push(`          ad += pow(max(dot(dxz, normalize(vec2(${g1(columns[c])}, ${g1(columns[c + 1])}) - uCam.xz + 1e-3)), 0.0), 24.0);`);
+  // How much of the round's blue the page's own Contact view keeps (its
+  // copy is over that sky): its lens, as wide as the page shoots it, tipped
+  // up at the garage's towers (16 degrees; 7.5 on a phone, at the portrait
+  // target). Not the close view of the moon through the same lens (24 up,
+  // 22 wide), nor a level look out from it.
+  const HOLD_SKY = "0.2";
+  const CONTACT_EYE = new THREE.Vector3(456, 10.4, -203);
+  // The page's own lenses (hero, plaza, Corpo Row, the rooftop and its pan,
+  // the garage street, Contact and its moon): their frames hold.
+  const PAGE_EYES = [[0.6, 0.6, 10], [73, 13, -204], [120, 30, -230], [476, 37.4, -266], [437, 2.2, -292], [456, 10.4, -203]].map((e) => new THREE.Vector3(...e));
+  const look = new THREE.Vector3();
+  // The moon's disc (moon.js) is added onto whatever the dome draws behind
+  // it, so the dome reads where it hangs and how big from the disc's own
+  // uniforms and lights the sky round it, never under it.
+  let moonAt = { uMoonC: { value: new THREE.Vector3() }, uMoonR: { value: 0 } };
+  scene.traverse((o) => {
+    for (const m of [].concat(o.material ?? [])) if (m.name === "moon" && m.uniforms?.uCenter) moonAt = { uMoonC: m.uniforms.uCenter, uMoonR: m.uniforms.uRadius };
+  });
   const sky = new THREE.Mesh(skyGeo, new THREE.ShaderMaterial({
-    uniforms: { ...shared, uMotion: { value: reduced ? 0 : 1 } },
+    uniforms: { ...shared, ...moonAt, uHold: { value: 0 }, uFarFree: farFree, uMotion: { value: reduced ? 0 : 1 } },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       void main() {
@@ -1192,6 +3592,12 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     fragmentShader: /* glsl */ `
       ${COMMON}
       uniform float uMotion;
+      uniform vec3 uMoonC;
+      uniform float uMoonR;
+      // 1 for the page's own Contact view (see update): its headline and
+      // links are over this sky.
+      uniform float uHold;
+      const float HOLD_SKY = ${HOLD_SKY};
       varying vec3 vDir;
 
       float vnoise(vec2 p) {
@@ -1211,35 +3617,162 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         return s / 0.9375;
       }
 
+${STREET}
       // The far city's ground: its blocks stand on a ${cell} m grid, so its
-      // streets run between them. A lamp every eleven and a half metres down
-      // each kerb, a pool of light under it, and now and then a car's lights
-      // going along. Past a pixel a lamp is spread into its street rather
-      // than sparkling.
-      vec3 streets(vec3 p, float time, float px) {
+      // streets run between them: wet asphalt 12 m wide between kerbs, a
+      // dashed line down its middle, paving either side to the lot line,
+      // and inside the block a paved yard with a lamp of its own somewhere
+      // in it, so that no ground past the kit is a black plane. A lamp
+      // every eleven and a half metres down each kerb, a pool of light under
+      // it, and now and then a car's lights going along. Past a pixel a lamp
+      // is spread into its street rather than sparkling, and the paint and
+      // the joints are gone.
+      // What is in a block of the far city where no building stands on it
+      // (and round the foot of one that does): c is metres from the
+      // block's middle, lot which block. A car park under four lamps, its
+      // bays painted and most of them taken; a floodlit court; a yard of
+      // containers; a pocket park, its paths lit; a slab being built on.
+      // gl is the night's light on the ground. Far off, each its mean.
+      vec3 yardOf(vec2 c, vec2 lot, vec3 gl, float px) {
+        float fine = 1.0 - smoothstep(0.25, 1.0, px);
+        float kind = hash12(lot + 17.3);
+        float hk = hash12(lot + 29.7);
+        vec2 a = abs(c);
+        if (kind < 0.34) {
+          // Bays 2.5 m wide in four rows along x, an aisle between each pair.
+          vec3 col = vec3(0.03, 0.03, 0.034) * gl;
+          float row = floor((c.y + 12.5) / 5.0);
+          float fy = fract((c.y + 12.5) / 5.0) * 5.0;
+          float bay = floor(c.x / 2.5);
+          float fx = fract(c.x / 2.5) * 2.5;
+          float parked = step(1.5, mod(row + 1.0, 3.0)) + step(mod(row + 1.0, 3.0), 0.5);
+          float line = step(min(fx, 2.5 - fx), 0.07) * step(0.2, fy) * parked * fine;
+          col = mix(col, vec3(0.3, 0.3, 0.3) * gl, line);
+          float hc = hash12(vec2(bay, row) + lot * 3.1);
+          float car = step(abs(fx - 1.25), 0.9) * step(abs(fy - 2.5), 2.1) * step(0.38, hc) * parked;
+          vec3 paint = hc < 0.55 ? vec3(0.02, 0.021, 0.025) : hc < 0.7 ? vec3(0.1, 0.1, 0.11) : hc < 0.8 ? vec3(0.11, 0.016, 0.02) : hc < 0.9 ? vec3(0.015, 0.035, 0.09) : vec3(0.16, 0.16, 0.17);
+          float glass = step(abs(fy - 2.2), 0.9) * step(abs(fx - 1.25), 0.72);
+          vec3 carCol = mix(paint * gl * 1.5, vec3(0.006, 0.009, 0.014) + gl * 0.012, glass);
+          col = mix(col, mix(carCol, paint * gl, 1.0 - fine), car * mix(1.0, 0.6, 1.0 - fine));
+          vec2 d = a - vec2(6.5, 5.0);
+          vec3 lampCol = hk < 0.6 ? vec3(1.0, 0.72, 0.42) : vec3(0.75, 0.88, 1.0);
+          col += lampCol * (0.16 * exp(-dot(d, d) / 30.0) + 0.5 * exp(-dot(d, d) / max(0.2, px * px)) * min(1.0, 0.3 / (px * px)));
+          return col;
+        }
+        if (kind < 0.52) {
+          // A court, painted and floodlit from two masts.
+          vec3 paintCol = hk < 0.4 ? vec3(0.02, 0.06, 0.12) : hk < 0.75 ? vec3(0.03, 0.09, 0.05) : vec3(0.11, 0.045, 0.03);
+          float court = step(a.x, 11.0) * step(a.y, 6.5);
+          float lines = step(abs(a.x - 11.0), 0.08) * step(a.y, 6.5) + step(abs(a.y - 6.5), 0.08) * step(a.x, 11.0) + step(a.x, 0.06) * step(a.y, 6.5) + step(abs(length(c) - 1.8), 0.06) + step(abs(length(a - vec2(8.6, 0.0)) - 2.2), 0.06);
+          vec3 flood = vec3(0.86, 0.92, 1.0) * (0.34 * exp(-dot(c, c) / 110.0));
+          vec3 col = mix(vec3(0.028, 0.028, 0.032), paintCol, court) * (gl + flood * 2.0);
+          col = mix(col, vec3(0.42) * (gl + flood * 2.0), min(lines, 1.0) * court * fine);
+          return col + flood * 0.03;
+        }
+        if (kind < 0.7) {
+          // Containers in rows, two and three deep.
+          vec2 g = vec2(c.x / 12.6, c.y / 2.9);
+          vec2 f = fract(g);
+          float hb = hash12(floor(g) + lot * 5.3);
+          float box = step(0.03, f.x) * step(f.x, 0.97) * step(0.06, f.y) * step(f.y, 0.94) * step(0.42, hb) * step(a.x, 12.4) * step(a.y, 11.4);
+          vec3 paint = hb < 0.56 ? vec3(0.12, 0.045, 0.025) : hb < 0.7 ? vec3(0.02, 0.05, 0.11) : hb < 0.82 ? vec3(0.03, 0.09, 0.06) : hb < 0.92 ? vec3(0.1, 0.1, 0.1) : vec3(0.15, 0.1, 0.02);
+          float rib = 0.82 + 0.18 * step(0.5, fract(c.x / 0.42));
+          vec3 col = mix(vec3(0.024, 0.024, 0.028) * gl, paint * gl * (1.0 + hb) * mix(rib, 0.91, 1.0 - fine), box);
+          vec2 d = c - (vec2(hk, fract(hk * 7.3)) - 0.5) * 14.0;
+          return col + vec3(1.0, 0.6, 0.26) * 0.2 * exp(-dot(d, d) / 46.0) * (1.0 + 2.0 * box);
+        }
+        if (kind < 0.85) {
+          // A pocket park: dark grass under trees, paved paths lit by a lamp
+          // every few metres, and a lit square in the middle round a pool.
+          // (Grass and a thin cross of path under two lamps was a green tile
+          // with an X on it from the air.)
+          vec2 g = c / 5.0;
+          vec2 tc = (fract(g) - 0.5) * 5.0 + (vec2(hash12(floor(g) + lot), hash12(floor(g) + lot + 3.7)) - 0.5) * 2.0;
+          float tree = step(0.35, hash12(floor(g) + lot * 1.3)) * (1.0 - smoothstep(1.6, 2.1, length(tc)));
+          // (A ring of path and one path in from a side, so no cross.)
+          float off = (hk - 0.5) * 8.0;
+          float path = max(step(abs(length(c) - 7.5), 0.9), step(abs(c.y - off), 0.9) * step(c.x, -6.8)) * step(max(a.x, a.y), 12.5);
+          float square = step(length(c), 4.0);
+          float pool = step(length(c), 2.0);
+          tree *= 1.0 - max(path, square);
+          tree = clamp(tree, 0.0, 1.0);
+          vec3 grass = vec3(0.008, 0.026, 0.014) * (0.7 + 0.6 * hash12(floor(c / 1.3) + lot));
+          vec3 col = grass * gl;
+          // Each tree a round crown, lit at its rim by the lamps.
+          col = mix(col, (vec3(0.012, 0.04, 0.022) * gl + vec3(0.02, 0.05, 0.03) * smoothstep(1.2, 2.0, length(tc))) * (0.7 + 0.5 * hash12(floor(g) + lot + 9.1)), tree);
+          col = mix(col, vec3(0.06, 0.058, 0.055) * gl, max(path, square) * (1.0 - pool));
+          vec3 lampCol = hk < 0.7 ? vec3(1.0, 0.74, 0.44) : vec3(0.3, 0.95, 0.85);
+          col = mix(col, vec3(0.01, 0.03, 0.05) + lampCol * 0.08, pool);
+          // The lamps along the paths, each a pool on the paving.
+          float along = (abs(length(c) - 7.5) < 0.9 ? atan(c.y, c.x) * 7.5 : c.x) / 6.0;
+          float lamp = exp(-pow((fract(along) - 0.5) * 6.0, 2.0) / 1.2) * path;
+          col += lampCol * (0.22 * lamp + 0.18 * exp(-dot(c, c) / 18.0) + 0.6 * exp(-dot(c, c) / max(0.3, px * px)) * min(1.0, 0.3 / (px * px)) * step(0.5, hk));
+          return col;
+        }
+        // A slab going up: pale concrete, bars laid out on it, a cabin
+        // with its light on, a hazard line round it.
+        vec3 col = vec3(0.085, 0.085, 0.08) * gl * (1.0 - 0.3 * fine * step(min(fract(c.x / 1.2), fract(c.y / 1.2)), 0.08));
+        col = mix(col, vec3(0.3, 0.22, 0.02) * gl, step(abs(max(a.x, a.y) - 11.6), 0.25) * step(0.5, fract((c.x + c.y) / 1.6)) * fine);
+        vec2 d = c - vec2(7.0, -7.5) * (hk < 0.5 ? 1.0 : -1.0);
+        col = mix(col, vec3(0.12, 0.13, 0.15) * gl, step(max(abs(d.x) - 3.0, abs(d.y) - 1.3), 0.0));
+        return col + vec3(0.9, 0.95, 1.0) * 0.22 * exp(-dot(d, d) / 40.0);
+      }
+
+      vec3 streets(vec3 p, float time, float px, float lift) {
         vec2 q = (p.xz + vec2(${900 - cell / 2}.0, ${1700 - cell / 2}.0)) / ${cell}.0;
         // Signed metres from the nearest street's middle, on each axis.
         vec2 off = (fract(q + 0.5) - 0.5) * ${cell}.0;
         vec2 id = floor(q + 0.5);
-        float road = 1.0 - smoothstep(5.0, 6.0 + px, min(abs(off.x), abs(off.y)));
-        vec3 base = vec3(0.004, 0.004, 0.006) + vec3(0.008, 0.007, 0.009) * road;
+        float mid = min(abs(off.x), abs(off.y));
+        float road = 1.0 - smoothstep(5.0, 6.0 + px, mid);
+        float walk = (1.0 - road) * (1.0 - smoothstep(9.6, 10.4 + px, mid));
+        float close = 1.0 - smoothstep(0.08, 0.4, px);
+        vec3 paving = vec3(0.017, 0.017, 0.02) * (1.0 - 0.3 * close * step(min(fract(p.x * 0.5), fract(p.z * 0.5)), 0.05));
+        vec3 yard = vec3(0.011, 0.011, 0.014) * (1.0 - 0.25 * close * step(min(fract(p.x * 0.25), fract(p.z * 0.25)), 0.03));
+        vec3 base = mix(mix(yard, paving, walk), vec3(0.006, 0.006, 0.008) + uHazeColor * 0.035, road);
+        // The night's light on the ground, and under it what the ground
+        // is: wet asphalt that holds the sky, flags, and inside the block
+        // whatever the block is used for. (Within what Contact frames the
+        // ground is as it was, but for an eye above the roofs.)
+        float bearing = degrees(atan(p.z - ${CONTACT_LENS[1]}.0, p.x - ${CONTACT_LENS[0]}.0));
+        float outside = clamp(step(bearing, ${FRAMED[0]}.0) + step(${FRAMED[1]}.0, bearing), 0.0, 1.0);
+        float renew = max(lift, outside);
+        if (renew > 0.001) {
+          vec3 gl = vec3(0.3) + (uHazeColor * 0.3 + uGlowColor * 0.16) * uHaze * 22.0;
+          vec3 wet = vec3(0.016, 0.016, 0.019) * gl + (uHazeColor * 0.1 + uGlowColor * 0.03) * uHaze;
+          vec3 flags = vec3(0.05, 0.05, 0.054) * gl * (1.0 - 0.3 * close * step(min(fract(p.x * 0.5), fract(p.z * 0.5)), 0.05));
+          vec3 inside = yardOf((fract(q) - 0.5) * ${cell}.0, floor(q), gl, px);
+          base = mix(base, mix(mix(inside, flags, walk), wet, road), renew);
+        }
+        // The kerb's edge, and the line down the middle of whichever street
+        // this is, broken at the junctions.
+        float alongX = step(abs(off.y), abs(off.x));
+        float away = max(abs(off.x), abs(off.y));
+        float run = alongX > 0.5 ? p.x : p.z;
+        base += vec3(0.02, 0.02, 0.022) * close * (1.0 - smoothstep(0.0, 0.12, abs(mid - 6.0)));
+        base += vec3(0.11, 0.11, 0.1) * close * step(mid, 0.09) * step(fract(run / 9.0), 0.34) * step(7.0, away);
+        // A crossing on each arm of a junction, striped as the kit's are.
+        base += vec3(0.16, 0.12, 0.02) * close * road * step(7.2, away) * step(away, 10.2) * step(0.5, fract((alongX > 0.5 ? p.z : p.x) / 1.3));
+        // A yard's own lamp.
+        vec2 lot = floor(q);
+        vec2 inLot = (fract(q) - 0.5) * ${cell}.0 - (vec2(hash12(lot + 2.3), hash12(lot + 7.9)) - 0.5) * 20.0;
+        float lh = hash12(lot + 11.1);
+        // (Cyan and sodium in the navy night, pink for one in twenty five;
+        // within what Contact frames, as they were.)
+        float pinkFrom = mix(0.66, 0.76, outside);
+        base += (1.0 - renew) * (lh > 0.8 ? vec3(0.2, 0.85, 0.95) : lh > 0.66 ? (lh > pinkFrom ? vec3(1.0, 0.25, 0.7) : vec3(0.2, 0.85, 0.95)) : vec3(1.0, 0.6, 0.3)) * exp(-dot(inLot, inLot) / 34.0) * 0.05 * step(0.3, lh);
         vec3 light = vec3(0.0);
+        // On the dressed streets, seen from the pavement, a shop's light is
+        // the shop's own and a car is a car: the glow that stands for them
+        // from the air is for the air.
+        float afar = mix(1.0, smoothstep(0.15, 0.6, px), dressedAt(p.xz));
         // Streets along z (off.x small) and along x (off.y small).
         for (int k = 0; k < 2; k++) {
           float across = k == 0 ? off.x : off.y;
           float along = k == 0 ? p.z : p.x;
           float street = k == 0 ? id.x : id.y;
           if (abs(across) > 9.0 + px) continue;
-          float dz = abs(fract(along / 11.5 + 0.5) - 0.5) * 11.5;
-          float dk = abs(abs(across) - 4.2);
-          float d2 = dk * dk + dz * dz;
-          float r = max(0.9, px);
-          float lamp = exp(-d2 / (r * r)) * (0.81 / (r * r));
-          float on = step(0.12, hash12(vec2(floor(along / 11.5 + 0.5), street * 3.1 + float(k))));
-          // Each lamp's pool runs into the next, so a street reads as a line.
-          float pool = exp(-dk * dk / 8.0 - dz * dz / 45.0) * 0.12;
-          vec3 sodium = mix(vec3(1.0, 0.55, 0.2), vec3(0.85, 0.9, 1.0), step(0.7, hash12(vec2(street, float(k) + 3.0))));
-          light += sodium * (lamp * 1.4 * on + pool * (0.4 + 0.6 * on));
+          light += kerbLamps(across, along, street, float(k), px);
           // Shopfronts at the foot of the blocks: a band of light along each
           // kerb, a colour to each front, some of them shut.
           float front = hash12(vec2(floor(along / 7.0), street * 5.3 + float(k) * 7.0 + step(0.0, across)));
@@ -1247,7 +3780,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
           float within = step(abs(fract(along / 7.0) - 0.5), 0.36);
           float rs = max(1.2, px);
           float kerb = abs(across) - 7.4;
-          light += shopCol * exp(-kerb * kerb / (rs * rs)) * (1.2 / rs) * step(0.55, front) * mix(0.72, within, 1.0 - smoothstep(1.0, 4.0, px)) * 0.22;
+          light += shopCol * exp(-kerb * kerb / (rs * rs)) * (1.2 / rs) * step(0.55, front) * mix(0.72, within, 1.0 - smoothstep(1.0, 4.0, px)) * 0.22 * afar;
           // Cars: a lane each way, one every sixty metres or so, some of
           // them missing, head lamps one way and tail lamps the other.
           for (int lane = 0; lane < 2; lane++) {
@@ -1260,40 +3793,123 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
             float dl = abs(across - sgn * 1.8);
             float rc = max(0.7, px);
             float car = exp(-(ds * ds * 0.5 + dl * dl * 1.5) / (rc * rc)) * (0.5 / (rc * rc));
-            light += (lane == 0 ? vec3(1.0, 0.92, 0.8) : vec3(1.0, 0.08, 0.05)) * car * present * 2.0;
+            light += (lane == 0 ? vec3(1.0, 0.92, 0.8) : vec3(1.0, 0.08, 0.05)) * car * present * 2.0 * afar;
           }
         }
         return base + light;
+      }
+
+      // Whether a point on the ground is inside the kit's footprint (six
+      // metres inside its rectangles: the districts' own ground stops a
+      // little short of them, and the strip between was black).
+      float inKit(vec2 p) {
+        float k = 0.0;
+${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k, step(${(x0 + 6).toFixed(1)}, p.x) * step(p.x, ${(x1 - 6).toFixed(1)}) * step(${(z0 + 6).toFixed(1)}, p.y) * step(p.y, ${(z1 - 6).toFixed(1)}));`).join("\n")}
+        return k;
       }
 
       // Searchlights from downtown and the south, sweeping slowly (the
       // south one well left of Contact's moon, which it would skewer): the
       // nearest a view ray comes to each beam, lit the more the closer, the
       // beam widening as it climbs and gone into the cloud.
+      // One beam: the nearest a view ray comes to it, lit the more the
+      // closer, the beam widening as it climbs and gone into the cloud.
+      float beam(vec3 base, vec3 a, vec3 dir, float broad) {
+        vec3 w0 = uCam - base;
+        float b = dot(dir, a);
+        float d = dot(dir, w0);
+        float e = dot(a, w0);
+        float den = max(1.0 - b * b, 1e-4);
+        float tau = (b * e - d) / den;
+        float s = (e - b * d) / den;
+        if (tau <= 0.0 || s <= 0.0) return 0.0;
+        vec3 gap = w0 + dir * tau - a * s;
+        float width = mix(3.0 + s * 0.03, 11.0 + s * 0.055, broad);
+        float height = base.y + a.y * s;
+        return exp(-dot(gap, gap) / (width * width)) * exp(-s / 900.0) * exp(-tau * 0.00035) * (1.0 - smoothstep(${CLOUD_H - 80}.0, ${CLOUD_H + 40}.0, height));
+      }
       vec3 searchlights(vec3 dir, float time) {
-        vec3 sum = vec3(0.0);
-        for (int i = 0; i < 3; i++) {
+        float sum = 0.0;
+        float lift = smoothstep(40.0, 62.0, uCam.y);
+        for (int i = 0; i < ${count < 2000 ? 6 : 9}; i++) {
           float fi = float(i);
-          vec3 base = i == 0 ? vec3(-460.0, 0.0, -1500.0) : i == 1 ? vec3(420.0, 0.0, -1250.0) : vec3(-200.0, 0.0, 1000.0);
+          // The first three are a kilometre off and faint. The others stand
+          // just past the kit, west, east, south, south-west, north-west
+          // and further east, each far enough off the hero's avenue and
+          // Contact's moon that its sweep never crosses either.
+          vec3 base = i == 0 ? vec3(-460.0, 0.0, -1500.0) : i == 1 ? vec3(420.0, 0.0, -1250.0) : i == 2 ? vec3(-200.0, 0.0, 1000.0)
+            : i == 3 ? vec3(-520.0, 0.0, -250.0) : i == 4 ? vec3(820.0, 0.0, -560.0) : i == 5 ? vec3(60.0, 0.0, 480.0)
+            : i == 6 ? vec3(-420.0, 0.0, 330.0) : i == 7 ? vec3(-700.0, 0.0, -500.0) : vec3(1150.0, 0.0, -420.0);
           float turn = time * (0.045 + 0.018 * fi) + fi * 2.4;
           float lean = 0.34 + 0.12 * sin(time * 0.06 + fi * 1.7);
-          vec3 a = normalize(vec3(sin(turn) * lean, 1.0, cos(turn) * lean));
-          vec3 w0 = uCam - base;
-          float b = dot(dir, a);
-          float d = dot(dir, w0);
-          float e = dot(a, w0);
-          float den = max(1.0 - b * b, 1e-4);
-          float tau = (b * e - d) / den;
-          float s = (e - b * d) / den;
-          if (tau <= 0.0 || s <= 0.0) continue;
-          vec3 gap = w0 + dir * tau - a * s;
-          float width = 3.0 + s * 0.03;
-          float core = exp(-dot(gap, gap) / (width * width));
-          float height = base.y + a.y * s;
-          float fade = exp(-s / 900.0) * exp(-tau * 0.00035) * (1.0 - smoothstep(${CLOUD_H - 80}.0, ${CLOUD_H + 40}.0, height));
-          sum += core * fade;
+          // The near ones are broad, a pale band across the whole sky (but
+          // the east one, which sweeps through Corpo Row's low angle), and
+          // they work in pairs: a second beam from the same lamps, crossing
+          // the first.
+          float broad = i > 2 && i != 4 ? 1.0 : 0.0;
+          float gain = broad > 0.5 ? 4.6 : i > 2 ? 1.8 : 1.0;
+          sum += beam(base, normalize(vec3(sin(turn) * lean, 1.0, cos(turn) * lean)), dir, broad) * gain;
+          // (The second beam is for an eye above the roofs, as is their
+          // strength there, where the air is lit: from the page's own
+          // lenses the sky holds the beams it had.)
+          if (broad > 0.5 && lift > 0.001) sum += beam(base + vec3(14.0, 0.0, 9.0), normalize(vec3(sin(turn * 0.8 + 2.3) * (0.5 - lean * 0.6), 1.0, cos(turn * 0.8 + 2.3) * (0.5 - lean * 0.6))), dir, broad) * gain * 0.8 * lift;
         }
-        return vec3(0.6, 0.68, 0.9) * sum * 0.075 * uHaze;
+        // (For a free eye the beams are the city's cyan and two thirds as
+        // strong: broad and grey-blue they read as a flat pale haze over
+        // the sky, pooled with the columns' light.)
+        float free = freeEye() * uFarFree;
+        return mix(vec3(0.6, 0.68, 0.9), vec3(0.28, 0.72, 0.95) * 0.66, free) * sum * 0.075 * uHaze * mix(1.0, 2.0, lift);
+      }
+
+      // Past the far ring the city goes on over the horizon (for a free eye;
+      // the camera's far plane is 2.4 km): two rows of towers painted on
+      // the dome, 2.9 and 3.6 km off, each 50 to 90 m wide, most of them
+      // 90 to 400 m tall and taller toward the far ring's own clusters, a
+      // step at the top of some, floors lit in strips through the haze and
+      // a red lamp on the tall ones. Where the ring ended there was a pale
+      // band of empty air. t is the tangent of the look's elevation.
+      vec3 beyondRow(vec3 col, float az, float t, float pxT, float D, float k) {
+        float c = uCam.y;
+        if (t < -c / D) return col;
+        float gx = az * D / 70.0 + k * 31.0;
+        float bin = floor(gx);
+        float fx = fract(gx);
+        float h1 = hash12(vec2(bin, k * 7.1 + 1.3));
+        if (h1 < 0.15) return col;
+        // The clusters: E, SE, S, SW, W, NE of the kit, seen from here.
+        float cl = 0.0;
+        for (int i = 0; i < 6; i++) {
+          vec2 at = i == 0 ? vec2(3200.0, -400.0) : i == 1 ? vec2(2600.0, 2200.0) : i == 2 ? vec2(300.0, 3000.0) : i == 3 ? vec2(-2400.0, 2000.0) : i == 4 ? vec2(-2900.0, -700.0) : vec2(2600.0, -3200.0);
+          vec2 to = at - uCam.xz;
+          float da = abs(mod(az - atan(to.y, to.x) + 3.14159, 6.28318) - 3.14159);
+          cl += exp(-da * da / 0.022);
+        }
+        float h2 = hash12(vec2(bin, k * 7.1 + 4.9));
+        float H = (90.0 + 310.0 * h1 * h1) * (1.0 + 0.9 * min(cl, 1.2));
+        float m = 0.06 + 0.16 * h2;
+        if (fx < m || fx > 1.0 - m) return col;
+        // A step at the top of half of them: the middle stands higher.
+        float stepUp = step(0.5, h2) * step(abs(fx - 0.5), 0.2) * H * (0.08 + 0.14 * fract(h2 * 9.3));
+        float top = H + stepUp;
+        float y = c + t * D;
+        float pxm = max(pxT * D, 0.5);
+        float inside = 1.0 - smoothstep(top - pxm, top + pxm, y);
+        if (inside <= 0.0) return col;
+        // The body: darker than the air behind it, as hazed as its distance.
+        vec3 body = mix(col, vec3(0.01, 0.02, 0.045) + uHazeColor * 0.25 * uHaze, mix(0.64, 0.5, k));
+        // Floors of 5 m lit in runs of about 18 m, two in five.
+        float fy = y / 5.0;
+        float along = fx * 70.0;
+        float run = floor(along / 18.0 + hash12(vec2(bin, floor(fy))) * 3.0);
+        float on = step(hash12(vec2(run + bin * 13.0, floor(fy) + k * 3.0)), 0.42) * step(0.3, fract(fy)) * step(fract(fy), 0.75);
+        float rowPx = pxT * D / 5.0;
+        on = mix(on, 0.42 * 0.45, smoothstep(0.35, 0.9, rowPx));
+        vec3 light = (fract(h2 * 5.7) < 0.5 ? vec3(1.0, 0.72, 0.36) : vec3(0.5, 0.88, 1.0)) * mix(0.55, 0.36, k);
+        body += light * on * step(y, H - 3.0);
+        // A red lamp on the tall ones.
+        vec2 lamp = vec2((fx - 0.5) * 70.0, y - top - 1.5);
+        body += vec3(1.0, 0.06, 0.04) * 1.6 * step(220.0, H) * exp(-dot(lamp, lamp) / max(6.0, pxm * pxm * 2.0));
+        return mix(col, body, inside);
       }
 
       void main() {
@@ -1306,11 +3922,92 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         float tg = max(uCam.y, 0.0) / max(-dir.y, 1e-4);
         vec3 pg = uCam + dir * tg;
         float px = max(max(fwidth(pg.x), fwidth(pg.z)), 0.05);
+        float tanEl = dir.y / max(length(dir.xz), 1e-4);
+        float pxT = fwidth(tanEl);
         vec3 glow = uHazeColor * (0.55 + 0.25 * uLevel) * exp(-h * 9.0) * uHaze;
         vec3 col = vec3(0.004, 0.004, 0.007) + glow + uHazeColor * 0.08 * exp(-h * 2.5);
+        // For an eye above the roofs the night is the show's: deep blue
+        // overhead, brighter and bluer down to the horizon, cyan in the
+        // last degrees and a trace of the city's sodium green on the line
+        // itself. (From the streets and the roofs the page looks from, the
+        // sky is as it was.)
+        float lift = smoothstep(40.0, 62.0, uCam.y);
+        // (One sky: the violet was a wide arc toward downtown, half the
+        // sky from the air. It is a glow close round the hologram over the
+        // canyon now, some 170 m about it whatever the distance, so from a
+        // kilometre off it is a patch and not the sky's colour.)
+        vec3 toHolo = vec3(-10.0, 150.0, -600.0) - uCam;
+        float holoWide = atan(170.0, length(toHolo));
+        float nearHolo = 1.0 - smoothstep(0.5 * holoWide, 1.6 * holoWide, acos(clamp(dot(dir, normalize(toHolo)), -1.0, 1.0)));
+        vec3 air = vec3(0.0015, 0.005, 0.03) + vec3(0.003, 0.022, 0.1) * exp(-h * 4.5) + vec3(0.006, 0.07, 0.1) * exp(-h * 16.0) + vec3(0.02, 0.035, 0.008) * exp(-h * 34.0);
+        col += lift * uHaze * mix(air, vec3(air.b * 0.45, air.g * 0.3, air.b * 0.9) + vec3(0.03, 0.006, 0.05) * exp(-h * 5.0), nearHolo * 0.6);
+        // From a low roof looking east and south-east (the quarter Contact
+        // looks into) the city's light stands low on the horizon behind the
+        // megatowers, blue-teal and lighter than they are. Gone by eight
+        // degrees up, well under the moon's own sky, and not there from the
+        // street (the garage street's frame) nor from the air (lift).
+        float lowRoof = smoothstep(6.0, 10.0, uCam.y) * (1.0 - lift) * smoothstep(0.0, 0.6, dot(normalize(dir.xz + 1e-5), vec2(0.8, 0.6)));
+        col += lowRoof * uHaze * (vec3(0.004, 0.03, 0.075) * exp(-h * 9.0) + vec3(0.006, 0.07, 0.1) * exp(-h * 22.0)) * (1.0 - smoothstep(0.08, 0.14, h));
         // The city's light in the air, meeting the fog at the horizon: a
         // band over the roofs, brightest toward downtown.
-        col += cityGlow(dir, h * 900.0) * (0.85 + 0.2 * uLevel);
+        // (From above the roofs, in the night's own blue-teal but round the
+        // hologram: cityGlow's is violet toward downtown.)
+        vec3 cg = cityGlow(dir, h * 900.0) * (0.85 + 0.2 * uLevel);
+        col += mix(cg, mix(vec3(0.2, 0.62, 1.0) * dot(cg, vec3(0.45, 0.45, 0.3)), cg, nearHolo), lift);
+        // From the air the city's light stands over the skyline on every
+        // bearing and not only on the line itself: a lit blue haze up to
+        // thirty degrees and more, teal low down, and toward the core (the
+        // landmark towers north of the megabuilding) green and yellow in
+        // the last ten degrees, fading up into the night's navy.
+        vec2 toCore = vec2(0.0, -950.0) - uCam.xz;
+        float core = pow(max(dot(normalize(dir.xz + 1e-5), toCore * inversesqrt(dot(toCore, toCore) + 1.0)), 0.0), 3.0);
+        vec3 over = vec3(0.003, 0.026, 0.085) * exp(-h * 2.6) + vec3(0.004, 0.05, 0.07) * exp(-h * 7.0) + mix(vec3(0.0, 0.02, 0.03), vec3(0.08, 0.11, 0.016), core) * exp(-h * 9.0);
+        col += lift * uHaze * over * (1.0 - nearHolo * 0.5);
+        // For a free eye the city's own light stands low over the skyline
+        // on every bearing, the lowest tenth or so of the sky: toward the
+        // advert columns teal, yellow-green on the line itself, and
+        // magenta everywhere else; the clouds over it are lit from under in
+        // the same light (below). The low sky was the same cold blue as
+        // overhead. Not at the page's lenses.
+        float free = freeEye() * uFarFree;
+        vec3 low = vec3(0.0);
+        if (free > 0.001 && dir.y > -0.02 && dir.y < 0.45) {
+          vec2 dxz = normalize(dir.xz + 1e-5);
+          float ad = 0.0;
+${colGlow.join("\n")}
+          ad = min(ad, 1.0);
+          float hh = max(dir.y, 0.0);
+          vec3 tint = mix(vec3(0.15, 0.02, 0.125), mix(vec3(0.018, 0.13, 0.12), vec3(0.12, 0.16, 0.02), exp(-hh * 30.0)), ad);
+          float band = exp(-hh * 6.5);
+          low = tint * (band * 0.8 + exp(-hh * 25.0) * 0.6) * uHaze * free;
+          // (The night's cold blue gives way to it there, so the low sky
+          // changes colour and does not only grow paler.)
+          col = mix(col, col * vec3(0.7, 0.78, 0.62), band * band * 0.55 * free) + low;
+        }
+        // The moon lights the wet air round it, blue and white: bright at
+        // its limb and lifting the sky for a few of its widths about it.
+        // Nothing changes over the disc itself, which is added onto this.
+        float moonOut = 1.0;
+        vec3 moonGlow = vec3(0.0);
+        if (uMoonR > 0.0) {
+          vec3 tm = uMoonC - uCam;
+          float dm = length(tm);
+          float rho = atan(uMoonR * 0.4, dm);
+          float th = acos(clamp(dot(dir, tm / dm), -1.0, 1.0));
+          moonOut = smoothstep(rho * 0.99, rho * 1.06, th);
+          float x = max(th - rho, 0.0) / rho;
+          moonGlow = vec3(0.34, 0.52, 1.0) * (0.05 * exp(-x * 1.6) + 0.032 * exp(-x * 0.42) + 0.012 * exp(-x * 0.14)) * moonOut;
+        }
+        // (Behind the page's last words, all of it at a fraction: the same
+        // blue, less of it.)
+        float keep = mix(1.0, HOLD_SKY, uHold);
+        moonGlow *= keep;
+        // And from a low roof looking into the quarter Contact looks into,
+        // the night is the show's lit blue there too, lighter toward the
+        // horizon (not from the street nor from the page's other roofs,
+        // which look elsewhere).
+        col += moonOut * lowRoof * keep * uHaze * (vec3(0.002, 0.009, 0.034) * exp(-h * 1.8) + vec3(0.002, 0.016, 0.03) * exp(-h * 6.0));
+        col += moonGlow;
 
         if (dir.y > 0.0) {
           // A broken deck of cloud, lit from under by the city: the glow's
@@ -1324,19 +4021,57 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
           float n = fbm(c + 0.9 * vec2(fbm(c * 0.5 + 5.2), fbm(c * 0.5 + 1.3)));
           float cover = smoothstep(0.42, 0.72, n);
           float near = 1.0 - smoothstep(2500.0, 12000.0, t);
-          vec3 under = (cityGlow(dir, 0.0) * 0.5 + uHazeColor * 0.25) * (0.3 + 0.9 * n);
+          vec3 cg0 = cityGlow(dir, 0.0);
+          cg0 = mix(cg0, mix(vec3(0.2, 0.62, 1.0) * dot(cg0, vec3(0.45, 0.45, 0.3)), cg0, nearHolo), lift);
+          vec3 under = (cg0 * 0.5 + uHazeColor * 0.25) * (0.3 + 0.9 * n);
+          // (From the air and from Contact's roof the deck is blue, its
+          // underside lit by the city below it, and where it passes near
+          // the moon its edges catch the moon's light.)
+          float blue = max(lift, lowRoof * keep) * moonOut;
+          under = mix(under, vec3(0.012, 0.042, 0.12) * (0.25 + 1.1 * n) + vec3(0.01, 0.03, 0.035) * n * n, blue * 0.8);
+          // East, where none of the page's own lenses looks (between Corpo
+          // Row's frame and Contact's), the deck shows its shapes from the
+          // street too: lit from under, where it was one flat black-teal.
+          under += vec3(0.005, 0.016, 0.03) * (0.3 + 0.9 * n) * (1.0 - lift) * smoothstep(0.95, 0.995, dot(normalize(dir.xz + 1e-5), vec2(0.9816, -0.1908)));
           col = mix(col, col * 0.55, (1.0 - cover) * near) + under * cover * near * 0.8;
+          col += moonGlow * cover * (1.0 + 2.5 * n) * near;
+          // (Only the low deck, over the skyline: across the whole deck it
+          // turned the night violet.)
+          col += low * cover * (0.6 + 1.2 * n) * near * 0.8 * exp(-h * 5.0);
           // Lightning inside the cloud: the deck lit from within round the
           // strike, brightest where it is thickest.
           float strike = exp(-length(p.xz - uFlashAt) / 420.0);
           col += vec3(0.62, 0.64, 0.92) * uFlash * strike * (0.1 + 0.9 * cover * n) * near;
+          // And storms of the far city's own, out over its edges west,
+          // south and east (never up the hero's avenue nor behind Contact's
+          // moon): each cell flickers for half a second every several, on
+          // its own clock, so some view always has one going.
+          for (int j = 0; j < 5; j++) {
+            float fj = float(j);
+            vec2 at = j == 0 ? vec2(-1150.0, -260.0) : j == 1 ? vec2(-520.0, 1250.0) : j == 2 ? vec2(1500.0, -1000.0) : j == 3 ? vec2(-1000.0, 600.0) : vec2(-1250.0, -900.0);
+            float u = fract(time / (7.0 + 1.5 * fj) + (j == 0 ? 0.316 : j == 1 ? 0.618 : j == 2 ? 0.5 : j == 3 ? 0.4 : 0.3));
+            if (u > 0.12) continue;
+            float pulse = exp(-u * 60.0) + 0.7 * exp(-abs(u - 0.035) * 90.0) + 0.5 * exp(-abs(u - 0.06) * 120.0);
+            vec2 off = (p.xz - at) / 520.0;
+            col += vec3(0.62, 0.64, 0.92) * pulse * exp(-dot(off, off)) * (0.12 + 0.88 * cover * n) * near;
+          }
         } else if (uCam.y > 0.0) {
-          // Only past the kit: anything nearer that shows the ground is a
-          // gap between the kit's own pieces, and it stays dark.
-          vec3 ground = streets(pg, time, px) * smoothstep(20.0, 60.0, tg);
-          vec3 fogged = cityFog(ground, pg, 0.0);
+          // Inside the kit's footprint, anything near that shows the
+          // ground is a gap between the kit's own pieces, and it stays
+          // dark. Past it the ground is the far city's from the first metre.
+          vec3 ground = streets(pg, time, px, smoothstep(40.0, 62.0, uCam.y)) * mix(1.0, smoothstep(20.0, 60.0, tg), inKit(pg.xz));
+          vec3 fogged = sodiumBeyond(airFog(ground, pg, 0.0), pg);
+          // (And the far ground goes into that horizon, not into the dark.)
+          fogged += lift * vec3(0.004, 0.03, 0.09) * (1.0 - exp(-tg / 1300.0)) * uHaze;
           // The horizon's own band stays where the ground runs into it.
           col = mix(fogged, col, smoothstep(-0.004, 0.0, dir.y));
+        }
+        // (The city past the horizon, for a free eye: see beyondRow.)
+        if (free > 0.001 && dir.y < 0.12 && dir.y > -0.1) {
+          float az = atan(dir.z, dir.x);
+          vec3 b = beyondRow(col, az, tanEl, pxT, 3600.0, 1.0);
+          b = beyondRow(b, az, tanEl, pxT, 2900.0, 0.0);
+          col = mix(col, b, free);
         }
         col += searchlights(dir, time);
         gl_FragColor = vec4(col, 1.0);
@@ -1361,15 +4096,30 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   return {
     mesh,
     sky,
-    update(camera, pixelRatio = 1) {
+    // What stands where (the tools under the city's cache read it).
+    plan: { lots, forms, boxes, tips, midFrom },
+    update(camera, pixelRatio = 1, visibility = null) {
       sky.position.copy(camera.position);
+      // The world reuses its scene matrices between mirror and main.
+      // This camera-local sky moves during pass preparation, so update
+      // its matrix here rather than leaving the main pass one pose behind.
+      sky.updateMatrixWorld();
+      camera.getWorldDirection(look);
+      const pitch = Math.asin(Math.max(-1, Math.min(1, look.y))) * (180 / Math.PI);
+      const { smoothstep } = THREE.MathUtils;
+      sky.material.uniforms.uHold.value = (1 - smoothstep(camera.position.distanceTo(CONTACT_EYE), 4, 12)) * smoothstep(camera.fov ?? 0, 28, 34) * smoothstep(pitch, 3, 5.5) * (1 - smoothstep(pitch, 19, 22));
+      farFree.value = Math.min(...PAGE_EYES.map((e) => smoothstep(camera.position.distanceTo(e), 2, 6)));
       beaconMat.uniforms.uPixel.value = pixelRatio;
       camera.updateMatrixWorld();
       frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-      for (const c of cullers) c.update(frustum);
+      for (const c of cullers) c.update(frustum, visibility?.testSphere);
+      farStreet.update(frustum, camera.position, visibility?.testSphere);
     },
     dispose() {
       scene.remove(mesh, blocks, squares, sky, beaconPoints, ...roofMeshes);
+      skyColumns.dispose();
+      farStreet.dispose();
+      words.dispose();
       kitGeos.forEach((g) => g.dispose());
       roofMat.dispose();
       beaconGeo.dispose();

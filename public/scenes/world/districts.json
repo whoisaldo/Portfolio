@@ -1,0 +1,202 @@
+{
+ "districts": [
+  {
+   "name": "afterlife",
+   "label": "The Afterlife Block",
+   "bounds": {
+    "x0": 380.0,
+    "z0": -330.0,
+    "x1": 520.0,
+    "z1": -176.0
+   }
+  },
+  {
+   "name": "corpo",
+   "label": "Corpo Row",
+   "bounds": {
+    "x0": 108.0,
+    "z0": -420.0,
+    "x1": 470.0,
+    "z1": -186.0
+   }
+  },
+  {
+   "name": "deck",
+   "label": "The Deck",
+   "bounds": {
+    "x0": -94.0,
+    "z0": -95.0,
+    "x1": 132.0,
+    "z1": -65.0
+   }
+  },
+  {
+   "name": "plaza",
+   "label": "Corpo Plaza",
+   "bounds": {
+    "x0": 52.0,
+    "z0": -456.0,
+    "x1": 170.0,
+    "z1": -10.0
+   }
+  },
+  {
+   "name": "avenue",
+   "label": "Kabuki Avenue",
+   "bounds": {
+    "x0": -66.0,
+    "z0": -186.0,
+    "x1": 52.0,
+    "z1": 120.0
+   }
+  },
+  {
+   "name": "avenue",
+   "label": "Kabuki Avenue",
+   "bounds": {
+    "x0": 52.0,
+    "z0": 12.0,
+    "x1": 108.0,
+    "z1": 120.0
+   }
+  },
+  {
+   "name": "canyon",
+   "label": "The Canyon",
+   "bounds": {
+    "x0": -66.0,
+    "z0": -560.0,
+    "x1": 132.0,
+    "z1": -186.0
+   }
+  },
+  {
+   "name": "mega",
+   "label": "The Megabuilding",
+   "bounds": {
+    "x0": -94.0,
+    "z0": -900.0,
+    "x1": 132.0,
+    "z1": -560.0
+   }
+  },
+  {
+   "name": "japantown",
+   "label": "Japantown",
+   "bounds": {
+    "x0": -170.0,
+    "z0": -740.0,
+    "x1": -66.0,
+    "z1": 12.0
+   }
+  },
+  {
+   "name": "santo",
+   "label": "Santo Domingo",
+   "bounds": {
+    "x0": 108.0,
+    "z0": -186.0,
+    "x1": 580.0,
+    "z1": 120.0
+   }
+  }
+ ],
+ "streets": [
+  {
+   "name": "avenue",
+   "axis": "z",
+   "c": 0.0,
+   "from": -720.0,
+   "to": 88.0,
+   "half": 10.0,
+   "walk": 4.0,
+   "lanes": 2,
+   "bay": 2.6,
+   "loop": true
+  },
+  {
+   "name": "megabuilding",
+   "axis": "x",
+   "c": -720.0,
+   "from": -80.0,
+   "to": 60.0,
+   "half": 8.0,
+   "walk": 4.0,
+   "lanes": 2,
+   "bay": 0.0,
+   "loop": true
+  },
+  {
+   "name": "west",
+   "axis": "z",
+   "c": -80.0,
+   "from": -720.0,
+   "to": 1.0,
+   "half": 10.0,
+   "walk": 4.0,
+   "lanes": 2,
+   "bay": 0.0,
+   "loop": true
+  },
+  {
+   "name": "plaza",
+   "axis": "x",
+   "c": -179.0,
+   "from": -80.0,
+   "to": 440.0,
+   "half": 7.0,
+   "walk": 4.0,
+   "lanes": 1,
+   "bay": 2.4,
+   "loop": false
+  },
+  {
+   "name": "south",
+   "axis": "x",
+   "c": 1.0,
+   "from": -80.0,
+   "to": 440.0,
+   "half": 7.0,
+   "walk": 4.0,
+   "lanes": 2,
+   "bay": 0.0,
+   "loop": true
+  },
+  {
+   "name": "x120",
+   "axis": "z",
+   "c": 120.0,
+   "from": -330.0,
+   "to": 1.0,
+   "half": 8.0,
+   "walk": 4.0,
+   "lanes": 2,
+   "bay": 0.0,
+   "loop": true
+  },
+  {
+   "name": "boulevard",
+   "axis": "x",
+   "c": -330.0,
+   "from": 120.0,
+   "to": 440.0,
+   "half": 9.0,
+   "walk": 5.0,
+   "lanes": 2,
+   "bay": 0.0,
+   "loop": true
+  },
+  {
+   "name": "garage",
+   "axis": "z",
+   "c": 440.0,
+   "from": -330.0,
+   "to": 1.0,
+   "half": 8.0,
+   "walk": 4.0,
+   "lanes": 1,
+   "bay": 2.4,
+   "loop": true
+  }
+ ]
+}

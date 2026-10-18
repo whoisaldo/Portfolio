@@ -31,7 +31,7 @@
 // matrix and a four-line measured readout. Both were honest, and both were
 // clutter: a viewer with sixteen seconds of moonlight in front of them was
 // reading small mono text in two corners instead. They are gone. What is
-// left on screen before the car is the plate, the credit, and the cards.
+// left on screen before the car is the plate and the cards.
 //
 // Rules, since a cinematic is a standing invitation to break all of them:
 //
@@ -89,12 +89,6 @@ import { track } from "../lib/beacon";
 const MOON = img("Intro/Moon");
 const MOON_PORTRAIT = img("Intro/MoonPortrait");
 const CAR = s4Poster;
-
-// The track, credited. Only shown while it is actually playing.
-const TRACK = {
-  title: "I Really Want to Stay at Your House",
-  artist: "Rosa Walton & Hallie Coggins",
-};
 
 // How long to hold the black for the track to start before running the
 // timeline on a timer instead. The bytes were prefetched while the door was
@@ -292,7 +286,6 @@ function motesOf(seed, count) {
 }
 
 const FLAGS = {
-  credit: false,
   card: -1,
   cardOut: false,
   name: false,
@@ -710,7 +703,6 @@ export default function IntroCinematic() {
       }
 
       // ---- flags that gate React content ------------------------------
-      const withTrack = run.withSound && isTrackPlaying();
       let card = -1;
       let cardOut = false;
       for (let i = 0; i < cards.length; i++) {
@@ -727,7 +719,6 @@ export default function IntroCinematic() {
       }
       setFlag({
         tuning: false,
-        credit: withTrack && s >= base + 0.8 && s < C.DROP,
         card,
         cardOut,
         name: s >= nameAt,
@@ -986,17 +977,6 @@ export default function IntroCinematic() {
                 transition={{ duration: 0.4 }}
                 aria-hidden="true"
               />
-
-              {/* Credit, top left. Only while the track is really playing. */}
-              <motion.p
-                className="absolute top-6 left-6 md:top-8 md:left-10 mono-micro cine-micro text-muted max-w-[50vw] md:max-w-[60vw]"
-                style={{ textShadow: "0 1px 2px rgb(5 5 6 / 0.9), 0 0 12px rgb(5 5 6 / 0.9)" }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: flags.credit ? 1 : 0 }}
-                transition={{ duration: 0.6 }}
-              >
-                <span className="text-volt">Now playing</span> · {TRACK.title} · {TRACK.artist}
-              </motion.p>
 
               {/* The cards, then the name, in the same place: centre of the
                   frame, a little above the middle, where the sky is. One

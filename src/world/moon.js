@@ -15,12 +15,13 @@
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { worldMoonUrl } from "../data/world-assets.js";
+import { bitmapTexture } from "./pictures.js";
 
 let pending = null;
 
 export function preloadMoon() {
   if (!pending) {
-    pending = new THREE.TextureLoader().loadAsync(worldMoonUrl).catch((err) => {
+    pending = bitmapTexture(worldMoonUrl, true).catch((err) => {
       pending = null;
       throw err;
     });

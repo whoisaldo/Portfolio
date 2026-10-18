@@ -11,16 +11,18 @@
 // exist even though it renders. Links shared with a person are fine; search
 // engines are not. Fixing that properly means either pre-rendering each route
 // to its own index.html at build time, or moving to a host that can rewrite. Not
-// worth doing until it matters. (/recruiters is the one exception: the
-// workflow writes it a real index.html, because it is the address that goes
-// on a résumé.)
+// worth doing until it matters. (/playground and /braindance are the
+// exceptions: the workflow writes each a real index.html.)
 //
-// Two shells, not one. Everything under / is the cinematic: the door, the
-// intro, the reticle, the console, the music-reactive chrome. Everything
-// under /recruiters is the plain version of the same content, and it mounts
-// NONE of that: no gate, no audio, no cursor, no scanlines, no effects. The
-// split is made here, above both, so that nothing from one can leak into the
-// other by accident. The two shells share the data files and nothing else.
+// The homepage at / and the blog are not in here at all: Root.jsx sends them
+// to src/front/ before this module loads. So did /recruiters, the plain
+// version of this site, until the homepage made it redundant; its address
+// forwards to / now.
+//
+// Two shells, not one. Everything but the braindance is the cinematic, with
+// its scrolling page at /playground: the door, the intro, the reticle, the
+// console, the music-reactive chrome. The split is made here, above both, so
+// that nothing from one can leak into the other by accident.
 import React, { lazy, Suspense, useEffect, useState } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
@@ -36,24 +38,20 @@ import ViewModes from "./components/ViewModes";
 import Home from "./routes/Home";
 import WorkPage from "./routes/WorkPage";
 import { stopAmbient } from "./lib/ambient";
+import { runningContext } from "./lib/audio";
 import { LEAVE_SECONDS } from "./lib/cues";
 import { initBeacon, pageview } from "./lib/beacon";
 import { attachUiSfx } from "./lib/ui-sfx";
 import { startReactive } from "./lib/reactive";
 import { initEnv, LOW_POWER, setSessionEnv } from "./lib/env";
+import { PLAYGROUND } from "./data/site";
 import { hasGpuAcceleration } from "./lib/gpu";
 import WorldMount from "./world/WorldMount";
 
-// The plain version is its own chunk: the cinematic never downloads it, and
-// it never downloads the cinematic.
-const Recruiters = lazy(() => import("./routes/Recruiters"));
-const RecruiterWork = lazy(() => import("./routes/RecruiterWork"));
-// The third way in, the braindance: the city with no page in front of it.
-// Its own chunk and its own shell, like the plain version.
+// The other way in, the braindance: the city with no page in front of it.
+// Its own chunk and its own shell.
 const Braindance = lazy(() => import("./braindance/Braindance"));
 
-const isRecruiters = (pathname) =>
-  pathname === "/recruiters" || pathname.startsWith("/recruiters/");
 const isBraindance = (pathname) => pathname === "/braindance" || pathname.startsWith("/braindance/");
 
 export default function App() {
@@ -67,44 +65,29 @@ export default function App() {
 
   // Analytics. Its own effect so it cannot interfere with anything a page does
   // on mount, and it returns its own teardown so a hot reload does not leave a
-  // second set of listeners attached. Both shells count.
+  // second set of listeners attached. Every shell counts.
   useEffect(() => initBeacon(), []);
   // One view per route. Declared after initBeacon so, on the first render,
   // the beacon is listening before the first view is reported.
   useEffect(() => pageview(), [pathname]);
 
-  // The music belongs to the cinematic. Crossing to the plain version takes it
-  // with it, because the AudioContext is module state and nothing over there
-  // unmounts it: the track simply kept playing over a page that has no volume
-  // control on it to stop with. The preference is left alone, so the door is
-  // still there with the sound on when the reader comes back, and a stop this
-  // side of a download in flight cancels that too.
-  useEffect(() => {
-    if (isRecruiters(pathname)) stopAmbient({ fade: LEAVE_SECONDS });
-  }, [pathname]);
+  // The music belongs to the cinematic. Leaving for the homepage or the blog
+  // unmounts this whole module, but the AudioContext is module state and
+  // would keep the track playing over a page with no volume control on it.
+  // The preference is left alone, so the door is still there with the sound
+  // on when the reader comes back, and a stop this side of a download in
+  // flight cancels that too. Only when sound was ever let run: stopAmbient
+  // makes a context if there is none, and a context nobody clicked for is
+  // exactly what src/lib/audio.js exists to prevent.
+  useEffect(() => () => {
+    if (runningContext()) stopAmbient({ fade: LEAVE_SECONDS });
+  }, []);
 
   if (isBraindance(pathname)) {
     return (
       <ErrorBoundary>
         <Suspense fallback={null}>
           <Braindance />
-        </Suspense>
-      </ErrorBoundary>
-    );
-  }
-
-  if (isRecruiters(pathname)) {
-    return (
-      <ErrorBoundary>
-        {/* No placeholder. An empty .rp picked up index.css's old ivory ground
-            before recruiters.css had loaded, and flashed it across a page that
-            opens dark. The body underneath is already near-black. */}
-        <Suspense fallback={null}>
-          <Routes>
-            <Route path="/recruiters" element={<Recruiters />} />
-            <Route path="/recruiters/work/:slug" element={<RecruiterWork />} />
-            <Route path="/recruiters/*" element={<Recruiters />} />
-          </Routes>
         </Suspense>
       </ErrorBoundary>
     );
@@ -161,7 +144,7 @@ function Cinematic() {
           <GpuNotice show={lowPower} />
 
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path={PLAYGROUND} element={<Home />} />
             <Route path="/work/:slug" element={<WorkPage />} />
             {/* Anything else is a mistyped URL. On a site with six sections the
                 home page is a better answer than a 404 screen. */}

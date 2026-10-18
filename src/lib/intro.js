@@ -12,6 +12,7 @@
 // already watched it in this tab.
 import { useCallback, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { atPlayground, PLAYGROUND } from "../data/site";
 import { shouldGate, soundEnabled, unlockAudio } from "./audio";
 import { startAmbient, stopAmbient } from "./ambient";
 import { loadDrift } from "./drift";
@@ -83,9 +84,9 @@ export const DOOR_OPEN = "aly:door-open";
 /**
  * Back to the entrance.
  *
- * The front of this site is the door, not the cinematic on its own: it is
- * where the reader chooses sound, silence, or the plain version at
- * /recruiters. So the footer's way back reopens the door rather than throwing
+ * The front of the playground is the door, not the cinematic on its own: it
+ * is where the reader chooses sound, silence, or the simple version at /.
+ * So the footer's way back reopens the door rather than throwing
  * the intro at whatever page happens to be on screen. From a case study it
  * routes home first, and the gate takes it from there.
  */
@@ -93,7 +94,7 @@ export function useReturnToDoor() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   return useCallback(() => {
-    if (pathname !== "/") navigate("/");
+    if (!atPlayground(pathname)) navigate(PLAYGROUND);
     window.dispatchEvent(new CustomEvent(DOOR_OPEN));
   }, [navigate, pathname]);
 }
@@ -115,7 +116,7 @@ export function useReplayIntro() {
       // Both in the one handler, so React commits the route change and the
       // overlay in the same render and no frame of the landing page is ever
       // shown before the black drops.
-      if (pathname !== "/") navigate("/");
+      if (!atPlayground(pathname)) navigate(PLAYGROUND);
       replayIntro(extra);
     },
     [navigate, pathname],

@@ -6,8 +6,8 @@
 // long enough to look at, the flights between them on an ease, the Work
 // deck's entries run across the plaza's board and corpo row's towers lit
 // one after another, a caption for each from the data files, and at the
-// end, over the moon, the credits, which are the site's own contents
-// rolled. Nothing here is a word the page does not already say.
+// end the contact card. Nothing here is a word the page does not already
+// say.
 //
 // The frame around the picture is a viewfinder, and it reports only what
 // is true, which is the rule Chrome.jsx holds the page's chrome to: the
@@ -28,10 +28,6 @@ import { createDirector } from "./director";
 import { getWorld } from "../../world/stage";
 import { setView, takePhoto } from "../../world/modes";
 import { profile, emails, links } from "../../data/profile";
-import { featuredProjects } from "../../data/projects";
-import { experiences } from "../../data/experience";
-import { skills } from "../../data/profile";
-import { car } from "../../data/garage";
 import { soundEnabled, unlockAudio } from "../../lib/audio";
 import { isPlaying, startAmbient } from "../../lib/ambient";
 import { CRUISE_GAIN, DROP } from "../../lib/cues";
@@ -51,10 +47,10 @@ export default function Cinema({ leaving = false }) {
   const fill = useRef(null);
   const [ui, setUi] = useState({ scene: -1, caption: null, playing: false, ended: false, total: 1, scenes: [] });
   const [controls, setControls] = useState(true);
-  const [creditsDone, setCreditsDone] = useState(false);
 
   // The director, from the top, with the music if the reader wants it.
   useEffect(() => {
+    if (leaving) return undefined;
     const d = createDirector({ onChange: setUi });
     director.current = d;
     if (soundEnabled()) {
@@ -67,7 +63,7 @@ export default function Cinema({ leaving = false }) {
       d.dispose();
       director.current = null;
     };
-  }, []);
+  }, [leaving]);
 
   // On the way out (the page is coming back while the bars lift), the film
   // lets go of the page at once rather than when it unmounts.
@@ -141,15 +137,13 @@ export default function Cinema({ leaving = false }) {
   }, []);
 
   const restart = () => {
-    setCreditsDone(false);
     director.current?.restart();
     director.current?.play();
   };
 
   const scene = ui.scenes[ui.scene];
   const [num, name] = (scene?.label ?? "").split(" // ");
-  const credits = ui.ended && !creditsDone;
-  const end = ui.ended && creditsDone;
+  const end = ui.ended;
 
   return (
     <div data-mode-ui="" className={`cinema ${leaving ? "is-leaving" : ""}`} role="region" aria-label="The site as a film">
@@ -164,7 +158,7 @@ export default function Cinema({ leaving = false }) {
         <span className="cinema-corner br" />
         <span className="cinema-read tl">
           <span className={`cinema-rec ${ui.playing ? "is-on" : ""}`} />
-          {ui.playing ? "" : credits ? "Credits · " : end ? "End · " : "Paused · "}
+          {ui.playing ? "" : end ? "End · " : "Paused · "}
           {num ? `SC ${num} · ${(name ?? "").toUpperCase()}` : ""}
         </span>
         <span className="cinema-read tr tabular-nums" ref={tc}>00:00:00:00</span>
@@ -192,9 +186,6 @@ export default function Cinema({ leaving = false }) {
           {ui.caption.line && <p className="cinema-caption-line">{ui.caption.line}</p>}
         </div>
       )}
-
-      {/* The credits: the site's own contents, rolled over the moon. */}
-      {credits && <Credits onDone={() => setCreditsDone(true)} />}
 
       {end && (
         <div className="cinema-end">
@@ -252,50 +243,5 @@ function PlayGlyph() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
       <path d="M6 4.5v15l13-7.5z" />
     </svg>
-  );
-}
-
-/** The roll: everything the page says, in the order it says it. */
-function Credits({ onDone }) {
-  return (
-    <div className="cinema-credits" aria-label="Credits">
-      <div className="cinema-credits-roll" onAnimationEnd={onDone}>
-        <p className="cinema-credits-name">
-          {profile.first} <span>{profile.last}</span>
-        </p>
-        <p className="cinema-credits-line">{profile.line}</p>
-
-        <h3>Work</h3>
-        {featuredProjects.map((p) => (
-          <p key={p.slug}>{p.title}</p>
-        ))}
-
-        <h3>Experience</h3>
-        {experiences.map((e) => (
-          <p key={e.slug}>
-            {e.company}
-            <span>{e.title}</span>
-          </p>
-        ))}
-
-        <h3>Stack</h3>
-        {skills.map((g) => (
-          <p key={g.group}>
-            {g.group}
-            <span>{g.items.join(" · ")}</span>
-          </p>
-        ))}
-
-        <h3>The car</h3>
-        <p>
-          {car.year} {car.name}
-          <span>{car.engine}</span>
-        </p>
-
-        <h3>Contact</h3>
-        <p>{primaryEmail}</p>
-        <p className="cinema-credits-base">{profile.base}</p>
-      </div>
-    </div>
   );
 }

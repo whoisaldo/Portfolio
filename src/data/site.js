@@ -27,3 +27,12 @@ export const sections = [
 ];
 
 export const navSections = sections.filter((s) => s.nav);
+
+// Where the scrolling page lives. It was "/" until the plain homepage took
+// that address (src/front/); every link that means "the cinematic's own home"
+// goes through this, so moving it again is one line.
+export const PLAYGROUND = "/playground";
+
+// GitHub Pages answers /playground with a redirect to /playground/, so a
+// reader who arrives from outside lands on the trailing-slash form.
+export const atPlayground = (pathname) => pathname.replace(/\/+$/, "") === PLAYGROUND;

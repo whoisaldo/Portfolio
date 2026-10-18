@@ -42,6 +42,10 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
       // A box it does not rain in (the garage, from inside). Empty by default.
       uShelterMin: { value: new THREE.Vector3(1, 1, 1) },
       uShelterMax: { value: new THREE.Vector3(0, 0, 0) },
+      // What stands over each spot (cover.js): none until the scene sets it.
+      uCover: { value: null },
+      uCoverBox: { value: new THREE.Vector4(0, 0, 0, 0) },
+      uCoverScale: { value: new THREE.Vector2(0, 0) },
       uViewHeight: { value: 900 },
       // The camera's velocity, m/s, damped (world-scene.js).
       uCamVel: { value: new THREE.Vector3() },
@@ -55,6 +59,9 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
       uniform vec2 uWind;
       uniform vec3 uShelterMin;
       uniform vec3 uShelterMax;
+      uniform sampler2D uCover;
+      uniform vec4 uCoverBox;
+      uniform vec2 uCoverScale;
       uniform float uViewHeight;
       uniform vec3 uCamVel;
       varying float vA;
@@ -84,7 +91,12 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
         // lens or inside the garage is most of the screen.
         float depth0 = -(viewMatrix * vec4(p, 1.0)).z;
         vec3 inside = step(uShelterMin, p) * step(p, uShelterMax);
-        if (depth0 < 3.0 - len || depth0 > 44.0 + len || inside.x * inside.y * inside.z > 0.5) {
+        // Under a deck, an awning, a bridge, or inside a wall: the highest
+        // thing over this spot is above the drop.
+        vec2 cuv = vec2((p.x - uCoverBox.x) * uCoverBox.z, (uCoverBox.y - p.z) * uCoverBox.w);
+        float roof = uCoverScale.x - texture2D(uCover, cuv).r * uCoverScale.y;
+        float under = step(p.y, roof - 0.25) * step(0.0, cuv.x) * step(cuv.x, 1.0) * step(0.0, cuv.y) * step(cuv.y, 1.0) * step(0.5, uCoverScale.y);
+        if (depth0 < 3.0 - len || depth0 > 44.0 + len || inside.x * inside.y * inside.z > 0.5 || under > 0.5) {
           gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
           vA = 0.0;
           vCol = vec3(0.0);
@@ -110,7 +122,10 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
         vA = smoothstep(3.0, 6.5, dist) * (1.0 - smoothstep(24.0, 44.0, dist)) * min(1.0, 0.007 / width) * inversesqrt(stretch);
         // The light it falls through: the city's haze, the street's light
         // under it, and the lamps round it.
-        vCol = vec3(0.13, 0.13, 0.16) + uHazeColor * 0.4 + spillAt(p) * 1.9 + lampsAt(p, toCam) * 2.0;
+        // (The street's colour reaches a drop only near the street: high
+        // over a roof or far from any sign the rain is the night's own cool
+        // grey, not pink.)
+        vCol = vec3(0.15, 0.16, 0.2) + uHazeColor * 0.16 + spillAt(p) * 1.9 * exp(-max(p.y - 5.0, 0.0) * 0.22) + lampsAt(p, toCam) * 2.0;
         vUv = uv;
       }
     `,
@@ -157,6 +172,12 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
     setShelter(min, max) {
       material.uniforms.uShelterMin.value.copy(min);
       material.uniforms.uShelterMax.value.copy(max);
+    },
+    /** What stands over each spot of ground (cover.js). */
+    setCover(cover) {
+      material.uniforms.uCover.value = cover.texture;
+      material.uniforms.uCoverBox.value.copy(cover.box);
+      material.uniforms.uCoverScale.value.copy(cover.scale);
     },
     setCount(n) {
       geometry.instanceCount = Math.min(count, n);

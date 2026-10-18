@@ -14,11 +14,10 @@
 //
 // Two things joined the bar in 2026-09. A terminal button, because the
 // console grew commands that do things to the page and a control nobody can
-// find is not a control (the backtick still works). And "Recruiters press
-// this", the way out to /recruiters, the plain version of the site: it is
-// deliberately labelled as an instruction rather than a section, because it
-// is addressed to one kind of reader and it should be the first thing that
-// reader sees. On the phone menu both are rows.
+// find is not a control (the backtick still works). And the way out to the
+// plain version of the site. That was "Recruiters press this", to
+// /recruiters; the homepage replaced that page, so it is "The simple version"
+// now, to /. On the phone menu both are rows.
 //
 // And two more in 2026-10, beside the terminal and only while the live city
 // is up: an eye that puts the page away to look at the city (Look, H) and a
@@ -34,7 +33,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUpRight, Clapperboard, Eye, Menu, SquareTerminal, X } from "lucide-react";
-import { navSections } from "../data/site";
+import { atPlayground, navSections, PLAYGROUND } from "../data/site";
 import { profile } from "../data/profile";
 import { scrollToSection } from "../lib/scroll";
 import { useIntroDone } from "../lib/intro";
@@ -50,7 +49,7 @@ export default function Navbar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const onHome = pathname === "/";
+  const onHome = atPlayground(pathname);
   // The bar arrives a beat after the intro's reveal rather than sitting
   // there fully formed the moment the black tears off.
   const done = useIntroDone();
@@ -72,7 +71,7 @@ export default function Navbar() {
     event.preventDefault();
     setIsMobileOpen(false);
     if (onHome) scrollToSection(id);
-    else navigate(`/#${id}`);
+    else navigate(`${PLAYGROUND}#${id}`);
   };
 
   return (
@@ -85,7 +84,7 @@ export default function Navbar() {
     >
       <nav className="gutter py-4 flex items-center justify-between gap-6">
         <a
-          href={onHome ? "#hero" : "/"}
+          href={onHome ? "#hero" : PLAYGROUND}
           onClick={(e) => jumpTo(e, "hero")}
           className="font-display font-bold uppercase tracking-tight text-primary text-lg md:text-xl
                      leading-none transition-colors duration-200 hover:text-volt"
@@ -97,7 +96,7 @@ export default function Navbar() {
           {navSections.map((section) => (
             <a
               key={section.id}
-              href={onHome ? `#${section.id}` : `/#${section.id}`}
+              href={onHome ? `#${section.id}` : `${PLAYGROUND}#${section.id}`}
               onClick={(e) => jumpTo(e, section.id)}
               className="mono-label text-dim transition-colors duration-200 hover:text-primary"
             >
@@ -106,10 +105,10 @@ export default function Navbar() {
           ))}
 
           <Link
-            to="/recruiters"
+            to="/"
             className="group hidden lg:inline-flex items-center gap-1.5 mono-label text-muted transition-colors duration-200 hover:text-volt"
           >
-            <span className="ink-underline">Recruiters press this</span>
+            <span className="ink-underline">The simple version</span>
             <ArrowUpRight className="w-3 h-3 text-faint transition-all group-hover:text-volt group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
           </Link>
 
@@ -188,7 +187,7 @@ export default function Navbar() {
               {navSections.map((section, i) => (
                 <motion.a
                   key={section.id}
-                  href={onHome ? `#${section.id}` : `/#${section.id}`}
+                  href={onHome ? `#${section.id}` : `${PLAYGROUND}#${section.id}`}
                   onClick={(e) => jumpTo(e, section.id)}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -244,11 +243,11 @@ export default function Navbar() {
                 transition={{ delay: (navSections.length + 1) * 0.04 }}
               >
                 <Link
-                  to="/recruiters"
+                  to="/"
                   onClick={() => setIsMobileOpen(false)}
                   className="mono-ui text-volt py-3 inline-flex items-center gap-2 transition-colors duration-200 hover:text-primary"
                 >
-                  Recruiters press this
+                  The simple version
                   <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </Link>
               </motion.div>

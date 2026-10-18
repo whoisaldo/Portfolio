@@ -13,7 +13,9 @@
 // `sound` and `heat` put a source into the audio and thermal layers: where
 // the rings run out from, or what glows. Times are seconds into the
 // recording, mostly from the recording's own marks, so a camera moved
-// there moves the windows with it.
+// there moves the windows with it. `board` marks a clue that is one entry
+// of the plaza's board: in free roam, with no recording to time it by, it
+// is there while the board shows that entry.
 import * as THREE from "three";
 import { bar, boardWindow, DURATION, HOLO_AT } from "./recording.js";
 import { towers as TOWERS } from "../data/world.js";
@@ -57,7 +59,7 @@ export function createPlaces(anchors, recording) {
   // ---- 2 The plaza: the board's schedule ----
   const board = around([79, 26, -263], [27, 18, 0.4], 0.8);
   featuredProjects.forEach((p, i) => {
-    P[p.slug] = { at: boardWindow(i), box: { world: board } };
+    P[p.slug] = { at: boardWindow(i), box: { world: board }, board: i };
   });
   P.radio = { at: [bar(11), bar(25)], box: { world: board }, sound: { world: [79, 26, -261], r: 40, k: 1 } };
   P.gpu = { at: [bar(11), bar(25)], box: { world: around([44.4, 22, -240], [0.6, 2.4, 3.2], 0.3) }, heat: { world: [44.4, 22, -240], r: 2.2, k: 1.1 } };
@@ -87,7 +89,12 @@ export function createPlaces(anchors, recording) {
   P.face = { at: [inBay, bar(64)], box: { car: CAR_BOX.face } };
   P.wheels = { at: [inBay, bar(64)], box: { car: CAR_BOX.wheelFL } };
   P.rear = { at: [inBay, bar(64)], box: { car: CAR_BOX.rear } };
-  P.bmw = { at: [inBay, bar(64)], box: { world: around([475.4, 3.5, -215], [0.2, 1.9, 3.4], 0.3) } };
+  // Resolve after lazy room attachment as well as at startup. The scanner
+  // reads this box each frame; no old photo-board location is retained.
+  P.bmw = { at: [inBay, bar(64)], box: { get world() {
+    const a = at("anchor_garage_bmw_clue");
+    return a ? around(a.toArray(), [0.8, 0.65, 0.8], 0.12) : { min: [1, 1, 1], max: [0, 0, 0] };
+  } } };
   P.exhaust = { at: [bar(49), bar(64)], box: { car: CAR_BOX.exhaust }, sound: { car: CAR_BOX.exhaust.c, r: 10, k: 1 } };
   P.intake = { at: [inBay, bar(64)], box: { car: CAR_BOX.intake }, sound: { car: CAR_BOX.intake.c, r: 6, k: 0.8 } };
   P.tune = { at: [inBay, bar(64)], box: { car: ENGINE }, heat: { car: ENGINE.c, r: 0.9, k: 0.5 } };

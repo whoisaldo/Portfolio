@@ -3,7 +3,8 @@
 // The editor's interface, in the corners, so the middle of the screen is
 // the city: the recording's name and chapter top left, the minimap top
 // right, the timeline along the bottom, the scan card and the journal when
-// asked for. H hides all of it.
+// asked for. H hides all of it. In free roam (src/braindance/roam) the
+// timeline gives its place to roam's bar and the header names the district.
 import React from "react";
 import { bd, set, useBd } from "../store";
 import { pointerHandlers } from "../controls";
@@ -16,23 +17,26 @@ import Minimap from "./Minimap";
 import Radio from "./Radio";
 import PhotoMode from "./PhotoMode";
 import Call from "./Call";
+import Roam from "./Roam";
 import { EditHint, EndScreen, TitleCard, Tutorial } from "./Overlays";
 import { CHAPTERS, CONTROLS, LAYER_NAMES } from "../../data/braindance";
+import { ROAM, ROAM_CONTROLS } from "../roam/words";
 
 function Header() {
   const state = useBd();
   const ch = CHAPTERS[state.chapter];
+  const roaming = state.roam !== "off";
   return (
     <div className="bd-header" data-bd-ui="">
       <p className="bd-rec">
         <span className={`bd-rec-dot ${state.playing ? "is-live" : ""}`} aria-hidden="true" />
-        {state.playing ? (state.direction < 0 ? "Rewinding" : "Playing") : state.mode === "edit" ? "Editor" : "Paused"}
+        {roaming ? ROAM.header : state.playing ? (state.direction < 0 ? "Rewinding" : "Playing") : state.mode === "edit" ? "Editor" : "Paused"}
         <span className="bd-dim"> · ALI_YOUNES.bd</span>
       </p>
-      <p className="bd-chapter-title" key={state.chapter}>
-        {ch?.title}
+      <p className="bd-chapter-title" key={roaming ? state.district : state.chapter}>
+        {roaming ? state.district : ch?.title}
       </p>
-      {ch?.line && <p className="bd-chapter-line">{ch.line}</p>}
+      {!roaming && ch?.line && <p className="bd-chapter-line">{ch.line}</p>}
       <p className={`bd-layer-name bd-layer-${state.layer}`}>
         {LAYER_NAMES[state.layer]} layer
       </p>
@@ -47,7 +51,7 @@ function Help() {
     <div className="bd-panel bd-help" data-bd-ui="" role="dialog" aria-label="Controls">
       <p className="bd-kicker">Controls</p>
       <ul>
-        {CONTROLS.map((c) => (
+        {(state.roam !== "off" ? ROAM_CONTROLS : CONTROLS).map((c) => (
           <li key={c.what}>
             <span className="bd-keys">
               {c.keys.map((k) => (
@@ -66,17 +70,19 @@ export default function Hud({ engineRef }) {
   const state = useBd();
   const handlers = React.useMemo(() => pointerHandlers(engineRef), [engineRef]);
   const windows = engineRef.current?.scanner.windows ?? [];
+  const roaming = state.roam !== "off";
   return (
     <>
-      <div className={`bd-look ${state.mode === "edit" ? "is-edit" : ""} ${state.hover ? "is-scan" : ""}`} {...handlers} aria-hidden="true" />
-      <div className={`bd-hud ${state.hud ? "" : "is-hidden"} ${state.mode === "photo" ? "is-photo" : ""}`}>
+      <div className={`bd-look ${state.mode === "edit" ? "is-edit" : ""} ${state.hover ? "is-scan" : ""} ${state.roam === "walk" ? "is-walk" : ""}`} {...handlers} aria-hidden="true" />
+      <div className={`bd-hud ${state.hud ? "" : "is-hidden"} ${state.mode === "photo" ? "is-photo" : ""} ${roaming ? "is-roam" : ""}`}>
+        {state.locked && <span className="bd-cross" aria-hidden="true" />}
         <Markers engineRef={engineRef} />
-        <TitleCard />
+        {!roaming && <TitleCard />}
         <Header />
         <Minimap engineRef={engineRef} />
         <Radio engineRef={engineRef} />
-        <Timeline engineRef={engineRef} clues={windows} />
-        <Tutorial />
+        {roaming ? <Roam engineRef={engineRef} /> : <Timeline engineRef={engineRef} clues={windows} />}
+        {!roaming && <Tutorial />}
         <Call />
         <EditHint />
         <PhotoMode engineRef={engineRef} />

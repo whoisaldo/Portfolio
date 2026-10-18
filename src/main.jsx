@@ -2,7 +2,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import App from "./App.jsx";
+import Root from "./Root.jsx";
 
 // Self-hosted fonts. Same-origin woff2 means one connection, immutable caching
 // via Vite's content hashes, and no third-party request at all.
@@ -38,7 +38,7 @@ import "./index.css";
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
-      <App />
+      <Root />
     </BrowserRouter>
   </React.StrictMode>
 );

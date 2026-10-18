@@ -17,9 +17,12 @@
 //                  moving, as a film camera's half-open shutter smears it,
 //                  with the split drawn out along it (world-scene.js works
 //                  out how the picture moved).
-//   bloom          a high luminance threshold, so only emissives bloom
+//   bloom          a high luminance threshold, so only emissives bloom, and
+//                  little enough of it that a lit sign keeps its lettering
+//                  and a lantern its shape
 //   streaks        desktop: the hottest lights drawn out sideways, a little
-//                  blue, from the bloom's own bright pass (no pass of its own)
+//                  blue, from the bloom's own bright pass (summed in a small
+//                  pass of its own, read once in the last)
 //   glass          the page's panes of smoked glass: inside each one the
 //                  city is frosted (blurred, darkened, its highlights eased
 //                  down), so text reads on a pane the city shows through
@@ -44,6 +47,7 @@ import {
   KernelSize,
   NoiseEffect,
   RenderPass,
+  ShaderPass,
   SMAAEffect,
   SMAAPreset,
   ToneMappingEffect,
@@ -125,7 +129,7 @@ const BRAINDANCE = /* glsl */ `
 `;
 
 // The grade, after the tone map, in the same pass: the plate's night.
-// Blacks lifted a hair toward violet rather than crushed, the mids pushed
+// Blacks lifted a hair toward navy rather than crushed, the mids pushed
 // more saturated than the highlights (so a tube keeps its white core and a
 // wall keeps its colour), shadows cooled toward teal and violet, the top
 // warmed toward pink, and a gentle S for contrast.
@@ -152,12 +156,12 @@ class GradeEffect extends Effect {
   constructor() {
     super("GradeEffect", GRADE, {
       uniforms: new Map([
-        ["uLift", new THREE.Uniform(new THREE.Vector3(0.012, 0.01, 0.02))],
+        ["uLift", new THREE.Uniform(new THREE.Vector3(0.008, 0.012, 0.021))],
         ["uSat", new THREE.Uniform(1.3)],
         ["uShadowTint", new THREE.Uniform(new THREE.Vector3(-0.008, 0.006, 0.016))],
         ["uHighTint", new THREE.Uniform(new THREE.Vector3(0.024, 0.006, 0.004))],
         ["uContrast", new THREE.Uniform(0.35)],
-        ["uExposure", new THREE.Uniform(0.95)],
+        ["uExposure", new THREE.Uniform(0.98)],
       ]),
     });
   }
@@ -166,20 +170,40 @@ class GradeEffect extends Effect {
 // Anamorphic streaks: the brightest lights drawn out sideways and a little
 // blue, as a scope lens draws them. Read from the bloom's own quarter-
 // resolution bright pass (already blurred a step, so the streak is a line
-// and not a row of dots), 25 taps along x, fading out; only what is truly
-// hot survives the threshold, so a tube throws one and a lit wall does not.
+// and not a row of dots), 25 taps along x, a texel and a half apart, fading
+// out; only what is truly hot survives the threshold, so a tube throws one
+// and a lit wall does not.
+//
+// The taps are summed in a small pass of their own and not in the last
+// pass, which did all 25 for every pixel of the screen. Each tap is a
+// linear read of the bright pass, so along x their sum runs straight
+// between every half texel of it and the next: summed once at each half
+// texel (a target of twice the bright pass's width and one, and its height),
+// a linear read of that target gives any pixel the sum it would have had.
+const STREAK_SUM = /* glsl */ `
+  uniform sampler2D inputBuffer;
+  uniform float uWidth;
+  varying vec2 vUv;
+  void main() {
+    // This texel is the point its own number of half texels along the row.
+    vec2 at = vec2(floor(gl_FragCoord.x) * 0.5 / uWidth, vUv.y);
+    float gap = 1.5 / uWidth;
+    vec3 s = texture2D(inputBuffer, at).rgb;
+    for (int i = 1; i <= 12; i++) {
+      float o = float(i) * gap;
+      float w = exp(-float(i) * 0.24);
+      s += (texture2D(inputBuffer, at + vec2(o, 0.0)).rgb + texture2D(inputBuffer, at - vec2(o, 0.0)).rgb) * w;
+    }
+    gl_FragColor = vec4(s, 1.0);
+  }
+`;
 const STREAK = /* glsl */ `
   uniform sampler2D uStreakMap;
-  uniform float uStep;
+  uniform float uWidth;
   uniform float uIntensity;
   uniform float uThreshold;
   void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
-    vec3 s = texture2D(uStreakMap, uv).rgb;
-    for (int i = 1; i <= 12; i++) {
-      float o = float(i) * uStep;
-      float w = exp(-float(i) * 0.24);
-      s += (texture2D(uStreakMap, uv + vec2(o, 0.0)).rgb + texture2D(uStreakMap, uv - vec2(o, 0.0)).rgb) * w;
-    }
+    vec3 s = texture2D(uStreakMap, vec2((uv.x * 2.0 * uWidth + 0.5) / (2.0 * uWidth + 1.0), uv.y)).rgb;
     s = max(s - uThreshold, 0.0);
     vec3 tint = mix(vec3(dot(s, vec3(0.3333))), s, 0.35) * vec3(0.62, 0.72, 1.0);
     outputColor = vec4(inputColor.rgb + tint * uIntensity, inputColor.a);
@@ -187,15 +211,45 @@ const STREAK = /* glsl */ `
 `;
 
 class StreakEffect extends Effect {
-  constructor(map) {
+  /** `bright`: the bloom's quarter-resolution bright pass (a render target). */
+  constructor(bright) {
     super("StreakEffect", STREAK, {
       uniforms: new Map([
-        ["uStreakMap", new THREE.Uniform(map)],
-        ["uStep", new THREE.Uniform(0.004)],
+        ["uStreakMap", new THREE.Uniform(null)],
+        ["uWidth", new THREE.Uniform(1)],
         ["uIntensity", new THREE.Uniform(0.07)],
         ["uThreshold", new THREE.Uniform(0.35)],
       ]),
     });
+    this.bright = bright;
+    this.sums = new THREE.WebGLRenderTarget(3, 1, { depthBuffer: false, type: THREE.HalfFloatType });
+    this.sums.texture.name = "Streak.Sums";
+    this.uniforms.get("uStreakMap").value = this.sums.texture;
+    this.sumPass = new ShaderPass(new THREE.ShaderMaterial({
+      uniforms: { inputBuffer: { value: null }, uWidth: { value: 1 } },
+      vertexShader: "varying vec2 vUv; void main() { vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 1.0, 1.0); }",
+      fragmentShader: STREAK_SUM,
+      depthTest: false,
+      depthWrite: false,
+    }));
+  }
+
+  update(renderer) {
+    this.sumPass.render(renderer, this.bright, this.sums);
+  }
+
+  /** After the bloom has sized its bright pass. */
+  fit() {
+    const { width, height } = this.bright;
+    this.sums.setSize(2 * width + 1, height);
+    this.uniforms.get("uWidth").value = width;
+    this.sumPass.fullscreenMaterial.uniforms.uWidth.value = width;
+  }
+
+  dispose() {
+    super.dispose();
+    this.sums.dispose();
+    this.sumPass.dispose();
   }
 }
 
@@ -313,6 +367,9 @@ class BraindanceEffect extends Effect {
   }
 }
 
+// The luminance past which a pixel blooms.
+const BLOOM_AT = 0.9;
+
 export function createPost(renderer, scene, camera, quality, { extra = [] } = {}) {
   const composer = new EffectComposer(renderer, {
     frameBufferType: THREE.HalfFloatType,
@@ -330,9 +387,9 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
 
   const glitch = new BraindanceEffect(quality.name === "phone" ? 4 : 8);
   const bloom = new BloomEffect({
-    luminanceThreshold: 0.72,
-    luminanceSmoothing: 0.25,
-    intensity: 1.15,
+    luminanceThreshold: BLOOM_AT,
+    luminanceSmoothing: 0.3,
+    intensity: 0.8,
     mipmapBlur: true,
     radius: 0.72,
     levels: quality.name === "phone" ? 5 : 7,
@@ -342,9 +399,9 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
   let noise = null;
   let vignette = null;
   let streak = null;
-  const streakMap = bloom.mipmapBlurPass?.downsamplingMipmaps?.[1]?.texture;
-  if (quality.name !== "phone" && streakMap) {
-    streak = new StreakEffect(streakMap);
+  const bright = bloom.mipmapBlurPass?.downsamplingMipmaps?.[1];
+  if (quality.name !== "phone" && bright) {
+    streak = new StreakEffect(bright);
     effects.push(streak);
   }
   const glass = new GlassEffect({ phone: quality.name === "phone" });
@@ -386,7 +443,7 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
      */
     view(moon) {
       cityPass.enabled = moon !== "only";
-      bloom.luminanceMaterial.threshold = moon === "only" ? 1.4 : 0.72;
+      bloom.luminanceMaterial.threshold = moon === "only" ? 1.4 : BLOOM_AT;
       if (!moonPass) return;
       moonPass.enabled = Boolean(moon);
       moonPass.clearPass.setClearFlags(moon !== "over", true, false);
@@ -404,9 +461,7 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
     },
     setSize(w, h) {
       composer.setSize(w, h, false);
-      // One tap every one and a half texels of the quarter-size bright pass.
-      const mip = bloom.mipmapBlurPass?.downsamplingMipmaps?.[1];
-      if (streak && mip) streak.uniforms.get("uStep").value = 1.5 / Math.max(1, mip.width);
+      streak?.fit();
     },
     render(dt) {
       composer.render(dt);
