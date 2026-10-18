@@ -866,6 +866,23 @@ check("reduced-motion cold entry cannot strand construction behind sampling", ()
   });
 }
 
+// A final district can arrive after the initial probe but before readiness.
+// Execute the actual readiness handoff for each side of that race.
+check("late district completion refreshes the probe before releasing the bake", () => {
+  const source = readFileSync("src/world/world-scene.js", "utf8");
+  const from = source.indexOf("        // The job has supplied every draw");
+  const to = source.indexOf("        return true;", from) + "        return true;".length;
+  for (const [streamed, probeStreamed] of [[false, false], [true, false], [true, true]]) {
+    const events = [];
+    const context = { streamed, probeStreamed, city: { root: {} }, garageAvailable: "loading",
+      garageCars: { captureProbe() { events.push("probe"); } },
+      releaseStreaming() { events.push("release"); }, publishGarage() { events.push("publish"); } };
+    runInNewContext(`(() => { ${source.slice(from, to)} })();`, context);
+    assert.deepEqual(events, [...(streamed && !probeStreamed ? ["probe"] : []), ...(streamed ? ["release"] : []), "publish"]);
+    assert.equal(context.garageAvailable, "ready");
+  }
+});
+
 // Run the actual preparation loop with a clock and resources whose cost is
 // known. Grouping warm-up must retain every program, texture and buffer job.
 {

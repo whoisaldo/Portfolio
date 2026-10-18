@@ -1846,6 +1846,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         }
         if (disposed) return false;
         if (["s4", "s6"].some((id) => garageCars.stats?.[id]?.placeholder && !garageCars.stats[id].visitorOmitted)) throw new Error("A development car cannot be presented as a finished model.");
+        const probeStreamed = streamed;
         if (diagnostics) await diagnostics.during("garage-probe", () => garageCars.captureProbe?.(city.root));
         else await garageCars.captureProbe?.(city.root);
         if (disposed) return false;
@@ -1945,7 +1946,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         cover?.render(city.root);
         // The job has supplied every draw before it releases the shared
         // bake. Readiness never precedes maps, placements or car warm-up.
-        if (streamed) releaseStreaming();
+        // Streaming can finish during validation, before the ready-state
+        // refresh in streamPacks can see this room. Capture its final scene.
+        if (streamed) {
+          if (!probeStreamed) garageCars.captureProbe?.(city.root);
+          releaseStreaming();
+        }
         garageAvailable = "ready";
         publishGarage();
         return true;
