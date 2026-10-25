@@ -66,7 +66,6 @@ export const workPhotos = {
       image: photo("kiro-launch"),
       alt: "Ali Younes seated, speaking on camera at a Kiro launch event, with an on-screen caption reading 'Ali Younes, SDE Intern, AWS'.",
       caption: "Kiro launch event, July 2026.",
-      note: "Talking about the dual-model code review tool. Kiro put it on their LinkedIn.",
     },
     {
       image: photo("amazon-orientation"),
