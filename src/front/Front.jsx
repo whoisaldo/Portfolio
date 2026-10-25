@@ -56,6 +56,25 @@ export default function Front() {
             </Suspense>
           }
         />
+        {/* Root.jsx sends everything under /blog/ and /work/ here, so a
+            deeper path gets the not-found page its section already has,
+            with no slug to find, rather than an empty page. */}
+        <Route
+          path="/blog/*"
+          element={
+            <Suspense fallback={null}>
+              <BlogPost />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/work/*"
+          element={
+            <Suspense fallback={null}>
+              <WorkPage />
+            </Suspense>
+          }
+        />
       </Routes>
     </div>
   );
