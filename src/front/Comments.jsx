@@ -322,9 +322,6 @@ const CommentForm = React.forwardRef(function CommentForm({ slug, draft, onDropQ
       <h3 id="comment-form-title" className="font-display text-base font-semibold text-bone">
         Leave a comment
       </h3>
-      <p className="mt-1 text-sm text-dim">
-        I read every comment before it shows up here. To comment on a passage, select it in the post.
-      </p>
 
       {draft && (
         <div className="comment-draft">
