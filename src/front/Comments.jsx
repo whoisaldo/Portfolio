@@ -15,14 +15,16 @@
 // A reader can select words in the post and press "Comment on this" (or C),
 // which puts the passage in the form. Approved quote comments are found again
 // in the text (./quotes.js) and highlighted, each linking to its comment and
-// each comment linking back.
+// each comment linking back. Comments on overlapping passages share one
+// highlight, which leads to the first of them, and each of them links to the
+// others.
 //
 // Everything a reader wrote is rendered as text by React, never as HTML.
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { MessageSquareQuote, X } from "lucide-react";
 import { SectionLabel } from "./parts";
-import { findQuote, indexText, markQuote, quotable, quoteFromRange, unmark } from "./quotes";
+import { findQuote, groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "./quotes";
 import "./comments.css";
 
 const API = (import.meta.env.VITE_COMMENTS_API || "").replace(/\/+$/, "");
@@ -92,9 +94,11 @@ function Thread({ slug, body }) {
       {status === "ready" && list.length === 0 && <p className="mt-6 text-sm text-dim">No comments yet.</p>}
       {status === "ready" && list.length > 0 && (
         <ol className="comments-list">
-          {list.map((c) => (
-            <Comment key={c.id} comment={c} anchored={anchored.has(c.id)} />
-          ))}
+          {list.map((c) => {
+            const passage = anchored.get(c.id);
+            const also = passage ? list.filter((o) => o.id !== c.id && passage.includes(o.id)) : [];
+            return <Comment key={c.id} comment={c} passage={passage?.[0]} also={also} />;
+          })}
         </ol>
       )}
 
@@ -163,41 +167,57 @@ function useComments(slug, section) {
 }
 
 /**
- * Highlights each approved quote in the post. Returns the ids of the comments
- * whose passage was found; the rest no longer match the text and are listed
- * without one.
+ * Highlights each approved quote in the post. Returns, for each comment whose
+ * passage was found, the ids of every comment sharing its highlight, the
+ * first being the one the highlight is named for. The rest no longer match
+ * the text and are listed without one.
  */
 function useHighlights(body, list) {
-  const [found, setFound] = useState(() => new Set());
+  const [found, setFound] = useState(() => new Map());
   useLayoutEffect(() => {
     const root = body.current;
     if (!root || !list) return;
     const added = [];
-    const ids = new Set();
-    for (const c of list) {
-      if (!c.quote) continue;
-      // A highlight is worth less than the post it sits in. Whatever goes
-      // wrong placing one, the text stays readable and the comment is listed.
+    const passages = new Map();
+    // A highlight is worth less than the post it sits in. Whatever goes wrong
+    // placing one, the text stays readable and the comment is listed.
+    const placed = [];
+    try {
+      const index = indexText(root);
+      for (const c of list) {
+        const at = c.quote && findQuote(index, c.quote);
+        if (at) placed.push({ id: c.id, at });
+      }
+    } catch (err) {
+      console.warn("comments: could not find the quotes", err);
+    }
+    const names = new Map(list.map((c) => [c.id, c.name]));
+    for (const { at, ids } of groupQuotes(placed)) {
       try {
-        // Re-read after every highlight: wrapping one splits text nodes.
-        const index = indexText(root);
-        const at = findQuote(index, c.quote);
-        const marks = at ? markQuote(index, at, c.id, `Comment by ${c.name}`) : [];
+        // Re-read before every highlight: wrapping one splits text nodes. The
+        // text itself does not change, so the positions found above hold.
+        const label = ids.length > 1 ? `${ids.length} comments on this passage` : `Comment by ${names.get(ids[0])}`;
+        const marks = markQuote(indexText(root), at, ids[0], label);
         if (marks.length) {
           added.push(...marks);
-          ids.add(c.id);
+          for (const id of ids) passages.set(id, ids);
         }
       } catch (err) {
         console.warn("comments: could not highlight a quote", err);
       }
     }
-    setFound(ids);
+    setFound(passages);
     return () => unmark(added);
   }, [body, list]);
   return found;
 }
 
-function Comment({ comment: c, anchored }) {
+/**
+ * @param {{comment: object, passage?: string, also: object[]}} props
+ *   passage: the id the comment's highlight is named for, when it has one.
+ *   also: the other comments on the same highlight.
+ */
+function Comment({ comment: c, passage, also }) {
   return (
     <li id={`comment-${c.id}`} className="comment">
       <p className="text-sm">
@@ -212,14 +232,25 @@ function Comment({ comment: c, anchored }) {
       </p>
       {c.quote && (
         <blockquote className="comment-quote">
-          {anchored ? (
-            <a href={`#quote-${c.id}`} title="Show this passage in the post">
+          {passage ? (
+            <a href={`#quote-${passage}`} title="Show this passage in the post">
               {c.quote.exact}
             </a>
           ) : (
             c.quote.exact
           )}
         </blockquote>
+      )}
+      {also.length > 0 && (
+        <p className="comment-also">
+          Also on this passage:{" "}
+          {also.map((o, i) => (
+            <React.Fragment key={o.id}>
+              {i > 0 && ", "}
+              <a href={`#comment-${o.id}`}>{o.name}</a>
+            </React.Fragment>
+          ))}
+        </p>
       )}
       <p className="comment-body">{c.body}</p>
     </li>
@@ -271,7 +302,9 @@ const CommentForm = React.forwardRef(function CommentForm({ slug, draft, onDropQ
         onSent(name);
         return;
       }
-      if (data.field === "name" || data.field === "body") {
+      if (res.status === 503) {
+        setErrors({ form: "Comments are closed right now, so this one wasn't sent. Your text is still here." });
+      } else if (data.field === "name" || data.field === "body") {
         setErrors({ [data.field]: data.error });
         f.elements[data.field].focus();
       } else {
@@ -437,7 +470,7 @@ function QuoteButton({ body, onQuote }) {
     };
     const key = (e) => {
       const p = current.current;
-      if (!p || e.metaKey || e.ctrlKey || e.altKey || typing(e.target)) return;
+      if (!p || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || typing(e.target)) return;
       if (e.key === "c" || e.key === "C") {
         e.preventDefault();
         onQuote(p.quote);

@@ -122,7 +122,21 @@ export function quoteFromRange(index, range, max) {
   };
 }
 
-/** Where a stored quote is in the text now, as [start, end), or null. */
+/**
+ * Where a stored quote is in the text now, as [start, end), or null.
+ *
+ * A highlight on the wrong passage is worse than none, so the words alone are
+ * not enough. Each place they occur is scored by how many characters of the
+ * stored prefix and suffix still match the text around it, counted outward
+ * from the quote. The best place is highlighted only when
+ *
+ *   - its context agrees: at least three quarters of the stored prefix and
+ *     suffix together still match, and
+ *   - it clearly wins: where the words occur more than once, it matches at
+ *     least a quarter of the stored context more than any other place.
+ *
+ * Otherwise there is no highlight, and the comment is listed without one.
+ */
 export function findQuote(index, quote) {
   // Matched with line breaks read as spaces, so a quote survives a paragraph
   // being split or joined around it.
@@ -130,24 +144,44 @@ export function findQuote(index, quote) {
   const hay = flat(index.text);
   const needle = flat(quote.exact);
   if (!needle.trim()) return null;
-  let best = null;
-  let bestScore = -1;
+  const pre = flat(quote.prefix || "");
+  const suf = flat(quote.suffix || "");
+  const context = pre.length + suf.length;
+  const places = [];
   for (let at = hay.indexOf(needle); at !== -1; at = hay.indexOf(needle, at + 1)) {
-    // The occurrence whose surroundings agree with the stored ones longest.
-    const before = hay.slice(Math.max(0, at - CONTEXT), at);
-    const after = hay.slice(at + needle.length, at + needle.length + CONTEXT);
-    const pre = flat(quote.prefix || "");
-    const suf = flat(quote.suffix || "");
+    const end = at + needle.length;
     let score = 0;
-    while (score < pre.length && before[before.length - 1 - score] === pre[pre.length - 1 - score]) score++;
-    let s2 = 0;
-    while (s2 < suf.length && after[s2] === suf[s2]) s2++;
-    if (score + s2 > bestScore) {
-      best = [at, at + needle.length];
-      bestScore = score + s2;
+    while (score < pre.length && hay[at - 1 - score] === pre[pre.length - 1 - score]) score++;
+    for (let i = 0; i < suf.length && hay[end + i] === suf[i]; i++) score++;
+    places.push({ at, end, score });
+  }
+  places.sort((a, b) => b.score - a.score);
+  const [best, next] = places;
+  if (!best || best.score < context * 0.75) return null;
+  if (next && best.score - next.score < Math.max(1, context / 4)) return null;
+  return [best.at, best.end];
+}
+
+/**
+ * Joins quotes whose passages overlap into one highlight, so no highlight is
+ * ever inside another's link. Takes [{id, at}] in the order the comments are
+ * listed, `at` from findQuote, and returns [{at, ids}] covering the joined
+ * passage, with the ids in that same order.
+ */
+export function groupQuotes(found) {
+  const order = new Map(found.map((f, i) => [f.id, i]));
+  const groups = [];
+  for (const f of [...found].sort((a, b) => a.at[0] - b.at[0])) {
+    const g = groups[groups.length - 1];
+    if (g && f.at[0] < g.at[1]) {
+      g.at = [g.at[0], Math.max(g.at[1], f.at[1])];
+      g.ids.push(f.id);
+    } else {
+      groups.push({ at: [...f.at], ids: [f.id] });
     }
   }
-  return best;
+  for (const g of groups) g.ids.sort((a, b) => order.get(a) - order.get(b));
+  return groups;
 }
 
 /**

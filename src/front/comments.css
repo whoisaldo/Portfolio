@@ -65,6 +65,21 @@
 }
 .comment-quote a:hover { color: #fcee0a; }
 
+/* The other comments on the same highlight. */
+.comment-also {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: rgb(236 234 228 / 0.56);
+}
+.comment-also a {
+  color: rgb(236 234 228 / 0.84);
+  text-decoration: underline;
+  text-decoration-color: rgb(252 238 10 / 0.45);
+  text-underline-offset: 3px;
+  transition: color 150ms;
+}
+.comment-also a:hover { color: #fcee0a; }
+
 .comment-form { margin-top: 2.25rem; }
 .comment-field { margin-top: 1.1rem; }
 .comment-field label {
