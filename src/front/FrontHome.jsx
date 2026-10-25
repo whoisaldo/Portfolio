@@ -37,7 +37,8 @@ const projects = built
 /** The work history, one entry a company, laid out the way hadisalman.com
  *  lays out its journey: a dot on a line, the logo, the dates, the company,
  *  what it is, and each role there with its own dates. A filled dot is one
- *  still going, or about to start. */
+ *  still going, or about to start. A company or role with a page of its own
+ *  is a link to it. */
 function Timeline({ items }) {
   return (
     <ol className="mt-6">
@@ -54,7 +55,9 @@ function Timeline({ items }) {
           </div>
           <div className="min-w-0">
             <p className="text-sm tabular-nums text-dim">{item.when}</p>
-            <h3 className="mt-0.5 font-display text-lg font-semibold leading-snug text-bone text-balance">{item.org}</h3>
+            <h3 className="mt-0.5 font-display text-lg font-semibold leading-snug text-bone text-balance">
+              {item.slug ? <WorkLink slug={item.slug}>{item.org}</WorkLink> : item.org}
+            </h3>
             {item.role && <p className="text-muted">{item.role}</p>}
             {item.note && <p className="mt-1 text-pretty text-sm text-dim">{item.note}</p>}
             {item.roles && (
@@ -63,7 +66,7 @@ function Timeline({ items }) {
                   <li key={role.title} className="relative pl-4">
                     <span className="absolute left-0 top-2.5 size-1 rounded-full bg-volt" aria-hidden="true" />
                     <p className="font-medium text-bone">
-                      {role.title}
+                      {role.slug ? <WorkLink slug={role.slug}>{role.title}</WorkLink> : role.title}
                       {role.incoming && <span className="ml-2 text-sm font-semibold text-volt">Incoming</span>}
                     </p>
                     <p className="text-sm tabular-nums text-dim">{role.when}</p>
@@ -76,6 +79,19 @@ function Timeline({ items }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+/** A name that opens its page, with an arrow to say so. */
+function WorkLink({ slug, children }) {
+  return (
+    <Link to={`/work/${slug}`} className="group/work transition-colors duration-150 hover:text-volt">
+      {children}
+      <ArrowRight
+        className="ml-1.5 inline size-3.5 align-[-0.1em] text-dim transition-[color,translate] duration-150 group-hover/work:translate-x-0.5 group-hover/work:text-volt"
+        aria-hidden="true"
+      />
+    </Link>
   );
 }
 
@@ -329,7 +345,8 @@ export default function FrontHome() {
         <section aria-labelledby="built" className="relative mt-16">
           <SectionLabel id="built">Things I’ve built</SectionLabel>
           {/* Closed, a row is a name and one sentence. Open, it adds the
-              project's own two lines, its stack and its links, and no more.
+              project's own two lines, its stack and its links, one of them
+              to its page, and no more.
               <details> because it is the disclosure the browser already
               makes keyboard- and reader-friendly. */}
           <ul className="mt-2">
@@ -352,7 +369,10 @@ export default function FrontHome() {
                   <div className="pb-5 sm:pr-16">
                     <p className="text-pretty text-muted">{project.description}</p>
                     <p className="mt-2 text-sm text-dim">{project.tech.slice(0, 5).join(" · ")}</p>
-                    <div className="mt-3 flex gap-6">
+                    <div className="mt-3 flex flex-wrap gap-x-6 gap-y-3">
+                      <Link to={`/work/${project.slug}`} className={textLink}>
+                        Read more <ArrowRight className="size-3.5" aria-hidden="true" />
+                      </Link>
                       {project.live && (
                         <a href={project.live} target="_blank" rel="noreferrer" className={textLink}>
                           Site <ArrowUpRight className="size-3.5" aria-hidden="true" />

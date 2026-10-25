@@ -77,7 +77,9 @@ export const photos = {
 // The timeline, one entry a company, newest first, laid out the way
 // hadisalman.com's journey is: the dates, the company, a line on what it is,
 // then each role there with its own dates when there was more than one.
-// `current` marks the ones still going, and the one not started yet.
+// `current` marks the ones still going, and the one not started yet. `slug`
+// is the entry's page (src/data/work.js), on the company or, where one
+// company had roles with and without one, on the role.
 export const timeline = [
   {
     org: "Amazon",
@@ -86,11 +88,12 @@ export const timeline = [
     current: true,
     roles: [
       { title: "Software Development Engineer, ADC", when: "Starts Jul 2027", incoming: true },
-      { title: "SDE Intern, AWS CloudFormation", when: "Jun to Sep 2026", note: "Org-wide sharing of private resource types on the CloudFormation Registry." },
+      { title: "SDE Intern, AWS CloudFormation", slug: "aws-cloudformation", when: "Jun to Sep 2026", note: "Org-wide sharing of private resource types on the CloudFormation Registry." },
     ],
   },
   {
     org: "Pinnatec Auto",
+    slug: "pinnatec-auto",
     logo: pinnatecMark,
     when: "Sep 2026 to now",
     current: true,
@@ -99,6 +102,7 @@ export const timeline = [
   },
   {
     org: "Pawtograder",
+    slug: "pawtograder",
     logo: pawtograderLogo,
     when: "Aug 2026 to now",
     current: true,
@@ -107,6 +111,7 @@ export const timeline = [
   },
   {
     org: "Philips",
+    slug: "philips-zero-touch",
     logo: philipsLogo,
     when: "Jan 2026 to now",
     current: true,
@@ -118,6 +123,7 @@ export const timeline = [
   },
   {
     org: "Top Choice Realty",
+    slug: "top-choice-realty",
     logo: topChoiceLogo,
     when: "Apr to Aug 2024",
     role: "Frontend Developer Intern",
@@ -125,6 +131,7 @@ export const timeline = [
   },
   {
     org: "Northeastern University",
+    slug: "northeastern",
     logo: neuLogo,
     when: "2023 to May 2027",
     current: true,
@@ -132,6 +139,7 @@ export const timeline = [
   },
   {
     org: "Robert DeFalco Realty",
+    slug: "robert-defalco-realty",
     logo: defalcoLogo,
     when: "Jun to Sep 2023",
     role: "Computer Technician Intern",
@@ -141,7 +149,8 @@ export const timeline = [
 
 // Four, chosen to cover the range: systems, a mod, a desktop tool, a product.
 // `line` is the one sentence a row shows closed; opening it shows the
-// project's own description, stack and links from projects.js.
+// project's own description, stack and links from projects.js, and the way
+// to its page.
 export const built = [
   { slug: "eternal-monitor", line: "Turns an iPad into a wireless second display for Windows." },
   { slug: "eternal-exchange", line: "Equivalent-exchange alchemy for Minecraft, on Fabric." },
