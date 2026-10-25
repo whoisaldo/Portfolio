@@ -89,11 +89,14 @@ function Metrics({ items }) {
   );
 }
 
-/** Pressed, a picture opens full size in the homepage's viewer. */
+/** Pressed, a picture opens full size in the homepage's viewer. The chamfer
+ *  is on the picture, not the button, as on the homepage's photos: a clipped
+ *  button would clip away its own focus ring, and the chamfer's volt focus
+ *  fill would sit under the picture where nobody sees it. */
 function Zoom({ onOpen, children }) {
   return (
-    <button type="button" onClick={onOpen} className="chamfer block w-full cursor-zoom-in overflow-hidden bg-ink-raised">
-      {children}
+    <button type="button" onClick={onOpen} className="block w-full cursor-zoom-in">
+      <span className="chamfer block overflow-hidden bg-ink-raised">{children}</span>
     </button>
   );
 }
