@@ -18,7 +18,17 @@ This is the full story. Why Cyberpunk, where I was starting from, what I actuall
 
 I'm a huge Cyberpunk fan. I loved the game, and what got me was how beautiful and how insanely alive it was. People moving, people arguing, cars driving, so much going on at once. The whole idea of being an edgerunner always stuck with me too.
 
-I think that's because of how I grew up. I was always doing something on the edge. When I was young I figured out how to make a mod for Minecraft. At 12 I was scripting for people on Roblox I barely knew, barely knowing how to code myself, and learning a ton because of it. I did random things just because I was curious, and they were never what other kids were doing. I spent my free time cracking open my router because I wanted to see what the inside looked like. At 14, during COVID, I had a whole bot operation going to make enough money to buy myself a PC. I connected to that whole edgerunner idea. The premise of running too close to the edge always felt cool to me.
+I think that's because of how I grew up. I was always doing something on the edge. When I was young I figured out how to make a mod for Minecraft. At 12 I was scripting for people on Roblox I barely knew, barely knowing how to code myself, and learning a ton because of it. I did random things just because I was curious, and they were never what other kids were doing. I spent my free time cracking open my router because I wanted to see what the inside looked like.
+
+At 14, during COVID, came the GPU shortage, when nobody could get components at all. I was stuck on a horrible Ryzen APU and really wanted a dedicated graphics card. That wasn't realistic, and not only because of the shortage. I was young and broke.
+
+So I spent hours convincing my grandma. She already knew I was a tinkerer who was always up to something, but she believed in me. She thought most of what I did came from a lazy but smart place, and she really did see me as a smart kid. She lent me exactly enough to buy an RX 6700 XT, which was around $500.
+
+Then I had to actually get one. Brands hadn't started the waitlist-style launches that let real enthusiasts buy a card, the kind Zotac later ran for its Nvidia cards. Launch day was a mess, every man for himself. I'd heard sneaker drops always had this exact problem, and there was already a big market for bots that bought shoes. So I watched YouTube tutorials on building Python sneaker bots and wrote my own, tailored to one job: buying a single GPU for myself on launch day.
+
+It worked. I got the card, which at the time was genuinely insane. That's when I realized how much I appreciated the feeling of solving a real problem for myself with just code and a lot of diving deep into it. I got PS5s for my friends and me the same way, and even a 3060 Ti for my little brother.
+
+I connected to that whole edgerunner idea. The premise of running too close to the edge always felt cool to me.
 
 Night City itself is just a really cool idea. It's a dystopian tech city, and life there is horrible for most of the people living it. I don't idolize that. It's the same way I felt reading 1984 when I was young. The life in that book wasn't something I wanted. I was just in awe that a world like that could exist on the page, and it scared me a little.
 
