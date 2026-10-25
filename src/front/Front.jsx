@@ -1,5 +1,5 @@
-// src/front/Front.jsx: the homepage and the blog, the first thing at
-// aliyounes.dev.
+// src/front/Front.jsx: the homepage, the blog and the work pages, the first
+// thing at aliyounes.dev.
 //
 // A shell of its own, so none of the cinematic comes with it. No door, no
 // intro, no audio, no city, no cursor. It also replaced /recruiters, the
@@ -14,6 +14,7 @@ import BlogIndex from "./BlogIndex";
 import "./front.css";
 
 const BlogPost = lazy(() => import("./BlogPost"));
+const WorkPage = lazy(() => import("./WorkPage"));
 
 export default function Front() {
   const { pathname } = useLocation();
@@ -44,6 +45,14 @@ export default function Front() {
           element={
             <Suspense fallback={null}>
               <BlogPost />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/work/:slug"
+          element={
+            <Suspense fallback={null}>
+              <WorkPage />
             </Suspense>
           }
         />

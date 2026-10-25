@@ -1,7 +1,7 @@
 // src/Root.jsx: which site a path belongs to, decided before either one loads.
 //
-// "/" and "/blog" are the homepage and the writing (src/front/). Every other
-// path is the playground, and App.jsx splits that between the cinematic and
+// "/", "/blog" and "/work" are the homepage, the writing and a page for each
+// project and role (src/front/). Every other path is the playground, and App.jsx splits that between the cinematic and
 // the braindance. Both halves are lazy, so the homepage never downloads the
 // city's code, and a reader sent straight to /playground never downloads the
 // blog's.
@@ -25,7 +25,7 @@ const OLD_HASHES = new Set([...sections.map((s) => s.id), "teardown"]);
 
 function isFront(pathname) {
   const path = pathname.replace(/\/+$/, "") || "/";
-  return path === "/" || path === "/blog" || path.startsWith("/blog/");
+  return path === "/" || path === "/blog" || path.startsWith("/blog/") || path.startsWith("/work/");
 }
 
 const isRecruiters = (pathname) => pathname === "/recruiters" || pathname.startsWith("/recruiters/");

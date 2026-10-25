@@ -4,8 +4,7 @@
 // now the router and the shell; this is one of two things the shell can show.
 //
 // The hash-restoration effect is here rather than in App because it is about
-// THIS page's sections. On /work/:slug there are no sections to restore to,
-// and running it there would be a no-op at best and a scroll fight at worst.
+// THIS page's sections.
 //
 // The garage is the one section that is not in this module's chunk. It is
 // the heaviest thing on the page and the last thing a reader reaches, and
@@ -422,10 +421,6 @@ export default function Home() {
     // hash scroll has nothing to find and silently gives up at the top. Doing
     // it again on `load` corrects for the layout shift as fonts and key art
     // land. Without that, /#contact lands short by a screen or more.
-    //
-    // This now also carries the return trip from a case study: /work/x links
-    // back to /#projects, which arrives as a client-side navigation with no
-    // browser hash handling of its own at all.
     // Tried several times rather than once, because "the section is at its
     // final position" is not a moment this page can identify. Key art and two
     // variable fonts land after first paint and move everything below them, so

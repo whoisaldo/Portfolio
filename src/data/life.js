@@ -58,8 +58,8 @@ export const operator = {
 };
 
 // Photos belonging to a specific job, keyed by the `company` field in
-// src/data/experience.js. Experience.jsx and WorkPage.jsx look them up by that
-// key, so a company with no photos renders exactly as it did before.
+// src/data/experience.js. src/front/WorkPage.jsx looks them up by that key,
+// so a company with no photos renders exactly as it did before.
 export const workPhotos = {
   "Amazon Web Services": [
     {

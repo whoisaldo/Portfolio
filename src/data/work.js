@@ -79,9 +79,9 @@ export function neighbours(slug) {
   };
 }
 
-/** The one-line subtitle a card or a page header shows under the title. */
-export function subtitleOf(kind, entry) {
-  return kind === "project"
-    ? entry.tagline
-    : `${entry.company} · ${entry.period}`;
+/** What a page is called, in its tab and in its link preview
+ *  (scripts/static-pages.mjs). A role's title alone ("Software Development
+ *  Engineer Intern") does not say where. */
+export function nameOf(kind, entry) {
+  return kind === "project" ? entry.title : `${entry.title}, ${entry.company}`;
 }
