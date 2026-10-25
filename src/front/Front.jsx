@@ -16,8 +16,17 @@ import "./front.css";
 const BlogPost = lazy(() => import("./BlogPost"));
 const WorkPage = lazy(() => import("./WorkPage"));
 
+// Where the reader was on each page of this tab's history, by entry, so Back
+// and Forward put them there. The browser would, but the playground turns
+// its restoration off (App.jsx), and every entry made after that inherits
+// it, so this shell keeps its own and turns it off too. Held in memory, as
+// the playground's place is (src/lib/intro.js).
+const places = new Map();
+// Back's place, still to land if the page was a chunk not yet in (Late).
+let pending = null;
+
 export default function Front() {
-  const { pathname } = useLocation();
+  const { pathname, key } = useLocation();
   const navigation = useNavigationType();
 
   // The playground counts its visits; so does this.
@@ -30,10 +39,30 @@ export default function Front() {
     return () => document.body.classList.remove("front");
   }, []);
 
-  // A new page starts at its top. Back and forward keep the browser's place.
+  // Kept as the reader scrolls rather than read on the way out: by the time
+  // a route change commits, the next page is already in, and the old offset
+  // can be clipped to its height.
   useLayoutEffect(() => {
-    if (navigation !== "POP") window.scrollTo(0, 0);
-  }, [pathname, navigation]);
+    window.history.scrollRestoration = "manual";
+    const keep = () => places.set(key, window.scrollY);
+    window.addEventListener("scroll", keep, { passive: true });
+    return () => window.removeEventListener("scroll", keep);
+  }, [key]);
+
+  // A new page starts at its top. Back and forward go to where the reader
+  // was on that entry, or its top if this shell never saw it.
+  useLayoutEffect(() => {
+    if (navigation !== "POP") {
+      window.scrollTo(0, 0);
+      return undefined;
+    }
+    const y = places.get(key) ?? 0;
+    window.scrollTo(0, y);
+    pending = y;
+    return () => {
+      pending = null;
+    };
+  }, [key, navigation]);
 
   return (
     <div className="min-h-dvh bg-ink font-sans text-bone">
@@ -43,17 +72,17 @@ export default function Front() {
         <Route
           path="/blog/:slug"
           element={
-            <Suspense fallback={null}>
+            <Late>
               <BlogPost />
-            </Suspense>
+            </Late>
           }
         />
         <Route
           path="/work/:slug"
           element={
-            <Suspense fallback={null}>
+            <Late>
               <WorkPage />
-            </Suspense>
+            </Late>
           }
         />
         {/* Root.jsx sends everything under /blog/ and /work/ here, so a
@@ -62,20 +91,38 @@ export default function Front() {
         <Route
           path="/blog/*"
           element={
-            <Suspense fallback={null}>
+            <Late>
               <BlogPost />
-            </Suspense>
+            </Late>
           }
         />
         <Route
           path="/work/*"
           element={
-            <Suspense fallback={null}>
+            <Late>
               <WorkPage />
-            </Suspense>
+            </Late>
           }
         />
       </Routes>
     </div>
   );
+}
+
+/** A page in a chunk of its own, and Back's place landed again once it is in. */
+function Late({ children }) {
+  return (
+    <Suspense fallback={null}>
+      {children}
+      <Landed />
+    </Suspense>
+  );
+}
+
+function Landed() {
+  useLayoutEffect(() => {
+    if (pending !== null) window.scrollTo(0, pending);
+    pending = null;
+  }, []);
+  return null;
 }

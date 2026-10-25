@@ -10,8 +10,9 @@
 // like pointed at a section of the cinematic, and a hash that names one of
 // its sections is forwarded to the playground with the hash intact.
 // /recruiters, the plain version the homepage replaced, is on the résumé, so
-// it and everything under it forward to the homepage. The query string goes
-// along, because a tracked link (stats-api, ?s=) carries its code there.
+// it and everything under it forward to the homepage. So does /work with no
+// project named, which has no page of its own. The query string goes along,
+// because a tracked link (stats-api, ?s=) carries its code there.
 import React, { lazy, Suspense } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -29,12 +30,13 @@ function isFront(pathname) {
 }
 
 const isRecruiters = (pathname) => pathname === "/recruiters" || pathname.startsWith("/recruiters/");
+const isWorkIndex = (pathname) => pathname.replace(/\/+$/, "") === "/work";
 
 export default function Root() {
   const { pathname, search, hash } = useLocation();
   const front = isFront(pathname);
 
-  if (isRecruiters(pathname)) {
+  if (isRecruiters(pathname) || isWorkIndex(pathname)) {
     return <Navigate to={`/${search}`} replace />;
   }
   if (front && pathname === "/" && OLD_HASHES.has(hash.slice(1))) {
