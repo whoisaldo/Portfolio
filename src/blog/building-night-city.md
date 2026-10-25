@@ -18,13 +18,13 @@ This is the full story. Why Cyberpunk, where I was starting from, what I actuall
 
 I'm a huge Cyberpunk fan. I loved the game, and what got me was how beautiful and how insanely alive it was. People moving, people arguing, cars driving, so much going on at once. The whole idea of being an edgerunner always stuck with me too.
 
-I think that's because of how I grew up. I was always doing something on the edge. When I was young I figured out how to make a mod for Minecraft. At 12 I was scripting for people on Roblox I barely knew, barely knowing how to code myself, and learning a ton because of it. I did random things just because I was curious, and they were never what other kids were doing. I spent my free time cracking open my router because I wanted to see what the inside looked like.
+I think that's because of how I grew up. I always did shit on the edge. When I was young I figured out how to make a mod for Minecraft. At 12 I was scripting for people on Roblox I barely knew, barely knowing how to code myself, and learning a ton because of it. I did random things just because I was curious, and they were never what other kids were doing. I spent my free time cracking open my router because I wanted to see what the inside looked like.
 
 At 14, during COVID, came the GPU shortage, when nobody could get components at all. I was stuck on a horrible Ryzen APU and really wanted a dedicated graphics card. That wasn't realistic, and not only because of the shortage. I was young and broke.
 
 So I spent hours convincing my grandma. She already knew I was a tinkerer who was always up to something, but she believed in me. She thought most of what I did came from a lazy but smart place, and she really did see me as a smart kid. She lent me exactly enough to buy an RX 6700 XT, which was around $500.
 
-Then I had to actually get one. Brands hadn't started the waitlist-style launches that let real enthusiasts buy a card, the kind Zotac later ran for its Nvidia cards. Launch day was a mess, every man for himself. I'd heard sneaker drops always had this exact problem, and there was already a big market for bots that bought shoes. So I watched YouTube tutorials on building Python sneaker bots and wrote my own, tailored to one job: buying a single GPU for myself on launch day.
+Then I had to actually get one. Brands hadn't started the waitlist-style launches that let real enthusiasts buy a card, the kind Zotac later ran for its Nvidia cards. It was a shitty process, every man for himself. I'd heard sneaker drops always had this exact problem, and there was already a big market for bots that bought shoes. So I watched YouTube tutorials on building Python sneaker bots and wrote my own, tailored to one job: buying a single GPU for myself on launch day.
 
 It worked. I got the card, which at the time was genuinely insane. That's when I realized how much I appreciated the feeling of solving a real problem for myself with just code and a lot of diving deep into it. I got PS5s for my friends and me the same way, and even a 3060 Ti for my little brother.
 
@@ -34,7 +34,7 @@ Night City itself is just a really cool idea. It's a dystopian tech city, and li
 
 ## Where I was starting from
 
-I always wanted to do 3D work. I just never picked it up. For the Roblox games I made, I either paid someone to build the models or took one from online and tweaked it myself, and all of that happened inside the Roblox Studio editor. I had never touched Blender. I know my frontend stack, but three.js was completely new.
+I always wanted to do 3D work, build 3D shit. I just never picked it up. For the Roblox games I made, I either paid someone to build the models or took one from online and tweaked it myself, and all of that happened inside the Roblox Studio editor. I had never touched Blender. I know my frontend stack, but three.js was completely new.
 
 What I actually am is a systems and backend engineer. At Amazon Web Services I was a Software Development Engineer Intern on the CloudFormation Registry, where I owned policy-based sharing of private resource types across an AWS Organization, from the design all the way to production Java across 12 merged code reviews. There's [a full write-up of it](/work/aws-cloudformation). At Philips, as a Software Development Engineer Co-op, I built zero-touch Windows deployment for about a thousand industrial PCs while FDA-regulated UEFI Secure Boot stayed on the whole time. That one has [a case study](/work/philips-zero-touch) and [its own post](/blog/zero-touch-secure-boot). On my own time I'm building [Eternal Monitor](/work/eternal-monitor), a Rust host and SwiftUI iPad client that turns an iPad into a wireless second display for Windows, with hardware H.264 encode and decode end to end.
 
@@ -44,7 +44,7 @@ None of that is 3D.
 
 Day to day, the work was figuring out how to give the AI the best tools and the best orchestration I possibly could. I'll be honest, I didn't read much of the code. I focused on setting up the perfect environment for the agent and letting it build.
 
-I used T3 Code so I could stay in the loop all the time, even in class. When something in Blender needed a quick fix by hand, I used Parsec to see the actual Blender window and made the edit myself. I learned how `/loop` and `/goal` work so I could do this properly. I started all of this with Astra, and over time I learned so much about how this stuff actually works. By the end I had loops running, goals running, an agent judge panel doing the reviews, literally anything I could think of to get to perfect.
+I used T3 Code so I could stay in the loop all the time, even in class. When something in Blender needed a quick fix by hand, I used Parsec to see the actual Blender window and made the edit myself. I learned how `/loop` and `/goal` work so I could do this properly. I started all of this with Astra, and over time I learned so much about how this shit actually works. By the end I had loops running, goals running, an agent judge panel doing the reviews, literally anything I could think of to get to perfect.
 
 The big runs settled into a shape. One coordinator thread held a brief and a progress log. It handed work to builder agents, sent what they made to reviewers who hadn't watched it being made, and looped fix rounds until the work cleared the bar. At the peak there were 17 agents running at once. On October 12 alone the repo took 400 commits. The world is 1,063 commits in total, which is 91% of this site's entire history.
 
@@ -54,11 +54,11 @@ Most of what I focused on came from trial and error, from noticing what produced
 
 ## Boil the ocean
 
-The agents did half the job a lot. I had to really plan out the entire path and the execution flow for the agent.
+The agents half-assed shit often. I had to really plan out the entire path and the execution flow for the agent.
 
 What I learned is that agents are beyond capable. It really comes down to the user, and how well the user lets the agent "boil the ocean". That's a quote I got from Theo.
 
-When things went badly, it was because I didn't build that path properly. I didn't take my time and structure the whole plan. The agent wouldn't hallucinate something, exactly. It would go down the wrong path, and this was a very, very long-running task. It took weeks, believe it or not. It could have gone faster if I'd approached it better from the start. It also could have gone way slower if I'd just handed it off without thinking about how to set it up for success.
+When things went badly, it was because I didn't build that path properly. I didn't take my time and structure the whole plan. The agent could half-ass something. It wouldn't hallucinate, exactly, but it could go down the wrong path, and this was a very, very long-running task. It took weeks, believe it or not. It could have gone faster if I'd approached it better from the start. It also could have gone way slower if I'd just handed it off without thinking about how to set it up for success.
 
 It felt like being an experienced software manager handing an intern a perfect path to success, with the tools and everything else they'd need. I'm not experienced like that. I was experienced in ambition and human thought.
 
