@@ -6,8 +6,9 @@
 //
 // Markdown cannot run code, so a post that needs something live carries a
 // placeholder, <div data-embed="name"></div>, and the component registered
-// under that name in ./embeds is portalled into it once the HTML is in.
-import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+// under that name in ./embeds is portalled into it once the HTML is in. The
+// components are lazy, so a post without one never fetches them.
+import React, { Suspense, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -72,7 +73,15 @@ export default function BlogPost() {
           <div ref={body} className="post-body mt-10" dangerouslySetInnerHTML={html} />
           {slots.map((slot, i) => {
             const Embed = embeds[slot.dataset.embed];
-            return Embed ? createPortal(<Embed />, slot, `${slot.dataset.embed}-${i}`) : null;
+            return Embed
+              ? createPortal(
+                  <Suspense fallback={null}>
+                    <Embed />
+                  </Suspense>,
+                  slot,
+                  `${slot.dataset.embed}-${i}`,
+                )
+              : null;
           })}
         </article>
 

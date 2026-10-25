@@ -2,6 +2,10 @@
    rather than Tailwind, so nothing here adds to the site-wide stylesheet;
    this file ships with the post's own chunk. */
 
+/* The box is the stage at 4:3 plus 60px of controls, one row of them down
+   to a 360px screen; front.css reserves exactly that while this chunk
+   loads, so change both together. */
+
 /* The stage wears the site's chamfer, like the homepage's photos. */
 .ec-stage {
   --chamfer: 14px;
@@ -152,13 +156,9 @@
   color: #0a0a0c;
   background: #fcee0a;
 }
-
-.ec-caption {
-  margin-top: 12px;
-  font-size: 0.9375rem;
-  line-height: 1.6;
-  color: rgb(236 234 228 / 0.56);
-  text-wrap: pretty;
+/* Keeps both groups on one row in a 320px column. */
+@media (max-width: 419px) {
+  .ec-button { padding: 0 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

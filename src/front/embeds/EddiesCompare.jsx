@@ -5,7 +5,8 @@
 // right, the mark Codex's image model made for the homepage's sticker. A
 // seam wipes between them: drag it, tap anywhere on the stage, or focus it
 // and use the arrow keys. Zoom scales both around the seam, so the edges
-// being compared are always the ones next to it.
+// being compared are always the ones next to it. The post's <figure> holds
+// this and its caption, so the caption is on the page before this loads.
 //
 // The shard is a copy of src/assets/About/EddieShard.svg rather than an
 // import of it. The playground's About section imports that file, and a
@@ -93,7 +94,7 @@ export default function EddiesCompare() {
   const shown = Math.round(at);
 
   return (
-    <figure className="ec" aria-labelledby="ec-caption">
+    <div className="ec">
       <div
         ref={stage}
         className={`ec-stage${dragging ? " is-dragging" : ""}`}
@@ -171,11 +172,6 @@ export default function EddiesCompare() {
           ))}
         </div>
       </div>
-
-      <figcaption id="ec-caption" className="ec-caption">
-        Drag the seam, or focus it and use the arrow keys. Zoom in and the SVG stays sharp forever, which is about
-        the only thing it has going for it.
-      </figcaption>
-    </figure>
+    </div>
   );
 }

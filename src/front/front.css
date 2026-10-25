@@ -126,3 +126,18 @@ html:has(dialog[open]) {
     0 var(--chamfer)
   );
 }
+
+/* A caption in a post's figure. */
+.post-body figcaption {
+  margin-top: 12px;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: rgb(236 234 228 / 0.56);
+  text-wrap: pretty;
+}
+
+/* An embed's chunk loads after the post, so its placeholder holds the box
+   the embed will fill until it arrives and nothing below it moves. The
+   eddies comparison is a 4:3 stage and 60px of controls
+   (embeds/eddies-compare.css). */
+.post-body [data-embed="eddies-compare"]:empty { padding-bottom: calc(75% + 60px); }
