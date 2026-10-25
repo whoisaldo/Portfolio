@@ -9,6 +9,9 @@ aliyounes.dev            ──beacon──▶   stats.aliyounes.dev
 (GitHub Pages, static)                 (Vercel functions + Neon Postgres)
                                               │
                                               ├─ POST /api/collect   ← the site's beacon, and /resume
+                                              ├─ GET  /api/comments  ← a post's approved comments
+                                              ├─ POST /api/comments  ← a reader's new comment (pending)
+                                              ├─ /api/moderate       ← approve / delete, from the push
                                               ├─ GET  /og.png        ← chat apps drawing a link preview
                                               ├─ GET  /go/<code>     ← tracked short links
                                               ├─ GET  /api/query     ← the dashboard (signed in)
@@ -48,6 +51,37 @@ Alerts go to a phone (ntfy) and/or Discord when a tracked link is opened, the
 résumé is opened, a company network visits, a labelled visitor comes back, or
 the site is shared somewhere.
 
+## Comments
+
+The blog's comments are kept here too, in the `comment` table, because the
+site is static and has nowhere else to put them. A reader leaves a name and a
+comment, and can quote a passage of the post by selecting it.
+
+- **Every comment waits.** `POST /api/comments` stores it as pending and
+  sends a push (ntfy, and Discord if set) with the post, name, quote and
+  comment, and two buttons, **Approve** and **Delete**. Nothing shows on the
+  site until it is approved. `GET /api/comments?post=<slug>` returns approved
+  comments only, oldest first, cached for up to a minute.
+- **The buttons open a page; only its button acts.** Link previewers, chat
+  apps and mail scanners open URLs to look at them, so a GET of
+  `/api/moderate` only shows the comment and asks. Each link carries an HMAC
+  of the comment's id and the action, keyed on `STATS_KEY`, so it works for
+  that one comment and that one action. They do not expire: keep the push,
+  and its Delete link takes the comment down after it was approved.
+  Changing `STATS_KEY` makes every old link stop working.
+- **Spam.** The comment must come from the site's Origin, a hidden honeypot
+  field must be empty (a robot that fills it is told it worked), and one
+  address gets three comments in ten minutes and twelve a day, with forty an
+  hour for everyone together. The address is kept only as an HMAC for that
+  count, never as itself.
+- **Quotes** are stored as the quoted words plus up to 64 characters either
+  side (a W3C TextQuoteSelector). The site finds them again in the post's
+  text and highlights them. Edit the quoted words and the highlight goes;
+  the comment and its quote stay.
+- **A new post** has to be added to `POSTS` in `lib/comments.js` before it
+  takes comments. `npm test` fails until it is, and this project then needs
+  a deploy.
+
 ---
 
 ## Deploy
@@ -77,8 +111,8 @@ rm /tmp/stats.env
 | `IPINFO_TOKEN`        | no       | ipinfo.io Lite token (free, no rate limit). Gives the network's name **and domain**, which classifies far better. Without it, ip-api.com's free endpoint is used, which is rate-limited per source IP and Vercel's are shared. |
 | `NTFY_TOPIC`          | no       | Push alerts through ntfy.sh. Install the ntfy app and subscribe to this topic. The topic name is the secret. |
 | `DISCORD_WEBHOOK_URL` | no       | Alerts as Discord messages. |
-| `EXTRA_ORIGINS`       | no       | Comma-separated extra origins allowed to send beacons, e.g. a preview address. |
-| `PUBLIC_URL`          | no       | Where alert links point. Defaults to `https://stats.aliyounes.dev`. |
+| `EXTRA_ORIGINS`       | no       | Comma-separated extra origins allowed to send beacons and comments, e.g. a preview address. |
+| `PUBLIC_URL`          | no       | Where alert links, and a comment's Approve and Delete links, point. Defaults to `https://stats.aliyounes.dev`. |
 
 ```bash
 vercel env add STATS_KEY production
@@ -99,7 +133,8 @@ The apex `aliyounes.dev` is untouched and keeps pointing at GitHub Pages.
 
 The beacon reads `VITE_STATS_ENDPOINT` at build time, set in
 `.github/workflows/deploy.yml`. Unset, it does nothing at all — no requests, no
-storage, no listeners. `public/resume/index.html` and the og:image in
+storage, no listeners. The comments read `VITE_COMMENTS_API`, this project's
+address, set beside it; unset, posts have no comments section. `public/resume/index.html` and the og:image in
 `index.html` name `stats.aliyounes.dev` directly, because neither is built.
 
 ### 5. Open it

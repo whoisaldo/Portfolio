@@ -18,7 +18,7 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3311;
 
 const handlers = {};
-for (const name of ["collect", "query", "admin", "auth", "go", "og"]) {
+for (const name of ["collect", "query", "admin", "auth", "go", "og", "comments", "moderate"]) {
   handlers[`/api/${name}`] = (await import(`./api/${name}.js`)).default;
 }
 

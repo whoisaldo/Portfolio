@@ -29,9 +29,13 @@ async function post(url, init) {
  * @param {string} title  one line, shown as the notification's heading
  * @param {string} body   the detail
  * @param {string} [path] dashboard route to open on tap, e.g. "#/s/<id>"
+ * @param {{label: string, path: string}[]} [actions] buttons on the push, and
+ *   links under the Discord message. Each opens a page here; see
+ *   api/moderate.js for why opening one changes nothing by itself.
  */
-export async function notify(title, body, path = "") {
+export async function notify(title, body, path = "", actions = []) {
   const link = PUBLIC_URL() + "/" + path;
+  const buttons = actions.map((a) => ({ label: a.label, url: PUBLIC_URL() + "/" + a.path }));
   const jobs = [];
   if (process.env.NTFY_TOPIC) {
     jobs.push(post(`https://ntfy.sh/${encodeURIComponent(process.env.NTFY_TOPIC)}`, {
@@ -42,13 +46,17 @@ export async function notify(title, body, path = "") {
         Title: title.replace(/[^\x20-\x7e]/g, "-"),
         Click: link,
         Tags: "eyes",
+        // ntfy's "view" action opens the address in the phone's browser.
+        ...(buttons.length && { Actions: buttons.map((b) => `view, ${b.label}, ${b.url}`).join("; ") }),
       },
     }));
   }
   if (process.env.DISCORD_WEBHOOK_URL) {
     jobs.push(post(process.env.DISCORD_WEBHOOK_URL, {
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content: `**${title}**\n${body}\n<${link}>`.slice(0, 1900) }),
+      body: JSON.stringify({
+        content: [`**${title}**`, body.slice(0, 1500), `<${link}>`, ...buttons.map((b) => `${b.label}: <${b.url}>`)].join("\n"),
+      }),
     }));
   }
   await Promise.all(jobs);

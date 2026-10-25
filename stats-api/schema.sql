@@ -3,14 +3,17 @@
 -- Apply once, by hand, against the Neon database:
 --   psql "$DATABASE_URL" -f schema.sql
 --
--- Five tables. `visitor` is one browser over time; `session` is one visit by
--- it; `event` is a thing that happened during a visit. `link` is a tracked
--- link Ali hands out, and `hit` is a request that is not a beacon: a short
--- link being followed, or a chat app fetching the preview image. Everything
--- the dashboard shows is an aggregate over these, computed at read time —
--- there is no rollup table, because at this volume (a personal site, hundreds
--- of visits a month) rolling up would be inventing a performance problem in
--- order to solve it.
+-- Six tables, five of them the analytics. `visitor` is one browser over time;
+-- `session` is one visit by it; `event` is a thing that happened during a
+-- visit. `link` is a tracked link Ali hands out, and `hit` is a request that
+-- is not a beacon: a short link being followed, or a chat app fetching the
+-- preview image. Everything the dashboard shows is an aggregate over these,
+-- computed at read time — there is no rollup table, because at this volume (a
+-- personal site, hundreds of visits a month) rolling up would be inventing a
+-- performance problem in order to solve it.
+--
+-- The sixth, `comment`, stands apart: a reader's comment on a blog post,
+-- written by api/comments.js and never read by the dashboard.
 --
 -- WHAT IS STORED
 --
@@ -21,9 +24,10 @@
 --
 -- WHAT IS NOT
 --
---   Names, emails, cursor tracks, keystrokes, form contents, or anything
+--   Emails, cursor tracks, keystrokes, form contents, or anything
 --   resembling a session recording. Console commands are stored by name only,
---   never their arguments.
+--   never their arguments. A comment keeps the name its writer typed and a
+--   keyed hash of their address, never the address itself.
 
 CREATE TABLE IF NOT EXISTS visitor (
   -- The random id the beacon keeps in localStorage. When storage is blocked
@@ -161,6 +165,25 @@ CREATE TABLE IF NOT EXISTS hit (
   country     text
 );
 
+-- A comment on a blog post. It waits as `pending` until Ali approves it from
+-- the push (api/moderate.js); deleting one removes the row.
+CREATE TABLE IF NOT EXISTS comment (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  post          text NOT NULL,                 -- the post's slug, "building-night-city"
+  name          text NOT NULL,
+  body          text NOT NULL,
+  -- A comment on a passage keeps the passage and a few words either side of
+  -- it, a W3C TextQuoteSelector, so the page can find it again in the text.
+  quote         text,
+  quote_prefix  text,
+  quote_suffix  text,
+  status        text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved')),
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  approved_at   timestamptz,
+  -- For the rate limit only. An HMAC of the address keyed on STATS_KEY.
+  ip_hash       text
+);
+
 CREATE INDEX IF NOT EXISTS event_session_idx   ON event (session_id);
 CREATE INDEX IF NOT EXISTS event_at_idx        ON event (at DESC);
 CREATE INDEX IF NOT EXISTS event_type_at_idx   ON event (type, at DESC);
@@ -175,3 +198,7 @@ CREATE INDEX IF NOT EXISTS session_live_idx    ON session (last_seen_at DESC);
 -- the headline query sorts the whole table on every load.
 CREATE INDEX IF NOT EXISTS session_human_idx   ON session (started_at DESC) WHERE NOT is_bot;
 CREATE INDEX IF NOT EXISTS hit_at_idx          ON hit (at DESC);
+-- The site's read: one post's approved comments, oldest first.
+CREATE INDEX IF NOT EXISTS comment_post_idx    ON comment (post, created_at) WHERE status = 'approved';
+-- The rate limit's look back over a day.
+CREATE INDEX IF NOT EXISTS comment_created_idx ON comment (created_at DESC);
