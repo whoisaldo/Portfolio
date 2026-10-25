@@ -4,13 +4,16 @@
 // to 404.html. It renders, but with an HTTP 404 and the homepage's title and
 // preview, which means a blog post pasted into X unfurls as the homepage, or
 // not at all. This writes dist/<route>/index.html for the playground, the
-// blog and each post: a copy of the built index.html with its own title,
-// description, canonical address and Open Graph tags. The app itself is
-// unchanged; the copy only differs in what a crawler reads before it runs.
+// blog, each post and each work page: a copy of the built index.html with its
+// own title, description, canonical address and Open Graph tags. The preview
+// image stays the site's own (index.html). The app itself is unchanged; the
+// copy only differs in what a crawler reads before it runs.
 //
 // Run after `vite build`:  node scripts/static-pages.mjs dist
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { runnerImport } from "vite";
 import { parsePost } from "../src/front/frontmatter.js";
 
 const dist = process.argv[2] ?? "dist";
@@ -94,5 +97,24 @@ for (const file of readdirSync(posts).filter((f) => f.endsWith(".md"))) {
     title: `${post.title} · ${NAME}`,
     description: post.summary,
     type: "article",
+  });
+}
+
+// The work pages are named from the same data the app reads. work.js imports
+// images and leaves off file extensions, which Node cannot load on its own,
+// so it goes through Vite, the way the build reads it.
+const { module: work } = await runnerImport(fileURLToPath(new URL("../src/data/work.js", import.meta.url)), {
+  configFile: false,
+  logLevel: "silent",
+});
+// A project's description is a sentence or two; a role's can be a
+// paragraph, so its preview is the first sentence. At least 40 characters
+// of one, so "B.S." is not where it stops.
+const firstSentence = (s) => s.match(/^.{40,}?[.!?](?=\s|$)/)?.[0] ?? s;
+for (const slug of work.workSlugs) {
+  const { kind, entry } = work.findWork(slug);
+  writePage(`/work/${slug}`, {
+    title: `${work.nameOf(kind, entry)} · ${NAME}`,
+    description: kind === "project" ? entry.description : firstSentence(entry.description),
   });
 }
