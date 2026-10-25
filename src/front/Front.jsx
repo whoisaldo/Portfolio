@@ -19,9 +19,12 @@ const WorkPage = lazy(() => import("./WorkPage"));
 // Where the reader was on each page of this tab's history, by entry, so Back
 // and Forward put them there. The browser would, but the playground turns
 // its restoration off (App.jsx), and every entry made after that inherits
-// it, so this shell keeps its own and turns it off too. Held in memory, as
-// the playground's place is (src/lib/intro.js).
-const places = new Map();
+// it, so this shell keeps its own and turns it off too. Mirrored to the
+// tab's sessionStorage, the last hundred entries of it, so a reload, which
+// keeps the entry and its key, keeps the place too. Any other new visit
+// starts afresh.
+const SAVED = "front:places";
+const places = new Map(reloaded() ? stored() : []);
 // Back's place, still to land if the page was a chunk not yet in (Late).
 let pending = null;
 
@@ -46,18 +49,23 @@ export default function Front() {
     window.history.scrollRestoration = "manual";
     const keep = () => places.set(key, window.scrollY);
     window.addEventListener("scroll", keep, { passive: true });
-    return () => window.removeEventListener("scroll", keep);
+    window.addEventListener("pagehide", save);
+    return () => {
+      window.removeEventListener("scroll", keep);
+      window.removeEventListener("pagehide", save);
+      save();
+    };
   }, [key]);
 
-  // A new page starts at its top. Back and forward go to where the reader
-  // was on that entry, or its top if this shell never saw it.
+  // A new page starts at its top. Back, forward and reload go to where the
+  // reader was on that entry, or its top if this shell never saw it.
   useLayoutEffect(() => {
     if (navigation !== "POP") {
       window.scrollTo(0, 0);
       return undefined;
     }
     const y = places.get(key) ?? 0;
-    window.scrollTo(0, y);
+    land(y);
     pending = y;
     return () => {
       pending = null;
@@ -109,6 +117,39 @@ export default function Front() {
   );
 }
 
+function reloaded() {
+  return performance.getEntriesByType?.("navigation")[0]?.type === "reload";
+}
+
+// Storage can be off or full; the place is a nicety, so either way goes on.
+function stored() {
+  try {
+    return JSON.parse(sessionStorage.getItem(SAVED)) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function save() {
+  try {
+    sessionStorage.setItem(SAVED, JSON.stringify([...places].slice(-100)));
+  } catch {
+    // Kept in memory only.
+  }
+}
+
+// Puts the reader at y and keeps them there while the page's fonts come in.
+// The browser would otherwise follow the text it landed on as it reflows,
+// and the place would drift by the difference on every reload.
+function land(y) {
+  const root = document.documentElement;
+  window.scrollTo(0, y);
+  root.style.overflowAnchor = "none";
+  document.fonts.ready.then(() => {
+    root.style.overflowAnchor = "";
+  });
+}
+
 /** A page in a chunk of its own, and Back's place landed again once it is in. */
 function Late({ children }) {
   return (
@@ -121,7 +162,7 @@ function Late({ children }) {
 
 function Landed() {
   useLayoutEffect(() => {
-    if (pending !== null) window.scrollTo(0, pending);
+    if (pending !== null) land(pending);
     pending = null;
   }, []);
   return null;
