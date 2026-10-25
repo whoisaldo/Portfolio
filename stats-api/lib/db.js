@@ -17,6 +17,13 @@
 // parts, which a tagged template cannot express. Only static SQL goes in
 // `text`; every value still travels as a $n parameter.
 //
+// `transaction([[text, params], ...])` runs statements in one transaction and
+// returns each one's rows. It is non-interactive, because Neon's HTTP driver
+// only has that kind: every statement is fixed before the first runs, so a
+// decision has to be made inside the SQL, not between statements. It is READ
+// COMMITTED on both drivers, so each statement sees what committed before it
+// started, which is what a lock taken by an earlier statement relies on.
+//
 // The pg path builds a $1/$2 parameterised query from the template's static
 // strings and interpolated values. Values are never concatenated into SQL, so
 // the injection properties are identical to the Neon driver's.
@@ -27,6 +34,7 @@ const isLocal = /^postgres(ql)?:\/\/([^@/]*@)?(localhost|127\.0\.0\.1|\[::1\])[:
 
 let sql;
 let query;
+let transaction;
 
 if (isLocal) {
   const { default: pg } = await import("pg");
@@ -39,11 +47,30 @@ if (isLocal) {
       strings.reduce((acc, s, i) => acc + s + (i < values.length ? `$${i + 1}` : ""), ""),
       values,
     );
+  transaction = async (statements) => {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN ISOLATION LEVEL READ COMMITTED");
+      const results = [];
+      for (const [text, params = []] of statements) results.push((await client.query(text, params)).rows);
+      await client.query("COMMIT");
+      return results;
+    } catch (err) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
+  };
 } else {
   const { neon } = await import("@neondatabase/serverless");
   sql = neon(url);
   query = (text, params = []) => sql.query(text, params);
+  transaction = (statements) =>
+    sql.transaction((txn) => statements.map(([text, params = []]) => txn.query(text, params)), {
+      isolationLevel: "ReadCommitted",
+    });
 }
 
-export { sql, query };
+export { sql, query, transaction };
 export default sql;

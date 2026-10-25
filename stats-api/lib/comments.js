@@ -11,15 +11,15 @@
 // everything out", which is the right thing to happen to old approve links.
 import crypto from "node:crypto";
 
-// The posts that take comments: the files in the site's src/blog/, by name.
-// This project is deployed on its own, without the site's source, so the list
-// is kept here by hand. test/comments.test.js fails when it and src/blog/
-// disagree, which is when a new post is added.
-export const POSTS = new Set([
-  "building-night-city",
-  "porting-projecte-to-fabric",
-  "zero-touch-secure-boot",
-]);
+// A post is named by its slug, the name of its file in the site's src/blog/.
+// Any slug-shaped name is taken rather than a list of posts kept here, so a new
+// post takes comments without a deploy of this project. A comment on a post
+// that does not exist is one Ali reads and deletes, like any other he would
+// not approve.
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** True when `v` could be a post's slug. */
+export const isPost = (v) => typeof v === "string" && v.length <= 80 && SLUG.test(v);
 
 export const LIMITS = { name: 60, body: 2000, quote: 500, context: 64 };
 
@@ -74,7 +74,7 @@ export function cleanText(v) {
  */
 export function readComment(b) {
   const post = typeof b?.post === "string" ? b.post : "";
-  if (!POSTS.has(post)) return { ok: false, field: "post", error: "That post doesn't take comments." };
+  if (!isPost(post)) return { ok: false, field: "post", error: "That post doesn't take comments." };
 
   const name = cleanLine(b.name);
   if (!name) return { ok: false, field: "name", error: "Add a name." };

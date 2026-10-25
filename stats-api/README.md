@@ -72,15 +72,22 @@ comment, and can quote a passage of the post by selecting it.
 - **Spam.** The comment must come from the site's Origin, a hidden honeypot
   field must be empty (a robot that fills it is told it worked), and one
   address gets three comments in ten minutes and twelve a day, with forty an
-  hour for everyone together. The address is kept only as an HMAC for that
-  count, never as itself.
+  hour for everyone together. Each comment is counted and stored in one
+  statement behind a Postgres advisory lock, so a burst sent at once is held
+  to the same limits as one sent slowly. The address is kept only as an HMAC
+  for that count, never as itself.
+- **Closed without a way to approve.** Comments need `STATS_KEY`, which signs
+  the links, and `NTFY_TOPIC` or `DISCORD_WEBHOOK_URL` to send them on.
+  Without both, `POST /api/comments` answers 503 and stores nothing, and the
+  site says comments are closed.
 - **Quotes** are stored as the quoted words plus up to 64 characters either
   side (a W3C TextQuoteSelector). The site finds them again in the post's
   text and highlights them. Edit the quoted words and the highlight goes;
   the comment and its quote stay.
-- **A new post** has to be added to `POSTS` in `lib/comments.js` before it
-  takes comments. `npm test` fails until it is, and this project then needs
-  a deploy.
+- **A new post** takes comments as soon as it is on the site. Any slug-shaped
+  `post` (lowercase letters, digits and single hyphens, at most 80
+  characters) is accepted, so there is no list here to update and no deploy
+  of this project; a comment on a post that does not exist is one to delete.
 
 ---
 
@@ -109,7 +116,7 @@ rm /tmp/stats.env
 | `DATABASE_URL`        | yes      | Postgres connection string. The Neon integration sets it. |
 | `STATS_KEY`           | yes      | The dashboard password. Changing it signs every device out. |
 | `IPINFO_TOKEN`        | no       | ipinfo.io Lite token (free, no rate limit). Gives the network's name **and domain**, which classifies far better. Without it, ip-api.com's free endpoint is used, which is rate-limited per source IP and Vercel's are shared. |
-| `NTFY_TOPIC`          | no       | Push alerts through ntfy.sh. Install the ntfy app and subscribe to this topic. The topic name is the secret. |
+| `NTFY_TOPIC`          | no       | Push alerts through ntfy.sh. Install the ntfy app and subscribe to this topic. The topic name is the secret. Comments are closed unless this or `DISCORD_WEBHOOK_URL` is set. |
 | `DISCORD_WEBHOOK_URL` | no       | Alerts as Discord messages. |
 | `EXTRA_ORIGINS`       | no       | Comma-separated extra origins allowed to send beacons and comments, e.g. a preview address. |
 | `PUBLIC_URL`          | no       | Where alert links, and a comment's Approve and Delete links, point. Defaults to `https://stats.aliyounes.dev`. |

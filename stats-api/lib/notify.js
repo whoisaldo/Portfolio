@@ -25,6 +25,9 @@ async function post(url, init) {
   }
 }
 
+/** True when at least one channel is set, so a push has somewhere to go. */
+export const canNotify = () => Boolean(process.env.NTFY_TOPIC || process.env.DISCORD_WEBHOOK_URL);
+
 /**
  * @param {string} title  one line, shown as the notification's heading
  * @param {string} body   the detail

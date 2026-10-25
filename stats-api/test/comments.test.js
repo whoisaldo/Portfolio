@@ -8,9 +8,6 @@
 // here and recorded instead.
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 process.env.STATS_KEY = "test-password";
 process.env.PUBLIC_URL = "https://stats.test";
@@ -27,7 +24,7 @@ globalThis.fetch = async (url, init) => {
   return realFetch(url, init);
 };
 
-const { POSTS, commentToken, tokenOk, ipHash, readComment, cleanLine, cleanText } = await import("../lib/comments.js");
+const { isPost, commentToken, tokenOk, ipHash, readComment, cleanLine, cleanText } = await import("../lib/comments.js");
 
 const DB = process.env.TEST_DATABASE_URL;
 const skip = !DB && "TEST_DATABASE_URL not set";
@@ -38,10 +35,11 @@ const POST = "building-night-city";
 // Without a database
 // ---------------------------------------------------------------------------
 
-test("every post in src/blog/ takes comments, and nothing else does", () => {
-  const blog = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../src/blog");
-  const slugs = fs.readdirSync(blog).filter((f) => f.endsWith(".md")).map((f) => f.slice(0, -3)).sort();
-  assert.deepEqual([...POSTS].sort(), slugs, "update POSTS in lib/comments.js to match src/blog/");
+test("any slug-shaped name is a post, and nothing else is", () => {
+  for (const s of ["building-night-city", "zero-touch-secure-boot", "a", "post-2", "x".repeat(80)]) assert.ok(isPost(s), s);
+  for (const s of ["", "-a", "a-", "a--b", "Building", "a_b", "a b", "../etc", "a/b", "x".repeat(81), 7, null]) {
+    assert.ok(!isPost(s), String(s));
+  }
 });
 
 test("a token is for one comment and one action", () => {
@@ -70,7 +68,7 @@ test("names are one line, comments keep their paragraphs", () => {
 test("a comment is checked before it is stored", () => {
   const ok = { post: POST, name: "Jane", body: "Nice." };
   assert.equal(readComment(ok).ok, true);
-  assert.equal(readComment({ ...ok, post: "not-a-post" }).field, "post");
+  assert.equal(readComment({ ...ok, post: "Not a post" }).field, "post");
   assert.equal(readComment({ ...ok, name: " \n " }).field, "name");
   assert.equal(readComment({ ...ok, name: "x".repeat(61) }).field, "name");
   assert.equal(readComment({ ...ok, body: "" }).field, "body");
@@ -204,12 +202,70 @@ test("one address gets three comments in ten minutes", { skip }, async () => {
   await sql`DELETE FROM comment WHERE name IN ('Rae', 'Lee')`;
 });
 
+test("a burst at once is held to the same limits", { skip }, async () => {
+  // All at the same moment, so every request would read the count before any
+  // other was stored if the count and the insert were apart.
+  const burst = (n, ip) => Promise.all(Array.from({ length: n }, (_, i) =>
+    send({ post: POST, name: "Burst", body: `b${i}` }, { ip: typeof ip === "function" ? ip(i) : ip })));
+  const pushed = () => pushes.filter((p) => p.body.includes("From: Burst")).length;
+
+  const one = await burst(12, "198.51.100.8");
+  assert.deepEqual(one.map((r) => r.statusCode).sort(), [...Array(3).fill(202), ...Array(9).fill(429)]);
+  assert.equal((await sql`SELECT count(*)::int AS n FROM comment WHERE name = 'Burst'`)[0].n, 3);
+  await until(() => pushed() === 3);
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(pushed(), 3, "a push for each comment stored, and none for the refused");
+  await sql`DELETE FROM comment WHERE name = 'Burst'`;
+
+  // Everyone together: one place left under the hour's forty.
+  const [{ n: now }] = await sql`SELECT count(*)::int AS n FROM comment`;
+  await sql`
+    INSERT INTO comment (post, name, body, ip_hash)
+    SELECT ${POST}, 'Seed', 'x', 'seed-' || g FROM generate_series(1, ${39 - now}) g
+  `;
+  const all = await burst(12, (i) => `198.51.100.${100 + i}`);
+  assert.deepEqual(all.map((r) => r.statusCode).sort(), [202, ...Array(11).fill(429)]);
+  assert.match(all.find((r) => r.statusCode === 429).body.error, /busy/);
+  assert.equal((await sql`SELECT count(*)::int AS n FROM comment`)[0].n, 40);
+  await sql`DELETE FROM comment WHERE name IN ('Burst', 'Seed')`;
+});
+
+test("without a signing key or a push channel, no comment is taken", { skip }, async () => {
+  const env = { STATS_KEY: process.env.STATS_KEY, NTFY_TOPIC: process.env.NTFY_TOPIC };
+  const before = (await sql`SELECT count(*)::int AS n FROM comment`)[0].n;
+  const pushed = pushes.length;
+  try {
+    delete process.env.STATS_KEY;
+    const noKey = await send({ post: POST, name: "Shut", body: "x" }, { ip: "198.51.100.9" });
+    assert.equal(noKey.statusCode, 503);
+    assert.match(noKey.body.error, /closed/);
+    process.env.STATS_KEY = env.STATS_KEY;
+
+    delete process.env.NTFY_TOPIC;
+    const noPush = await send({ post: POST, name: "Shut", body: "x" }, { ip: "198.51.100.9" });
+    assert.equal(noPush.statusCode, 503);
+    process.env.DISCORD_WEBHOOK_URL = "https://discord.test/hook";
+    assert.equal(
+      (await send({ post: POST, name: "Shut", body: "x", website: "bot" }, { ip: "198.51.100.9" })).statusCode,
+      202,
+      "Discord alone is a channel",
+    );
+  } finally {
+    Object.assign(process.env, env);
+    delete process.env.DISCORD_WEBHOOK_URL;
+  }
+  assert.equal((await sql`SELECT count(*)::int AS n FROM comment`)[0].n, before, "nothing stored");
+  assert.equal(pushes.length, pushed, "nothing sent");
+  assert.equal((await read()).statusCode, 200, "reading still works");
+});
+
 test("pending comments are not shown", { skip }, async () => {
   const res = await read();
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body, { comments: [] });
   assert.match(res.headers["cache-control"], /max-age=30/);
-  assert.equal((await read("nope")).statusCode, 404);
+  assert.equal((await read("../etc")).statusCode, 404);
+  assert.deepEqual((await read("a-post-not-written-yet")).body, { comments: [] });
 });
 
 test("a moderation link with a wrong token does nothing", { skip }, async () => {
