@@ -62,7 +62,7 @@
 // loadDrift() and <Preload /> below), so the click starts the song in a few
 // hundred milliseconds.
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigationType } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUpRight, Briefcase, ScanEye, Volume2, VolumeX } from "lucide-react";
 import { useFocusTrap, useMediaQuery, usePrefersReducedMotion } from "../hooks";
@@ -75,6 +75,7 @@ import {
   markAsked,
   shouldGate,
   setSoundEnabled,
+  soundEnabled,
   unlockAudio,
 } from "../lib/audio";
 import { prefetchTrack, startAmbient, stopAmbient } from "../lib/ambient";
@@ -83,7 +84,7 @@ import { prefetchWorld } from "../world/load";
 import { coverWorld, stage, subscribeStage, useStage } from "../world/stage";
 import { LOAD_STEPS, markBytes, useBytes, useLoaded } from "../world/progress";
 import { pickTier } from "../world/quality";
-import { DOOR_OPEN, introModeForThisLoad, setIntroDone, startIntro } from "../lib/intro";
+import { backFromWork, DOOR_OPEN, introModeForThisLoad, setIntroDone, startIntro } from "../lib/intro";
 import { CRUISE_GAIN, DROP, INTRO_GAIN, LEAVE_SECONDS, SHORT_START, SONG_START } from "../lib/cues";
 import { GpuNoticeShort } from "./GpuNotice";
 import { hasGpuAcceleration } from "../lib/gpu";
@@ -458,8 +459,14 @@ export default function EntryGate({ onEnter }) {
   // The homepage's way into the playground arrives with this. It goes to
   // the entrance, not to the page behind it, so the door goes up whatever
   // the sound preference says and the intro behind it is the whole one.
-  const asked = useLocation().state?.door === true;
-  const [open, setOpen] = useState(() => asked || shouldGate());
+  const location = useLocation();
+  const asked = location.state?.door === true;
+  // Back from a work page to where the reader left the playground, in this
+  // tab: they have answered the door already, and Home puts them back
+  // where they were (src/lib/intro.js). Any other load gets the door.
+  const navigation = useNavigationType();
+  const [back] = useState(() => Boolean(backFromWork(location.key, navigation)));
+  const [open, setOpen] = useState(() => !back && (asked || shouldGate()));
   // Someone who has been here before does not need the explanation again, just
   // the click. Read on mount and then only when the door is deliberately
   // reopened, because markAsked() runs before the exit animation finishes and
@@ -485,6 +492,33 @@ export default function EntryGate({ onEnter }) {
     window.addEventListener(DOOR_OPEN, onDoor);
     return () => window.removeEventListener(DOOR_OPEN, onDoor);
   }, []);
+
+  // The music, for a reader who came back with it on, from the drop, as the
+  // sound control starts it. The page has had its gesture, so the context
+  // usually resumes at once; if the browser still says no, the first
+  // gesture here starts it, and nothing plays before that.
+  useEffect(() => {
+    if (!back || !soundEnabled()) return undefined;
+    let alive = true;
+    const play = () =>
+      unlockAudio().then((ok) => {
+        if (ok && alive) startAmbient({ offset: DROP, gain: CRUISE_GAIN });
+        return ok;
+      });
+    const types = ["pointerdown", "keydown", "touchstart"];
+    const opts = { passive: true, capture: true };
+    const wake = () => {
+      types.forEach((type) => document.removeEventListener(type, wake, opts));
+      play();
+    };
+    play().then((ok) => {
+      if (!ok && alive) types.forEach((type) => document.addEventListener(type, wake, opts));
+    });
+    return () => {
+      alive = false;
+      types.forEach((type) => document.removeEventListener(type, wake, opts));
+    };
+  }, [back]);
 
   // Start the downloads the moment the door is on screen: the track, and
   // the 3D chunk the drift needs. Neither is awaited anywhere; the intro

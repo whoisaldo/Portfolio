@@ -15,6 +15,7 @@
 // nothing about the garage delays the hero or the door.
 import React, { Component, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { useLocation, useNavigationType } from "react-router-dom";
 import Chrome from "../components/Chrome";
 import Hero from "../components/Hero";
 import ProjectsSection from "../components/projects/ProjectsSection";
@@ -27,6 +28,7 @@ import Glitch from "../components/ui/Glitch";
 // the lazy section or console has been requested. This imports no car data.
 import "../lib/garage";
 import { jumpToY, scrollToSection } from "../lib/scroll";
+import { backFromWork, leavePlayground } from "../lib/intro";
 import { useEnv } from "../lib/env";
 import { hasGpuAcceleration } from "../lib/gpu";
 import { usePrefersReducedMotion } from "../hooks";
@@ -377,6 +379,18 @@ export default function Home() {
   // The deep link still to land, until the reader takes the scroll over
   // themselves; the garage's chunk arriving lands it once more.
   const pending = useRef(null);
+  const { key } = useLocation();
+  const navigation = useNavigationType();
+
+  // Leaving for a work page remembers where from, so Back lands there
+  // (src/lib/intro.js). A layout effect, so the page is still laid out at
+  // the reader's place when it is read.
+  const keyRef = useRef(key);
+  keyRef.current = key;
+  useLayoutEffect(() => () => leavePlayground(keyRef.current, window.scrollY), []);
+  // And arriving by Back from one, where to put the reader: read once, on
+  // the render that mounts the page.
+  const backRef = useRef(backFromWork(key, navigation));
   const { status } = useStage();
   const env = useEnv();
   const reduced = usePrefersReducedMotion();
@@ -388,7 +402,7 @@ export default function Home() {
     return () => window.removeEventListener("load", prepare);
   }, [status, env.world, reduced]);
   const onGarageMounted = useCallback(() => {
-    if (pending.current) scrollToSection(pending.current);
+    pending.current?.();
   }, []);
   // The garage changed layout under the reader and put their view back
   // itself: a retry of the link must not move it again.
@@ -405,11 +419,14 @@ export default function Home() {
     // The garage's chunk: at once for a link that lands at or past it,
     // otherwise once the page has loaded and is idle.
     if (AFTER_GARAGE.includes(raw)) prepareGarageSection();
-    if (!hash) {
+    // Back from a work page lands where the reader left, the same way a
+    // deep link lands on its section.
+    const back = backRef.current;
+    if (!hash && !back) {
       window.scrollTo(0, 0);
       return undefined;
     }
-    pending.current = hash;
+    pending.current = back ? () => jumpToY(back.y) : () => scrollToSection(hash);
     const mine = () => {
       pending.current = null;
     };
@@ -432,7 +449,7 @@ export default function Home() {
     // it. A timeout still fires there.
     // (Only while the link is still to land: once the reader or the
     // garage's own layout has moved the page, a retry would undo it.)
-    const go = () => pending.current && scrollToSection(hash);
+    const go = () => pending.current?.();
     const raf = requestAnimationFrame(go);
     const timers = [0, 120, 400].map((d) => setTimeout(go, d));
     window.addEventListener("load", go, { once: true });
