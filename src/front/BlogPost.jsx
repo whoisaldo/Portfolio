@@ -3,7 +3,12 @@
 // Its own chunk, so the Markdown renderer loads with the first article a
 // reader opens and not with the homepage. The posts are files in this repo,
 // written by Ali, so their HTML goes in as it comes out of marked.
-import React, { useMemo } from "react";
+//
+// Markdown cannot run code, so a post that needs something live carries a
+// placeholder, <div data-embed="name"></div>, and the component registered
+// under that name in ./embeds is portalled into it once the HTML is in.
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { marked } from "marked";
@@ -11,13 +16,22 @@ import { profile, links } from "../data/profile";
 import { findPost, formatDate } from "./posts";
 import { COLUMN, useTitle } from "./lib";
 import { FollowOnX, FrontFooter, FrontHeader } from "./parts";
+import { embeds } from "./embeds";
 
 const backLink = "inline-flex items-center gap-1.5 text-sm font-medium text-dim transition-colors duration-150 hover:text-volt";
 
 export default function BlogPost() {
   const { slug } = useParams();
   const post = findPost(slug);
-  const html = useMemo(() => (post ? marked.parse(post.body) : ""), [post]);
+  // One object for the life of the post: React re-sets innerHTML whenever
+  // this prop is a new object, which would throw away the embeds' slots.
+  const html = useMemo(() => ({ __html: post ? marked.parse(post.body) : "" }), [post]);
+  const body = useRef(null);
+  const [slots, setSlots] = useState([]);
+  // Before paint, so an embed never flashes in after the text around it.
+  useLayoutEffect(() => {
+    setSlots(body.current ? [...body.current.querySelectorAll("[data-embed]")] : []);
+  }, [html]);
   useTitle(post ? `${post.title} · ${profile.name}` : `Writing · ${profile.name}`);
 
   if (!post) {
@@ -55,7 +69,11 @@ export default function BlogPost() {
           <p className="mt-4 text-sm tabular-nums text-dim">
             <time dateTime={post.date}>{formatDate(post.date)}</time> · {post.minutes} min read
           </p>
-          <div className="post-body mt-10" dangerouslySetInnerHTML={{ __html: html }} />
+          <div ref={body} className="post-body mt-10" dangerouslySetInnerHTML={html} />
+          {slots.map((slot, i) => {
+            const Embed = embeds[slot.dataset.embed];
+            return Embed ? createPortal(<Embed />, slot, `${slot.dataset.embed}-${i}`) : null;
+          })}
         </article>
 
         <aside className="mt-16 border-t border-ink-line pt-8">
