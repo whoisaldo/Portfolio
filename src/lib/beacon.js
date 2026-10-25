@@ -23,8 +23,8 @@
 //
 //   No cookies. No cursor tracking, no keystrokes, no clipboard, no form
 //   contents, no session replay, no cross-site identifiers, no fingerprinting.
-//   The site has no forms and no login, so there is nothing of that kind to
-//   take even accidentally.
+//   The site has no login, and its one form, the comment box under a blog
+//   post, sends to its own endpoint; nothing here reads it.
 
 const ENDPOINT = import.meta.env.VITE_STATS_ENDPOINT || "";
 

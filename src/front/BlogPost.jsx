@@ -8,7 +8,11 @@
 // placeholder, <div data-embed="name"></div>, and the component registered
 // under that name in ./embeds is portalled into it once the HTML is in. The
 // components are lazy, so a post without one never fetches them.
-import React, { Suspense, useLayoutEffect, useMemo, useRef, useState } from "react";
+//
+// Under every post are its comments (./Comments.jsx), a lazy chunk of their
+// own like the embeds. They are given the post's body too, to highlight the
+// passages quote comments are about.
+import React, { lazy, Suspense, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -18,6 +22,8 @@ import { findPost, formatDate } from "./posts";
 import { COLUMN, useTitle } from "./lib";
 import { FollowOnX, FrontFooter, FrontHeader } from "./parts";
 import { embeds } from "./embeds";
+
+const Comments = lazy(() => import("./Comments"));
 
 const backLink = "inline-flex items-center gap-1.5 text-sm font-medium text-dim transition-colors duration-150 hover:text-volt";
 
@@ -84,6 +90,10 @@ export default function BlogPost() {
               : null;
           })}
         </article>
+
+        <Suspense fallback={null}>
+          <Comments key={post.slug} slug={post.slug} body={body} />
+        </Suspense>
 
         <aside className="mt-16 border-t border-ink-line pt-8">
           <p className="text-pretty text-muted">
