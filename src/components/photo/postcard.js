@@ -6,15 +6,13 @@
 // own pixels, framed: the viewfinder's corner marks, the name set as the hero
 // sets it, and along the foot only what is true about the picture, which is
 // the rule the page's chrome keeps (Chrome.jsx). Where it was taken (the shot,
-// by its section's own number and name, or the case study's), the lens (the
+// by its section's own number and name), the lens (the
 // camera's real field of view as a full-frame focal length, as the film's
 // viewfinder works it out), when (the reader's own clock), and the site it
 // came from. Its own chunk: nobody who never takes one downloads it.
 import { getWorld, stage } from "../../world/stage";
 import { chapterLabel } from "../../world/scroll-stage";
 import { profile } from "../../data/profile";
-import { featuredProjects } from "../../data/projects";
-import { experiences } from "../../data/experience";
 
 const VOLT = "#fcee0a";
 const PAPER = "#eceae4";
@@ -26,13 +24,6 @@ const lensMm = (fov) => 12 / Math.tan((fov * Math.PI) / 360);
 
 /** Where the camera is, in the page's own words: "01", "Work". */
 function placeOf() {
-  const r = stage.route;
-  if (r.kind === "project" || r.kind === "role") {
-    const c = chapterLabel(r.kind === "project" ? "projects" : "experience");
-    const item = r.kind === "project" ? featuredProjects.find((p) => p.slug === r.slug) : experiences.find((e) => e.slug === r.slug);
-    const title = item ? (r.kind === "project" ? item.title : item.company) : null;
-    if (c) return { num: c.num, name: title ? `${c.name} // ${title}` : c.name };
-  }
   const shot = stage.shots[Math.round(stage.position)];
   return (shot && chapterLabel(shot.id)) || { num: "00", name: "" };
 }

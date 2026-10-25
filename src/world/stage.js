@@ -4,7 +4,7 @@
 // of things about the page in front of it: how far down it the reader is, in
 // shots rather than pixels; which Work deck entry is on the screen; which
 // role card is being read; whether something opaque is covering the whole
-// viewport; which route is showing. None of the components that know those
+// viewport. None of the components that know those
 // things should own the world or be its parent, and the world should not
 // have to reach into React to find them out.
 //
@@ -17,7 +17,7 @@
 //               the world's own frame loop straight off `stage`. Changing
 //               them notifies nobody: a React render per scrolled frame is
 //               exactly the cost this avoids.
-//   Discrete    section, activeProject, activeRole, route, paused, status.
+//   Discrete    section, activeProject, activeRole, paused, status.
 //               Written rarely, through set(), which notifies subscribers.
 //
 // `covers` lists opaque overlays such as the door and the console. The
@@ -69,8 +69,6 @@ export const stage = {
   dim: 0,
   // True while the world is not drawing (tab hidden, or covered).
   paused: false,
-  // { kind: "home" } | { kind: "project" | "role", slug, index }
-  route: { kind: "home" },
   // "off" | "loading" | "ready" | "failed": the live world, not the poster.
   status: "off",
   // The same for the world built for the garage alone, under reduced motion

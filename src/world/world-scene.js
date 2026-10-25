@@ -56,7 +56,7 @@ import { getGarageView } from "../lib/garage3d.js";
 import { getEnv } from "../lib/env.js";
 import { getLevels } from "../lib/ambient.js";
 import { DROP, HANDOFF, REVEAL } from "../lib/cues.js";
-import { boards as BOARDS, towers as TOWERS, SHOTS, GARAGE_STATIONS, GARAGE_TIMELINE } from "../data/world.js";
+import { towers as TOWERS, SHOTS, GARAGE_STATIONS, GARAGE_TIMELINE } from "../data/world.js";
 import { garageScrollFor } from "./scroll-stage.js";
 import { scrollToY } from "../lib/scroll.js";
 import { retryStalledLoad } from "./load-deadline.js";
@@ -455,9 +455,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // A camera on the move: it banks into a turn, as a drone or a helicopter
   // does (roll follows the rate the heading swings at, a few degrees at
   // most), and the lens opens a little with speed. Both are read off the
-  // pose itself, so a scrolled flight and a route's flight get them alike,
-  // and both settle to nothing when the camera holds. Its velocity, eased,
-  // is the rain's too: the streaks are drawn as the camera sees them.
+  // pose itself, so every flight gets them, and both settle to nothing when
+  // the camera holds. Its velocity, eased, is the rain's too: the streaks
+  // are drawn as the camera sees them.
   const motion = { yaw: null, roll: 0, widen: 0, at: new THREE.Vector3(), vel: new THREE.Vector3() };
   const _dir = new THREE.Vector3();
   const _vel = new THREE.Vector3();
@@ -548,7 +548,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     camera.lookAt(p.target);
     // On the garage's route only Look's own turn: no lean to the pointer,
     // no sway, no bank and no widening, which the route was not checked for.
-    const route = withTilt && (inside.on || flight?.garage);
+    const route = withTilt && inside.on;
     if (route) {
       const base = camera.quaternion.clone();
       let safe = Boolean(city?.garageSolids?.length);
@@ -574,31 +574,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }
   };
 
-  // The car first: a flight that follows it looks at where it is now. On a
-  // case study it waits where that page's shot can see it: in the plaza for
-  // a project, under the role's tower on corpo row.
+  // The car first: a flight that follows it looks at where it is now.
   const driveCar = (dt, jump) => {
     if (!car) return;
     const ids = stage.shots.map((x) => x.id);
-    const home = stage.route.kind === "home";
-    if (garageDeparture && garageCars) {
-      const bounds = garageCars.bounds().find((row) => row.carId === "s4");
-      garageCars.setDeparture?.({ active: !home, cameraClear: camera.position.x < 450, liftDown: Boolean(bounds?.liftDown) });
-      if (!home && garageCars.departure && !garageCars.departure.ready) return;
-    }
-    if (flight?.garage || (!home && pose.position.x > 451.5 && pose.position.x < 476 && pose.position.y < 8 && pose.position.z > -230 && pose.position.z < -200)) return;
-    car.drive(dt, { ids, position: home ? stage.position : 0, locals: stage.locals, aspect, jump, goal: home ? null : car.routeGoal(stage.route) });
+    car.drive(dt, { ids, position: stage.position, locals: stage.locals, aspect, jump });
   };
 
-  // A route change has no scroll to drive it, so it flies on the clock:
-  // from wherever the camera is to the new route's shot, over ROUTE_FLIGHT
-  // seconds, on the same up-across-down path a scrolled flight takes, with
-  // the glitch at its middle.
-  const ROUTE_FLIGHT = 1.8;
-  const routeKey = () => `${stage.route.kind}:${stage.route.slug ?? ""}`;
-  let lastRoute = null;
-  let flight = null;
-  let garageDeparture = null;
   const dest = makePose();
 
   // Corpo row's dolly runs along the row with the reader, and while a card
@@ -628,9 +610,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
 
   const aim = (dt = 0) => {
     const ids = stage.shots.map((s) => s.id);
-    const home = stage.route.kind === "home";
     if (!shots) driftPose(aspect, dest);
-    else if (!home) shots.routePose(stage.route, aspect, dest);
     else if (!ids.length) shots.poseOf("hero", 0, aspect, dest);
     else if (inside.on) {
       // In and around the garage: the route read at the smoothed numbers.
@@ -641,7 +621,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       shots.goal(ids, inside.position, inside.locals, aspect, dest, car?.car.position);
     } else shots.goal(ids, stage.position, localsFor(ids, dt), aspect, dest, car?.car.position);
 
-    if (home && inside.on && inspectionCursor && !flight && !garageDeparture && stage.view !== "cinema") {
+    if (inside.on && inspectionCursor && stage.view !== "cinema") {
       if (inspectionAspect !== aspect) {
         inspectionCursor = visit.navigator(inside.p, aspect);
         inspectionAspect = aspect;
@@ -651,88 +631,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       const next = inspectionCursor.sample(dt, dest);
       if (next.done && inspectionTarget == null) inspectionCursor = null;
     }
-    const key = routeKey();
-    if (lastRoute !== null && key !== lastRoute && shots && posed) {
-      // Changing the destination retains the doorway cursor. A return to
-      // Home retraces it instead of launching another flight through walls.
-      if (flight?.garage) {
-        flight.garage.reverse(home);
-        if (home) garageCars?.setDeparture?.({ active: false });
-      }
-      else {
-        const indoors = visit && pose.position.x >= 451.5 && pose.position.x <= 476 && pose.position.y < 8 && pose.position.z > -230 && pose.position.z < -200;
-        const returnInside = home && garageDeparture && dest.position.x >= 451.5 && dest.position.x <= 476 && dest.position.y < 8 && dest.position.z > -230 && dest.position.z < -200;
-        let pending = null;
-        if (returnInside) {
-          // The exit cursor is now outside. Rebuild from the saved indoor
-          // location before seeking outside, so Back retains its destination.
-          const cursor = visit.navigator(garageDeparture.p, aspect, garageDeparture.location);
-          pending = visit.transition(garageDeparture.p, aspect, cursor);
-          pending.seekOutside();
-          pending.reverse(true);
-        }
-        let exiting = null;
-        if (indoors && !home) {
-          const cursor = inspectionCursor ?? visit.navigator(inside.p, aspect);
-          const location = cursor.snapshot();
-          if (location.node?.endsWith("_cabin")) location.node = location.node.slice(0, 2);
-          garageDeparture = { p: inside.p, location, target: inspectionTarget };
-          exiting = visit.transition(inside.p, aspect, cursor);
-          // Remounts may replay selection while the exit owns its cursor.
-          // Keep those requests separate until the doorway return completes.
-          inspectionCursor = null;
-        }
-        flight = { from: copyPose(makePose(), pose), t: 0, glitched: false,
-          garage: exiting, pending, safeGarage: indoors || returnInside };
-        if (flight.garage) {
-          garageCars?.setDeparture?.({ active: !home, cameraClear: false, liftDown: false });
-          garageCars?.setHood("s6", 0);
-          garageCars?.setLowering(0);
-          flight.garage.reverse(home);
-        }
-      }
-    }
-    lastRoute = key;
-    if (flight?.garage) {
-      const state = flight.garage.sample(dt, want);
-      if (state.done) {
-        if (state.returning) {
-          inside.p = state.p;
-          inspectionCursor = visit.navigator(state.p, aspect, garageDeparture.location);
-          inspectionAspect = aspect;
-          inspectionCursor.request(garageDeparture.target ?? state.p, { cut: reduced });
-          garageDeparture = null;
-          flight = null;
-        } else {
-          flight.from = copyPose(makePose(), want);
-          flight.t = 0;
-          flight.garage = null;
-        }
-      }
-      return;
-    }
-    if (flight && shots) {
-      if (flight.pending) copyPose(dest, flight.pending.outside());
-      flight.t += dt;
-      const e = easeInOut(clamp(flight.t / ROUTE_FLIGHT, 0, 1));
-      shots.open(flight.from, dest, e, want);
-      if (!flight.glitched && flight.t >= ROUTE_FLIGHT / 2) {
-        flight.glitched = true;
-        glitch = 1;
-      }
-      if (flight.t >= ROUTE_FLIGHT) {
-        if (flight.pending) {
-          flight.garage = flight.pending;
-          flight.pending = null;
-        } else {
-          flight = null;
-          // A Home destination away from Garage has no indoor leg to resume.
-          if (home) garageDeparture = null;
-        }
-      }
-    } else {
-      copyPose(want, dest);
-    }
+    copyPose(want, dest);
   };
 
   // On a landscape screen the Experience cards fill the page edge to edge
@@ -754,7 +653,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       towerAim.at.copy(anchor.position);
       towerAim.has = true;
     }
-    const held = i >= 0 && stage.route.kind === "home" && !flight && aspect > 1 && !reduced ? clamp(1 - Math.abs(stage.position - i) * 2.5, 0, 1) : 0;
+    const held = i >= 0 && aspect > 1 && !reduced ? clamp(1 - Math.abs(stage.position - i) * 2.5, 0, 1) : 0;
     const goal = anchor ? held : 0;
     towerAim.k += (goal - towerAim.k) * (1 - Math.exp(-dt * 1.6));
     if (towerAim.k < 1e-3 || !towerAim.has) return;
@@ -789,12 +688,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let handClock = 0;
   const _look = new THREE.Vector3();
   const holdHero = (dt) => {
-    const home = stage.route.kind === "home" && stage.shots[0]?.id === "hero" && !flight;
+    const home = stage.shots[0]?.id === "hero";
     // The hero in full; every other shot, while it holds, at a third of it.
     const f = stage.position - Math.round(stage.position);
     const held = clamp(1 - Math.abs(f) * 4, 0, 1);
     // (Never on the garage's route: a push is off the route.)
-    const k = reduced || !home || inside.on || flight?.garage ? 0 : Math.max(clamp(1 - stage.position * 1.5, 0, 1), held * 0.35);
+    const k = reduced || !home || inside.on ? 0 : Math.max(clamp(1 - stage.position * 1.5, 0, 1), held * 0.35);
     handClock += dt;
     const t = handClock;
     hand.yaw = k * 0.2 * DEG * (Math.sin(t * 0.31) + 0.5 * Math.sin(t * 0.73 + 1.3)) / 1.5;
@@ -819,7 +718,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const inside = { on: false, index: -1, position: 0, p: 0, locals: [], layout: 0 };
   const followInside = (dt, jumped) => {
     const i = stage.shots.findIndex((x) => x.id === "garage");
-    const on = Boolean(visiting()) && stage.route.kind === "home" && i >= 0 && !flight && Math.abs(stage.position - i) < 1;
+    const on = Boolean(visiting()) && i >= 0 && Math.abs(stage.position - i) < 1;
     const p = clamp(stage.garageProgress ?? 0, 0, 1);
     const relaid = stage.garageCut !== inside.layout;
     inside.layout = stage.garageCut;
@@ -846,20 +745,14 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // says overrides what the stage says, for that frame only.
   let directed = null;
 
-  /** Which Work entry the plaza's board shows: the deck's, or a case study's own. */
-  const activeBoard = () => {
-    if (directed) return directed.board ?? 0;
-    if (stage.route.kind !== "project") return stage.activeProject;
-    const i = BOARDS.findIndex((b) => b.slug === stage.route.slug);
-    return i >= 0 ? i : stage.activeProject;
-  };
-  const activeTowers = () => (directed ? directed.towers ?? [] : stage.route.kind === "role" ? [stage.route.slug] : stage.activeRoles);
+  /** Which Work entry the plaza's board shows: the deck's. */
+  const activeBoard = () => (directed ? directed.board ?? 0 : stage.activeProject);
+  const activeTowers = () => (directed ? directed.towers ?? [] : stage.activeRoles);
   // How much of the wet road the camera sees, 0..1, from the shots' own
   // `mirror` flags: the hero and the garage's street show it, the rest look
   // over it or away. A flight between two shots eases from one to the other.
   const roadShown = () => {
     if (directed) return directed.mirror ?? 0;
-    if (stage.route.kind !== "home") return 0;
     const ids = stage.shots.map((x) => x.id);
     if (!ids.length) return 1;
     const i = clamp(Math.floor(stage.position), 0, ids.length - 1);
@@ -873,8 +766,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // A jump of more than a shot in one frame is a deep link or a long nav
     // jump: land on it, with a glitch to say so, rather than fly across the
     // whole city in half a second. The car lands on its stop with it.
-    const routeChanged = lastRoute !== null && routeKey() !== lastRoute;
-    const jumped = !routeChanged && !flight && Math.abs(stage.position - lastPosition) > 1.2;
+    const jumped = Math.abs(stage.position - lastPosition) > 1.2;
     const cut = followInside(scrollDt, jumped);
     driveCar(dt, !posed || jumped);
     aim(dt);
@@ -887,7 +779,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       copyPose(pose, want);
       posed = true;
       if (jumped || cut) glitch = 1;
-    } else if (inside.on || flight?.garage || flight?.safeGarage) {
+    } else if (inside.on) {
       // On the garage's route the smoothing was in the numbers: the pose
       // is the route's, as it stands, never a step toward it.
       copyPose(pose, want);
@@ -1065,8 +957,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         const g = directed.garage ?? {};
         city?.garage.update(dt, g.tubes ? 0.55 : 0.16 + 0.14 * clamp(g.door ?? 0, 0, 1), 1);
       } else {
-        if (flight?.garage || flight?.pending) city?.garage.update(dt, 1, 1);
-        else city?.garage.update(dt, stage.position, stage.route.kind === "home" ? stage.shots.findIndex((s) => s.id === "garage") : -1);
+        city?.garage.update(dt, stage.position, stage.shots.findIndex((s) => s.id === "garage"));
       }
       // The wet road's mirror, only while a shot shows the road (`mirror`
       // in src/data/world.js): over a flight away it fades into the baked
@@ -1281,7 +1172,6 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const settle = () => {
     if (!city || disposed) return;
     driveCar(0, true);
-    flight = null;
     aim();
     copyPose(pose, want);
     applyPose(pose, true);
@@ -1716,14 +1606,6 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   };
   const requestInspection = (destination, { cut = reduced } = {}) => {
     if (!visit) return false;
-    if (garageDeparture) {
-      // Selection can arrive before or during Back, including a cabin cut.
-      // Validate it on a separate cursor without moving the active flight.
-      if (!visit.navigator(garageDeparture.p, aspect).request(destination, { cut })) return false;
-      garageDeparture.target = destination;
-      inspectionTarget = destination;
-      return true;
-    }
     inspectionCursor ??= visit.navigator(inside.p, aspect);
     inspectionAspect = aspect;
     if (!inspectionCursor.request(destination, { cut })) return false;
@@ -1747,7 +1629,6 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       if (!requestInspection(key, options)) inspectionLabel = `${mod.name ?? mod.title ?? mod.id} selected. ${selection.carId.toUpperCase()} ${mod.pose} view is unavailable. The part details remain available.`;
     } else {
       inspectionTarget = null;
-      if (garageDeparture) garageDeparture.target = null;
       inspectionLabel = "Tour resumed.";
     }
     publishGarage();
@@ -1770,8 +1651,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     else {
       garageCars.setDriving(false);
       garageCars.setHood("s4", state.hood.s4);
-      garageCars.setHood("s6", flight?.garage ? 0 : state.hood.s6);
-      garageCars.setLowering(flight?.garage ? 0 : state.lowering);
+      garageCars.setHood("s6", state.hood.s6);
+      garageCars.setLowering(state.lowering);
     }
     // B4 evaluates the S4's actual X/Z doorway position, including roam.
     garageCars.setInside(null);
@@ -1779,7 +1660,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const endpoint = (v) => v <= 0 ? 0 : v >= 1 ? 1 : "moving";
     const signature = `${state.station}|${state.activeCar}|${endpoint(state.hood.s4)}|${endpoint(state.hood.s6)}|${endpoint(state.lowering)}`;
     if (signature !== lastGarageSignature) { lastGarageSignature = signature; publishGarage(); }
-    if (!visiting() || directed || flight || garageAvailable !== "ready") { markers?.hideAll(pinElements); return; }
+    if (!visiting() || directed || garageAvailable !== "ready") { markers?.hideAll(pinElements); return; }
     const view = { width, height, left: aspect < 1 ? 12 : 32, right: width - (aspect < 1 ? 12 : 32), top: aspect < 1 ? 104 : 96, bottom: Math.min(height, aspect < 1 ? 540 : height - 216) };
     for (const name of ["nav", "actions", "side", "util"]) {
       const rect = pinLayout?.[name];
@@ -2319,8 +2200,6 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const beginIntro = () => {
     cineLast = null;
     moonWarmed = false;
-    lastRoute = null;
-    flight = null;
     glitch = 0;
     posed = false;
     car?.beginDrift();
@@ -2392,8 +2271,6 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     applyPose(pose, false);
     if (spec.roll) camera.rotateZ(spec.roll);
     posed = true;
-    lastRoute = null;
-    flight = null;
     applyDirectedGarageState({ ...spec.garage, free: spec.free ?? spec.garage?.free });
     if (car && spec.car) car.directed(dt, spec.car);
     cineGlitch = spec.glitch ?? 0;
@@ -2614,7 +2491,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           garageCars?.setLowering(manual.lowering ?? visit.stateAt(stage.garageProgress, reduced).lowering);
           publishGarage();
         },
-        resumeTour() { manual = { selection: null, hood: { s4: null, s6: null }, lowering: null }; clearHoodMotion(); inspectionTarget = null; if (garageDeparture) garageDeparture.target = null; inspectionLabel = "Tour resumed."; publishGarage(); },
+        resumeTour() { manual = { selection: null, hood: { s4: null, s6: null }, lowering: null }; clearHoodMotion(); inspectionTarget = null; inspectionLabel = "Tour resumed."; publishGarage(); },
         /** The room's pack, built in (resolves false with none to build). */
         prepare: prepareGarage,
         goStation(id) {

@@ -280,26 +280,5 @@ export function createShots(anchors, clearance = null, { visit = () => null, red
     return out;
   };
 
-  /**
-   * A case study's shot. A project holds on the plaza's board (which shows
-   * that project's key art); a role holds on its tower on corpo row, looking
-   * up at the crown from across the boulevard.
-   */
-  const routePose = (route, aspect, out) => {
-    if (route.kind === "project") return anchored("projects", 0, aspect, out);
-    const tower = route.kind === "role" ? anchors.get(`anchor_tower_${route.slug}`) : null;
-    if (!tower) return anchored("hero", 0, aspect, out);
-    const p = tower.position;
-    out.position.set(p.x - 14, 40, p.z + 98);
-    out.target.set(p.x, p.y - 10, p.z);
-    out.fov = SHOTS.experience?.fov ?? 40;
-    out.shift = 0;
-    if (aspect < 1) {
-      out.position.sub(out.target).multiplyScalar(1.2).add(out.target);
-      out.fov = Math.min(62, out.fov * 1.3);
-    }
-    return out;
-  };
-
-  return { poseOf, goal, open, routePose };
+  return { poseOf, goal };
 }
