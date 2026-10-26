@@ -48,10 +48,6 @@ Eternal-Reverse-Assets/
 image.png
 *.local.md
 
-# stats-api is a separate Vercel project living in this repo.
-stats-api/node_modules/
-stats-api/.vercel/
-
 # Supabase CLI cache: the linked project ref and org id.
 supabase/.temp/
 design/night-city-world/props-source.json

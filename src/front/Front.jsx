@@ -9,7 +9,7 @@
 //
 // /privateblog is a chunk of its own (./private/), so nobody reading the
 // public pages downloads any of it, and it holds no draft: every word of
-// one is fetched from stats-api after its reader signs in.
+// one is fetched from stats.aliyounes.dev after its reader signs in.
 import React, { lazy, Suspense, useEffect, useLayoutEffect } from "react";
 import { Routes, Route, useLocation, useNavigationType } from "react-router-dom";
 import { initBeacon, pageview } from "../lib/beacon";

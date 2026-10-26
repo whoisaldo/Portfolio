@@ -12,7 +12,7 @@
 // its sections is forwarded to the playground with the hash intact.
 // /recruiters, the plain version the homepage replaced, is on the résumé, so
 // it and everything under it forward to the homepage. The query string goes
-// along, because a tracked link (stats-api, ?s=) carries its code there.
+// along, because a tracked link (stats.aliyounes.dev, ?s=) carries its code there.
 import React, { lazy, Suspense } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary";

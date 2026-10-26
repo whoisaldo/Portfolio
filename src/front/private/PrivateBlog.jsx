@@ -9,7 +9,7 @@
 // himself.
 //
 // The repository is public, so none of a draft is in it or in this chunk:
-// its text, media and comments come from stats-api (stats-api/api/drafts.js)
+// its text, media and comments come from the stats service (stats.aliyounes.dev)
 // after sign-in, and an address that is not a draft the reader can see is a
 // not-found page, whatever the reason.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -55,7 +55,7 @@ export default function PrivateBlog() {
   }, []);
 
   let page;
-  if (!API) page = <Notice title="Not set up here">This build has no stats-api address, so there are no drafts to show.</Notice>;
+  if (!API) page = <Notice title="Not set up here">This build has no stats service address, so there are no drafts to show.</Notice>;
   else if (viewer === undefined) page = <Shell />;
   else if (!viewer) page = <Login onIn={setViewer} />;
   else {
@@ -222,7 +222,7 @@ function Index({ session }) {
 
 /**
  * A draft's Markdown names its media where the published post will have them,
- * /blog/<slug>/<file>. Here they are served by stats-api, to a signed-in
+ * /blog/<slug>/<file>. Here they are served by the stats service, to a signed-in
  * reader only. Rewritten in an inert <template>, so the browser never asks
  * for the public address first.
  */

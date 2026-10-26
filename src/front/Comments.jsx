@@ -1,6 +1,6 @@
 // src/front/Comments.jsx: the comments under a post, and quoting a passage.
 //
-// The comments live in stats-api (stats-api/api/comments.js), not here: the
+// The comments live in the stats service (stats.aliyounes.dev), not here: the
 // site is static on GitHub Pages and has nowhere to keep them. Its address is
 // VITE_COMMENTS_API, set at build time in .github/workflows/deploy.yml. Unset,
 // as in a fork or a plain `npm run dev`, there is no section at all.
@@ -28,7 +28,7 @@ import { findQuote, groupQuotes, indexText, markQuote, quotable, quoteFromRange,
 import "./comments.css";
 
 const API = (import.meta.env.VITE_COMMENTS_API || "").replace(/\/+$/, "");
-// The same limits stats-api/lib/comments.js holds them to.
+// The same limits the stats service holds them to.
 const LIMIT = { name: 60, body: 2000, quote: 500 };
 
 const dateFormat = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -122,7 +122,7 @@ function Thread({ slug, body }) {
   );
 }
 
-/** Asks stats-api for the approved comments, once, when it is time to. */
+/** Asks the stats service for the approved comments, once, when it is time to. */
 function useComments(slug, section) {
   const [state, setState] = useState({ status: "idle", list: [] });
 
@@ -376,7 +376,7 @@ const CommentForm = React.forwardRef(function CommentForm({ slug, draft, onDropQ
       </div>
 
       {/* For robots. A person never sees it, so anything typed here is not
-          from one; stats-api drops the comment and says it worked. */}
+          from one; the stats service drops the comment and says it worked. */}
       <div className="comment-hp" aria-hidden="true">
         <label htmlFor="comment-website">Website</label>
         <input id="comment-website" name="website" type="text" tabIndex={-1} autoComplete="off" />

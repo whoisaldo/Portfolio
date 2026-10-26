@@ -37,7 +37,7 @@ import { Check, MessageSquare, MessageSquarePlus, X } from "lucide-react";
 import { findQuote, groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
 import { ApiError, request } from "./api";
 
-// As in stats-api/lib/comments.js.
+// As the stats service has them.
 const LIMIT = { body: 2000, quote: 500 };
 const WIDE = "(min-width: 1240px)";
 const POLL = { visible: 4000, hidden: 30_000 };
@@ -80,8 +80,8 @@ function useNow(every) {
 }
 
 /**
- * The draft's comments from stats-api, kept fresh, and the ways to change
- * them. A change is shown as soon as stats-api accepts it and then asked for
+ * The draft's comments from the stats service, kept fresh, and the ways to change
+ * them. A change is shown as soon as the service accepts it and then asked for
  * again, so what the page shows is always what everyone else sees.
  */
 function useThreads(slug, onLost) {

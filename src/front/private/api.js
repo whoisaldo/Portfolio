@@ -1,8 +1,8 @@
-// src/front/private/api.js: talking to stats-api from the private blog.
+// src/front/private/api.js: talking to stats.aliyounes.dev from the private blog.
 //
 // Every request carries the reader's cookie (credentials: "include").
 // stats.aliyounes.dev and aliyounes.dev are the same site, so the browser
-// sends it, and stats-api answers this origin by name (stats-api/lib/private.js).
+// sends it, and the stats service answers this origin by name.
 // The address is VITE_COMMENTS_API, the one the public comments use; unset,
 // as in a fork, the private blog says it is not set up here.
 

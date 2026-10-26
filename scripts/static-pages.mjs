@@ -77,7 +77,7 @@ writePage("/privateblog", {
 
 // /recruiters was the plain version of the site, and it is the address on the
 // résumé. The homepage replaced it, so it forwards there, query string and
-// all: a tracked link (stats-api) carries its ?s= code. Without JavaScript
+// all: a tracked link (stats.aliyounes.dev) carries its ?s= code. Without JavaScript
 // the refresh still gets the reader home, minus the code. Deeper addresses
 // under it fall through to 404.html, where Root.jsx does the same.
 mkdirSync(join(dist, "recruiters"), { recursive: true });
