@@ -6,6 +6,10 @@
 // plain version of the site, which forwards here now (Root.jsx).
 // Root.jsx routes here before App.jsx is ever downloaded, so this page costs
 // what it shows and nothing more.
+//
+// /privateblog is a chunk of its own (./private/), so nobody reading the
+// public pages downloads any of it, and it holds no draft: every word of
+// one is fetched from stats.aliyounes.dev after its reader signs in.
 import React, { lazy, Suspense, useEffect, useLayoutEffect } from "react";
 import { Routes, Route, useLocation, useNavigationType } from "react-router-dom";
 import { initBeacon, pageview } from "../lib/beacon";
@@ -15,6 +19,7 @@ import "./front.css";
 
 const BlogPost = lazy(() => import("./BlogPost"));
 const WorkPage = lazy(() => import("./WorkPage"));
+const PrivateBlog = lazy(() => import("./private/PrivateBlog"));
 
 // Where the reader was on each page of this tab's history, by entry, so Back
 // and Forward put them there. The browser would, but the playground turns
@@ -109,6 +114,14 @@ export default function Front() {
           element={
             <Late>
               <WorkPage />
+            </Late>
+          }
+        />
+        <Route
+          path="/privateblog/*"
+          element={
+            <Late>
+              <PrivateBlog />
             </Late>
           }
         />

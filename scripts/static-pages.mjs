@@ -34,7 +34,7 @@ function swap(html, pattern, replacement, what) {
 
 const meta = (attr, key) => new RegExp(`(<meta\\s+${attr}="${key}"\\s+content=")[^"]*(")`);
 
-function writePage(route, { title, description, type = "website" }) {
+function writePage(route, { title, description, type = "website", noindex = false }) {
   // GitHub Pages redirects /route to /route/, so that is the address.
   const url = `${SITE}${route}/`;
   const t = escape(title);
@@ -51,6 +51,10 @@ function writePage(route, { title, description, type = "website" }) {
     html = swap(html, meta("property", "og:description"), `$1${d}$2`, "og:description");
     html = swap(html, meta("name", "twitter:description"), `$1${d}$2`, "twitter:description");
   }
+  if (noindex) {
+    html = html.replace(/<meta\s+name="robots"[^>]*>\s*/g, "");
+    html = swap(html, /<\/head>/, `  <meta name="robots" content="noindex,nofollow" />\n  </head>`, "</head>");
+  }
   mkdirSync(join(dist, route), { recursive: true });
   writeFileSync(join(dist, route, "index.html"), html);
   console.log(`static-pages: ${route}/`);
@@ -65,9 +69,18 @@ writePage("/blog", {
   description: "Long write-ups of things I built, mostly the parts that went wrong first.",
 });
 
+// The private blog: drafts shown to a few people before they are published.
+// Its page says nothing about them, and asks not to be indexed. Every word of
+// a draft is fetched after sign-in, so there is none to put here.
+writePage("/privateblog", {
+  title: `Private · ${NAME}`,
+  description: "Drafts, shared privately before they are published.",
+  noindex: true,
+});
+
 // /recruiters was the plain version of the site, and it is the address on the
 // résumé. The homepage replaced it, so it forwards there, query string and
-// all: a tracked link (stats-api) carries its ?s= code. Without JavaScript
+// all: a tracked link (stats.aliyounes.dev) carries its ?s= code. Without JavaScript
 // the refresh still gets the reader home, minus the code. Deeper addresses
 // under it fall through to 404.html, where Root.jsx does the same.
 mkdirSync(join(dist, "recruiters"), { recursive: true });

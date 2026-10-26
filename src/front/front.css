@@ -103,3 +103,41 @@ html:has(dialog[open]) {
 }
 
 .post-body img { max-width: 100%; height: auto; }
+
+/* A video in a post, written as raw HTML in the Markdown. The box is 16:9
+   before a byte of the file arrives, so nothing below it moves when the
+   metadata loads, and it takes the site's chamfer, cut small like the
+   homepage's photos so the player's controls clear the corner. */
+.post-body figure { margin: 2.25em 0; }
+.post-body > figure:first-child { margin-top: 0; }
+.post-body video {
+  --chamfer: 9px;
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  background: #050506;
+  clip-path: polygon(
+    var(--chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    0 100%,
+    0 var(--chamfer)
+  );
+}
+
+/* A caption in a post's figure. */
+.post-body figcaption {
+  margin-top: 12px;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: rgb(236 234 228 / 0.56);
+  text-wrap: pretty;
+}
+
+/* An embed's chunk loads after the post, so its placeholder holds the box
+   the embed will fill until it arrives and nothing below it moves. The
+   eddies comparison is a 4:3 stage and 60px of controls
+   (embeds/eddies-compare.css). */
+.post-body [data-embed="eddies-compare"]:empty { padding-bottom: calc(75% + 60px); }
