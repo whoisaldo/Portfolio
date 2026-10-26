@@ -13,7 +13,7 @@
 //   Both are random; neither is derived from anything about the person.
 //
 //   Every page they open, which sections were on screen and for how long, how
-//   far down they reached, which buttons, outbound links, résumé and email
+//   far down each page they read, which buttons, outbound links, résumé and email
 //   links they pressed, the door and console (command names only), the
 //   referrer, a tracked-link code if the URL carried one, and the viewport,
 //   screen, timezone and language. The server adds the IP, the place Vercel
@@ -23,8 +23,8 @@
 //
 //   No cookies. No cursor tracking, no keystrokes, no clipboard, no form
 //   contents, no session replay, no cross-site identifiers, no fingerprinting.
-//   The site has no forms and no login, so there is nothing of that kind to
-//   take even accidentally.
+//   The site has no login, and its one form, the comment box under a blog
+//   post, sends to its own endpoint; nothing here reads it.
 
 const ENDPOINT = import.meta.env.VITE_STATS_ENDPOINT || "";
 
@@ -121,10 +121,39 @@ let away = false;
 // Sections currently on screen: id -> { el, t0 }. Module scope so a route
 // change can close out the ones that just left the page.
 const onScreen = new Map();
+// What is watched for reading time: a section with an id, or one named by
+// its heading. The plain homepage's sections are the second kind
+// (aria-labelledby="writing"), and are recorded under the heading's id.
+const SECTIONS = "section[id], section[aria-labelledby]";
+const sectionName = (el) => el.id || el.getAttribute("aria-labelledby");
+// The page being read now, for its `leave` event: its path, the time on
+// screen when it opened, and how far down it has been read. `maxScroll` is
+// the whole visit's; this is one page's, which is what says whether a post
+// was read to the end.
+let page = null;
 
 /** Time on screen so far, including the stretch currently in progress. */
 function elapsed() {
   return Math.round(visibleMs + (visibleSince ? performance.now() - visibleSince : 0));
+}
+
+/** How far down the page the bottom of the window is, 0 to 100. */
+function scrollPct() {
+  const max = document.documentElement.scrollHeight - window.innerHeight;
+  return max > 0 ? Math.min(100, Math.round((window.scrollY / max) * 100)) : 100;
+}
+
+/**
+ * One page's reading so far. Sent when the reader moves to another page and
+ * each time the tab is hidden, with running totals, so the server keeps the
+ * largest it has seen for a page in a visit.
+ */
+function leavePage(stillHere = false) {
+  if (!page) return;
+  // Measured now only while the page is still the one on screen. After a
+  // route change the window already shows the next page.
+  if (stillHere) page.scroll = Math.max(page.scroll, scrollPct());
+  track("leave", null, { p: page.path, m: { scroll: page.scroll, ms: elapsed() - page.t0 } });
 }
 
 function payload() {
@@ -227,6 +256,13 @@ export function pageview() {
   if (lastPageview === key) return;
   lastPageview = key;
   for (const [id, s] of onScreen) if (!s.el.isConnected) closeSection(id);
+  if (page && page.path !== location.pathname) leavePage();
+  const opened = (page = { path: location.pathname, t0: elapsed(), scroll: 0 });
+  // A page shorter than the window never scrolls, and is read to the end
+  // as soon as it is drawn.
+  requestAnimationFrame(() => {
+    if (page === opened) opened.scroll = Math.max(opened.scroll, scrollPct());
+  });
   track("pageview", document.title);
 }
 
@@ -250,9 +286,9 @@ export function initBeacon() {
     if (raf) return;
     raf = requestAnimationFrame(() => {
       raf = 0;
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      const pct = max > 0 ? Math.round((window.scrollY / max) * 100) : 100;
-      if (pct > maxScroll) maxScroll = Math.min(pct, 100);
+      const pct = scrollPct();
+      if (pct > maxScroll) maxScroll = pct;
+      if (page && pct > page.scroll) page.scroll = pct;
     });
   };
   window.addEventListener("scroll", onScroll, { passive: true });
@@ -268,13 +304,13 @@ export function initBeacon() {
   const io = new IntersectionObserver(
     (entries) => {
       for (const e of entries) {
-        const id = e.target.id;
+        const id = sectionName(e.target);
         if (!id) continue;
         if (e.isIntersecting) {
           if (!onScreen.has(id)) onScreen.set(id, { el: e.target, t0: performance.now() });
           // Deepest is by position on the page, so it needs no list of
           // section names to fall out of date.
-          const rank = Array.prototype.indexOf.call(document.querySelectorAll("section[id]"), e.target);
+          const rank = Array.prototype.indexOf.call(document.querySelectorAll(SECTIONS), e.target);
           if (rank > deepestRank) {
             deepestRank = rank;
             deepest = id;
@@ -294,7 +330,7 @@ export function initBeacon() {
   // most of them do not exist yet.
   const watched = new WeakSet();
   const scan = () => {
-    document.querySelectorAll("section[id]").forEach((el) => {
+    document.querySelectorAll(SECTIONS).forEach((el) => {
       if (watched.has(el)) return;
       watched.add(el);
       io.observe(el);
@@ -383,6 +419,7 @@ export function initBeacon() {
       visibleSince = 0;
     }
     for (const id of [...onScreen.keys()]) closeSection(id);
+    leavePage(true);
     queue.push({ t: "end", n: deepest, p: location.pathname, ts: Date.now() });
     send(true);
   };

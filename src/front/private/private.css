@@ -1,0 +1,495 @@
+/* The private blog (PrivateBlog.jsx, DraftComments.jsx). In its own chunk,
+   so no public page carries any of it, and written out here rather than in
+   Tailwind classes, which would land in the stylesheet every page loads. The
+   palette is the site's: carbon #0a0a0c, raised #131316, hairlines #24242a,
+   bone #eceae4, and volt #fcee0a for the thing to press. */
+
+/* ---- signing in, and who is signed in ------------------------------------ */
+
+.private-login { margin-top: 2.25rem; max-width: 22rem; }
+.private-field { margin-top: 1.1rem; }
+.private-field label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(236 234 228 / 0.84);
+}
+.private-field input {
+  display: block;
+  width: 100%;
+  margin-top: 0.4rem;
+  background: #131316;
+  border: 1px solid #24242a;
+  color: #eceae4;
+  /* 16px, so iOS does not zoom the page in when the field is focused. */
+  font-size: 1rem;
+  line-height: 1.5;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0;
+  transition: border-color 150ms;
+}
+.private-field input:hover { border-color: #3a3a42; }
+.private-field input:focus-visible { border-color: #fcee0a; }
+
+.private-error { margin-top: 0.6rem; font-size: 0.875rem; color: #ff4d6d; }
+
+.private-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+  padding: 0.6rem 1rem;
+  background: #fcee0a;
+  color: #0a0a0c;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background-color 150ms;
+}
+/* A chamfered control cannot wear the site's focus ring (index.css), so
+   bone, the hover colour, is the change a keyboard can see. */
+.private-primary:hover,
+.private-primary:focus-visible { background: #eceae4; }
+.private-primary:disabled { opacity: 0.55; cursor: default; }
+.private-primary:disabled:hover { background: #fcee0a; }
+
+.private-who {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: rgb(236 234 228 / 0.56);
+}
+.private-who b { color: #eceae4; font-weight: 600; }
+.private-who button,
+.private-link {
+  font-weight: 600;
+  color: #fcee0a;
+  text-decoration: underline;
+  text-decoration-color: rgb(252 238 10 / 0.45);
+  text-underline-offset: 3px;
+}
+.private-who button:hover,
+.private-link:hover { color: #eceae4; }
+
+.private-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(236 234 228 / 0.56);
+  transition: color 150ms;
+}
+.private-back:hover { color: #fcee0a; }
+
+/* "Private draft", above the title, and who is reading. */
+.private-marker-row {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+.private-marker-row .private-who { margin-top: 0; }
+.private-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid rgb(252 238 10 / 0.5);
+  color: #fcee0a;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.private-marker-row + h1 { margin-top: 1.25rem; }
+
+/* ---- passages with comments --------------------------------------------- */
+
+/* A wash of volt and a hairline under it, as the public comments have, and
+   stronger for the thread in hand. */
+.post-body mark.post-quote[data-threads],
+.post-body [data-threads] mark.post-quote {
+  background: rgb(252 238 10 / 0.14);
+  color: inherit;
+  box-shadow: inset 0 -1px rgb(252 238 10 / 0.7);
+  cursor: pointer;
+  transition: background-color 150ms, box-shadow 150ms;
+}
+.post-body a.post-quote-link[data-threads] { color: inherit; text-decoration: none; }
+.post-body .is-hover mark.post-quote,
+.post-body mark.post-quote.is-hover { background: rgb(252 238 10 / 0.24); }
+.post-body .is-active mark.post-quote,
+.post-body mark.post-quote.is-active,
+.post-body .is-pending mark.post-quote,
+.post-body mark.post-quote.is-pending {
+  background: rgb(252 238 10 / 0.34);
+  box-shadow: inset 0 -2px #fcee0a;
+}
+.post-body .is-resolved mark.post-quote,
+.post-body mark.post-quote.is-resolved {
+  background: rgb(236 234 228 / 0.08);
+  box-shadow: inset 0 -1px rgb(236 234 228 / 0.35);
+}
+
+/* ---- the margin, on a wide screen ----------------------------------------- */
+
+/* Beside the article's column, which stays exactly where a published post's
+   is. 48px from the text, and as wide as the space to the screen's edge
+   allows, up to 300px. */
+.draft-margin {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 48px);
+  width: min(300px, calc((100vw - 100%) / 2 - 72px));
+}
+.draft-margin .draft-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+.draft-margin.is-placed .draft-card {
+  transition: transform 180ms cubic-bezier(0.2, 0.7, 0.2, 1), border-color 150ms, background-color 150ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .draft-margin.is-placed .draft-card { transition: none; }
+}
+
+.draft-toolbar { padding-bottom: 0.25rem; }
+.draft-count { font-size: 0.875rem; font-weight: 600; color: #eceae4; }
+.draft-toolbar-row {
+  margin-top: 0.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1rem;
+}
+.draft-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  color: rgb(236 234 228 / 0.72);
+  cursor: pointer;
+}
+.draft-switch input {
+  appearance: none;
+  width: 28px;
+  height: 16px;
+  border-radius: 999px;
+  background: #24242a;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+.draft-switch input::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgb(236 234 228 / 0.72);
+  transition: transform 150ms, background-color 150ms;
+}
+.draft-switch input:checked { background: #5f5a10; }
+.draft-switch input:checked::after { transform: translateX(12px); background: #fcee0a; }
+
+/* ---- a thread ---------------------------------------------------------------- */
+
+.draft-card {
+  background: #131316;
+  border: 1px solid #24242a;
+  padding: 0.75rem 0.85rem 0.8rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: rgb(236 234 228 / 0.84);
+  cursor: default;
+}
+.draft-card:not(.is-active) { cursor: pointer; }
+.draft-card.is-related,
+.draft-card:hover { border-color: #3a3a42; }
+/* The thread in hand: a volt edge toward the text, and lifted. */
+.draft-card.is-active {
+  border-color: #3a3a42;
+  border-left: 2px solid #fcee0a;
+  background: #17171b;
+  box-shadow: 0 12px 32px -14px rgb(0 0 0 / 0.9);
+  z-index: 2;
+}
+.draft-card.is-resolved:not(.is-active) { opacity: 0.7; }
+
+.draft-resolved {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(236 234 228 / 0.56);
+}
+
+.draft-quote {
+  margin-bottom: 0.6rem;
+  border-left: 2px solid #fcee0a;
+  padding-left: 0.7rem;
+  color: rgb(236 234 228 / 0.66);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.draft-comment + .draft-comment { margin-top: 0.75rem; }
+.draft-comment.is-reply { padding-top: 0.7rem; border-top: 1px solid #24242a; }
+.draft-comment-head { display: flex; align-items: center; gap: 0.55rem; }
+.draft-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: #24242a;
+  color: #eceae4;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.draft-avatar.is-owner { background: #fcee0a; color: #0a0a0c; }
+.draft-meta { min-width: 0; flex: 1; line-height: 1.25; }
+.draft-author {
+  display: block;
+  font-weight: 600;
+  color: #eceae4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.draft-meta time { font-size: 0.75rem; color: rgb(236 234 228 / 0.56); font-variant-numeric: tabular-nums; }
+.draft-body {
+  margin-top: 0.45rem;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.draft-actions { margin-top: 0.3rem; display: flex; gap: 0.85rem; }
+.draft-actions button {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(236 234 228 / 0.56);
+  transition: color 150ms;
+}
+.draft-actions button:hover { color: #fcee0a; }
+/* The menu-ish bits show on the thread in hand, or where there is no hover. */
+@media (hover: hover) {
+  .draft-margin .draft-card:not(.is-active):not(:hover) .draft-actions { visibility: hidden; }
+}
+
+.draft-icon-button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  color: rgb(236 234 228 / 0.72);
+  transition: color 150ms, background-color 150ms;
+}
+.draft-icon-button:hover { color: #fcee0a; background: #24242a; }
+
+.draft-text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #fcee0a;
+  transition: color 150ms;
+}
+.draft-text-button:hover { color: #eceae4; }
+
+.draft-reply-ghost {
+  display: block;
+  width: 100%;
+  margin-top: 0.7rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #24242a;
+  text-align: left;
+  font-size: 0.8125rem;
+  color: rgb(236 234 228 / 0.56);
+  transition: border-color 150ms;
+}
+.draft-reply-ghost:hover { border-color: #3a3a42; }
+
+/* ---- writing --------------------------------------------------------------- */
+
+.draft-box { margin-top: 0.7rem; }
+.draft-card.is-composer .draft-box { margin-top: 0; }
+.draft-box textarea {
+  display: block;
+  width: 100%;
+  min-height: 2.5rem;
+  max-height: 16rem;
+  resize: none;
+  background: #0a0a0c;
+  border: 1px solid #24242a;
+  color: #eceae4;
+  font-size: 1rem;
+  line-height: 1.5;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0;
+  transition: border-color 150ms;
+}
+.draft-box textarea:focus-visible { border-color: #fcee0a; box-shadow: none; }
+.draft-box textarea::placeholder { color: rgb(236 234 228 / 0.4); }
+.draft-left { margin-top: 0.25rem; font-size: 0.75rem; color: rgb(236 234 228 / 0.56); text-align: right; }
+.draft-box-buttons { display: flex; align-items: center; gap: 1rem; }
+.draft-box-buttons .private-primary { margin-top: 0.6rem; padding: 0.4rem 0.8rem; font-size: 0.8125rem; }
+.draft-box-buttons .draft-text-button { margin-top: 0.6rem; color: rgb(236 234 228 / 0.72); }
+.draft-box-buttons .draft-text-button:hover { color: #fcee0a; }
+
+/* ---- under the text --------------------------------------------------------- */
+
+.draft-after { margin-top: 3.5rem; padding-top: 2rem; border-top: 1px solid #24242a; }
+.draft-after-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.draft-after-title { margin-top: 2.25rem; }
+.draft-after #draft-general { margin-top: 1rem; scroll-margin: 6rem; }
+.draft-empty { margin-top: 0.75rem; font-size: 0.875rem; color: rgb(236 234 228 / 0.56); }
+.draft-list { margin-top: 1rem; display: grid; gap: 0.6rem; }
+.draft-after .draft-card { scroll-margin: 6rem; }
+.draft-group {
+  margin-top: 1.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgb(236 234 228 / 0.72);
+}
+
+/* ---- "Comment", by a selection ------------------------------------------------ */
+
+.draft-select {
+  position: absolute;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #fcee0a;
+  color: #0a0a0c;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: draft-in 120ms ease-out;
+}
+.draft-select:hover,
+.draft-select:focus-visible { background: #eceae4; }
+.draft-select kbd {
+  font-family: inherit;
+  font-size: 0.6875rem;
+  padding: 0 0.3rem;
+  border: 1px solid rgb(10 10 12 / 0.35);
+  line-height: 1.2rem;
+}
+/* No keyboard on a phone, so no shortcut to show. */
+@media (hover: none) {
+  .draft-select kbd { display: none; }
+}
+@keyframes draft-in {
+  from { opacity: 0; transform: translateY(-3px); }
+}
+
+/* ---- a phone: the button in the corner, and the sheet ----------------------------- */
+
+.draft-fab {
+  position: fixed;
+  right: 1rem;
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 0.95rem;
+  background: #fcee0a;
+  color: #0a0a0c;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  box-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.9);
+}
+.draft-fab:hover,
+.draft-fab:focus-visible { background: #eceae4; }
+
+/* The page stays put behind an open sheet. */
+html.draft-sheet-open { overflow: hidden; }
+
+/* A modal <dialog>, without the browser's box: the backdrop and panel
+   inside are the sheet. */
+.draft-sheet {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: transparent;
+  color: inherit;
+}
+.draft-sheet::backdrop { background: transparent; }
+.draft-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: rgb(5 5 6 / 0.6);
+  animation: draft-fade 160ms ease-out;
+}
+.draft-sheet-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 78dvh;
+  display: flex;
+  flex-direction: column;
+  background: #0f0f12;
+  border-top: 1px solid #3a3a42;
+  box-shadow: 0 -18px 40px -20px rgb(0 0 0 / 0.9);
+  animation: draft-up 200ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.draft-sheet-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1rem 0.6rem 1.1rem;
+  border-bottom: 1px solid #24242a;
+}
+.draft-sheet-grip {
+  position: absolute;
+  top: 0.4rem;
+  left: 50%;
+  width: 2.25rem;
+  height: 3px;
+  margin-left: -1.125rem;
+  border-radius: 3px;
+  background: #3a3a42;
+}
+.draft-sheet-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.9rem 1rem calc(1.25rem + env(safe-area-inset-bottom));
+}
+.draft-sheet-body > .draft-list:first-child,
+.draft-sheet-body > .draft-card:first-child { margin-top: 0; }
+@keyframes draft-up { from { transform: translateY(100%); } }
+@keyframes draft-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .draft-sheet-panel,
+  .draft-sheet-backdrop,
+  .draft-select { animation: none; }
+}

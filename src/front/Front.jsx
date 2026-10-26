@@ -6,6 +6,10 @@
 // plain version of the site, which forwards here now (Root.jsx).
 // Root.jsx routes here before App.jsx is ever downloaded, so this page costs
 // what it shows and nothing more.
+//
+// /privateblog is a chunk of its own (./private/), so nobody reading the
+// public pages downloads any of it, and it holds no draft: every word of
+// one is fetched from stats-api after its reader signs in.
 import React, { lazy, Suspense, useEffect, useLayoutEffect } from "react";
 import { Routes, Route, useLocation, useNavigationType } from "react-router-dom";
 import { initBeacon, pageview } from "../lib/beacon";
@@ -14,6 +18,7 @@ import BlogIndex from "./BlogIndex";
 import "./front.css";
 
 const BlogPost = lazy(() => import("./BlogPost"));
+const PrivateBlog = lazy(() => import("./private/PrivateBlog"));
 
 export default function Front() {
   const { pathname } = useLocation();
@@ -44,6 +49,14 @@ export default function Front() {
           element={
             <Suspense fallback={null}>
               <BlogPost />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/privateblog/*"
+          element={
+            <Suspense fallback={null}>
+              <PrivateBlog />
             </Suspense>
           }
         />

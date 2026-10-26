@@ -12,7 +12,7 @@ Fabric, the other half of modern modding, had nothing like it. So I built [Etern
 
 Porting between the two isn't a find-and-replace. Forge ships a lot of machinery that mods build on: capabilities and attachments for hanging data off players and blocks, item handlers for inventories, a TOML config spec, fluid stacks, an event bus. ProjectE uses all of it. Fabric leaves almost all of it out on purpose. It gives you a small API and expects you to bring the rest.
 
-So before any alchemy worked, the alchemy needed something to stand on. EternalExchange carries its own compatibility layer, 2,031 lines at last count, that reimplements the parts of that surface the mod actually touches. The rest of the code keeps roughly the shapes ProjectE uses.
+So before any alchemy worked, the alchemy needed something to stand on. EternalExchange carries its own compatibility layer, 2,031 lines at last count, that reimplements the parts of that surface the mod actually touches. The rest of the code keeps roughly the shapes ProjectE uses. My reference for how to approach a port like this was Jarred Sumner's [port of Bun from Zig to Rust](https://github.com/oven-sh/bun/pull/30412).
 
 Some of it can't be a library, because it's about vanilla code doing something at the right moment. Forge fires events from inside vanilla methods. Fabric doesn't fire most of those, so the mod applies nine Mixins, small patches to vanilla classes at load time, plus an access widener for the vanilla internals it has to reach.
 

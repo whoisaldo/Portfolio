@@ -1,0 +1,171 @@
+/* src/front/embeds/eddies-compare.css: EddiesCompare.jsx. Plain classes
+   rather than Tailwind, so nothing here adds to the site-wide stylesheet;
+   this file ships with the post's own chunk. */
+
+/* The box is the stage at 4:3 plus 60px of controls, one row of them down
+   to a 360px screen; front.css reserves exactly that while this chunk
+   loads, so change both together. */
+
+/* The stage wears the site's chamfer, like the homepage's photos. */
+.ec-stage {
+  --chamfer: 14px;
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background-color: #131316;
+  background-image: conic-gradient(#18181d 25%, transparent 0 50%, #18181d 0 75%, transparent 0);
+  background-size: 24px 24px;
+  clip-path: polygon(
+    var(--chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    0 100%,
+    0 var(--chamfer)
+  );
+  cursor: ew-resize;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ec-layer {
+  position: absolute;
+  inset: 0;
+  transition: clip-path 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.ec-layer-svg { clip-path: inset(0 calc(100% - var(--at)) 0 0); }
+.ec-layer-codex { clip-path: inset(0 0 0 var(--at)); }
+
+/* Both marks scale about the seam, so zooming in compares the edges next to it. */
+.ec-zoom {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11% 0;
+  transform: scale(var(--zoom));
+  transform-origin: var(--at) 50%;
+  transition: transform 320ms cubic-bezier(0.2, 0.7, 0.2, 1), transform-origin 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.ec-svg {
+  height: 100%;
+  width: auto;
+  color: #fcee0a;
+}
+.ec .ec-img {
+  height: 100%;
+  width: auto;
+  max-width: none;
+  pointer-events: none;
+}
+
+.ec-tag {
+  position: absolute;
+  top: 12px;
+  padding: 3px 8px;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgb(236 234 228 / 0.86);
+  background: rgb(10 10 12 / 0.8);
+}
+.ec-tag-svg { left: 22px; }
+.ec-tag-codex { right: 12px; }
+
+/* The seam: a 44px target with a 2px line down its middle. */
+.ec-seam {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--at);
+  width: 44px;
+  margin-left: -22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: left 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.ec-seam::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 21px;
+  width: 2px;
+  background: #fcee0a;
+}
+.ec-grip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: #fcee0a;
+  color: #0a0a0c;
+  box-shadow: 0 0 0 3px rgb(10 10 12 / 0.55);
+}
+.ec-seam:focus-visible {
+  box-shadow: none;
+}
+.ec-seam:focus-visible .ec-grip {
+  box-shadow: 0 0 0 2px #0a0a0c, 0 0 0 4px #eceae4;
+}
+
+.is-dragging .ec-layer,
+.is-dragging .ec-zoom,
+.is-dragging .ec-seam {
+  transition: none;
+}
+
+.ec-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+.ec-group {
+  display: inline-flex;
+  border: 1px solid #24242a;
+}
+.ec-button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 14px;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8125rem;
+  color: rgb(236 234 228 / 0.72);
+  background: transparent;
+  transition: color 150ms, background-color 150ms;
+}
+.ec-button + .ec-button {
+  border-left: 1px solid #24242a;
+}
+.ec-button:hover {
+  color: #eceae4;
+}
+.ec-button[aria-pressed="true"] {
+  color: #0a0a0c;
+  background: #fcee0a;
+}
+/* Keeps both groups on one row in a 320px column. */
+@media (max-width: 419px) {
+  .ec-button { padding: 0 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ec-layer,
+  .ec-zoom,
+  .ec-seam,
+  .ec-button {
+    transition: none;
+  }
+}
