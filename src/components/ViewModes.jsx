@@ -183,9 +183,6 @@ function PostcardNote({ postcard, onDone }) {
 /** Which of the city's touchable things the shot in front of the camera is
  *  about: none mid-flight, none where there is nothing to touch. */
 function subjects() {
-  const r = stage.route;
-  if (r.kind === "project") return ["board", "car"];
-  if (r.kind === "role") return ["tower", "car"];
   const i = Math.round(stage.position);
   if (Math.abs(stage.position - i) > 0.3) return [];
   return { hero: ["car"], projects: ["board"], experience: ["tower"], garage: ["car"] }[stage.shots[i]?.id] ?? [];

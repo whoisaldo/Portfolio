@@ -7,9 +7,10 @@
 // and a useSyncExternalStore hook over it. Same shape as the DOM-event
 // signalling the boot used to use, with a readable current value added.
 //
-// Also owns the two decisions the gate has to make before it starts anything:
-// which version of the intro this page load gets, and whether the reader has
-// already watched it in this tab.
+// Also owns the decisions the gate has to make before it starts anything:
+// which version of the intro this page load gets, whether the reader has
+// already watched it in this tab, and whether this is Back from a work page
+// to the place they left it from.
 import { useCallback, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { atPlayground, PLAYGROUND } from "../data/site";
@@ -156,4 +157,26 @@ export function introModeForThisLoad() {
   const param = new URLSearchParams(window.location.search).get("intro");
   if (param === "off" || param === "full" || param === "short") return param;
   return hasSeenIntro() ? "short" : "full";
+}
+
+// The place the reader left the playground from for a work page (src/front/):
+// which history entry, and how far down. Back to that entry is a reader who
+// already answered the door in this tab, so it stays down and the page goes
+// back to where they were. Held in memory, not storage: a reload, or the
+// playground opened fresh, is a new page load and gets the door as ever.
+let away = null;
+
+/**
+ * As the playground's page unmounts (src/routes/Home.jsx): remembered only
+ * when the reader was through the door and the intro, and is going to a
+ * work page. Anywhere else, the braindance included, forgets it.
+ */
+export function leavePlayground(key, y) {
+  const through = done && !document.documentElement.hasAttribute("data-gated");
+  away = through && window.location.pathname.startsWith("/work/") ? { key, y } : null;
+}
+
+/** The place to go back to, if this is Back (a history pop) to that entry. */
+export function backFromWork(key, navigation) {
+  return navigation === "POP" && away?.key === key ? away : null;
 }

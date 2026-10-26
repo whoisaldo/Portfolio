@@ -1,8 +1,8 @@
 // src/world/WorldMount.jsx: the city behind the page, mounted once.
 //
-// Lives in App.jsx's cinematic shell, above the routes, so it survives a
-// route change and a case study flies rather than cuts. Never under
-// /recruiters: that shell does not render this component at all.
+// Lives in App.jsx's cinematic shell, above the routes. Never under the
+// homepage, the blog or the work pages: that shell (src/front/) does not
+// render this component at all.
 //
 // Three layers, fixed, behind everything, aria-hidden:
 //
@@ -46,19 +46,10 @@ import { hasGpuAcceleration } from "../lib/gpu";
 import { usePrefersReducedMotion } from "../hooks";
 import { DOOR_OPEN } from "../lib/intro";
 import { visitEnabled } from "../lib/garage3d";
-import { findWork } from "../data/work";
 import { startScrollStage } from "./scroll-stage";
 import { coverWorld, setStage, setWorld, stage, useStage } from "./stage";
 import { loadWorld } from "./load";
 import { pickTier } from "./quality";
-
-/** The route, as the world understands it. */
-function routeOf(pathname) {
-  const m = pathname.match(/^\/work\/([^/]+)/);
-  if (!m) return { kind: "home" };
-  const hit = findWork(decodeURIComponent(m[1]));
-  return hit ? { kind: hit.kind, slug: hit.entry.slug } : { kind: "home" };
-}
 
 export default function WorldMount() {
   const env = useEnv();
@@ -129,7 +120,6 @@ export default function WorldMount() {
   }, [garageOnly, showing, live]);
 
   useEffect(() => {
-    setStage({ route: routeOf(pathname) });
     scrollRef.current?.resync();
   }, [pathname]);
 

@@ -414,15 +414,6 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
     return a + (c - a) * smoothstep(0, SHOTS[ids[j]]?.carLead ?? LEAD, f);
   };
 
-  /** Where the car waits on a case study: the plaza for a project, the
-   *  boulevard under the role's tower for a role. */
-  const routeGoal = (route) => {
-    if (route.kind === "project") return stops.plaza;
-    const tower = route.kind === "role" ? at(`anchor_tower_${route.slug}`) : null;
-    if (!tower) return stops.curb;
-    return road.nearest({ x: tower.x, z: tower.z + 32 });
-  };
-
   // ---- state -------------------------------------------------------------------
   // "road": on the road at u metres, v metres a second (negative backs up).
   // "drift": the intro has it, on the song clock.
@@ -632,7 +623,6 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
       fob = 0;
     },
     stops,
-    routeGoal,
     get u() {
       return u;
     },
@@ -648,9 +638,9 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
      * are the stage's; `jump` lands the car on its goal instead of driving
      * there (a deep link, a long nav jump, the first frame).
      */
-    drive(dt, { ids, position, locals, aspect, jump = false, goal = null }) {
+    drive(dt, { ids, position, locals, aspect, jump = false }) {
       clock += dt;
-      let want = goal ?? goalFor(ids, position, locals, aspect);
+      let want = goalFor(ids, position, locals, aspect);
       departing = mode === "road" && u >= stops.bay - 0.1 && want < u;
       held = departing && Boolean(hold?.({ mode: "road", cut: jump }));
       if (held) want = u;

@@ -58,15 +58,14 @@ export const operator = {
 };
 
 // Photos belonging to a specific job, keyed by the `company` field in
-// src/data/experience.js. Experience.jsx and WorkPage.jsx look them up by that
-// key, so a company with no photos renders exactly as it did before.
+// src/data/experience.js. src/front/WorkPage.jsx looks them up by that key,
+// so a company with no photos renders exactly as it did before.
 export const workPhotos = {
   "Amazon Web Services": [
     {
       image: photo("kiro-launch"),
       alt: "Ali Younes seated, speaking on camera at a Kiro launch event, with an on-screen caption reading 'Ali Younes, SDE Intern, AWS'.",
       caption: "Kiro launch event, July 2026.",
-      note: "Talking about the dual-model code review tool. Kiro put it on their LinkedIn.",
     },
     {
       image: photo("amazon-orientation"),

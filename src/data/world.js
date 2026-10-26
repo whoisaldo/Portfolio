@@ -188,12 +188,7 @@ export const GARAGE_STATES = {
  *  anchors in the GLB. */
 export const shotIds = sections.map((s) => s.id);
 
-/** A case study is the long read: its city is held at about 45%, behind
- *  panes of glass like the home page's. */
-export const ROUTE_DIM = 0.55;
-
 export const shotDim = (id) => SHOTS[id]?.dim ?? 0.34;
-export const routeDim = () => ROUTE_DIM;
 
 /** Corpo row: one tower per entry in experience.js, in its order, lit in
  *  the organisation's own colour, its logo on the crown (the Experience

@@ -98,14 +98,13 @@ export function createGlass(effect) {
       let n = 0;
       const ui = stage.ui;
       if (ui > 0.005) {
-        const home = stage.route.kind === "home";
         for (const el of near) {
           if (n >= MAX_PANES) break;
           const r = el.getBoundingClientRect();
           if (r.bottom <= 0 || r.top >= height || r.width < 2 || r.height < 2) continue;
           const m = metaOf(el);
           let k = ui * inlineOpacity(el);
-          if (home && m.shot) {
+          if (m.shot) {
             const i = stage.shots.findIndex((s) => s.id === m.shot);
             if (i >= 0) k *= yieldAt(stage.position, i);
           }

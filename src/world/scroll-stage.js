@@ -34,7 +34,7 @@ import Lenis from "lenis";
 import { attachLenis } from "../lib/scroll";
 import { prepareGarageSection } from "../lib/garage3d";
 import { stage, setStage, setHolding, subscribeStage } from "./stage";
-import { shotDim, routeDim } from "../data/world";
+import { shotDim } from "../data/world";
 import { sections as SECTIONS } from "../data/site";
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -258,10 +258,9 @@ export function startScrollStage({ scrim = null, chapter = null, smooth: useLeni
       }
     }
 
-    // The dim: the shot's own level on the home page, the route's on a case
-    // study, darker still while the garage's viewer has the screen. Damped,
-    // so an overlay arriving or a route changing fades rather than cuts.
-    let goal = stage.route.kind === "home" ? dimAt(shots, stage.position) : routeDim(stage.route);
+    // The dim: the shot's own level, darker still while the garage's viewer
+    // has the screen. Damped, so an overlay arriving fades rather than cuts.
+    let goal = dimAt(shots, stage.position);
     // With the page put away (Look, Cinema) there is nothing to read over
     // the city and nothing to dim it for.
     if (stage.view !== "page") goal = 0;
@@ -275,15 +274,14 @@ export function startScrollStage({ scrim = null, chapter = null, smooth: useLeni
       scrim.style.setProperty("--world-dim", dim.toFixed(3));
     }
 
-    // The chapter card. Mid-flight on the home page only: a case study's
-    // flight is the route's, on the clock, and names nothing.
+    // The chapter card, mid-flight.
     if (chapter) {
       const p = stage.position;
       if (Math.abs(p - card.at) > 1e-4) card.dir = p > card.at ? 1 : -1;
       card.at = p;
       const i = Math.floor(p);
       const to = shots[card.dir > 0 ? Math.min(i + 1, shots.length - 1) : i]?.id ?? null;
-      const k = stage.route.kind === "home" && shots.length > 1 ? chapterAt(p) : 0;
+      const k = shots.length > 1 ? chapterAt(p) : 0;
       if (to && to !== card.id) {
         const c = chapterLabel(to);
         if (c) {
@@ -303,12 +301,10 @@ export function startScrollStage({ scrim = null, chapter = null, smooth: useLeni
       }
     }
 
-    // Each section's yield, on the section alone, only when it moves. A
-    // case study has no shots to fly between and yields nothing.
-    const home = stage.route.kind === "home";
+    // Each section's yield, on the section alone, only when it moves.
     for (let i = 0; i < sections.length; i++) {
       const s = sections[i];
-      const k = home ? yieldAt(stage.position, i) : 1;
+      const k = yieldAt(stage.position, i);
       if (Math.abs(k - s.written) > 0.01 || (k === 1 && s.written !== 1)) {
         s.written = k;
         s.el.style.setProperty("--yield", k.toFixed(3));

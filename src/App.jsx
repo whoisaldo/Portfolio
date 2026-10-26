@@ -1,21 +1,20 @@
 // src/App.jsx: the shell and the router.
 //
-// This used to be the whole page. It is now the frame around two of them: the
-// scrolling home page, and a case study at /work/:slug.
+// This used to be the whole page. It is now the frame around the scrolling
+// page at /playground and the braindance.
 //
 // GitHub Pages has no server-side routing, so the deploy workflow copies
-// index.html to 404.html and every unknown path falls through to this app,
+// index.html to 404.html and every unknown path falls through to Root.jsx,
 // which then matches the route on the client. That works for a reader, with
-// one caveat worth knowing: the fallback is served with an HTTP 404 status, so
-// a crawler asked to index /work/philips-zero-touch is told the page does not
-// exist even though it renders. Links shared with a person are fine; search
-// engines are not. Fixing that properly means either pre-rendering each route
-// to its own index.html at build time, or moving to a host that can rewrite. Not
-// worth doing until it matters. (/playground and /braindance are the
-// exceptions: the workflow writes each a real index.html.)
+// one caveat worth knowing: the fallback is served with an HTTP 404 status.
+// So every address that gets shared has a real index.html written for it at
+// deploy time (scripts/static-pages.mjs, and /braindance in the workflow).
 //
-// The homepage at / and the blog are not in here at all: Root.jsx sends them
-// to src/front/ before this module loads. So did /recruiters, the plain
+// The homepage at /, the blog and the work pages are not in here at all:
+// Root.jsx sends them to src/front/ before this module loads. The work pages
+// were this shell's until a reader sent to one from the homepage or a post
+// kept landing on the door; the playground's links to them leave it now, as
+// its links to the homepage do. So did /recruiters, the plain
 // version of this site, until the homepage made it redundant; its address
 // forwards to / now.
 //
@@ -36,7 +35,6 @@ import Cursor from "./components/Cursor";
 import GpuNotice from "./components/GpuNotice";
 import ViewModes from "./components/ViewModes";
 import Home from "./routes/Home";
-import WorkPage from "./routes/WorkPage";
 import { stopAmbient } from "./lib/ambient";
 import { runningContext } from "./lib/audio";
 import { LEAVE_SECONDS } from "./lib/cues";
@@ -71,9 +69,10 @@ export default function App() {
   // the beacon is listening before the first view is reported.
   useEffect(() => pageview(), [pathname]);
 
-  // The music belongs to the cinematic. Leaving for the homepage or the blog
-  // unmounts this whole module, but the AudioContext is module state and
-  // would keep the track playing over a page with no volume control on it.
+  // The music belongs to the cinematic. Leaving for the homepage, the blog or
+  // a work page unmounts this whole module, but the AudioContext is module
+  // state and would keep the track playing over a page with no volume
+  // control on it.
   // The preference is left alone, so the door is still there with the sound
   // on when the reader comes back, and a stop this side of a download in
   // flight cancels that too. Only when sound was ever let run: stopAmbient
@@ -129,9 +128,8 @@ function Cinematic() {
 
           {/* The door, then the intro, then the site. Both mount in the
               shell rather than on the home page because a reader who arrives
-              on a deep link to a case study is still arriving for the first
-              time. The intro runs once per tab; following a link from one
-              case study to the next never replays it. */}
+              on a deep link to a section is still arriving for the first
+              time. The intro runs once per tab. */}
           <EntryGate />
           <IntroCinematic />
 
@@ -145,7 +143,6 @@ function Cinematic() {
 
           <Routes>
             <Route path={PLAYGROUND} element={<Home />} />
-            <Route path="/work/:slug" element={<WorkPage />} />
             {/* Anything else is a mistyped URL. On a site with six sections the
                 home page is a better answer than a 404 screen. */}
             <Route path="*" element={<Home />} />
