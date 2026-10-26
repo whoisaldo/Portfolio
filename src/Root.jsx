@@ -1,6 +1,7 @@
 // src/Root.jsx: which site a path belongs to, decided before either one loads.
 //
-// "/" and "/blog" are the homepage and the writing (src/front/). Every other
+// "/" and "/blog" are the homepage and the writing (src/front/), and
+// "/privateblog" is the drafts Ali shows a few people first. Every other
 // path is the playground, and App.jsx splits that between the cinematic and
 // the braindance. Both halves are lazy, so the homepage never downloads the
 // city's code, and a reader sent straight to /playground never downloads the
@@ -11,7 +12,7 @@
 // its sections is forwarded to the playground with the hash intact.
 // /recruiters, the plain version the homepage replaced, is on the résumé, so
 // it and everything under it forward to the homepage. The query string goes
-// along, because a tracked link (stats-api, ?s=) carries its code there.
+// along, because a tracked link (stats.aliyounes.dev, ?s=) carries its code there.
 import React, { lazy, Suspense } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -25,7 +26,10 @@ const OLD_HASHES = new Set([...sections.map((s) => s.id), "teardown"]);
 
 function isFront(pathname) {
   const path = pathname.replace(/\/+$/, "") || "/";
-  return path === "/" || path === "/blog" || path.startsWith("/blog/");
+  return (
+    path === "/" || path === "/blog" || path.startsWith("/blog/") ||
+    path === "/privateblog" || path.startsWith("/privateblog/")
+  );
 }
 
 const isRecruiters = (pathname) => pathname === "/recruiters" || pathname.startsWith("/recruiters/");

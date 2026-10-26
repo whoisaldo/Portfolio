@@ -33,6 +33,7 @@ import { createTag } from "./tag.js";
 import { createHolocall, preloadHolocall } from "./holocall.js";
 import { SIGN_WORDS } from "../data/braindance.js";
 import { fmt } from "./format.js";
+import { track } from "../lib/beacon.js";
 
 const DEG = Math.PI / 180;
 const _up = new THREE.Vector3();
@@ -142,6 +143,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   // The intro's arrangement: the scene's own loop rests while this one
   // draws (world-scene.js checks stage.mode before it runs a frame).
   setStage({ mode: "cinematic" });
+  const reached = new Set();
   const audio = createAudio();
   const trackLoading = audio?.load().catch(() => null);
   const holoLoading = preloadHolocall().catch(() => null);
@@ -472,7 +474,15 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
         edit.accepted = null;
       } else safeTime = t;
     } else if (!gate.pending) safeTime = t;
-    if (spec.chapter !== bd.chapter) set({ chapter: spec.chapter });
+    if (spec.chapter !== bd.chapter) {
+      set({ chapter: spec.chapter });
+      // How far into the recording people get, once per chapter per visit,
+      // so scrubbing back and forth is not counted again.
+      if (!reached.has(spec.chapter)) {
+        reached.add(spec.chapter);
+        track("bd", CHAPTERS[spec.chapter].id);
+      }
+    }
 
     // The camera: the recording's, the editor's, or the photo camera's,
     // eased between them so a switch is a move and not a cut.

@@ -7,6 +7,8 @@ CloudFormation in summer 2026.
 
 Live: **[aliyounes.dev](https://aliyounes.dev)**
 
+The site's analytics and comments backend lives in a separate private repository.
+
 ## Stack
 
 - React 19 + Vite 7

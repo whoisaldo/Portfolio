@@ -28,8 +28,11 @@ jobs:
         env:
           # The analytics beacon. Unset, src/lib/beacon.js registers nothing and
           # sends nothing — which is the correct behaviour for a fork, and for
-          # any build made before stats-api is deployed. See stats-api/README.md.
+          # any build without the stats service.
           VITE_STATS_ENDPOINT: https://stats.aliyounes.dev/api/collect
+          # Where the blog's comments are kept. Unset, posts have no comments
+          # section. See src/front/Comments.jsx.
+          VITE_COMMENTS_API: https://stats.aliyounes.dev
       - run: cp dist/index.html dist/404.html     # SPA refresh fix
       # The braindance gets a real page, so a link to it is not a 404.
       - run: mkdir -p dist/braindance && cp dist/index.html dist/braindance/index.html

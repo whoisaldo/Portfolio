@@ -1,0 +1,206 @@
+/* The comments under a post (Comments.jsx). Loaded with the post's own
+   chunk, so the homepage and the playground never carry it, and written out
+   here rather than in Tailwind classes, which would land in the stylesheet
+   every page loads. */
+
+/* A passage someone commented on. A wash of the volt and a hairline under
+   it: visible while reading, quieter than a link. */
+.post-body mark.post-quote {
+  background: rgb(252 238 10 / 0.13);
+  color: inherit;
+  box-shadow: inset 0 -1px rgb(252 238 10 / 0.7);
+  transition: background-color 150ms;
+}
+.post-body a.post-quote-link {
+  color: inherit;
+  text-decoration: none;
+}
+.post-body a.post-quote-link:hover mark.post-quote,
+.post-body a.post-quote-link:focus-visible mark.post-quote,
+.post-body :target > mark.post-quote,
+.post-body mark.post-quote:target {
+  background: rgb(252 238 10 / 0.3);
+}
+.post-body .post-quote-link { scroll-margin-top: 6rem; }
+
+.comments-count { color: rgb(236 234 228 / 0.5); font-weight: 500; }
+
+.comments-list { margin-top: 1.5rem; }
+.comment {
+  padding: 1.25rem 0;
+  border-bottom: 1px solid #24242a;
+  scroll-margin-top: 6rem;
+}
+.comment:first-child { padding-top: 0.25rem; }
+/* Arriving from a highlight, the comment it belongs to says so. */
+.comment:target {
+  background: linear-gradient(90deg, rgb(252 238 10 / 0.07), transparent 70%);
+  box-shadow: -12px 0 0 rgb(252 238 10 / 0.07);
+}
+.comment-name { font-weight: 600; color: #eceae4; }
+.comment-body {
+  margin-top: 0.5rem;
+  color: rgb(236 234 228 / 0.84);
+  line-height: 1.7;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.comment-quote {
+  margin-top: 0.6rem;
+  border-left: 2px solid #fcee0a;
+  padding-left: 0.9rem;
+  color: rgb(236 234 228 / 0.66);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.comment-quote a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgb(252 238 10 / 0.45);
+  text-underline-offset: 3px;
+  transition: color 150ms;
+}
+.comment-quote a:hover { color: #fcee0a; }
+
+/* The other comments on the same highlight. */
+.comment-also {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: rgb(236 234 228 / 0.56);
+}
+.comment-also a {
+  color: rgb(236 234 228 / 0.84);
+  text-decoration: underline;
+  text-decoration-color: rgb(252 238 10 / 0.45);
+  text-underline-offset: 3px;
+  transition: color 150ms;
+}
+.comment-also a:hover { color: #fcee0a; }
+
+.comment-form { margin-top: 2.25rem; }
+.comment-field { margin-top: 1.1rem; }
+.comment-field label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(236 234 228 / 0.84);
+}
+.comment-field input,
+.comment-field textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.4rem;
+  background: #131316;
+  border: 1px solid #24242a;
+  color: #eceae4;
+  /* 16px, so iOS does not zoom the page in when the field is focused. */
+  font-size: 1rem;
+  line-height: 1.5;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0;
+  transition: border-color 150ms;
+}
+.comment-field textarea { resize: vertical; min-height: 7.5rem; }
+.comment-field input:hover,
+.comment-field textarea:hover { border-color: #3a3a42; }
+.comment-field input:focus-visible,
+.comment-field textarea:focus-visible { border-color: #fcee0a; }
+.comment-field [aria-invalid="true"] { border-color: #ff003c; }
+.comment-field input { max-width: 22rem; }
+
+.comment-count {
+  min-height: 1.25rem;
+  margin-top: 0.3rem;
+  font-size: 0.8125rem;
+  color: rgb(236 234 228 / 0.56);
+  text-align: right;
+}
+.comment-error { margin-top: 0.4rem; font-size: 0.875rem; color: #ff4d6d; }
+.comment-count + .comment-error { margin-top: 0; }
+
+.comment-draft {
+  margin-top: 1.25rem;
+  background: #131316;
+  border: 1px solid #24242a;
+  padding: 0.85rem 1rem;
+}
+.comment-draft .comment-quote { margin-top: 0.4rem; }
+.comment-draft-drop {
+  margin-top: 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgb(236 234 228 / 0.66);
+  transition: color 150ms;
+}
+.comment-draft-drop:hover { color: #fcee0a; }
+
+/* Off screen rather than display: none, which some robots look for. */
+.comment-hp {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.comment-sent {
+  margin-top: 2.25rem;
+  border-left: 2px solid #fcee0a;
+  padding: 0.25rem 0 0.25rem 1rem;
+}
+.comment-sent:focus { outline: none; }
+
+.comments-retry {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fcee0a;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.comments-retry:hover { color: #eceae4; }
+
+/* "Comment on this", under a selection in the post. */
+.quote-button {
+  position: absolute;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.8rem;
+  background: #fcee0a;
+  color: #0a0a0c;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: quote-button-in 120ms ease-out;
+}
+/* A chamfered control cannot wear the site's focus ring (index.css, under
+   Focus), and its own focus rule fills it with the volt it already is. Bone,
+   the hover colour, is the change a keyboard can see. */
+.quote-button:hover,
+.quote-button:focus-visible,
+.comment-submit:focus-visible { background: #eceae4; }
+.comment-submit:disabled { opacity: 0.6; }
+.quote-button kbd {
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 0 0.3rem;
+  border: 1px solid rgb(10 10 12 / 0.35);
+  line-height: 1.25rem;
+}
+/* No keyboard on a phone, so no key to show. */
+@media (hover: none) {
+  .quote-button kbd { display: none; }
+}
+@keyframes quote-button-in {
+  from { opacity: 0; transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quote-button { animation: none; }
+}

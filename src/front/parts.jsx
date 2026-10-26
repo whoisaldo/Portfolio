@@ -95,14 +95,15 @@ export function FollowOnX({ label = "Follow" }) {
 
 /** Each post a panel of its own. As a plain list the writing read like one
  *  more section of rows between Experience and the projects, and it was the
- *  part of the page that was easiest to miss. */
-export function PostList({ posts }) {
+ *  part of the page that was easiest to miss. The private blog lists its
+ *  drafts with it too, under its own address. */
+export function PostList({ posts, base = "/blog" }) {
   return (
     <ul className="space-y-3">
       {posts.map((post) => (
         <li key={post.slug}>
           <Link
-            to={`/blog/${post.slug}`}
+            to={`${base}/${post.slug}`}
             className="chamfer group block bg-ink-raised p-5 transition-colors duration-150 hover:bg-ink-line/60 sm:p-6"
           >
             <h3 className="font-display text-xl font-semibold leading-snug text-bone text-balance transition-colors duration-150 group-hover:text-volt">
