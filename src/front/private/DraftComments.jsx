@@ -418,7 +418,7 @@ export default function DraftComments({ slug, body, viewer, onLost }) {
             />
           }
         >
-          {inText.map((t) => card(t))}
+          {inText.map((t) => card(t, { inMargin: true }))}
           {showNew && (
             <Composer key="new" id="new" quote={pending.quote} act={act} unsent={unsent} onDone={(c) => { setPending(null); setActive(c.id); }} onCancel={cancelNew} />
           )}
@@ -606,9 +606,14 @@ function Margin({ body, found, active, order, toolbar, children }) {
 }
 
 /** One thread: its first comment, its replies, and a box to reply. */
-function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHover, onResolved, showQuote }) {
+function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHover, onResolved, showQuote, inMargin }) {
   const [error, setError] = useState("");
   const resolved = t.resolved;
+  // In the margin a thread that is not in hand is a summary, as in Docs: the
+  // first comment's opening lines and a count of replies. A long card would
+  // otherwise push every card below it away from its passage.
+  const compact = inMargin && !active;
+  const replies = t.replies.length;
 
   async function run(p) {
     setError("");
@@ -634,7 +639,7 @@ function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHo
         </p>
       )}
       {showQuote && t.quote && <blockquote className="draft-quote">{t.quote.exact}</blockquote>}
-      <Comment c={t.root} now={now} viewer={viewer} act={act} onError={setError}>
+      <Comment c={t.root} now={now} viewer={viewer} act={act} onError={setError} clamp={compact} onMore={onActivate}>
         {resolved ? (
           <button type="button" className="draft-text-button" onClick={() => run(act.resolve(t.id, false))}>
             Reopen
@@ -653,21 +658,31 @@ function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHo
           </button>
         )}
       </Comment>
-      {t.replies.map((r) => (
-        <Comment key={r.id} c={r} now={now} viewer={viewer} act={act} onError={setError} reply />
-      ))}
+      {compact
+        ? replies > 0 && (
+            <button type="button" className="draft-more" onClick={onActivate}>
+              {replies} {replies === 1 ? "reply" : "replies"}
+            </button>
+          )
+        : t.replies.map((r) => <Comment key={r.id} c={r} now={now} viewer={viewer} act={act} onError={setError} reply />)}
       {error && (
         <p role="alert" className="private-error">
           {error}
         </p>
       )}
-      <ReplyBox thread={t.id} act={act} unsent={unsent} active={active} onActivate={onActivate} />
+      {!compact && <ReplyBox thread={t.id} act={act} unsent={unsent} active={active} onActivate={onActivate} />}
     </article>
   );
 }
 
-function Comment({ c, now, viewer, act, onError, reply, children }) {
+function Comment({ c, now, viewer, act, onError, reply, clamp, onMore, children }) {
   const [editing, setEditing] = useState(false);
+  const text = useRef(null);
+  const [cut, setCut] = useState(false);
+  useLayoutEffect(() => {
+    const el = text.current;
+    setCut(Boolean(clamp && el && el.scrollHeight > el.clientHeight + 1));
+  }, [clamp, c.body]);
   const initial = (c.author.name.trim()[0] || "?").toUpperCase();
   const canDelete = c.mine || viewer.owner;
 
@@ -699,7 +714,16 @@ function Comment({ c, now, viewer, act, onError, reply, children }) {
       {editing ? (
         <EditBox c={c} act={act} onDone={() => setEditing(false)} />
       ) : (
-        <p className="draft-body">{c.body}</p>
+        <>
+          <p ref={text} className={`draft-body${clamp ? " is-clamped" : ""}`}>
+            {c.body}
+          </p>
+          {clamp && cut && (
+            <button type="button" className="draft-more" onClick={onMore}>
+              See more
+            </button>
+          )}
+        </>
       )}
       {!editing && (c.mine || canDelete) && (
         <p className="draft-actions">
