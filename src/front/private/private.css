@@ -493,3 +493,22 @@ html.draft-sheet-open { overflow: hidden; }
   .draft-sheet-backdrop,
   .draft-select { animation: none; }
 }
+
+/* A thread not in hand, in the margin: its first comment's opening lines. */
+.draft-body.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.draft-more {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(236 234 228 / 0.56);
+  transition: color 150ms;
+}
+.draft-more:hover { color: #fcee0a; }
+/* Its edit and delete wait until it is opened, so the summary stays short. */
+.draft-margin .draft-card:not(.is-active) .draft-actions { display: none; }
