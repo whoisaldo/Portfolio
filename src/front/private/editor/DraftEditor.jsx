@@ -41,6 +41,8 @@ const BACKOFF = [2000, 4000, 8000, 16_000, 30_000];
 // keepalive requests are limited to 64 KB, body and all.
 const KEEPALIVE = 60_000;
 const PICTURES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif", "image/gif": "gif" };
+// How long "Offline, retrying" lasts before the bar under the toolbar says so too.
+const OFFLINE_BAR = 4000;
 const STATUS = { saved: "Saved", pending: "Saving…", saving: "Saving…", offline: "Offline, retrying", conflict: "Changed elsewhere" };
 
 // A transaction that only copies the fields onto the document.
@@ -607,6 +609,22 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
 
   // ---- what it looks like --------------------------------------------------------
 
+  // Offline for more than a moment: said in words under the toolbar, as a
+  // save that failed or was refused is at once. Timed from the first failure,
+  // through the retries' own "Saving…".
+  const [stuck, setStuck] = useState(false);
+  const since = useRef(0);
+  useEffect(() => {
+    const now = status.state;
+    if (now !== "offline" && (now !== "saving" || !since.current)) {
+      since.current = 0;
+      return setStuck(false);
+    }
+    since.current ||= Date.now();
+    const t = setTimeout(() => setStuck(true), Math.max(0, OFFLINE_BAR - (Date.now() - since.current)));
+    return () => clearTimeout(t);
+  }, [status.state]);
+
   const state = status.state;
   const label = uploads ? "Uploading a picture…" : state === "error" ? `Not saved: ${status.message}` : STATUS[state];
 
@@ -648,6 +666,21 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
               <button type="button" className="draft-text-button" onClick={keepMine}>
                 Keep mine
               </button>
+            </div>
+          )}
+          {state === "error" && (
+            <div className="editor-alert is-error" role="alert">
+              <p>Not saved: {status.message}</p>
+              {!status.field && (
+                <button type="button" className="draft-text-button" onClick={() => save()}>
+                  Try again
+                </button>
+              )}
+            </div>
+          )}
+          {(state === "offline" || state === "saving") && stuck && (
+            <div className="editor-alert is-error" role="status">
+              <p>Offline, retrying. What you type is kept in this browser until the server has it.</p>
             </div>
           )}
           {notice && (

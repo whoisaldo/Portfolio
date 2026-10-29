@@ -35,6 +35,7 @@
   color: #eceae4;
 }
 .editor-alert p { flex: 1 1 16rem; }
+.editor-alert.is-error { border-color: rgb(255 77 109 / 0.6); }
 
 /* ---- the text ------------------------------------------------------------------------- */
 
