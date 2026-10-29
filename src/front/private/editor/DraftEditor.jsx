@@ -103,7 +103,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       tries: 0,
       flight: null,
       again: false,
-      pending: null, // {body, changes}: passages' places in that saved body, not confirmed yet
+      pending: null, // {body, base, changes}: passages' places in the body saved at base, not confirmed yet
       sending: null,
       saved: new Set(),
       taken: new Set(draft.media || []),
@@ -156,9 +156,13 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
    * Sends the passages' new places in the text the server has, after that
    * text. While the editor's text is the server's they are read off it
    * afresh; while more is being typed, those kept for the server's text go.
-   * Until the server has them they are kept in this browser (../unsaved.js),
-   * the status is not "Saved", and they are tried again, later and later.
-   * True when nothing is left to send.
+   * Each goes with the save it is for as its base. Until the server has them
+   * they are kept in this browser (../unsaved.js), the status is not
+   * "Saved", and they are tried again, later and later. Once the draft has
+   * been saved somewhere else since, the server refuses them (409): they are
+   * dropped, as that session sends places for its own text, and this one
+   * says the draft changed, as a save would. True when nothing is left to
+   * send.
    */
   const sendAnchors = useCallback(
     async ({ keepalive = false } = {}) => {
@@ -168,14 +172,14 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       if (st.conflict || !st.baseline || !st.editor) return false;
       if (sameDraft(payload(), st.baseline)) {
         const changes = st.anchors.changes(st.anchors.quotes());
-        st.pending = changes.length ? { body: st.baseline.body, changes } : null;
-        keepAnchors(slug, st.baseline.body, changes);
+        st.pending = changes.length ? { body: st.baseline.body, base: st.base, changes } : null;
+        keepAnchors(slug, st.baseline.body, changes, st.base);
       }
-      const pending = st.pending?.body === st.baseline.body ? st.pending : null;
+      const pending = st.pending?.base === st.base ? st.pending : null;
       if (!pending) return true;
       st.sending = (async () => {
         try {
-          const body = { draft: slug, anchors: pending.changes };
+          const body = { draft: slug, anchors: pending.changes, base: pending.base };
           await request("/api/draft-comments?a=anchors", { method: "PUT", body, keepalive: keepalive && JSON.stringify(body).length < KEEPALIVE });
           st.anchors.sent(pending.changes);
           st.tries = 0;
@@ -187,7 +191,16 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
           return true;
         } catch (err) {
           console.warn("comments: the passages' new places were not saved", err);
-          if (err instanceof ApiError && err.status === 404) onLost();
+          if (err instanceof ApiError && err.status === 409) {
+            if (st.pending === pending) st.pending = null;
+            keepAnchors(slug, pending.body, null);
+            const latest = await request(`/api/drafts?slug=${encodeURIComponent(slug)}`).then(({ data }) => data.draft, () => null);
+            if (latest && latest.updated_at !== st.base && !st.conflict) {
+              st.conflict = latest;
+              setConflict(latest);
+              setStatus({ state: "conflict" });
+            } else if (!st.conflict) setStatus({ state: "error", message: "This draft was saved somewhere else. Press Done and open it again." });
+          } else if (err instanceof ApiError && err.status === 404) onLost();
           else if (!(err instanceof ApiError) || err.status === 0 || err.status >= 500 || err.status === 429) {
             setStatus({ state: "offline" });
             clearTimeout(st.retry);
@@ -476,6 +489,11 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
 
   const keepMine = () => {
     const st = s.current;
+    // The server's copy is the other one now, so a save of this one goes
+    // ahead even with nothing typed since.
+    const { title, date, summary, body } = st.conflict;
+    st.baseline = { title, date, summary, body };
+    st.latest = { ...st.latest, ...st.conflict };
     st.base = st.conflict.updated_at;
     st.conflict = null;
     setConflict(null);

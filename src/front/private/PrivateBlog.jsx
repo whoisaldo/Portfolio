@@ -253,14 +253,22 @@ const kept = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", 
 
 /**
  * Sends the comment passages' places an editing session left unsent for the
- * text the server has (./unsaved.js), if any. True when none are left for it.
+ * text this page has (./unsaved.js), if any. True when none are left for it.
  * Places for other text wait: a save sent as the editor's page closed may
- * still be on its way.
+ * still be on its way. They go with the save they belong to as their base,
+ * or, when the editor never heard back from it, this page's draft, the text
+ * they were found in; the server refuses them (409) once the draft has been
+ * saved since, and they are dropped: whoever saved it sends places for that.
  */
 async function sendLeftAnchors(draft) {
   const due = readAnchors(draft.slug).find((e) => e.body === draft.body);
   if (!due) return true;
-  await request("/api/draft-comments?a=anchors", { method: "PUT", body: { draft: draft.slug, anchors: due.changes } });
+  const body = { draft: draft.slug, anchors: due.changes, base: due.base ?? draft.updated_at };
+  try {
+    await request("/api/draft-comments?a=anchors", { method: "PUT", body });
+  } catch (err) {
+    if (!(err instanceof ApiError && err.status === 409)) throw err;
+  }
   keepAnchors(draft.slug, due.body, null);
   return true;
 }
