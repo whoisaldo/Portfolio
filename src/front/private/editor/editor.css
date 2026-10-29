@@ -7,114 +7,20 @@
 
 /* The slot the draft page leaves above the title (PrivateBlog.jsx) is what
    sticks: it sits in the article, so it stays at the top of the screen for
-   the whole text. */
+   the whole text. The toolbar itself is in toolbar.css. */
 .editor-head {
   position: sticky;
   top: 0;
   z-index: 35;
   margin-top: 1.25rem;
 }
+/* The column's width exactly, over the text as it scrolls under. */
 .editor-bar-wrap {
   position: relative;
-  /* Out to the column's edges and a little past, over the text as it scrolls. */
-  margin-inline: -0.75rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0;
   background: #0a0a0c;
   border-bottom: 1px solid #24242a;
 }
-
-/* One row, or two on a phone or when the status is long, so the save status
-   and Done are always in reach. */
-.editor-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem 0.15rem;
-}
-
-.editor-tool {
-  position: relative;
-  flex: none;
-  display: inline-grid;
-  grid-auto-flow: column;
-  place-items: center;
-  gap: 0.15rem;
-  min-width: 2rem;
-  height: 2rem;
-  padding: 0 0.35rem;
-  color: rgb(236 234 228 / 0.78);
-  transition: color 150ms, background-color 150ms;
-}
-.editor-tool:hover:not(:disabled) { color: #eceae4; background: #1b1b20; }
-.editor-tool.is-on { color: #0a0a0c; background: #fcee0a; }
-.editor-tool:disabled { opacity: 0.35; cursor: default; }
-.editor-more { min-width: 1.1rem; padding: 0; font-size: 0.7rem; }
-
-.editor-sep { flex: none; width: 1px; height: 1.25rem; margin: 0 0.3rem; background: #24242a; }
-
-.editor-block {
-  flex: none;
-  height: 2rem;
-  padding: 0 0.4rem;
-  background: #131316;
-  border: 1px solid #24242a;
-  color: #eceae4;
-  font-size: 0.8125rem;
-}
-
-.editor-picker { position: relative; display: inline-flex; flex: none; }
-.editor-swatch {
-  position: absolute;
-  left: 0.45rem;
-  right: 0.45rem;
-  bottom: 0.2rem;
-  height: 3px;
-}
-.editor-colors {
-  position: absolute;
-  top: calc(100% - 0.3rem);
-  z-index: 50;
-  display: flex;
-  gap: 0.3rem;
-  padding: 0.4rem;
-  background: #131316;
-  border: 1px solid #3a3a42;
-  box-shadow: 0 12px 32px -14px rgb(0 0 0 / 0.9);
-}
-.editor-color {
-  width: 1.6rem;
-  height: 1.6rem;
-  border: 1px solid #3a3a42;
-  color: rgb(236 234 228 / 0.72);
-  font-size: 0.8rem;
-}
-.editor-color:hover { border-color: #eceae4; }
-
-/* The highlight colours as solid swatches; in the text they are washes
-   (private.css). */
-.editor-swatch[data-color="yellow"], .editor-color[data-color="yellow"] { background: #e8c43a; }
-.editor-swatch[data-color="green"], .editor-color[data-color="green"] { background: #4fbf7a; }
-.editor-swatch[data-color="blue"], .editor-color[data-color="blue"] { background: #5b9cf0; }
-.editor-swatch[data-color="pink"], .editor-color[data-color="pink"] { background: #ec6fae; }
-.editor-swatch[data-color="purple"], .editor-color[data-color="purple"] { background: #9d7cf0; }
-
-/* Where the follow-up's History and Publish buttons go. */
-.editor-slot { flex: 1 1 0; display: inline-flex; justify-content: flex-end; gap: 0.35rem; min-width: 0; }
-/* The save status and Done, together at the right of whichever row they are on. */
-.editor-end { flex: none; margin-left: auto; display: inline-flex; align-items: center; }
-
-.editor-status {
-  flex: none;
-  padding: 0 0.6rem;
-  font-size: 0.75rem;
-  color: rgb(236 234 228 / 0.56);
-  white-space: nowrap;
-}
-.editor-status.is-offline,
-.editor-status.is-error { color: #ff4d6d; }
-.editor-status.is-conflict { color: #fcee0a; }
-
-.editor-bar .editor-done { flex: none; margin-top: 0; padding: 0.4rem 0.9rem; font-size: 0.8125rem; }
 
 .editor-alert {
   display: flex;
@@ -129,46 +35,6 @@
   color: #eceae4;
 }
 .editor-alert p { flex: 1 1 16rem; }
-
-/* ---- the title, date and summary ----------------------------------------------------- */
-
-.editor-title {
-  display: block;
-  width: 100%;
-  resize: none;
-  overflow: hidden;
-  background: transparent;
-  border: 0;
-  padding: 0;
-  border-radius: 0;
-}
-.editor-title:focus-visible { outline: none; box-shadow: inset 0 -1px rgb(252 238 10 / 0.6); }
-.editor-title::placeholder { color: rgb(236 234 228 / 0.3); }
-
-.editor-details {
-  margin-top: 1rem;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem 1.1rem;
-  font-size: 0.8125rem;
-  color: rgb(236 234 228 / 0.56);
-}
-.editor-details label { display: inline-flex; align-items: center; gap: 0.45rem; }
-.editor-details input {
-  background: #131316;
-  border: 1px solid #24242a;
-  color: #eceae4;
-  font-size: 0.875rem;
-  padding: 0.25rem 0.45rem;
-  border-radius: 0;
-  color-scheme: dark;
-}
-.editor-details input:focus-visible { border-color: #fcee0a; }
-.editor-summary { flex: 1 1 100%; }
-.editor-summary input { flex: 1; min-width: 0; }
-.editor-details .is-wrong input,
-.editor-title.is-wrong { border-color: #ff4d6d; box-shadow: inset 0 -1px #ff4d6d; }
 
 /* ---- the text ------------------------------------------------------------------------- */
 

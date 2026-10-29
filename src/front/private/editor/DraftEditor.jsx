@@ -25,13 +25,13 @@ import { createPortal } from "react-dom";
 import { Editor, Extension } from "@tiptap/core";
 import { closeHistory, isHistoryTransaction } from "@tiptap/pm/history";
 import { marked } from "marked";
-import { Bold, Code, Highlighter, Italic, Link2, List, ListOrdered, Redo2, Undo2 } from "lucide-react";
 import { ApiError, mediaUrl, request, uploadMedia } from "../api";
 import { clearUnsaved, writeUnsaved } from "../unsaved";
 import { embeds } from "../../embeds";
 import { canEdit, fromMarkdown, toMarkdown } from "./markdown";
-import { COLORS, extensions } from "./schema";
+import { extensions } from "./schema";
 import { commentAnchors } from "./anchors";
+import { Details, Toolbar } from "./Toolbar";
 import "./editor.css";
 
 const WAIT = 1500;
@@ -42,8 +42,6 @@ const PICTURES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"
 const STATUS = { saved: "Saved", pending: "Saving…", saving: "Saving…", offline: "Offline, retrying", conflict: "Changed elsewhere" };
 
 const sameDraft = (a, b) => a.title === b.title && a.date === b.date && a.summary === b.summary && a.body === b.body;
-const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
-const keys = (k) => (mac ? k.replace("Mod+", "⌘").replace("Shift+", "⇧") : k.replace("Mod+", "Ctrl+"));
 
 /** A name for an uploaded picture the draft does not have yet, as the server allows them. */
 function mediaName(file, taken) {
@@ -68,11 +66,12 @@ function mediaName(file, taken) {
  * @param {{
  *   draft: object, rewrite: (html: string) => string, hosts: {head: Element | null, title: Element | null},
  *   restore: object | null, onBridge: (bridge: object | null) => void, onDone: (draft: object) => void,
- *   onLost: () => void, slot?: (session: object) => React.ReactNode,
+ *   onLost: () => void, slot?: (session: object, place: "actions" | "menu") => React.ReactNode,
  * }} props
  *   `restore` is an unsaved edit from this browser to start from; `slot`
- *   renders into the toolbar's free space with the editing session (see
- *   `session` below).
+ *   renders with the editing session (see `session` below) into the
+ *   toolbar, between the save status and Done ("actions"), and into its
+ *   More menu once the row has folded that far ("menu").
  */
 export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, onDone, onLost, slot }) {
   const slug = draft.slug;
@@ -523,9 +522,17 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
         })}
       {editor && hosts.head && createPortal(
         <div className="editor-bar-wrap">
-          <Toolbar editor={editor} label={label} state={state} leaving={leaving} onDone={done} onLink={() => openLink.current()}>
-            {slot?.(session)}
-          </Toolbar>
+          <Toolbar
+            editor={editor}
+            label={label}
+            state={state}
+            uploading={uploads > 0}
+            leaving={leaving}
+            onDone={done}
+            onLink={() => openLink.current()}
+            actions={slot?.(session, "actions")}
+            menu={slot?.(session, "menu")}
+          />
           {conflict && (
             <div className="editor-alert" role="alert">
               <p>This draft was saved somewhere else since you started.</p>
@@ -554,182 +561,6 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
           hosts.title,
         )}
       {link && editor && <LinkBox at={link} editor={editor} onClose={() => setLink(null)} />}
-    </>
-  );
-}
-
-/** The title as the page shows it, typed in place, and the date and summary under it. */
-function Details({ meta, minutes, field, onField, onBlur, onEnter }) {
-  const title = useRef(null);
-  useLayoutEffect(() => {
-    const el = title.current;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [meta.title]);
-  return (
-    <>
-      <textarea
-        ref={title}
-        rows={1}
-        className={`editor-title mt-8 font-display text-3xl font-semibold leading-tight text-bone text-balance sm:text-4xl${field === "title" ? " is-wrong" : ""}`}
-        value={meta.title}
-        maxLength={200}
-        aria-label="Title"
-        placeholder="Title"
-        // One line: a pasted line break becomes a space.
-        onChange={(e) => onField("title", e.target.value.replace(/\s*\n\s*/g, " "))}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            onEnter();
-          }
-        }}
-        onBlur={onBlur}
-      />
-      <div className="editor-details">
-        <label className={field === "date" ? "is-wrong" : undefined}>
-          <span>Date</span>
-          <input type="date" value={meta.date} onChange={(e) => onField("date", e.target.value)} onBlur={onBlur} />
-        </label>
-        <span className="editor-minutes tabular-nums">{minutes} min read</span>
-        <label className={`editor-summary${field === "summary" ? " is-wrong" : ""}`}>
-          <span>Summary</span>
-          <input type="text" value={meta.summary} maxLength={500} onChange={(e) => onField("summary", e.target.value.replace(/\s*\n\s*/g, " "))} onBlur={onBlur} />
-        </label>
-      </div>
-    </>
-  );
-}
-
-/** A toolbar button that leaves the editor's focus and selection where they are. */
-function Tool({ label, keys: shortcut, active, disabled, onPress, children }) {
-  return (
-    <button
-      type="button"
-      className={`editor-tool${active ? " is-on" : ""}`}
-      aria-label={label}
-      aria-pressed={active === undefined ? undefined : active}
-      title={shortcut ? `${label} (${keys(shortcut)})` : label}
-      disabled={disabled}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onPress}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Toolbar({ editor, label, state, leaving, onDone, onLink, children }) {
-  const run = () => editor.chain().focus();
-  const level = [2, 3].find((l) => editor.isActive("heading", { level: l }));
-  const style = level ? `h${level}` : editor.isActive("paragraph") ? "p" : "";
-  // The colours open under their button, over the text.
-  const [picking, setPicking] = useState(null); // {left} while open
-  const last = editor.storage.highlight.last;
-  const pick = (e) => {
-    const bar = e.currentTarget.closest(".editor-bar-wrap").getBoundingClientRect();
-    const r = e.currentTarget.getBoundingClientRect();
-    setPicking((v) => (v ? null : { left: r.left - bar.left - 32 }));
-  };
-
-  return (
-    <>
-      <div className="editor-bar" role="toolbar" aria-label="Formatting">
-        <Tool label="Undo" keys="Mod+Z" disabled={!editor.can().undo()} onPress={() => run().undo().run()}>
-          <Undo2 className="size-4" aria-hidden="true" />
-        </Tool>
-        <Tool label="Redo" keys={mac ? "Mod+Shift+Z" : "Mod+Y"} disabled={!editor.can().redo()} onPress={() => run().redo().run()}>
-          <Redo2 className="size-4" aria-hidden="true" />
-        </Tool>
-        <span className="editor-sep" aria-hidden="true" />
-        <select
-          className="editor-block"
-          aria-label="Text style"
-          value={style}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v === "p") run().setParagraph().run();
-            else run().setHeading({ level: Number(v.slice(1)) }).run();
-          }}
-        >
-          {style === "" && <option value="">—</option>}
-          <option value="p">Normal text</option>
-          <option value="h2">Heading 2</option>
-          <option value="h3">Heading 3</option>
-        </select>
-        <span className="editor-sep" aria-hidden="true" />
-        <Tool label="Bold" keys="Mod+B" active={editor.isActive("bold")} onPress={() => run().toggleBold().run()}>
-          <Bold className="size-4" aria-hidden="true" />
-        </Tool>
-        <Tool label="Italic" keys="Mod+I" active={editor.isActive("italic")} onPress={() => run().toggleItalic().run()}>
-          <Italic className="size-4" aria-hidden="true" />
-        </Tool>
-        <Tool label="Code" keys="Mod+E" active={editor.isActive("code")} onPress={() => run().toggleCode().run()}>
-          <Code className="size-4" aria-hidden="true" />
-        </Tool>
-        <Tool label="Link" keys="Mod+K" active={editor.isActive("link")} onPress={onLink}>
-          <Link2 className="size-4" aria-hidden="true" />
-        </Tool>
-        <span className="editor-picker">
-          <Tool label={`Highlight ${last}`} keys="Mod+Shift+H" active={editor.isActive("highlight")} onPress={() => run().setHighlight(last).run()}>
-            <Highlighter className="size-4" aria-hidden="true" />
-            <span className="editor-swatch" data-color={last} aria-hidden="true" />
-          </Tool>
-          <button type="button" className="editor-tool editor-more" aria-label="Highlight colours" aria-expanded={Boolean(picking)} onMouseDown={(e) => e.preventDefault()} onClick={pick}>
-            ▾
-          </button>
-        </span>
-        <span className="editor-sep" aria-hidden="true" />
-        <Tool label="Bulleted list" keys="Mod+Shift+8" active={editor.isActive("bulletList")} onPress={() => run().toggleBulletList().run()}>
-          <List className="size-4" aria-hidden="true" />
-        </Tool>
-        <Tool label="Numbered list" keys="Mod+Shift+7" active={editor.isActive("orderedList")} onPress={() => run().toggleOrderedList().run()}>
-          <ListOrdered className="size-4" aria-hidden="true" />
-        </Tool>
-        <span className="editor-slot">{children}</span>
-        <span className="editor-end">
-          <span className={`editor-status is-${state}`} role="status" aria-live="polite">
-            {label}
-          </span>
-          <button type="button" className="private-primary chamfer chamfer-sm editor-done" disabled={leaving} onClick={onDone}>
-            {leaving ? "Saving…" : "Done"}
-          </button>
-        </span>
-      </div>
-      {picking && (
-        <span className="editor-colors" role="menu" aria-label="Highlight colour" style={{ left: Math.max(0, picking.left) }}>
-          {COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              role="menuitem"
-              className="editor-color"
-              data-color={c}
-              aria-label={c}
-              title={c}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                run().setHighlight(c).run();
-                setPicking(null);
-              }}
-            />
-          ))}
-          <button
-            type="button"
-            role="menuitem"
-            className="editor-color is-none"
-            aria-label="Remove highlight"
-            title="Remove highlight"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              run().unsetHighlight().run();
-              setPicking(null);
-            }}
-          >
-            ⌀
-          </button>
-        </span>
-      )}
     </>
   );
 }
