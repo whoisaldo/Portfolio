@@ -27,7 +27,7 @@ import { FrontFooter, FrontHeader, PostList } from "../parts";
 import { PostPage } from "../BlogPost";
 import { API, ApiError, mediaUrl, request } from "./api";
 import DraftComments from "./DraftComments";
-import { clearUnsaved, newerThan, readUnsaved } from "./unsaved";
+import { clearUnsaved, keepAnchors, newerThan, readAnchors, readUnsaved } from "./unsaved";
 import "./private.css";
 
 const TITLE = `Private · ${profile.name}`;
@@ -251,6 +251,22 @@ function mediaRewriter(slug) {
 const REFUSED = "This draft has formatting the editor can't keep exactly, so it stays as it is. Edit its Markdown from the dashboard instead.";
 const kept = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
+/**
+ * Sends the comment passages' places an editing session left unsent for the
+ * text the server has (./unsaved.js), if any. True when none are left for it.
+ * Places for other text wait: a save sent as the editor's page closed may
+ * still be on its way.
+ */
+async function sendLeftAnchors(draft) {
+  const due = readAnchors(draft.slug).find((e) => e.body === draft.body);
+  if (!due) return true;
+  await request("/api/draft-comments?a=anchors", { method: "PUT", body: { draft: draft.slug, anchors: due.changes } });
+  keepAnchors(draft.slug, due.body, null);
+  return true;
+}
+
+const RETRY = [2000, 4000, 8000, 16_000, 30_000];
+
 /** Whether new text can go in under the reader without moving what they are doing. */
 function undisturbed() {
   const sel = window.getSelection();
@@ -313,6 +329,28 @@ function Draft({ session }) {
   }, [viewer.owner, draft, editing]);
 
   /** The latest draft in place of the one shown. True once it is. */
+  // Ali's: places left unsent by an editing session, sent as soon as the
+  // server has the text they are in, and tried again until they are in. The
+  // comments' next poll shows the passages where they now are.
+  useEffect(() => {
+    if (!viewer.owner || !draft || editing) return;
+    let timer = 0;
+    let tries = 0;
+    let live = true;
+    const send = () =>
+      sendLeftAnchors(draft).catch((err) => {
+        if (!live) return;
+        if (err instanceof ApiError && err.status === 404) return lost();
+        console.warn("comments: the passages' new places were not saved", err);
+        timer = setTimeout(send, RETRY[Math.min(tries++, RETRY.length - 1)]);
+      });
+    send();
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [viewer.owner, draft, editing, lost]);
+
   const refetch = useCallback(async () => {
     try {
       const { data } = await request(`/api/drafts?slug=${encodeURIComponent(slug)}`);
@@ -355,6 +393,12 @@ function Draft({ session }) {
         const [{ default: Editor }, { check }] = await Promise.all([import("./editor/DraftEditor"), import("./editor/check")]);
         if (!check(current.current.draft.body) || (restore && !check(restore.body))) {
           setRefused(REFUSED);
+          return;
+        }
+        // The editor finds each passage by what the server has, so places
+        // from the last session go first.
+        if (!(await sendLeftAnchors(current.current.draft).catch(() => false))) {
+          setRefused("The comments' places from your last edit aren't saved yet. Check your connection and try again.");
           return;
         }
         setUnsaved(null);

@@ -19,14 +19,15 @@
 // it. Until a save is confirmed the draft is also kept in this browser
 // (../unsaved.js). After each save, the comment passages whose words or
 // context changed are sent to the server as their threads' anchors, so
-// readers find them where they now are.
+// readers find them where they now are; until the server has them, they are
+// kept in this browser too and tried again.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { Editor, Extension } from "@tiptap/core";
 import { marked } from "marked";
 import { Bold, Code, Highlighter, Italic, Link2, List, ListOrdered, Redo2, Undo2 } from "lucide-react";
 import { ApiError, mediaUrl, request, uploadMedia } from "../api";
-import { clearUnsaved, writeUnsaved } from "../unsaved";
+import { clearUnsaved, keepAnchors, writeUnsaved } from "../unsaved";
 import { embeds } from "../../embeds";
 import { canEdit, fromMarkdown, toMarkdown } from "./markdown";
 import { COLORS, extensions } from "./schema";
@@ -102,7 +103,8 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       tries: 0,
       flight: null,
       again: false,
-      anchorsDue: false,
+      pending: null, // {body, changes}: passages' places in that saved body, not confirmed yet
+      sending: null,
       saved: new Set(),
       taken: new Set(draft.media || []),
       spots: new Set(),
@@ -145,21 +147,55 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     }, 300);
   }, [payload, slug]);
 
-  const sendAnchors = useCallback(async () => {
-    const st = s.current;
-    const changes = st.anchors.changes(st.anchors.quotes());
-    st.anchorsDue = false;
-    if (!changes.length) return;
-    try {
-      await request("/api/draft-comments?a=anchors", { method: "PUT", body: { draft: slug, anchors: changes } });
-      st.anchors.sent(changes);
-      for (const fn of st.saved) fn();
-    } catch (err) {
-      // Tried again with the next save, or on Done.
-      st.anchorsDue = true;
-      console.warn("comments: the passages' new places were not saved", err);
-    }
-  }, [slug]);
+  /**
+   * Sends the passages' new places in the text the server has, after that
+   * text. While the editor's text is the server's they are read off it
+   * afresh; while more is being typed, those kept for the server's text go.
+   * Until the server has them they are kept in this browser (../unsaved.js),
+   * the status is not "Saved", and they are tried again, later and later.
+   * True when nothing is left to send.
+   */
+  const sendAnchors = useCallback(
+    async ({ keepalive = false } = {}) => {
+      const st = s.current;
+      if (st.sending) return st.sending;
+      if (st.conflict || !st.baseline || !st.editor) return false;
+      if (sameDraft(payload(), st.baseline)) {
+        const changes = st.anchors.changes(st.anchors.quotes());
+        st.pending = changes.length ? { body: st.baseline.body, changes } : null;
+        keepAnchors(slug, st.baseline.body, changes);
+      }
+      const pending = st.pending?.body === st.baseline.body ? st.pending : null;
+      if (!pending) return true;
+      st.sending = (async () => {
+        try {
+          const body = { draft: slug, anchors: pending.changes };
+          await request("/api/draft-comments?a=anchors", { method: "PUT", body, keepalive: keepalive && JSON.stringify(body).length < KEEPALIVE });
+          st.anchors.sent(pending.changes);
+          st.tries = 0;
+          if (st.pending === pending) {
+            st.pending = null;
+            keepAnchors(slug, pending.body, null);
+          }
+          for (const fn of st.saved) fn();
+          return true;
+        } catch (err) {
+          console.warn("comments: the passages' new places were not saved", err);
+          if (err instanceof ApiError && err.status === 404) onLost();
+          else if (!(err instanceof ApiError) || err.status === 0 || err.status >= 500 || err.status === 429) {
+            setStatus({ state: "offline" });
+            clearTimeout(st.retry);
+            st.retry = setTimeout(() => st.save(), BACKOFF[Math.min(st.tries++, BACKOFF.length - 1)]);
+          } else setStatus({ state: "error", message: err.message });
+          return false;
+        } finally {
+          st.sending = null;
+        }
+      })();
+      return st.sending;
+    },
+    [slug, payload, onLost],
+  );
 
   const save = useCallback(
     async ({ keepalive = false } = {}) => {
@@ -173,8 +209,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       const p = payload();
       if (sameDraft(p, st.baseline)) {
         clearUnsaved(slug);
-        setStatus({ state: "saved" });
-        if (st.anchorsDue) await sendAnchors();
+        if ((await sendAnchors({ keepalive })) && sameDraft(payload(), st.baseline)) setStatus({ state: "saved" });
         return;
       }
       st.flight = (async () => {
@@ -190,8 +225,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
           // meanwhile, the next save sends them.
           if (sameDraft(payload(), p)) {
             clearUnsaved(slug);
-            setStatus({ state: "saved" });
-            await sendAnchors();
+            if ((await sendAnchors({ keepalive })) && sameDraft(payload(), p)) setStatus({ state: "saved" });
           } else st.again = true;
         } catch (err) {
           if (!(err instanceof ApiError)) throw err;
@@ -220,6 +254,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     },
     [payload, slug, sendAnchors, onLost],
   );
+  s.current.save = save;
 
   const changed = useCallback(() => {
     const st = s.current;
@@ -349,10 +384,20 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Saved at once when the page is hidden or closed, as far as the browser lets.
+  // Saved at once when the page is hidden or closed, as far as the browser
+  // lets. Text sent now may only reach the server after the page is gone,
+  // and its passages' places with it: they are kept for the next page to send
+  // once the server has that text.
   useEffect(() => {
-    const hidden = () => document.visibilityState === "hidden" && save({ keepalive: true });
-    const gone = () => save({ keepalive: true });
+    const leave = () => {
+      const st = s.current;
+      if (!st.editor || !st.baseline || st.conflict) return;
+      const p = payload();
+      if (!sameDraft(p, st.baseline)) keepAnchors(slug, p.body, st.anchors.changes(st.anchors.quotes()));
+      save({ keepalive: true });
+    };
+    const hidden = () => document.visibilityState === "hidden" && leave();
+    const gone = () => leave();
     const online = () => s.current.retry && save();
     document.addEventListener("visibilitychange", hidden);
     window.addEventListener("pagehide", gone);
@@ -362,7 +407,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       window.removeEventListener("pagehide", gone);
       window.removeEventListener("online", online);
     };
-  }, [save]);
+  }, [save, payload, slug]);
 
   const setField = (name, value) => {
     setMeta((m) => ({ ...m, [name]: value }));
@@ -374,8 +419,8 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
   const flush = useCallback(async () => {
     await save();
     while (s.current.flight) await s.current.flight;
-    if (s.current.anchorsDue) await sendAnchors();
-    return !s.current.conflict && sameDraft(payload(), s.current.baseline) && !s.current.anchorsDue;
+    const sent = await sendAnchors();
+    return sent && !s.current.conflict && sameDraft(payload(), s.current.baseline);
   }, [save, sendAnchors, payload]);
 
   /**
@@ -393,6 +438,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       const { doc, raws } = fromMarkdown(next.body);
       clearTimeout(st.timer);
       st.conflict = null;
+      st.pending = null;
       st.base = next.updated_at;
       st.latest = { ...st.latest, ...next };
       st.editor.commands.setContent(doc, { emitUpdate: false });

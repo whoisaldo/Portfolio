@@ -48,3 +48,37 @@ export function newerThan(kept, draft) {
   const saved = Date.parse(draft.updated_at);
   return Number.isFinite(saved) && kept.at > saved;
 }
+
+// ---- comment passages' new places ------------------------------------------------
+
+const anchorsKey = (slug) => `draft-editor-anchors:${slug}`;
+const WEEK = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * New places for comment passages that the server has not confirmed, each
+ * with the body they are places in: [{body, changes, at}], `changes` as the
+ * anchors endpoint takes them. They may be sent only while the server has
+ * that very body, so a reader never gets a place in text the draft doesn't
+ * have; the editor keeps them here before sending, and the draft page sends
+ * whatever is left (./PrivateBlog.jsx).
+ */
+export function readAnchors(slug) {
+  try {
+    const v = JSON.parse(localStorage.getItem(anchorsKey(slug)));
+    return Array.isArray(v) ? v.filter((e) => typeof e?.body === "string" && Array.isArray(e.changes) && Date.now() - e.at < WEEK) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Keeps `changes` for `body` in place of any kept for it; none forgets them. */
+export function keepAnchors(slug, body, changes) {
+  const list = readAnchors(slug).filter((e) => e.body !== body);
+  if (changes?.length) list.push({ body, changes, at: Date.now() });
+  try {
+    if (list.length) localStorage.setItem(anchorsKey(slug), JSON.stringify(list.slice(-4)));
+    else localStorage.removeItem(anchorsKey(slug));
+  } catch {
+    // As above: then they are only in the open editor.
+  }
+}
