@@ -18,8 +18,11 @@
 // edits as he makes them: the comments' poll says when the draft changed, and
 // the text is fetched again, unless the reader is selecting in it or typing
 // a comment, when a notice offers it instead.
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, Route, Routes, useParams } from "react-router-dom";
+//
+// His History, Publish and New draft buttons are in ./owner.jsx, a chunk
+// loaded only for him, and what they open is lazy too.
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, LockKeyhole, PencilLine } from "lucide-react";
 import { profile } from "../../data/profile";
 import { COLUMN, useTitle } from "../lib";
@@ -31,6 +34,11 @@ import { clearUnsaved, newerThan, readUnsaved } from "./unsaved";
 import "./private.css";
 
 const TITLE = `Private · ${profile.name}`;
+
+const owner = () => import("./owner");
+const OwnerTools = lazy(() => owner().then((m) => ({ default: m.OwnerTools })));
+const EditorTools = lazy(() => owner().then((m) => ({ default: m.EditorTools })));
+const NewDraftButton = lazy(() => owner().then((m) => ({ default: m.NewDraftButton })));
 
 export default function PrivateBlog() {
   const [viewer, setViewer] = useState(undefined);
@@ -210,6 +218,11 @@ function Index({ session }) {
         Writing before it is published. Select any passage to comment on it; everyone reading a draft sees its comments.
       </p>
       <SignedIn session={session} />
+      {session.viewer.owner && (
+        <Suspense fallback={null}>
+          <NewDraftButton />
+        </Suspense>
+      )}
       <div className="mt-12">
         {state.status === "loading" && <p className="text-sm text-dim">Loading drafts…</p>}
         {state.status === "error" && (
@@ -337,8 +350,10 @@ function Draft({ session }) {
     [refetch],
   );
 
+  // `then(session)` runs once the editor is up: a version to restore, from
+  // the read view's history.
   const edit = useCallback(
-    async (restore = null) => {
+    async (restore = null, then = null) => {
       setOpening(true);
       setRefused("");
       try {
@@ -349,7 +364,7 @@ function Draft({ session }) {
         }
         setUnsaved(null);
         setNewer(false);
-        setEditing({ Editor, restore });
+        setEditing({ Editor, restore, then });
       } catch (err) {
         console.warn("editor: could not load", err);
         setRefused("The editor couldn't load. Check your connection and try again.");
@@ -368,6 +383,16 @@ function Draft({ session }) {
   }, []);
 
   const rewrite = useMemo(() => mediaRewriter(slug), [slug]);
+
+  // A draft just made from the list opens in the editor, the caret in its text.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const fresh = location.state?.edit === "new";
+  useEffect(() => {
+    if (!fresh || !draft || !viewer.owner) return;
+    navigate(location.pathname, { replace: true, state: null });
+    edit(null, (session) => session.editor.commands.focus("start"));
+  }, [fresh, draft, viewer.owner, navigate, location.pathname, edit]);
 
   if (state.status === "missing") return <NotFound />;
   if (state.status === "error") return <Notice title="The draft couldn't load">Reload the page to try again.</Notice>;
@@ -390,6 +415,19 @@ function Draft({ session }) {
               <button type="button" className="private-edit" onClick={() => edit()} disabled={opening}>
                 <PencilLine className="size-3.5" aria-hidden="true" /> {opening ? "Opening…" : "Edit"}
               </button>
+            )}
+            {viewer.owner && !editing && (
+              <Suspense fallback={null}>
+                <OwnerTools
+                  draft={draft}
+                  rewrite={rewrite}
+                  onRestore={(version) => edit(null, (session) => session.restoreVersion(version))}
+                  onDraft={(d) => {
+                    heard.current = d.updated_at;
+                    setState({ status: "ready", draft: d });
+                  }}
+                />
+              </Suspense>
             )}
           </div>
           {refused && (
@@ -430,7 +468,22 @@ function Draft({ session }) {
         editing && {
           head: <div ref={setHead} className="editor-head" />,
           title: <div ref={setTitleSlot} />,
-          body: <Editor draft={draft} rewrite={rewrite} hosts={{ head, title: titleSlot }} restore={editing.restore} onBridge={setBridge} onDone={finish} onLost={lost} />,
+          body: (
+            <Editor
+              draft={draft}
+              rewrite={rewrite}
+              hosts={{ head, title: titleSlot }}
+              restore={editing.restore}
+              onBridge={setBridge}
+              onDone={finish}
+              onLost={lost}
+              slot={(session, place) => (
+                <Suspense fallback={null}>
+                  <EditorTools session={session} place={place} then={editing.then} rewrite={rewrite} />
+                </Suspense>
+              )}
+            />
+          ),
         }
       }
       inside={(body) => (
