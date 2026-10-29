@@ -220,3 +220,39 @@ test("a passage in a raw block is the whole block, kept until the block is delet
   assert.deepEqual(handle.quotes().get("t-boat"), find);
   editor.destroy();
 });
+
+test("a raw block deleted, saved as gone, then undone, is sent again on its words", () => {
+  const md = "Before the picture.\n\n<figure><figcaption>A tin boat on a pond at noon</figcaption></figure>\n\nAfter the picture.\n";
+  const { extension, handle } = commentAnchors();
+  const element = document.createElement("div");
+  document.body.append(element);
+  const editor = new Editor({ element, extensions: [...extensions(), extension], content: fromMarkdown(md).doc, injectCSS: false });
+  const find = { exact: "boat", prefix: "A tin ", suffix: " on a pond" };
+  handle.setItems([{ id: "t-boat", find }]);
+  let at = null;
+  editor.state.doc.forEach((n, pos) => n.type.name === "rawBlock" && (at = pos));
+  editor.commands.deleteRange({ from: at, to: at + 1 });
+  const gone = handle.changes(handle.quotes());
+  assert.deepEqual(gone, [{ thread: "t-boat", exact: "", prefix: "", suffix: "" }]);
+  handle.sent(gone);
+  assert.deepEqual(handle.changes(handle.quotes()), []);
+  editor.commands.undo();
+  assert.deepEqual(handle.quotes().get("t-boat"), find);
+  const back = handle.changes(handle.quotes());
+  assert.deepEqual(back, [{ thread: "t-boat", ...find }]);
+  handle.sent(back);
+  assert.deepEqual(handle.changes(handle.quotes()), []);
+  editor.destroy();
+});
+
+test("a passage deleted, saved as gone, then undone, is sent again on its words", () => {
+  const { editor, handle, ferry } = setup();
+  const from = posOf(editor, "gulls followed it out");
+  editor.commands.deleteRange({ from, to: from + "gulls followed it out".length });
+  const gone = handle.changes(handle.quotes());
+  assert.deepEqual(gone, [{ thread: "t-ferry", exact: "", prefix: "", suffix: "" }]);
+  handle.sent(gone);
+  editor.commands.undo();
+  assert.deepEqual(handle.changes(handle.quotes()), [{ thread: "t-ferry", ...ferry }]);
+  editor.destroy();
+});

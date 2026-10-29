@@ -167,8 +167,11 @@ export function commentAnchors() {
   const listeners = new Set();
   let frame = 0;
   let searched = new Set();
-  // What the server has for each passage found: the quote or anchor it was
-  // found by, then whatever was last sent.
+  // The quote or anchor each passage was found by, and what the server has
+  // for it: that, then whatever it last took, an empty one for gone. Apart,
+  // so a raw block an undo brings back after its deletion was saved is its
+  // words again, not that deletion.
+  let words = new Map();
   let known = new Map();
 
   const state = () => (view ? key.getState(view.state) : EMPTY);
@@ -214,7 +217,9 @@ export function commentAnchors() {
       const range = at && toRange(view, index, at);
       if (range) {
         add.push([t.id, range]);
-        known.set(t.id, { exact: t.find.exact, prefix: t.find.prefix || "", suffix: t.find.suffix || "" });
+        const q = { exact: t.find.exact, prefix: t.find.prefix || "", suffix: t.find.suffix || "" };
+        words.set(t.id, q);
+        known.set(t.id, q);
       }
     }
     return add;
@@ -245,7 +250,7 @@ export function commentAnchors() {
         // A passage in a raw block keeps the words it was found by for as
         // long as the block is there: its text can't be edited, and the
         // block's whole range is not the reader's words.
-        if (r.from < r.to && known.has(id) && holdsAtom(view.state.doc, r)) q = known.get(id);
+        if (r.from < r.to && words.has(id) && holdsAtom(view.state.doc, r)) q = words.get(id);
         else if (r.from < r.to) {
           try {
             q = quoteFromRange(index, domRange(view, r.from, r.to), MAX);
@@ -273,6 +278,7 @@ export function commentAnchors() {
     },
     reset() {
       searched = new Set();
+      words = new Map();
       known = new Map();
       if (!view) return;
       const { items } = state();
