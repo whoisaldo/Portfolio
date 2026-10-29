@@ -191,3 +191,84 @@ test("whitespace at the edge of a highlight or bold stays readable", () => {
   ]);
   assert.equal(toMarkdown(doc), "x **spaced bold** y\n");
 });
+
+// ---- marks Markdown's delimiters can't hold ------------------------------------
+
+const para = (...nodes) => schema.node("doc", null, [schema.node("paragraph", null, nodes)]);
+const bold = () => schema.marks.bold.create();
+const code = () => schema.marks.code.create();
+
+test("a mark Markdown can't open where it starts is written as a tag", () => {
+  // a**!b** is not bold: its ** sits between a letter and a mark.
+  const cases = [
+    para(schema.text("a"), schema.text("!b", [bold()])),
+    para(schema.text("a"), schema.text("!b", [schema.marks.italic.create()])),
+    para(schema.text("a"), schema.text("_b", [bold(), schema.marks.italic.create()])),
+    para(schema.text("a!"), schema.text("b", [schema.marks.link.create({ href: "/x" })])),
+    para(schema.text("a"), schema.text(" ", [code()]), schema.text("b")),
+  ];
+  for (const doc of cases) {
+    const out = toMarkdown(doc);
+    assert.deepEqual(load(out).toJSON(), doc.toJSON(), out);
+    assert.equal(canEdit(out, build).ok, true, out);
+  }
+  assert.equal(toMarkdown(cases[0]), "a<strong>!b</strong>\n");
+});
+
+test("a highlight on inline code is written outside the code", () => {
+  const yellow = hl("yellow");
+  for (const doc of [para(schema.text("see "), schema.text("x*y", [yellow, code()]), schema.text(" here")), para(schema.text("a"), schema.text("!b", [yellow, code(), bold()]))]) {
+    const out = toMarkdown(doc);
+    assert.match(out, /<span data-hl="yellow">(\*\*|<strong>)?(`[^`]+`|<code>.*<\/code>)(\*\*|<\/strong>)?<\/span>/, out);
+    assert.doesNotMatch(out, /`[^`]*data-hl/, out);
+    assert.deepEqual(load(out).toJSON(), doc.toJSON(), out);
+  }
+});
+
+test("random punctuation with random marks reads back as it was written", () => {
+  // A fixed seed, so a failure can be run again.
+  let seed = 20261029;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  const chars = [..."ab !?*_`~[]()<>&#\\.-:@/"];
+  const marks = [
+    () => schema.marks.bold.create(),
+    () => schema.marks.italic.create(),
+    () => schema.marks.strike.create(),
+    () => code(),
+    () => schema.marks.link.create({ href: pick(["/a", "https://example.com/b c", '/q"x']), title: pick([null, "T"]) }),
+    () => hl(pick(["yellow", "pink"])),
+  ];
+  // Bold, italic and strikethrough on a space at the edge of a run are
+  // written outside it, on purpose; they show nothing there.
+  const flanked = new Set(["bold", "italic", "strike"]);
+  const shown = (doc) =>
+    JSON.stringify(
+      doc.firstChild.content.content.flatMap((t) =>
+        [...t.text].map((ch) => [ch, t.marks.filter((m) => !(/\s/.test(ch) && flanked.has(m.type.name))).map((m) => `${m.type.name}${JSON.stringify(m.attrs)}`).sort()]),
+      ),
+    );
+  for (let n = 0; n < 400; n++) {
+    const text = Array.from({ length: 2 + Math.floor(rnd() * 8) }, () => pick(chars)).join("").trim() || "a";
+    const per = [...text].map(() => []);
+    for (let k = 1 + Math.floor(rnd() * 3); k > 0; k--) {
+      const mark = pick(marks)();
+      const from = Math.floor(rnd() * text.length);
+      const to = from + 1 + Math.floor(rnd() * (text.length - from));
+      for (let i = from; i < to; i++) per[i] = mark.addToSet(per[i]);
+    }
+    const nodes = [];
+    for (let i = 0; i < text.length; ) {
+      let j = i + 1;
+      while (j < text.length && per[j].length === per[i].length && per[j].every((m, x) => m.eq(per[i][x]))) j++;
+      nodes.push(schema.text(text.slice(i, j), per[i]));
+      i = j;
+    }
+    const doc = para(...nodes);
+    const out = toMarkdown(doc);
+    const back = load(out);
+    assert.equal(back.childCount, 1, out);
+    assert.equal(shown(back), shown(doc), out);
+    assert.equal(canEdit(out, build).ok, true, out);
+  }
+});
