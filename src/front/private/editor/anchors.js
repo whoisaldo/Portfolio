@@ -13,6 +13,8 @@
 //
 // A passage deleted entirely is a range of nothing: its thread goes to "On
 // text that changed". Undoing the deletion brings the words back inside it.
+// A passage in a raw block (a video's caption) is the whole block, outlined;
+// deleting the block deletes it.
 //
 // quotes() reads each passage's words and context off the editor's DOM as a
 // reader's selection would have them, for the anchors the server keeps after
@@ -78,10 +80,14 @@ const flatText = (doc, from, to) => doc.textBetween(from, to, "\n", "\ufffc");
 
 /** A passage's words and the words either side, as findQuote takes them. */
 function passage(doc, from, to) {
+  // A raw block's range is between blocks, and so is the line either side.
+  const line = (pos, text) => (text && !doc.resolve(pos).parent.inlineContent ? "\n" : "");
+  const before = flatText(doc, Math.max(0, from - CONTEXT * 2), from);
+  const after = flatText(doc, to, Math.min(doc.content.size, to + CONTEXT * 2));
   return {
     exact: flatText(doc, from, to),
-    prefix: flatText(doc, Math.max(0, from - CONTEXT * 2), from).slice(-CONTEXT),
-    suffix: flatText(doc, to, Math.min(doc.content.size, to + CONTEXT * 2)).slice(0, CONTEXT),
+    prefix: (before + line(from, before)).slice(-CONTEXT),
+    suffix: (line(to, after) + after).slice(0, CONTEXT),
   };
 }
 
@@ -102,12 +108,16 @@ function findText(doc, inFrom, inTo, lost) {
         flat += node.text[p - pos];
         at.push(p);
       }
-    } else if (node.isLeaf && pos >= from && pos < to) {
-      flat += "\ufffc";
-      at.push(pos);
-    } else if (node.isBlock && flat && !flat.endsWith("\n")) {
-      flat += "\n";
-      at.push(pos);
+    } else {
+      // As textBetween reads it: a block, a raw one too, starts a line.
+      if (node.isBlock && flat && !flat.endsWith("\n")) {
+        flat += "\n";
+        at.push(pos);
+      }
+      if (node.isLeaf && pos >= from && pos < to) {
+        flat += "\ufffc";
+        at.push(pos);
+      }
     }
   });
   const found = lost.exact && findQuote({ text: flat }, lost);
@@ -159,8 +169,11 @@ export function commentAnchors() {
   const listeners = new Set();
   let frame = 0;
   let searched = new Set();
-  // What the server has for each passage found: the quote or anchor it was
-  // found by, then whatever was last sent.
+  // The quote or anchor each passage was found by, and what the server has
+  // for it: that, then whatever it last took, an empty one for gone. Apart,
+  // so a raw block an undo brings back after its deletion was saved is its
+  // words again, not that deletion.
+  let words = new Map();
   let known = new Map();
 
   const state = () => (view ? key.getState(view.state) : EMPTY);
@@ -206,7 +219,9 @@ export function commentAnchors() {
       const range = at && toRange(view, index, at);
       if (range) {
         add.push([t.id, range]);
-        known.set(t.id, { exact: t.find.exact, prefix: t.find.prefix || "", suffix: t.find.suffix || "" });
+        const q = { exact: t.find.exact, prefix: t.find.prefix || "", suffix: t.find.suffix || "" };
+        words.set(t.id, q);
+        known.set(t.id, q);
       }
     }
     return add;
@@ -234,7 +249,11 @@ export function commentAnchors() {
       const index = indexText(view.dom);
       for (const [id, r] of state().ranges) {
         let q = null;
-        if (r.from < r.to) {
+        // A passage in a raw block keeps the words it was found by for as
+        // long as the block is there: its text can't be edited, and the
+        // block's whole range is not the reader's words.
+        if (r.from < r.to && words.has(id) && holdsAtom(view.state.doc, r)) q = words.get(id);
+        else if (r.from < r.to) {
           try {
             q = quoteFromRange(index, domRange(view, r.from, r.to), MAX);
           } catch (err) {
@@ -261,6 +280,7 @@ export function commentAnchors() {
     },
     reset() {
       searched = new Set();
+      words = new Map();
       known = new Map();
       if (!view) return;
       const { items } = state();
@@ -328,17 +348,41 @@ export function commentAnchors() {
   return { extension, handle };
 }
 
-/** [start, end) of an indexText index as a document range, or null. */
+/**
+ * [start, end) of an indexText index as a document range, or null. An end in
+ * a raw block (words in a video's caption) is that whole block: the editor
+ * has no positions inside it.
+ */
 export function toRange(view, index, [start, end]) {
   let i = start;
   while (i < end && !index.nodes[i]) i++;
   let j = end - 1;
   while (j > i && !index.nodes[j]) j--;
   if (i >= end || !index.nodes[j]) return null;
-  const from = view.posAtDOM(index.nodes[i], index.offsets[i], 1);
-  const to = view.posAtDOM(index.nodes[j], index.offsets[j] + 1, -1);
+  const from = atomAround(view, index.nodes[i])?.from ?? view.posAtDOM(index.nodes[i], index.offsets[i], 1);
+  const to = atomAround(view, index.nodes[j])?.to ?? view.posAtDOM(index.nodes[j], index.offsets[j] + 1, -1);
   return from < to ? { from, to } : null;
 }
+
+/** The block atom whose drawing holds a DOM node, as a document range, or null. */
+function atomAround(view, dom) {
+  let found = null;
+  view.state.doc.descendants((node, pos) => {
+    if (found) return false;
+    if (node.isBlock && node.isAtom && view.nodeDOM(pos)?.contains(dom)) found = { from: pos, to: pos + node.nodeSize };
+    return !node.isAtom;
+  });
+  return found;
+}
+
+const holdsAtom = (doc, { from, to }) => {
+  let any = false;
+  doc.nodesBetween(from, to, (node) => {
+    if (node.isBlock && node.isAtom) any = true;
+    return !any;
+  });
+  return any;
+};
 
 /** A document range as a DOM Range over the editor's text. */
 function domRange(view, from, to) {
