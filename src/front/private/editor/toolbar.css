@@ -53,7 +53,7 @@
 /* Inside the clipped row the site's ring (index.css) would be cut off, so
    it is drawn inside. */
 .editor-bar .editor-tool:focus-visible,
-.editor-bar .editor-status.is-folded:focus-visible,
+.editor-bar .editor-status-button:focus-visible,
 .editor-bar .editor-block:focus-visible { box-shadow: inset 0 0 0 2px #fcee0a; }
 
 .editor-sep { flex: none; width: 1px; height: 1.25rem; margin: 0 0.15rem; background: #24242a; }
@@ -186,10 +186,18 @@
   color: rgb(236 234 228 / 0.5);
   white-space: nowrap;
 }
-/* Folded, a button: pressed or focused, its words under it. */
-.editor-status-wrap { position: relative; flex: none; display: inline-flex; }
-.editor-status.is-folded { padding: 0; width: 2rem; cursor: pointer; transition: background-color 150ms; }
-.editor-status.is-folded:hover { background: #1b1b20; }
+/* Folded, an icon on a button: pressed or focused, its words under it. */
+.editor-status.is-folded { position: relative; padding: 0; }
+.editor-status-button {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+.editor-status-button:hover { background: #1b1b20; }
 .editor-status-tip {
   position: absolute;
   z-index: 50;

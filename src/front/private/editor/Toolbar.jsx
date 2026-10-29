@@ -118,13 +118,12 @@ function Status({ label, state, uploading, folded }) {
       </span>
     );
   return (
-    <span className="editor-status-wrap">
+    <span className={`editor-status is-${state} is-folded`} title={label}>
       <button
         type="button"
-        className={`editor-status is-${state} is-folded`}
+        className="editor-status-button"
         aria-label={`Save status: ${label}`}
         aria-expanded={Boolean(tip)}
-        title={label}
         ref={(el) => (tipIn.current[0] = el)}
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => setTip((v) => (v ? null : true))}
