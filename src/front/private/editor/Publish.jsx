@@ -8,16 +8,22 @@
 // its comments are not touched.
 //
 // First a dry run, which writes nothing, says which files would be added or
-// updated. Confirming publishes the draft as the server has it, and only if
-// that is still the version the dry run was for. The dialog is modal, so
+// updated. Both it and the publish name the save they are for (`base`, the
+// draft's updated_at), and the server refuses either once the draft has been
+// saved since (409, with the time it was), so what is published is the
+// version the dialog showed. Refused, the dry run is made again for the
+// draft as it is now and the dialog says it changed. The dialog is modal, so
 // nothing can be typed into the draft in between.
-import React, { useEffect, useRef, useState } from "react";
-import { request } from "../api";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ApiError, request } from "../api";
 import Modal from "./Modal";
 import { CHANGE, formatSize, publishError } from "./publishing";
 
 // A first publish sends the media too, which can be tens of megabytes.
 const TIMEOUT = 300_000;
+
+/** The server's answer when the draft was saved since `base`: not published, and when it was. */
+const moved = (err) => err instanceof ApiError && err.status === 409 && typeof err.data?.draft_updated_at === "string";
 
 /**
  * @param {{draft: object, update: boolean, standing: object, onPublished: (draft: object) => void, onClose: () => void}} props
@@ -34,31 +40,51 @@ export default function Publish({ draft, update, standing, onPublished, onClose 
     if (st.phase === "ready") confirm.current?.focus();
   }, [st.phase]);
 
+  const on = useRef(true);
   useEffect(() => {
-    let on = true;
-    request("/api/publish", { method: "POST", body: { slug, dryRun: true }, timeout: 60_000 })
-      .then(({ data }) => on && setSt({ phase: "ready", plan: data }))
-      .catch((err) => on && setSt({ phase: "error", message: publishError(err, slug) }));
+    on.current = true;
     return () => {
-      on = false;
+      on.current = false;
     };
-  }, [slug]);
+  }, []);
+
+  /** The dry run for the draft as it was saved at `base`; `changed` once it was saved again since the dialog opened. */
+  const check = useCallback(
+    async (base, changed = false) => {
+      setSt({ phase: "checking", changed });
+      try {
+        const { data } = await request("/api/publish", { method: "POST", body: { slug, base, dryRun: true }, timeout: 60_000 });
+        if (on.current) setSt({ phase: "ready", plan: data, base, changed });
+      } catch (err) {
+        if (!on.current) return;
+        if (moved(err)) return check(err.data.draft_updated_at, true);
+        setSt({ phase: "error", message: publishError(err, slug) });
+      }
+    },
+    [slug],
+  );
+  useEffect(() => {
+    check(draft.updated_at);
+  }, [check, draft.updated_at]);
 
   const publish = async () => {
-    const plan = st.plan;
-    setSt({ phase: "publishing", plan });
+    const { plan, base } = st;
+    setSt({ phase: "publishing", plan, base });
     try {
-      // Exactly the version the dry run was for: not one saved since.
-      const { data: now } = await request(`/api/drafts?slug=${encodeURIComponent(slug)}`);
-      if (now.draft.updated_at !== draft.updated_at) {
-        setSt({ phase: "error", message: "The draft was saved again since this was checked. Close this and press Publish again to publish what it says now." });
-        return;
-      }
-      const { data } = await request("/api/publish", { method: "POST", body: { slug, dryRun: false }, timeout: TIMEOUT });
+      const { data } = await request("/api/publish", { method: "POST", body: { slug, base, dryRun: false }, timeout: TIMEOUT });
       setSt({ phase: "done", result: data });
       const after = await request(`/api/drafts?slug=${encodeURIComponent(slug)}`).catch(() => null);
-      onPublished(after?.data.draft ?? { ...now.draft, published: { sha: data.commit.sha, url: data.commit.url, at: new Date().toISOString(), current: true } });
+      // Without the draft, what is known: this version is the public one.
+      const at = data.draft_updated_at ?? base;
+      onPublished(
+        after?.data.draft ?? {
+          ...draft,
+          updated_at: at,
+          published: { sha: data.commit.sha, url: data.commit.url, at: new Date().toISOString(), current: at === draft.updated_at },
+        },
+      );
     } catch (err) {
+      if (moved(err)) return check(err.data.draft_updated_at, true);
       // No answer to the publish itself: it may have gone through.
       const message =
         err.status === 0 && plan
@@ -124,6 +150,11 @@ export default function Publish({ draft, update, standing, onPublished, onClose 
             <span>Public address</span>
             <b>{live}</b>
           </p>
+          {st.changed && (
+            <p className="private-notice" role="status">
+              The draft was saved again since you pressed Publish. This is what it says now.
+            </p>
+          )}
           {st.phase === "checking" && <p className="history-hint">Checking what will change…</p>}
           {files.length > 0 && (
             <>

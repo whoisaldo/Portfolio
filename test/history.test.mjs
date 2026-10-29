@@ -193,6 +193,7 @@ test("publish errors read plainly", () => {
   assert.equal(publishError(err(503, "Publishing isn't set up yet."), "p"), "Publishing isn't set up yet. Add GITHUB_PUBLISH_TOKEN to the stats service.");
   assert.match(publishError(err(503, "Publishing isn't set up yet: the database needs its migration."), "p"), /migration/);
   assert.match(publishError(err(409, "Another post"), "made-up"), /\/blog\/made-up\/.*Nothing was published/);
+  assert.equal(publishError(err(409, "A publish is already running."), "p"), "A publish is already running. Nothing was published.");
   assert.match(publishError(err(502, "GitHub: Bad credentials"), "p"), /^GitHub didn't take it \(Bad credentials\)/);
   assert.match(publishError(err(0, "x"), "p"), /Couldn't reach/);
   assert.equal(publishError(err(500, "Something broke."), "p"), "Something broke.");

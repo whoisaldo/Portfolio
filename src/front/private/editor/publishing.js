@@ -20,7 +20,10 @@ export function publishError(err, slug) {
       // Before the stats service's migration it says so; otherwise there is no token.
       return /migration/i.test(err.message) ? `${err.message} Nothing was published.` : "Publishing isn't set up yet. Add GITHUB_PUBLISH_TOKEN to the stats service.";
     case 409:
-      return `Another post on the site already has the address /blog/${slug}/. Nothing was published.`;
+      // Taken, or a publish already running (a changed draft is the dialog's to handle).
+      return /address|another post/i.test(err.message)
+        ? `Another post on the site already has the address /blog/${slug}/. Nothing was published.`
+        : `${err.message} Nothing was published.`;
     case 502:
       return `GitHub didn't take it (${String(err.message).replace(/^GitHub:\s*/, "")}). Nothing was published; try again in a minute.`;
     case 404:
