@@ -28,27 +28,73 @@ const MAX = 500;
 
 const EMPTY = { ranges: new Map(), items: [], emphasis: { active: [], hover: [] }, deco: DecorationSet.empty };
 
-const same = (a = [], b = []) => a.length === b.length && a.every((x, i) => x === b[i]);
+const same = (a, b) => (a || []).length === (b || []).length && (a || []).every((x, i) => x === b[i]);
 
 /** Undo and redo carry this meta (prosemirror-history's plugin key). */
 const fromHistory = (tr) => Boolean(tr.getMeta("history$"));
 
+/**
+ * Each passage through a change. Words typed just before or just after a
+ * passage are not part of it. A passage whose words are all deleted is empty,
+ * and remembers them (`lost`): an undo or redo that puts them back, even one
+ * that replaces the whole text (after "Load the latest"), finds them again
+ * where the change put text back, and only there.
+ */
 function mapRanges(ranges, tr) {
   if (!tr.docChanged) return ranges;
   const next = new Map();
-  const undoing = fromHistory(tr);
+  // What an undo or redo put back: the span of the text its steps replaced.
+  let changed = null;
+  if (fromHistory(tr)) {
+    const maps = tr.mapping.maps;
+    maps.forEach((map, i) =>
+      map.forEach((_a, _b, start, end) => {
+        for (let j = i + 1; j < maps.length; j++) {
+          start = maps[j].map(start, -1);
+          end = maps[j].map(end, 1);
+        }
+        changed = changed ? [Math.min(changed[0], start), Math.max(changed[1], end)] : [start, end];
+      }),
+    );
+  }
   for (const [id, r] of ranges) {
-    if (r.from < r.to) {
-      // Words typed just before or just after a passage are not part of it.
-      const from = tr.mapping.map(r.from, 1);
-      const to = tr.mapping.map(r.to, -1);
-      next.set(id, from < to ? { from, to } : { from: to, to: to });
-    } else {
-      // An emptied passage stays empty, unless an undo puts words back where it was.
-      next.set(id, undoing ? { from: tr.mapping.map(r.from, -1), to: tr.mapping.map(r.to, 1) } : { from: tr.mapping.map(r.from), to: tr.mapping.map(r.from) });
+    const lost = r.from < r.to ? tr.before.textBetween(r.from, r.to, "\n", "\ufffc") : r.lost;
+    const from = tr.mapping.map(r.from, 1);
+    const to = tr.mapping.map(r.to, -1);
+    if (r.from < r.to && from < to) {
+      next.set(id, { from, to });
+      continue;
     }
+    const near = changed && to >= changed[0] && to <= changed[1];
+    const back = near && lost && findText(tr.doc, changed[0], changed[1], lost);
+    next.set(id, back || { from: to, to, lost });
   }
   return next;
+}
+
+/** Where `text` is between `from` and `to`, if it is there exactly once. */
+function findText(doc, from, to, text) {
+  let flat = "";
+  const at = [];
+  doc.nodesBetween(from, to, (node, pos) => {
+    if (node.isText) {
+      const start = Math.max(from, pos);
+      const end = Math.min(to, pos + node.text.length);
+      for (let p = start; p < end; p++) {
+        flat += node.text[p - pos];
+        at.push(p);
+      }
+    } else if (node.isLeaf && pos >= from && pos < to) {
+      flat += "\ufffc";
+      at.push(pos);
+    } else if (node.isBlock && flat && !flat.endsWith("\n")) {
+      flat += "\n";
+      at.push(pos);
+    }
+  });
+  const i = flat.indexOf(text);
+  if (i === -1 || flat.indexOf(text, i + 1) !== -1) return null;
+  return { from: at[i], to: at[i + text.length - 1] + 1 };
 }
 
 function decorations(doc, { ranges, items, emphasis }) {

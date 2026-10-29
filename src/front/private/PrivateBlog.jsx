@@ -428,7 +428,7 @@ function Draft({ session }) {
       }
       editing={
         editing && {
-          head: <div ref={setHead} />,
+          head: <div ref={setHead} className="editor-head" />,
           title: <div ref={setTitleSlot} />,
           body: <Editor draft={draft} rewrite={rewrite} hosts={{ head, title: titleSlot }} restore={editing.restore} onBridge={setBridge} onDone={finish} onLost={lost} />,
         }

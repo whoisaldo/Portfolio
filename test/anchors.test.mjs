@@ -127,3 +127,52 @@ function range(handle, editor, id) {
   const last = marks[marks.length - 1].lastChild;
   return [from, editor.view.posAtDOM(last, last.length)];
 }
+
+test("only passages that changed are sent, and a deleted one as empty", () => {
+  const { editor, handle } = setup();
+  assert.deepEqual(handle.changes(handle.quotes()), []);
+
+  editor.commands.insertContentAt(posOf(editor, "followed") + "followed".length, " and circled");
+  const first = handle.changes(handle.quotes());
+  assert.deepEqual(first.map((c) => [c.thread, c.exact]), [["t-ferry", "gulls followed and circled it out"]]);
+  handle.sent(first);
+  assert.deepEqual(handle.changes(handle.quotes()), []);
+
+  const from = posOf(editor, "lighthouse keeper");
+  editor.commands.deleteRange({ from, to: from + "lighthouse keeper".length });
+  assert.deepEqual(handle.changes(handle.quotes()), [{ thread: "t-keeper", exact: "", prefix: "", suffix: "" }]);
+  editor.destroy();
+});
+
+test("undo after deleting everything puts each passage back on its own words", () => {
+  const { editor, handle, ferry } = setup();
+  editor.commands.selectAll();
+  editor.commands.deleteSelection();
+  assert.deepEqual(handle.quotes().get("t-ferry"), { gone: true });
+  editor.commands.undo();
+  assert.deepEqual(handle.quotes().get("t-ferry"), ferry);
+  assert.equal(handle.quotes().get("t-keeper").exact, "lighthouse keeper");
+  assert.deepEqual(handle.changes(handle.quotes()), []);
+  editor.destroy();
+});
+
+test("undo after the whole text is replaced finds the passages again", () => {
+  const { editor, handle, ferry } = setup();
+  // As "Load the latest" does: the text replaced, the passages looked for afresh.
+  editor.commands.setContent(fromMarkdown(BODY.replace("ferry", "boat")).doc, { emitUpdate: false });
+  handle.reset();
+  assert.equal(handle.quotes().get("t-keeper").exact, "lighthouse keeper");
+  editor.commands.undo();
+  assert.deepEqual(handle.quotes().get("t-ferry"), ferry);
+  assert.equal(handle.quotes().get("t-keeper").exact, "lighthouse keeper");
+  editor.destroy();
+});
+
+test("text typed where a deleted passage was does not bring it back", () => {
+  const { editor, handle } = setup();
+  const from = posOf(editor, "lighthouse keeper");
+  editor.commands.deleteRange({ from, to: from + "lighthouse keeper".length });
+  editor.commands.insertContentAt(from, "lighthouse keeper");
+  assert.deepEqual(handle.quotes().get("t-keeper"), { gone: true });
+  editor.destroy();
+});

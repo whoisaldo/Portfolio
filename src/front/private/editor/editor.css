@@ -5,16 +5,21 @@
 
 /* ---- the toolbar ------------------------------------------------------------ */
 
-.editor-bar-wrap {
+/* The slot the draft page leaves above the title (PrivateBlog.jsx) is what
+   sticks: it sits in the article, so it stays at the top of the screen for
+   the whole text. */
+.editor-head {
   position: sticky;
   top: 0;
   z-index: 35;
   margin-top: 1.25rem;
+}
+.editor-bar-wrap {
+  position: relative;
   /* Out to the column's edges and a little past, over the text as it scrolls. */
   margin-inline: -0.75rem;
   padding: 0.5rem 0.75rem;
-  background: rgb(10 10 12 / 0.92);
-  backdrop-filter: blur(8px);
+  background: #0a0a0c;
   border-bottom: 1px solid #24242a;
 }
 
@@ -26,6 +31,11 @@
   scrollbar-width: none;
 }
 .editor-bar::-webkit-scrollbar { display: none; }
+/* A phone: two rows, so the save status and Done are always in reach. */
+@media (max-width: 640px) {
+  .editor-bar { flex-wrap: wrap; row-gap: 0.35rem; overflow-x: visible; }
+  .editor-slot { flex: 1 0 auto; }
+}
 
 .editor-tool {
   position: relative;
@@ -175,7 +185,9 @@
 .editor-body li > p { margin: 0; }
 .editor-body li > p + * { margin-top: 0.45em; }
 .editor-body img { display: inline-block; }
-.editor-body img.ProseMirror-selectednode { outline: 2px solid #fcee0a; outline-offset: 2px; }
+/* Selected pictures and raw blocks show it only while the editor has focus:
+   it opens with the first block selected when that is a video. */
+.editor-body.ProseMirror-focused img.ProseMirror-selectednode { outline: 2px solid #fcee0a; outline-offset: 2px; }
 
 /* Markdown the editor keeps as written: it reads as the post, and a click
    selects it whole. */
@@ -189,7 +201,7 @@
   transition: border-color 150ms;
 }
 .editor-raw:hover::after { border-color: #3a3a42; }
-.editor-raw.ProseMirror-selectednode::after { border: 2px solid #fcee0a; }
+.editor-body.ProseMirror-focused .editor-raw.ProseMirror-selectednode::after { border: 2px solid #fcee0a; }
 .editor-raw:empty::before {
   content: "Hidden Markdown";
   font-size: 0.75rem;

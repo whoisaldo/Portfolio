@@ -517,6 +517,7 @@ function Details({ meta, minutes, field, onField, onBlur, onEnter }) {
         rows={1}
         className={`editor-title mt-8 font-display text-3xl font-semibold leading-tight text-bone text-balance sm:text-4xl${field === "title" ? " is-wrong" : ""}`}
         value={meta.title}
+        maxLength={200}
         aria-label="Title"
         placeholder="Title"
         // One line: a pasted line break becomes a space.
@@ -537,7 +538,7 @@ function Details({ meta, minutes, field, onField, onBlur, onEnter }) {
         <span className="editor-minutes tabular-nums">{minutes} min read</span>
         <label className={`editor-summary${field === "summary" ? " is-wrong" : ""}`}>
           <span>Summary</span>
-          <input type="text" value={meta.summary} maxLength={300} onChange={(e) => onField("summary", e.target.value.replace(/\s*\n\s*/g, " "))} onBlur={onBlur} />
+          <input type="text" value={meta.summary} maxLength={500} onChange={(e) => onField("summary", e.target.value.replace(/\s*\n\s*/g, " "))} onBlur={onBlur} />
         </label>
       </div>
     </>
