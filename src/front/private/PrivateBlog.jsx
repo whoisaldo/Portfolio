@@ -328,7 +328,6 @@ function Draft({ session }) {
     }
   }, [viewer.owner, draft, editing]);
 
-  /** The latest draft in place of the one shown. True once it is. */
   // Ali's: places left unsent by an editing session, sent as soon as the
   // server has the text they are in, and tried again until they are in. The
   // comments' next poll shows the passages where they now are.
@@ -351,6 +350,7 @@ function Draft({ session }) {
     };
   }, [viewer.owner, draft, editing, lost]);
 
+  /** The latest draft in place of the one shown. True once it is. */
   const refetch = useCallback(async () => {
     try {
       const { data } = await request(`/api/drafts?slug=${encodeURIComponent(slug)}`);

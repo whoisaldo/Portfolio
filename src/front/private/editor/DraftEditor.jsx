@@ -163,7 +163,8 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
   const sendAnchors = useCallback(
     async ({ keepalive = false } = {}) => {
       const st = s.current;
-      if (st.sending) return st.sending;
+      // One at a time; one sent for older text is not this one.
+      while (st.sending) await st.sending;
       if (st.conflict || !st.baseline || !st.editor) return false;
       if (sameDraft(payload(), st.baseline)) {
         const changes = st.anchors.changes(st.anchors.quotes());
