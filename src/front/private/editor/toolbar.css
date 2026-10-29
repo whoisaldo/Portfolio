@@ -56,7 +56,7 @@
 .editor-bar .editor-status.is-folded:focus-visible,
 .editor-bar .editor-block:focus-visible { box-shadow: inset 0 0 0 2px #fcee0a; }
 
-.editor-sep { flex: none; width: 1px; height: 1.25rem; margin: 0 0.2rem; background: #24242a; }
+.editor-sep { flex: none; width: 1px; height: 1.25rem; margin: 0 0.15rem; background: #24242a; }
 
 /* The text style: the select itself, without the browser's box. */
 .editor-style { position: relative; flex: none; display: inline-flex; align-items: center; }
@@ -125,6 +125,9 @@
 
 /* ---- More ---------------------------------------------------------------------------- */
 
+/* Outside the clipped formatting, so it can't be cut off, but as close to it
+   as the formatting's own buttons are to each other. */
+.editor-bar > .editor-overflow { margin-left: calc(2px - 0.5rem); }
 .editor-tool.editor-overflow[aria-expanded="true"] { color: #eceae4; background: #1b1b20; }
 .editor-menu {
   position: absolute;
