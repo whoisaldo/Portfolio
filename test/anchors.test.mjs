@@ -188,3 +188,35 @@ test("an undo tells repeated words apart by the words around them", () => {
   void at;
   editor.destroy();
 });
+
+test("a passage in a raw block is the whole block, kept until the block is deleted", async () => {
+  const md = "Before the picture.\n\n<figure><figcaption>A tin boat on a pond at noon</figcaption></figure>\n\nAfter the picture.\n";
+  const { extension, handle } = commentAnchors();
+  const element = document.createElement("div");
+  document.body.append(element);
+  const editor = new Editor({ element, extensions: [...extensions(), extension], content: fromMarkdown(md).doc, injectCSS: false });
+  const find = { exact: "boat", prefix: "A tin ", suffix: " on a pond" };
+  handle.setItems([{ id: "t-boat", find }]);
+  let found;
+  handle.subscribe((f) => (found = f));
+  await new Promise((done) => requestAnimationFrame(done));
+  assert.ok(found.placed.has("t-boat"));
+  // Its card goes beside the block, which is outlined.
+  const marked = found.marks.get("t-boat");
+  assert.equal(marked.length, 1);
+  assert.equal(marked[0].querySelector("figcaption")?.textContent, "A tin boat on a pond at noon");
+  assert.ok(marked[0].classList.contains("editor-raw-quoted"));
+  // Unchanged while the block is: nothing to send, even after edits around it.
+  assert.deepEqual(handle.quotes().get("t-boat"), find);
+  editor.commands.insertContentAt(posOf(editor, "After"), "Just ");
+  editor.commands.insertContentAt(posOf(editor, "picture."), "small ");
+  assert.deepEqual(handle.changes(handle.quotes()), []);
+  // Deleting the block deletes the passage; undo brings it back.
+  let at = null;
+  editor.state.doc.forEach((n, pos) => n.type.name === "rawBlock" && (at = pos));
+  editor.commands.deleteRange({ from: at, to: at + 1 });
+  assert.deepEqual(handle.changes(handle.quotes()), [{ thread: "t-boat", exact: "", prefix: "", suffix: "" }]);
+  editor.commands.undo();
+  assert.deepEqual(handle.quotes().get("t-boat"), find);
+  editor.destroy();
+});
