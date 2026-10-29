@@ -25,6 +25,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { createPortal } from "react-dom";
 import { Editor, Extension } from "@tiptap/core";
 import { isHistoryTransaction } from "@tiptap/pm/history";
+import { TextSelection } from "@tiptap/pm/state";
 import { marked } from "marked";
 import { ApiError, mediaUrl, request, uploadMedia } from "../api";
 import { clearUnsaved, keepAnchors, writeUnsaved } from "../unsaved";
@@ -372,6 +373,11 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       },
     });
     st.editor = ed;
+    // The caret at the start of the text, as Docs opens a document, not on
+    // the video or embed a draft may start with: selected, it would leave
+    // the text style and the like with nothing to work on.
+    const caret = TextSelection.findFrom(ed.state.doc.resolve(0), 1, true);
+    if (caret) ed.view.dispatch(ed.state.tr.setSelection(caret).setMeta("addToHistory", false));
     remember(ed.state.doc, restore ? [] : raws);
     // What the server has: for a restored edit, the server's own copy.
     st.baseline = restore ? { title: draft.title, date: draft.date, summary: draft.summary, body: draft.body } : { ...metaRef.current, body: toMarkdown(ed.state.doc, { keep: st.keep }) };
