@@ -352,7 +352,8 @@ function signature(content, breaks) {
   const marks = (n, ch) => (n.marks || []).filter((m) => !(FLANKED.has(m.type) && /\s/.test(ch))).map(markKey).sort().join(",");
   const sig = [];
   for (const n of content) {
-    if (n.type === "text") for (const ch of n.text) sig.push([marks(n, ch), ch]);
+    // A line break in text is read back as the space it shows as.
+    if (n.type === "text") for (const ch of n.text.replace(/\n/g, " ")) sig.push([marks(n, ch), ch]);
     else if (n.type === "hardBreak" && breaks === " ") sig.push([marks(n, " "), " "]);
     else sig.push([marks(n), `<${n.type}:${n.attrs?.src || ""}|${n.attrs?.alt || ""}>`]);
   }
@@ -373,26 +374,28 @@ function inlineMarkdown(node, { breaks = "\\\n", italic, tags }) {
   const sorted = (marks) => [...marks].sort((a, b) => RANK[a.type.name] - RANK[b.type.name]);
   const has = (marks, m) => marks.some((x) => x.eq(m));
   const segments = [];
-  items.forEach((child, i) => {
+  for (const child of items) {
     const marks = sorted(child.marks);
-    if (!child.isText || marks.some((m) => m.type.name === "code")) {
-      segments.push({ node: child, marks });
-      return;
-    }
-    // ** bold ** is not bold in Markdown: whitespace at either end of a
-    // bold, italic or struck run goes outside it.
-    const [, lead, core, trail] = /^(\s*)([\s\S]*?)(\s*)$/.exec(child.text);
-    const before = items[i - 1]?.marks || [];
-    const after = items[i + 1]?.marks || [];
-    const keepIf = (other) => marks.filter((m) => !FLANKED.has(m.type.name) || has(other, m));
-    if (!core) {
-      segments.push({ text: child.text, marks: keepIf(before).filter((m) => !FLANKED.has(m.type.name) || has(after, m)) });
-      return;
-    }
-    if (lead) segments.push({ text: lead, marks: keepIf(before) });
-    segments.push({ text: core, marks });
-    if (trail) segments.push({ text: trail, marks: keepIf(after) });
-  });
+    // A line break inside text shows on the page as a space, and written as
+    // one it can't start a block or end in a hard break.
+    const text = child.isText ? child.text.replace(/\r\n?|\n/g, " ") : null;
+    if (!child.isText || marks.some((m) => m.type.name === "code")) segments.push({ node: child, text, marks });
+    else for (const part of text.match(/\s+|\S+/g)) segments.push({ text: part, marks, space: /^\s/.test(part) });
+  }
+  // ** bold ** is not bold in Markdown: bold, italic and strikethrough on
+  // spaces are kept only between characters that have them too. Decided by
+  // the characters either side alone, so writing what was read writes the
+  // same again.
+  const left = [];
+  for (let i = 0, last = []; i < segments.length; i++) {
+    left[i] = last;
+    if (!segments[i].space) last = segments[i].marks;
+  }
+  for (let i = segments.length - 1, next = []; i >= 0; i--) {
+    const seg = segments[i];
+    if (!seg.space) next = seg.marks;
+    else seg.marks = seg.marks.filter((m) => !FLANKED.has(m.type.name) || (has(left[i], m) && has(next, m)));
+  }
 
   let out = "";
   let open = [];
@@ -433,8 +436,8 @@ function inlineMarkdown(node, { breaks = "\\\n", italic, tags }) {
     for (let j = k; j < want.length; j++) out += delim(want[j], false);
     open = want;
     if (seg.node && !seg.node.isText) out += seg.node.type.name === "hardBreak" ? breaks : image(seg.node);
-    else if (code) out += tags.has("code") ? `<code>${escapeText(seg.node.text)}</code>` : codeSpan(seg.node.text);
-    else out += escapeText(seg.text ?? seg.node.text);
+    else if (code) out += tags.has("code") ? `<code>${escapeText(seg.text)}</code>` : codeSpan(seg.text);
+    else out += escapeText(seg.text);
   });
   for (let j = open.length - 1; j >= 0; j--) out += delim(open[j], true);
   return escapeLineStarts(out);

@@ -230,7 +230,7 @@ test("random punctuation with random marks reads back as it was written", () => 
   let seed = 20261029;
   const rnd = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
   const pick = (a) => a[Math.floor(rnd() * a.length)];
-  const chars = [..."ab !?*_`~[]()<>&#\\.-:@/"];
+  const chars = [..."ab !?*_`~[]()<>&#\\.-:@/", "  ", "\t", "\n", "\u00a0", "&copy;", "1.", "- ", "# "];
   const marks = [
     () => schema.marks.bold.create(),
     () => schema.marks.italic.create(),
@@ -240,15 +240,16 @@ test("random punctuation with random marks reads back as it was written", () => 
     () => hl(pick(["yellow", "pink"])),
   ];
   // Bold, italic and strikethrough on a space at the edge of a run are
-  // written outside it, on purpose; they show nothing there.
+  // written outside it, on purpose; they show nothing there. A line break in
+  // text is the space it shows as.
   const flanked = new Set(["bold", "italic", "strike"]);
   const shown = (doc) =>
     JSON.stringify(
       doc.firstChild.content.content.flatMap((t) =>
-        [...t.text].map((ch) => [ch, t.marks.filter((m) => !(/\s/.test(ch) && flanked.has(m.type.name))).map((m) => `${m.type.name}${JSON.stringify(m.attrs)}`).sort()]),
+        [...t.text.replace(/\n/g, " ")].map((ch) => [ch, t.marks.filter((m) => !(/\s/.test(ch) && flanked.has(m.type.name))).map((m) => `${m.type.name}${JSON.stringify(m.attrs)}`).sort()]),
       ),
     );
-  for (let n = 0; n < 400; n++) {
+  for (let n = 0; n < 500; n++) {
     const text = Array.from({ length: 2 + Math.floor(rnd() * 8) }, () => pick(chars)).join("").trim() || "a";
     const per = [...text].map(() => []);
     for (let k = 1 + Math.floor(rnd() * 3); k > 0; k--) {

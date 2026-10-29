@@ -141,7 +141,12 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
   const keepLocal = useCallback(() => {
     clearTimeout(s.current.local);
     s.current.local = setTimeout(() => {
-      const p = payload();
+      let p;
+      try {
+        p = payload();
+      } catch {
+        return; // the save says why
+      }
       if (s.current.baseline && sameDraft(p, s.current.baseline)) clearUnsaved(slug);
       else writeUnsaved(slug, { ...p, base: s.current.base });
     }, 300);
@@ -206,7 +211,15 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
         st.again = true;
         return st.flight;
       }
-      const p = payload();
+      let p;
+      try {
+        p = payload();
+      } catch (err) {
+        // Text that can't be written as Markdown (./markdown.js) is not
+        // saved as anything else.
+        setStatus({ state: "error", message: err.message });
+        return;
+      }
       if (sameDraft(p, st.baseline)) {
         clearUnsaved(slug);
         if ((await sendAnchors({ keepalive })) && sameDraft(payload(), st.baseline)) setStatus({ state: "saved" });
@@ -392,8 +405,12 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     const leave = () => {
       const st = s.current;
       if (!st.editor || !st.baseline || st.conflict) return;
-      const p = payload();
-      if (!sameDraft(p, st.baseline)) keepAnchors(slug, p.body, st.anchors.changes(st.anchors.quotes()));
+      try {
+        const p = payload();
+        if (!sameDraft(p, st.baseline)) keepAnchors(slug, p.body, st.anchors.changes(st.anchors.quotes()));
+      } catch {
+        // The save says why.
+      }
       save({ keepalive: true });
     };
     const hidden = () => document.visibilityState === "hidden" && leave();
