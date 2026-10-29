@@ -8,16 +8,29 @@
 // out, is the text it was up to date for. A highlight added or removed does
 // not change the public post, so it does not count.
 
-const TAG = /<span\b[^>]*>|<\/span\s*>/gi;
-const OPEN = /^<span\s+data-hl\s*=\s*(["'])(yellow|green|blue|pink|purple)\1\s*>$/i;
+// The stats service's rule (its lib/publish.js), kept here exactly and tested
+// against its own cases (test/published.test.mjs). A tag is `<span` and a
+// space or `>`, up to the first `>`, with no `<` in it; or `</span>`. A
+// highlight is its opening tag exactly as the editor writes it.
+const COLORS = ["yellow", "green", "blue", "pink", "purple"];
+const TAG = /<span(?=[\s>])[^<>]*>|<\/span\s*>/gi;
+const OPEN = new RegExp(`^<span data-hl="(${COLORS.join("|")})">$`);
+const ANY_OPEN = new RegExp(`<span data-hl="(${COLORS.join("|")})">`);
 
 /**
  * The text with every highlight unwrapped, as the stats service does it
- * when publishing (its lib/publish.js): spans are matched by depth, so only
- * a highlight's own tags go.
+ * when publishing, and every other byte as it was. Spans of any kind are
+ * counted from a highlight's opening tag, so only a highlight's own tags
+ * go; one never closed loses its opening tag alone. Taking one out can join
+ * the text either side into another, so it goes again until none is left.
  */
 export function stripHighlights(source) {
-  const text = String(source);
+  let text = String(source);
+  while (ANY_OPEN.test(text)) text = unwrap(text);
+  return text;
+}
+
+function unwrap(text) {
   const open = [];
   const drop = [];
   for (const m of text.matchAll(TAG)) {
@@ -30,7 +43,6 @@ export function stripHighlights(source) {
     if (from?.hl) drop.push(from, tag);
   }
   drop.push(...open.filter((t) => t.hl));
-  if (!drop.length) return text;
   drop.sort((a, b) => a.at - b.at);
   let out = "";
   let at = 0;
@@ -41,8 +53,13 @@ export function stripHighlights(source) {
   return out + text.slice(at);
 }
 
-/** What the public copy of a draft would say, to compare two drafts by. */
-export const publicText = (d) => JSON.stringify([d.title.trim(), d.date, d.summary.trim(), stripHighlights(d.body)]);
+/**
+ * The public copy of a draft, src/blog/<slug>.md as publishing writes it:
+ * the title and summary as the server saves them (trimmed), then the title,
+ * summary and body each with its highlights taken out.
+ */
+export const publicText = (d) =>
+  `---\ntitle: ${stripHighlights(d.title.trim())}\ndate: ${d.date}\nsummary: ${stripHighlights(d.summary.trim())}\n---\n\n${stripHighlights(d.body).replace(/^\n+/, "")}`;
 
 /**
  * The state beside the button, for `published` (the draft's record of its
