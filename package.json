@@ -9,7 +9,7 @@
     "images": "node scripts/optimize-images.mjs",
     "photos": "node scripts/optimize-photos.mjs",
     "lint": "eslint .",
-    "test": "node --test 'test/**/*.test.mjs'",
+    "test": "node --test --test-timeout=30000 'test/**/*.test.mjs'",
     "preview": "vite preview",
     "og": "node scripts/make-og.mjs",
     "logos": "node scripts/normalize-logos.mjs",

@@ -102,22 +102,18 @@ test("words typed before a passage move it, and change only its context", () => 
   editor.destroy();
 });
 
-test("a passage deleted entirely is gone, and undo brings it back", () => {
+test("a passage deleted entirely is gone, and undo brings it back", async () => {
   const { editor, handle } = setup();
   let found;
   handle.subscribe((f) => (found = f));
   const from = posOf(editor, "gulls followed it out");
   editor.commands.deleteRange({ from: from - 1, to: from + "gulls followed it out".length + 1 });
   assert.deepEqual(handle.quotes().get("t-ferry"), { gone: true });
-  return new Promise((done) =>
-    requestAnimationFrame(() => {
-      assert.ok(!found.placed.has("t-ferry"));
-      editor.commands.undo();
-      assert.equal(handle.quotes().get("t-ferry").exact, "gulls followed it out");
-      editor.destroy();
-      done();
-    }),
-  );
+  await new Promise((done) => requestAnimationFrame(done));
+  assert.ok(!found.placed.has("t-ferry"));
+  editor.commands.undo();
+  assert.equal(handle.quotes().get("t-ferry").exact, "gulls followed it out");
+  editor.destroy();
 });
 
 /** A tracked passage's document range, read through its decoration. */
@@ -174,5 +170,21 @@ test("text typed where a deleted passage was does not bring it back", () => {
   editor.commands.deleteRange({ from, to: from + "lighthouse keeper".length });
   editor.commands.insertContentAt(from, "lighthouse keeper");
   assert.deepEqual(handle.quotes().get("t-keeper"), { gone: true });
+  editor.destroy();
+});
+
+test("an undo tells repeated words apart by the words around them", () => {
+  const { editor, handle } = setup();
+  // "the" is everywhere; the thread is on the one before "breakwater".
+  const at = posOf(editor, "the breakwater");
+  handle.setItems([{ id: "t-the", find: { exact: "the", prefix: "it out past ", suffix: " breakwater, calling all the way" } }]);
+  assert.equal(handle.quotes().get("t-the").exact, "the");
+  editor.commands.selectAll();
+  editor.commands.deleteSelection();
+  editor.commands.undo();
+  const q = handle.quotes().get("t-the");
+  assert.equal(q.exact, "the");
+  assert.ok(q.suffix.startsWith(" breakwater"));
+  void at;
   editor.destroy();
 });

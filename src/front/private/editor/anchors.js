@@ -36,9 +36,10 @@ const fromHistory = (tr) => Boolean(tr.getMeta("history$"));
 /**
  * Each passage through a change. Words typed just before or just after a
  * passage are not part of it. A passage whose words are all deleted is empty,
- * and remembers them (`lost`): an undo or redo that puts them back, even one
- * that replaces the whole text (after "Load the latest"), finds them again
- * where the change put text back, and only there.
+ * and remembers them and the words either side (`lost`): an undo or redo
+ * that puts them back, even one that replaces the whole text (after "Load the
+ * latest"), finds them again where the change put text back, and only there,
+ * by the same words-and-context rule the comments use (findQuote).
  */
 function mapRanges(ranges, tr) {
   if (!tr.docChanged) return ranges;
@@ -58,7 +59,7 @@ function mapRanges(ranges, tr) {
     );
   }
   for (const [id, r] of ranges) {
-    const lost = r.from < r.to ? tr.before.textBetween(r.from, r.to, "\n", "\ufffc") : r.lost;
+    const lost = r.from < r.to ? passage(tr.before, r.from, r.to) : r.lost;
     const from = tr.mapping.map(r.from, 1);
     const to = tr.mapping.map(r.to, -1);
     if (r.from < r.to && from < to) {
@@ -72,8 +73,25 @@ function mapRanges(ranges, tr) {
   return next;
 }
 
-/** Where `text` is between `from` and `to`, if it is there exactly once. */
-function findText(doc, from, to, text) {
+const CONTEXT = 32;
+const flatText = (doc, from, to) => doc.textBetween(from, to, "\n", "\ufffc");
+
+/** A passage's words and the words either side, as findQuote takes them. */
+function passage(doc, from, to) {
+  return {
+    exact: flatText(doc, from, to),
+    prefix: flatText(doc, Math.max(0, from - CONTEXT * 2), from).slice(-CONTEXT),
+    suffix: flatText(doc, to, Math.min(doc.content.size, to + CONTEXT * 2)).slice(0, CONTEXT),
+  };
+}
+
+/**
+ * Where a lost passage is between `from` and `to`, if findQuote is sure. It
+ * reads a little either side too, for the passage's context.
+ */
+function findText(doc, inFrom, inTo, lost) {
+  const from = Math.max(0, inFrom - CONTEXT * 4);
+  const to = Math.min(doc.content.size, inTo + CONTEXT * 4);
   let flat = "";
   const at = [];
   doc.nodesBetween(from, to, (node, pos) => {
@@ -92,9 +110,10 @@ function findText(doc, from, to, text) {
       at.push(pos);
     }
   });
-  const i = flat.indexOf(text);
-  if (i === -1 || flat.indexOf(text, i + 1) !== -1) return null;
-  return { from: at[i], to: at[i + text.length - 1] + 1 };
+  const found = lost.exact && findQuote({ text: flat }, lost);
+  if (!found) return null;
+  const range = { from: at[found[0]], to: at[found[1] - 1] + 1 };
+  return range.from >= inFrom && range.to <= inTo ? range : null;
 }
 
 function decorations(doc, { ranges, items, emphasis }) {
