@@ -566,7 +566,7 @@ function Tool({ label, keys: shortcut, active, disabled, onPress, children }) {
 function Toolbar({ editor, label, state, leaving, onDone, onLink, children }) {
   const run = () => editor.chain().focus();
   const level = [2, 3].find((l) => editor.isActive("heading", { level: l }));
-  const block = level ? `h${level}` : editor.isActive("paragraph") ? "p" : "";
+  const style = level ? `h${level}` : editor.isActive("paragraph") ? "p" : "";
   // The colours open under their button, over the text.
   const [picking, setPicking] = useState(null); // {left} while open
   const last = editor.storage.highlight.last;
@@ -589,14 +589,14 @@ function Toolbar({ editor, label, state, leaving, onDone, onLink, children }) {
         <select
           className="editor-block"
           aria-label="Text style"
-          value={block}
+          value={style}
           onChange={(e) => {
             const v = e.target.value;
             if (v === "p") run().setParagraph().run();
             else run().setHeading({ level: Number(v.slice(1)) }).run();
           }}
         >
-          {!block && <option value="">—</option>}
+          {style === "" && <option value="">—</option>}
           <option value="p">Normal text</option>
           <option value="h2">Heading 2</option>
           <option value="h3">Heading 3</option>
