@@ -31,6 +31,17 @@
 // Nor is it lost by closing what it was typed in. A comment, a comment on
 // the whole draft or a reply that was not sent is kept, and is back in its
 // box when the box opens again. Only sending it or pressing Cancel lets it go.
+//
+// A thread's passage is where its `anchor` says, once Ali has edited the
+// draft around it (the editor keeps anchors up to date, ./editor/), and where
+// the reader's own quote says until then. An anchor of {gone: true} is a
+// passage deleted. The reader's quote never changes, and a card whose passage
+// was edited says what it was first on.
+//
+// While Ali edits (`bridge`, from ./editor/DraftEditor.jsx), the cards are the
+// same but the passages are the editor's decorations, which follow his edits
+// as he types, and there is no "Comment" button: a selection there is for
+// formatting.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { Check, MessageSquare, MessageSquarePlus, X } from "lucide-react";
@@ -84,8 +95,10 @@ function useNow(every) {
  * them. A change is shown as soon as the service accepts it and then asked for
  * again, so what the page shows is always what everyone else sees.
  */
-function useThreads(slug, onLost) {
+function useThreads(slug, onLost, onDraftChange) {
   const [state, setState] = useState({ status: "loading", comments: [] });
+  const heard = useRef(onDraftChange);
+  heard.current = onDraftChange;
   const version = useRef(null);
   const busy = useRef(false);
 
@@ -98,6 +111,7 @@ function useThreads(slug, onLost) {
       if (status === 204) return;
       version.current = data.v;
       setState({ status: "ready", comments: data.comments });
+      if (data.draft_updated_at) heard.current?.(data.draft_updated_at);
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) onLost();
       else setState((s) => (s.status === "loading" ? { ...s, status: "error" } : s));
@@ -148,15 +162,25 @@ function useThreads(slug, onLost) {
     };
   }, [slug, poll]);
 
-  return [state, act];
+  return [state, act, poll];
 }
 
 const byTime = (a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id);
 
-/** Comments into threads: each first comment with its replies, oldest first. */
+/**
+ * Comments into threads: each first comment with its replies, oldest first.
+ * `quote` is the passage as the reader quoted it; `find` is what to look for
+ * in the text now: the anchor when the editor has moved it, null when its
+ * passage was deleted.
+ */
 function toThreads(comments) {
   const threads = new Map();
-  for (const c of comments) if (!c.thread) threads.set(c.id, { id: c.id, root: c, replies: [], quote: c.quote, resolved: c.resolved });
+  for (const c of comments) {
+    if (c.thread) continue;
+    const anchor = c.anchor && typeof c.anchor === "object" ? c.anchor : null;
+    const find = anchor?.gone ? null : anchor?.exact ? anchor : c.quote;
+    threads.set(c.id, { id: c.id, root: c, replies: [], quote: c.quote, find, resolved: c.resolved });
+  }
   for (const c of comments) if (c.thread) threads.get(c.thread)?.replies.push(c);
   return [...threads.values()];
 }
@@ -168,8 +192,10 @@ function toThreads(comments) {
  * never while the reader has words in the draft selected: redrawing splits
  * and rejoins text nodes, which would drop the selection.
  */
-function useAnchors(body, items) {
-  const key = JSON.stringify(items.map((i) => [i.id, Boolean(i.resolved), i.quote?.exact, i.quote?.prefix, i.quote?.suffix]));
+function useAnchors(body, items, bodyKey) {
+  // `bodyKey` is the text's: new text (or the text back after editing) is
+  // marked afresh.
+  const key = JSON.stringify([bodyKey, ...items.map((i) => [i.id, Boolean(i.resolved), i.find?.exact, i.find?.prefix, i.find?.suffix])]);
   const latest = useRef(items);
   latest.current = items;
   const [drawn, setDrawn] = useState(null);
@@ -198,7 +224,7 @@ function useAnchors(body, items) {
     try {
       const index = indexText(root);
       for (const t of list) {
-        const at = t.quote && findQuote(index, t.quote);
+        const at = t.find && findQuote(index, t.find);
         if (at) placedAt.push({ id: t.id, at });
       }
     } catch (err) {
@@ -236,12 +262,44 @@ function useAnchors(body, items) {
   return { ...found, settled: found.key === key };
 }
 
-/** @param {{slug: string, body: React.RefObject<HTMLElement>, viewer: object, onLost: () => void}} props */
-export default function DraftComments({ slug, body, viewer, onLost }) {
+const NOWHERE = { current: null };
+const NOTHING = { key: null, placed: new Set(), groups: new Map(), marks: new Map(), settled: false };
+
+/**
+ * The passages as the editor has them, in the shape useAnchors gives. Every
+ * thread is handed over, hidden ones too, so a resolved thread's passage is
+ * kept up to date as well.
+ */
+function useEditorAnchors(bridge, threads, visible) {
+  const [found, setFound] = useState(NOTHING);
+  useEffect(() => (bridge ? bridge.subscribe(setFound) : setFound(NOTHING)), [bridge]);
+  const shown = new Set(visible.map((t) => t.id));
+  const items = threads.map((t) => ({ id: t.id, find: t.find, resolved: Boolean(t.resolved), hidden: !shown.has(t.id) }));
+  const key = JSON.stringify(items);
+  const latest = useRef(items);
+  latest.current = items;
+  useEffect(() => {
+    bridge?.setItems(latest.current);
+  }, [bridge, key]);
+  return found;
+}
+
+/**
+ * @param {{slug: string, body: React.RefObject<HTMLElement>, viewer: object, onLost: () => void,
+ *   bodyKey?: string, bridge?: object, onDraftChange?: (updatedAt: string) => void}} props
+ *   `bodyKey` changes when the draft's text does; `bridge` is the editor's,
+ *   while Ali edits; `onDraftChange` hears the draft's updated_at from every poll.
+ */
+export default function DraftComments({ slug, body: readBody, viewer, onLost, bodyKey, bridge, onDraftChange }) {
   const wide = useMedia(WIDE);
   const now = useNow(30_000);
-  const [{ status, comments }, act] = useThreads(slug, onLost);
+  const [{ status, comments }, act, poll] = useThreads(slug, onLost, onDraftChange);
   const threads = useMemo(() => toThreads(comments), [comments]);
+  // The element holding the draft's text: the article's, or the editor's.
+  const editorDom = bridge?.dom;
+  const body = useMemo(() => (bridge ? { current: editorDom } : readBody), [bridge, editorDom, readBody]);
+  // After the editor saves new anchors, they are fetched at once.
+  useEffect(() => bridge?.onAnchorsSaved(() => poll(true)), [bridge, poll]);
 
   const [showResolved, setShowResolved] = useState(false);
   const [active, setActive] = useState(null); // a thread's id, "new" or "general"
@@ -257,10 +315,12 @@ export default function DraftComments({ slug, body, viewer, onLost }) {
     [threads, showResolved, active],
   );
   const items = useMemo(
-    () => (pending ? [...visible, { id: "new", quote: pending.quote, resolved: null }] : visible),
+    () => (pending ? [...visible, { id: "new", quote: pending.quote, find: pending.quote, resolved: null }] : visible),
     [visible, pending],
   );
-  const found = useAnchors(body, items);
+  const read = useAnchors(bridge ? NOWHERE : readBody, bridge ? [] : items, bridge ? "editing" : bodyKey);
+  const live = useEditorAnchors(bridge, threads, visible);
+  const found = bridge ? live : read;
   const inText = visible.filter((t) => found.placed.has(t.id));
   const changed = visible.filter((t) => t.quote && !found.placed.has(t.id));
   const general = visible.filter((t) => !t.quote);
@@ -321,6 +381,8 @@ export default function DraftComments({ slug, body, viewer, onLost }) {
     const click = (e) => {
       const ids = idsOf(e.target);
       if (!ids?.length) return;
+      // Editing on a phone, a tap is for the caret; the corner button has the threads.
+      if (bridge && !wide) return;
       e.preventDefault();
       if (wide) focusThread(ids[0], { scroll: false });
       else setSheet({ ids });
@@ -335,10 +397,16 @@ export default function DraftComments({ slug, body, viewer, onLost }) {
       root.removeEventListener("mouseover", over);
       root.removeEventListener("mouseout", out);
     };
-  }, [body, wide, focusThread]);
+  }, [body, wide, focusThread, bridge]);
 
-  // The active and hovered passages, emphasised.
+  // The active and hovered passages, emphasised. In the editor, by its
+  // decorations: ProseMirror redraws its own elements.
+  const activeIds = active ? found.groups.get(active) : null;
   useEffect(() => {
+    if (bridge) bridge.emphasize(activeIds, hover);
+  }, [bridge, activeIds, hover]);
+  useEffect(() => {
+    if (bridge) return;
     const on = [];
     const mark = (ids, cls) => {
       for (const el of ids ? found.marks.get(ids[0]) || [] : []) {
@@ -349,7 +417,7 @@ export default function DraftComments({ slug, body, viewer, onLost }) {
     mark(active && found.groups.get(active), "is-active");
     mark(hover, "is-hover");
     return () => on.forEach(([el, cls]) => el.classList.remove(cls));
-  }, [active, hover, found]);
+  }, [active, hover, found, bridge]);
 
   // A click anywhere else lets an existing thread go; a comment being
   // written stays until it is sent or cancelled. Escape does the same.
@@ -394,6 +462,7 @@ export default function DraftComments({ slug, body, viewer, onLost }) {
       onActivate={() => focusThread(t.id)}
       onHover={(on) => setHover(on ? found.groups.get(t.id) || [t.id] : null)}
       onResolved={() => setActive((a) => (a === t.id ? null : a))}
+      placed={found.placed.has(t.id)}
       {...extra}
     />
   );
@@ -453,7 +522,7 @@ export default function DraftComments({ slug, body, viewer, onLost }) {
         )}
       </section>
 
-      <SelectButton body={body} onComment={startNew} />
+      {!bridge && <SelectButton body={body} onComment={startNew} />}
 
       {!wide &&
         createPortal(
@@ -606,7 +675,7 @@ function Margin({ body, found, active, order, toolbar, children }) {
 }
 
 /** One thread: its first comment, its replies, and a box to reply. */
-function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHover, onResolved, showQuote, inMargin }) {
+function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed }) {
   const [error, setError] = useState("");
   const resolved = t.resolved;
   // In the margin a thread that is not in hand is a summary, as in Docs: the
@@ -638,7 +707,14 @@ function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHo
           <Check className="size-3.5" aria-hidden="true" /> Resolved by {resolved.by}
         </p>
       )}
-      {showQuote && t.quote && <blockquote className="draft-quote">{t.quote.exact}</blockquote>}
+      {showQuote && t.quote && <blockquote className="draft-quote">{placed && t.find ? t.find.exact : t.quote.exact}</blockquote>}
+      {/* Its passage was edited: what the reader first commented on. In the
+          list of changed passages, that is the quote above already. */}
+      {t.quote && t.find !== t.quote && t.find?.exact !== t.quote.exact && (placed || !showQuote) && (
+        <p className="draft-original">
+          <span>Originally on:</span> {t.quote.exact}
+        </p>
+      )}
       <Comment c={t.root} now={now} viewer={viewer} act={act} onError={setError} clamp={compact} onMore={onActivate}>
         {resolved ? (
           <button type="button" className="draft-text-button" onClick={() => run(act.resolve(t.id, false))}>
