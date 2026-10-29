@@ -6,16 +6,18 @@
 // highlight and its colours, the lists, and at the right the save status,
 // History, Publish and Done. The column is narrower than all of that even on
 // a wide screen, so the row folds as the room runs out, measured rather than
-// guessed at a breakpoint: first the save status becomes an icon (its words
-// in the tooltip), then Code and the lists go into a "More" menu, then
-// History does, then Link (Cmd+K still opens it). Publish and Done never fold. Past that, on a phone, the
-// formatting scrolls sideways under a fade, and the end stays put.
+// guessed at a breakpoint: first the save status becomes an icon (a button
+// that shows its words), then Code and the lists go into a "More" menu, then
+// History does, then Link (Cmd+K still opens it), the highlight, the text
+// style, Italic, Bold, Redo and Undo, until on the narrowest phone the row is
+// More, the status, Publish and Done. More stays in sight from the first
+// fold, and whatever is not in the row is in it. Publish and Done never fold.
 //
 // Every button keeps the editor's focus and selection where they are; menus
 // close on Escape or a click elsewhere and hand the focus back.
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
-  Bold, Check, CloudOff, Code, Ellipsis, Highlighter, Italic, Link2, List, ListOrdered, LoaderCircle, Redo2, TriangleAlert, Undo2, Upload,
+  Bold, Check, CloudOff, Code, Ellipsis, Heading2, Heading3, Highlighter, Italic, Link2, List, ListOrdered, LoaderCircle, Pilcrow, Redo2, TriangleAlert, Undo2, Upload,
 } from "lucide-react";
 import { COLORS } from "./schema";
 import "./toolbar.css";
@@ -28,9 +30,18 @@ const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator
 const keys = (k) => (mac ? k.replace("Mod+", "⌘").replace("Shift+", "⇧") : k.replace("Mod+", "Ctrl+"));
 
 // How far the row has folded: 1 the status is an icon, 2 Code and the lists
-// are in More, 3 History is too, 4 and Link.
+// are in More, 3 History is too, then one at a time Link, the highlight, the
+// text style, Italic, Bold, Redo and Undo.
+const LISTS = 2;
 const HISTORY = 3;
-const MOST = 4;
+const LINK = 4;
+const HIGHLIGHT = 5;
+const STYLE = 6;
+const ITALIC = 7;
+const BOLD = 8;
+const REDO = 9;
+const UNDO = 10;
+const MOST = UNDO;
 
 /** A toolbar button that leaves the editor's focus and selection where they are. */
 export function Tool({ label, keys: shortcut, active, disabled, onPress, className = "", children, ...rest }) {
@@ -87,15 +98,47 @@ function usePopover() {
 
 const STATUS_ICON = { saved: Check, pending: LoaderCircle, saving: LoaderCircle, offline: CloudOff, conflict: TriangleAlert, error: TriangleAlert };
 
-/** The one status line: the save state, as words or, folded, as an icon with them in its tooltip. */
+/**
+ * The one status line: the save state, as words or, folded, as an icon. The
+ * icon is a button that shows the words under it when tapped or focused,
+ * and they are read out as they change either way.
+ */
 function Status({ label, state, uploading, folded }) {
   const Icon = uploading ? Upload : STATUS_ICON[state] || Check;
-  return (
-    <span className={`editor-status is-${state}${folded ? " is-folded" : ""}`} title={label}>
-      {folded && <Icon className={`size-4${state === "saving" || state === "pending" ? " editor-spin" : ""}`} aria-hidden="true" />}
-      <span className={folded ? "editor-sr" : "editor-status-text"} role="status" aria-live="polite">
-        {label}
+  const [tip, setTip, tipIn] = usePopover();
+  const spoken = (
+    <span className={folded ? "editor-sr" : "editor-status-text"} role="status" aria-live="polite">
+      {label}
+    </span>
+  );
+  if (!folded)
+    return (
+      <span className={`editor-status is-${state}`} title={label}>
+        {spoken}
       </span>
+    );
+  return (
+    <span className="editor-status-wrap">
+      <button
+        type="button"
+        className={`editor-status is-${state} is-folded`}
+        aria-label={`Save status: ${label}`}
+        aria-expanded={Boolean(tip)}
+        title={label}
+        ref={(el) => (tipIn.current[0] = el)}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setTip((v) => (v ? null : true))}
+        onFocus={() => setTip(true)}
+        onBlur={() => setTip(null)}
+      >
+        <Icon className={`size-4${state === "saving" || state === "pending" ? " editor-spin" : ""}`} aria-hidden="true" />
+      </button>
+      {spoken}
+      {tip && (
+        <span className={`editor-status-tip is-${state}`} aria-hidden="true" ref={(el) => (tipIn.current[1] = el)}>
+          {label}
+        </span>
+      )}
     </span>
   );
 }
@@ -122,17 +165,26 @@ export function Toolbar({ editor, label, state, uploading, leaving, onDone, onLi
 
   // ---- folding to the room there is --------------------------------------------
   const [fold, setFold] = useState(0);
-  const [width, setWidth] = useState(0);
+  const [width, setWidth] = useState("");
   // The row's width each fold needed, so it unfolds only once there is room.
   const need = useRef([]);
   useLayoutEffect(() => {
-    const ro = new ResizeObserver(([e]) => setWidth(Math.round(e.contentRect.width)));
+    // The row's room, and the formatting's share of it, which shrinks when
+    // the end grows (Publish's chunk arriving, its label changing).
+    const size = () => setWidth(`${bar.current?.clientWidth}/${tools.current?.clientWidth}`);
+    const ro = new ResizeObserver(size);
     ro.observe(bar.current);
+    ro.observe(tools.current);
+    // The fonts arriving widen the text style and the words.
+    document.fonts?.ready.then(() => setWidth((v) => `${v}+`));
     return () => ro.disconnect();
   }, []);
   useLayoutEffect(() => {
     const w = bar.current.clientWidth;
-    const over = tools.current.scrollWidth - tools.current.clientWidth;
+    const t = tools.current;
+    // To the pixel: scrollWidth is rounded, and half a pixel cut off is cut off.
+    const last = t.lastElementChild?.getBoundingClientRect().right ?? 0;
+    const over = Math.max(t.scrollWidth - t.clientWidth, Math.ceil(last - t.getBoundingClientRect().right));
     if (over > 0 && fold < MOST) {
       need.current[fold] = w + over;
       setFold(fold + 1);
@@ -140,17 +192,6 @@ export function Toolbar({ editor, label, state, uploading, leaving, onDone, onLi
     // Measured again whenever the room or what fills it changes (the
     // status's words, Publish's label), not only on a resize.
   }, [fold, width, label, uploading, actions]);
-  const scrolls = fold === MOST && tools.current && tools.current.scrollWidth > tools.current.clientWidth;
-  // A fade at each edge there is more to scroll to.
-  const [ends, setEnds] = useState("");
-  const edge = useCallback(() => {
-    const t = tools.current;
-    if (!t) return;
-    const less = t.scrollLeft > 2;
-    const more = t.scrollLeft + t.clientWidth < t.scrollWidth - 2;
-    setEnds(less && more ? " has-less has-more" : less ? " has-less" : more ? " has-more" : "");
-  }, []);
-  useLayoutEffect(edge, [edge, fold, scrolls]);
 
   /** Where a popover opens: under its button, inside the column. */
   const under = (button, width) => {
@@ -159,106 +200,182 @@ export function Toolbar({ editor, label, state, uploading, leaving, onDone, onLi
     return { left: Math.max(0, Math.min(r.left - box.left, box.width - width)), top: r.bottom - box.top + 4 };
   };
 
-  const moreItems = [
-    fold >= 2 && { key: "code", label: "Code", keys: "Mod+E", Icon: Code, on: editor.isActive("code"), press: () => run().toggleCode().run() },
-    fold >= 2 && { key: "ul", label: "Bulleted list", keys: "Mod+Shift+8", Icon: List, on: editor.isActive("bulletList"), press: () => run().toggleBulletList().run() },
-    fold >= 2 && { key: "ol", label: "Numbered list", keys: "Mod+Shift+7", Icon: ListOrdered, on: editor.isActive("orderedList"), press: () => run().toggleOrderedList().run() },
-    fold >= MOST && { key: "link", label: "Link", keys: "Mod+K", Icon: Link2, on: editor.isActive("link"), press: onLink },
-  ].filter(Boolean);
+  const shown = (at) => fold < at;
+  const style = (v) => (v === "p" ? run().setParagraph().run() : run().setHeading({ level: Number(v.slice(1)) }).run());
+
+  // The row, in groups with a line between each two that are there.
+  const groups = [
+    [
+      shown(UNDO) && (
+        <Tool key="undo" label="Undo" keys="Mod+Z" disabled={!editor.can().undo()} onPress={() => run().undo().run()}>
+          <Undo2 className="size-4" aria-hidden="true" />
+        </Tool>
+      ),
+      shown(REDO) && (
+        <Tool key="redo" label="Redo" keys={mac ? "Mod+Shift+Z" : "Mod+Y"} disabled={!editor.can().redo()} onPress={() => run().redo().run()}>
+          <Redo2 className="size-4" aria-hidden="true" />
+        </Tool>
+      ),
+    ],
+    [
+      shown(STYLE) && (
+        <span key="style" className="editor-style" title="Text style">
+          <select className="editor-block" aria-label="Text style" value={level ? `h${level}` : "p"} disabled={!styled} onChange={(e) => style(e.target.value)}>
+            <option value="p">Normal text</option>
+            <option value="h2">Heading 2</option>
+            <option value="h3">Heading 3</option>
+          </select>
+          <Chevron />
+        </span>
+      ),
+    ],
+    [
+      shown(BOLD) && (
+        <Tool key="bold" label="Bold" keys="Mod+B" active={editor.isActive("bold")} onPress={() => run().toggleBold().run()}>
+          <Bold className="size-4" aria-hidden="true" />
+        </Tool>
+      ),
+      shown(ITALIC) && (
+        <Tool key="italic" label="Italic" keys="Mod+I" active={editor.isActive("italic")} onPress={() => run().toggleItalic().run()}>
+          <Italic className="size-4" aria-hidden="true" />
+        </Tool>
+      ),
+      shown(LISTS) && (
+        <Tool key="code" label="Code" keys="Mod+E" active={editor.isActive("code")} onPress={() => run().toggleCode().run()}>
+          <Code className="size-4" aria-hidden="true" />
+        </Tool>
+      ),
+      shown(LINK) && (
+        <Tool key="link" label="Link" keys="Mod+K" active={editor.isActive("link")} onPress={onLink}>
+          <Link2 className="size-4" aria-hidden="true" />
+        </Tool>
+      ),
+    ],
+    [
+      shown(HIGHLIGHT) && (
+        <span key="highlight" className="editor-picker">
+          <Tool label={`Highlight ${last}`} keys="Mod+Shift+H" active={editor.isActive("highlight")} onPress={() => run().setHighlight(last).run()}>
+            <Highlighter className="size-4" aria-hidden="true" />
+            <span className="editor-swatch" data-color={last} aria-hidden="true" />
+          </Tool>
+          <Tool
+            label="Highlight colours"
+            className="editor-more"
+            aria-haspopup="menu"
+            aria-expanded={Boolean(colors)}
+            ref={(el) => (colorsIn.current[0] = el)}
+            onPress={(e) => {
+              const at = under(e.currentTarget, 236);
+              setColors((v) => (v ? null : at));
+            }}
+          >
+            <Chevron />
+          </Tool>
+        </span>
+      ),
+    ],
+    [
+      shown(LISTS) && (
+        <Tool key="ul" label="Bulleted list" keys="Mod+Shift+8" active={editor.isActive("bulletList")} onPress={() => run().toggleBulletList().run()}>
+          <List className="size-4" aria-hidden="true" />
+        </Tool>
+      ),
+      shown(LISTS) && (
+        <Tool key="ol" label="Numbered list" keys="Mod+Shift+7" active={editor.isActive("orderedList")} onPress={() => run().toggleOrderedList().run()}>
+          <ListOrdered className="size-4" aria-hidden="true" />
+        </Tool>
+      ),
+    ],
+  ]
+    .map((g) => g.filter(Boolean))
+    .filter((g) => g.length)
+    .flatMap((g, i) => (i ? [<Sep key={`sep-${i}`} />, ...g] : g));
+
+  // More: whatever has left the row, in the row's order, in groups.
+  const item = (key, label, Icon, press, { on, shortcut, disabled, role = "menuitemcheckbox" } = {}) => ({ key, label, Icon, press, on, shortcut, disabled, role });
+  const moreGroups = [
+    [
+      !shown(UNDO) && item("undo", "Undo", Undo2, () => run().undo().run(), { shortcut: "Mod+Z", disabled: !editor.can().undo(), role: "menuitem" }),
+      !shown(REDO) && item("redo", "Redo", Redo2, () => run().redo().run(), { shortcut: mac ? "Mod+Shift+Z" : "Mod+Y", disabled: !editor.can().redo(), role: "menuitem" }),
+    ],
+    !shown(STYLE)
+      ? [
+          item("p", "Normal text", Pilcrow, () => style("p"), { on: styled && !level, disabled: !styled, role: "menuitemradio" }),
+          item("h2", "Heading 2", Heading2, () => style("h2"), { on: level === 2, disabled: !styled, role: "menuitemradio" }),
+          item("h3", "Heading 3", Heading3, () => style("h3"), { on: level === 3, disabled: !styled, role: "menuitemradio" }),
+        ]
+      : [],
+    [
+      !shown(BOLD) && item("bold", "Bold", Bold, () => run().toggleBold().run(), { on: editor.isActive("bold"), shortcut: "Mod+B" }),
+      !shown(ITALIC) && item("italic", "Italic", Italic, () => run().toggleItalic().run(), { on: editor.isActive("italic"), shortcut: "Mod+I" }),
+      !shown(LISTS) && item("code", "Code", Code, () => run().toggleCode().run(), { on: editor.isActive("code"), shortcut: "Mod+E" }),
+      !shown(LINK) && item("link", "Link", Link2, onLink, { on: editor.isActive("link"), shortcut: "Mod+K" }),
+    ],
+    [!shown(HIGHLIGHT) && item("highlight", `Highlight ${last}`, Highlighter, () => run().setHighlight(last).run(), { on: editor.isActive("highlight"), shortcut: "Mod+Shift+H" })],
+    [
+      !shown(LISTS) && item("ul", "Bulleted list", List, () => run().toggleBulletList().run(), { on: editor.isActive("bulletList"), shortcut: "Mod+Shift+8" }),
+      !shown(LISTS) && item("ol", "Numbered list", ListOrdered, () => run().toggleOrderedList().run(), { on: editor.isActive("orderedList"), shortcut: "Mod+Shift+7" }),
+    ],
+  ]
+    .map((g) => g.filter(Boolean))
+    .filter((g) => g.length);
+
+  const swatches = (onPick) => (
+    <>
+      {COLORS.map((c) => (
+        <button
+          key={c}
+          type="button"
+          role="menuitem"
+          className="editor-color"
+          data-color={c}
+          aria-label={`Highlight ${c}`}
+          title={c}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            run().setHighlight(c).run();
+            onPick();
+          }}
+        />
+      ))}
+      <button
+        type="button"
+        role="menuitem"
+        className="editor-color is-none"
+        aria-label="Remove highlight"
+        title="Remove highlight"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => {
+          run().unsetHighlight().run();
+          onPick();
+        }}
+      >
+        ⌀
+      </button>
+    </>
+  );
 
   return (
     <div className="editor-bar-row" ref={wrap}>
-      <div className="editor-bar" role="toolbar" aria-label="Formatting" data-fold={fold} ref={bar}>
-        <div className={`editor-tools${scrolls ? ` is-scrolling${ends}` : ""}`} ref={tools} onScroll={edge}>
-          <Tool label="Undo" keys="Mod+Z" disabled={!editor.can().undo()} onPress={() => run().undo().run()}>
-            <Undo2 className="size-4" aria-hidden="true" />
-          </Tool>
-          <Tool label="Redo" keys={mac ? "Mod+Shift+Z" : "Mod+Y"} disabled={!editor.can().redo()} onPress={() => run().redo().run()}>
-            <Redo2 className="size-4" aria-hidden="true" />
-          </Tool>
-          <Sep />
-          <span className="editor-style" title="Text style">
-            <select
-              className="editor-block"
-              aria-label="Text style"
-              value={level ? `h${level}` : "p"}
-              disabled={!styled}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "p") run().setParagraph().run();
-                else run().setHeading({ level: Number(v.slice(1)) }).run();
-              }}
-            >
-              <option value="p">Normal text</option>
-              <option value="h2">Heading 2</option>
-              <option value="h3">Heading 3</option>
-            </select>
-            <Chevron />
-          </span>
-          <Sep />
-          <Tool label="Bold" keys="Mod+B" active={editor.isActive("bold")} onPress={() => run().toggleBold().run()}>
-            <Bold className="size-4" aria-hidden="true" />
-          </Tool>
-          <Tool label="Italic" keys="Mod+I" active={editor.isActive("italic")} onPress={() => run().toggleItalic().run()}>
-            <Italic className="size-4" aria-hidden="true" />
-          </Tool>
-          {fold < 2 && (
-            <Tool label="Code" keys="Mod+E" active={editor.isActive("code")} onPress={() => run().toggleCode().run()}>
-              <Code className="size-4" aria-hidden="true" />
-            </Tool>
-          )}
-          {fold < MOST && (
-            <Tool label="Link" keys="Mod+K" active={editor.isActive("link")} onPress={onLink}>
-              <Link2 className="size-4" aria-hidden="true" />
-            </Tool>
-          )}
-          <Sep />
-          <span className="editor-picker">
-            <Tool label={`Highlight ${last}`} keys="Mod+Shift+H" active={editor.isActive("highlight")} onPress={() => run().setHighlight(last).run()}>
-              <Highlighter className="size-4" aria-hidden="true" />
-              <span className="editor-swatch" data-color={last} aria-hidden="true" />
-            </Tool>
-            <Tool
-              label="Highlight colours"
-              className="editor-more"
-              aria-haspopup="menu"
-              aria-expanded={Boolean(colors)}
-              ref={(el) => (colorsIn.current[0] = el)}
-              onPress={(e) => {
-                const at = under(e.currentTarget, 236);
-                setColors((v) => (v ? null : at));
-              }}
-            >
-              <Chevron />
-            </Tool>
-          </span>
-          {fold < 2 && (
-            <>
-              <Sep />
-              <Tool label="Bulleted list" keys="Mod+Shift+8" active={editor.isActive("bulletList")} onPress={() => run().toggleBulletList().run()}>
-                <List className="size-4" aria-hidden="true" />
-              </Tool>
-              <Tool label="Numbered list" keys="Mod+Shift+7" active={editor.isActive("orderedList")} onPress={() => run().toggleOrderedList().run()}>
-                <ListOrdered className="size-4" aria-hidden="true" />
-              </Tool>
-            </>
-          )}
-          {fold >= 2 && (
-            <Tool
-              label="More"
-              className="editor-overflow"
-              aria-haspopup="menu"
-              aria-expanded={Boolean(more)}
-              ref={(el) => (moreIn.current[0] = el)}
-              onPress={(e) => {
-                const at = under(e.currentTarget, 220);
-                setMore((v) => (v ? null : at));
-              }}
-            >
-              <Ellipsis className="size-4" aria-hidden="true" />
-            </Tool>
-          )}
+      <div className="editor-bar" role="toolbar" aria-label="Formatting" data-fold={fold} data-history={fold >= HISTORY ? "menu" : "row"} ref={bar}>
+        <div className="editor-tools" ref={tools}>
+          {groups}
         </div>
+        {fold >= LISTS && (
+          <Tool
+            label="More"
+            className="editor-overflow"
+            aria-haspopup="menu"
+            aria-expanded={Boolean(more)}
+            ref={(el) => (moreIn.current[0] = el)}
+            onPress={(e) => {
+              const at = under(e.currentTarget, 220);
+              setMore((v) => (v ? null : at));
+            }}
+          >
+            <Ellipsis className="size-4" aria-hidden="true" />
+          </Tool>
+        )}
         <div className="editor-end">
           <Status label={label} state={state} uploading={uploading} folded={fold >= 1} />
           {actions}
@@ -269,59 +386,46 @@ export function Toolbar({ editor, label, state, uploading, leaving, onDone, onLi
       </div>
       {colors && (
         <span className="editor-colors" role="menu" aria-label="Highlight colour" style={colors} ref={(el) => (colorsIn.current[1] = el)}>
-          {COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              role="menuitem"
-              className="editor-color"
-              data-color={c}
-              aria-label={c}
-              title={c}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                run().setHighlight(c).run();
-                setColors(null);
-              }}
-            />
-          ))}
-          <button
-            type="button"
-            role="menuitem"
-            className="editor-color is-none"
-            aria-label="Remove highlight"
-            title="Remove highlight"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              run().unsetHighlight().run();
-              setColors(null);
-            }}
-          >
-            ⌀
-          </button>
+          {swatches(() => setColors(null))}
         </span>
       )}
       {more && (
         <Menu at={more} ref={(el) => (moreIn.current[1] = el)} onClose={() => setMore(null)}>
-          {moreItems.map((it) => (
-            <button
-              key={it.key}
-              type="button"
-              role="menuitemcheckbox"
-              aria-checked={it.on}
-              className={`editor-menu-item${it.on ? " is-on" : ""}`}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                it.press();
-                setMore(null);
-              }}
-            >
-              <it.Icon className="size-4" aria-hidden="true" />
-              <span>{it.label}</span>
-              <kbd>{keys(it.keys)}</kbd>
-            </button>
+          {moreGroups.map((g, i) => (
+            <React.Fragment key={g[0].key}>
+              {i > 0 && <span role="separator" className="editor-menu-sep" />}
+              {g.map((it) => (
+                <button
+                  key={it.key}
+                  type="button"
+                  role={it.role}
+                  aria-checked={it.role === "menuitem" ? undefined : Boolean(it.on)}
+                  disabled={it.disabled}
+                  className={`editor-menu-item${it.on ? " is-on" : ""}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    it.press();
+                    setMore(null);
+                  }}
+                >
+                  <it.Icon className="size-4" aria-hidden="true" />
+                  <span>{it.label}</span>
+                  {it.shortcut && <kbd>{keys(it.shortcut)}</kbd>}
+                </button>
+              ))}
+              {g[0].key === "highlight" && (
+                <span className="editor-menu-colors" role="group" aria-label="Highlight colour">
+                  {swatches(() => setMore(null))}
+                </span>
+              )}
+            </React.Fragment>
           ))}
-          {fold >= HISTORY && menu}
+          {fold >= HISTORY && menu && (
+            <>
+              {moreGroups.length > 0 && <span role="separator" className="editor-menu-sep" />}
+              {menu}
+            </>
+          )}
         </Menu>
       )}
     </div>
