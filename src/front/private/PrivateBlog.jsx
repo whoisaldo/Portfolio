@@ -12,15 +12,22 @@
 // its text, media and comments come from the stats service (stats.aliyounes.dev)
 // after sign-in, and an address that is not a draft the reader can see is a
 // not-found page, whatever the reason.
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+//
+// Ali also has "Edit" on a draft, which loads the editor (./editor/, a chunk
+// of its own that readers never fetch) in place of the text. Readers see his
+// edits as he makes them: the comments' poll says when the draft changed, and
+// the text is fetched again, unless the reader is selecting in it or typing
+// a comment, when a notice offers it instead.
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Route, Routes, useParams } from "react-router-dom";
-import { ArrowLeft, LockKeyhole } from "lucide-react";
+import { ArrowLeft, LockKeyhole, PencilLine } from "lucide-react";
 import { profile } from "../../data/profile";
 import { COLUMN, useTitle } from "../lib";
 import { FrontFooter, FrontHeader, PostList } from "../parts";
 import { PostPage } from "../BlogPost";
 import { API, ApiError, mediaUrl, request } from "./api";
 import DraftComments from "./DraftComments";
+import { clearUnsaved, newerThan, readUnsaved } from "./unsaved";
 import "./private.css";
 
 const TITLE = `Private · ${profile.name}`;
@@ -241,11 +248,35 @@ function mediaRewriter(slug) {
   };
 }
 
+const REFUSED = "This draft has formatting the editor can't keep exactly, so it stays as it is. Edit its Markdown from the dashboard instead.";
+const kept = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+/** Whether new text can go in under the reader without moving what they are doing. */
+function undisturbed() {
+  const sel = window.getSelection();
+  const selecting = sel && !sel.isCollapsed && sel.anchorNode?.parentElement?.closest(".post-body");
+  const typing = document.activeElement?.closest?.(".draft-box");
+  return !selecting && !typing;
+}
+
 function Draft({ session }) {
   const { slug } = useParams();
   const [state, setState] = useState({ status: "loading", draft: null });
-  const { lost } = session;
+  const { lost, viewer } = session;
   useTitle(state.draft ? `${state.draft.title} · Private` : TITLE);
+
+  // Editing: the editor's component, once loaded, and where it starts from.
+  const [editing, setEditing] = useState(null); // {Editor, restore}
+  const [opening, setOpening] = useState(false);
+  const [refused, setRefused] = useState("");
+  const [bridge, setBridge] = useState(null);
+  const [head, setHead] = useState(null);
+  const [titleSlot, setTitleSlot] = useState(null);
+  const [unsaved, setUnsaved] = useState(null);
+  const [newer, setNewer] = useState(false);
+
+  const current = useRef(null);
+  current.current = { draft: state.draft, editing };
 
   useEffect(() => {
     let live = true;
@@ -268,27 +299,143 @@ function Draft({ session }) {
     };
   }, [slug, lost]);
 
+  // An edit this browser never got saved, offered back if it is newer than
+  // the server's copy, and let go if it is not.
+  const draft = state.draft;
+  useEffect(() => {
+    if (!viewer.owner || !draft || editing) return;
+    const k = readUnsaved(draft.slug);
+    if (newerThan(k, draft)) setUnsaved(k);
+    else {
+      if (k) clearUnsaved(draft.slug);
+      setUnsaved(null);
+    }
+  }, [viewer.owner, draft, editing]);
+
+  const refetch = useCallback(async () => {
+    try {
+      const { data } = await request(`/api/drafts?slug=${encodeURIComponent(slug)}`);
+      if (current.current.editing) return;
+      setState((st) => (st.draft && data.draft.updated_at !== st.draft.updated_at ? { status: "ready", draft: data.draft } : st));
+      setNewer(false);
+    } catch {
+      // The next poll asks again.
+    }
+  }, [slug]);
+
+  // Each poll of the comments says when the draft last changed.
+  const heard = useRef(null);
+  const onDraftChange = useCallback(
+    (updatedAt) => {
+      const { draft: d, editing: e } = current.current;
+      if (e || !d || updatedAt === heard.current) return;
+      heard.current = updatedAt;
+      if (updatedAt === d.updated_at) return;
+      if (undisturbed()) refetch();
+      else setNewer(true);
+    },
+    [refetch],
+  );
+
+  const edit = useCallback(
+    async (restore = null) => {
+      setOpening(true);
+      setRefused("");
+      try {
+        const [{ default: Editor }, { check }] = await Promise.all([import("./editor/DraftEditor"), import("./editor/check")]);
+        if (!check(current.current.draft.body) || (restore && !check(restore.body))) {
+          setRefused(REFUSED);
+          return;
+        }
+        setUnsaved(null);
+        setNewer(false);
+        setEditing({ Editor, restore });
+      } catch (err) {
+        console.warn("editor: could not load", err);
+        setRefused("The editor couldn't load. Check your connection and try again.");
+      } finally {
+        setOpening(false);
+      }
+    },
+    [],
+  );
+
+  const finish = useCallback((latest) => {
+    setEditing(null);
+    setBridge(null);
+    heard.current = latest.updated_at;
+    setState({ status: "ready", draft: latest });
+  }, []);
+
   const rewrite = useMemo(() => mediaRewriter(slug), [slug]);
 
   if (state.status === "missing") return <NotFound />;
   if (state.status === "error") return <Notice title="The draft couldn't load">Reload the page to try again.</Notice>;
   if (state.status === "loading") return <Shell />;
 
-  const draft = state.draft;
+  const Editor = editing?.Editor;
   return (
     <PostPage
       post={draft}
       back={{ to: "/privateblog", label: "Private drafts" }}
       rewrite={rewrite}
       marker={
-        <div className="private-marker-row">
-          <span className="private-marker">
-            <LockKeyhole className="size-3.5" aria-hidden="true" /> Private draft
-          </span>
-          <SignedIn session={session} />
-        </div>
+        <>
+          <div className="private-marker-row">
+            <span className="private-marker">
+              <LockKeyhole className="size-3.5" aria-hidden="true" /> Private draft
+            </span>
+            <SignedIn session={session} />
+            {viewer.owner && !editing && (
+              <button type="button" className="private-edit" onClick={() => edit()} disabled={opening}>
+                <PencilLine className="size-3.5" aria-hidden="true" /> {opening ? "Opening…" : "Edit"}
+              </button>
+            )}
+          </div>
+          {refused && (
+            <p role="alert" className="private-notice">
+              {refused}
+            </p>
+          )}
+          {unsaved && !editing && (
+            <p className="private-notice">
+              Changes from {kept.format(new Date(unsaved.at))} weren't saved, and are still in this browser.{" "}
+              <button type="button" className="private-link" onClick={() => edit(unsaved)}>
+                Restore them
+              </button>{" "}
+              <button
+                type="button"
+                className="private-link"
+                onClick={() => {
+                  if (!window.confirm("Discard the unsaved changes in this browser?")) return;
+                  clearUnsaved(draft.slug);
+                  setUnsaved(null);
+                }}
+              >
+                Discard
+              </button>
+            </p>
+          )}
+          {newer && !editing && (
+            <p className="private-notice" role="status">
+              {viewer.owner ? "This draft was updated" : "Ali updated this draft"} ·{" "}
+              <button type="button" className="private-link" onClick={refetch}>
+                Show
+              </button>
+            </p>
+          )}
+        </>
       }
-      inside={(body) => <DraftComments slug={draft.slug} body={body} viewer={session.viewer} onLost={lost} />}
+      editing={
+        editing && {
+          head: <div ref={setHead} />,
+          title: <div ref={setTitleSlot} />,
+          body: <Editor draft={draft} rewrite={rewrite} hosts={{ head, title: titleSlot }} restore={editing.restore} onBridge={setBridge} onDone={finish} onLost={lost} />,
+        }
+      }
+      inside={(body) => (
+        <DraftComments slug={draft.slug} body={body} viewer={viewer} onLost={lost} bodyKey={draft.updated_at} bridge={editing ? bridge : null} onDraftChange={onDraftChange} />
+      )}
     />
   );
 }

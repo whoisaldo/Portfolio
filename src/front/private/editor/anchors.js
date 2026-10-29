@@ -82,6 +82,9 @@ function decorations(doc, { ranges, items, emphasis }) {
  *                       margin reads it: {placed, groups, marks, settled}
  *   quotes()            Map of id → {exact, prefix, suffix}, or {gone: true}
  *                       for a passage deleted entirely
+ *   changes(quotes)     of those, the ones that differ from what the server
+ *                       has, as the anchors endpoint takes them
+ *   sent(changes)       the server has them now
  *   reset()             find every passage again (a new document)
  */
 export function commentAnchors() {
@@ -89,6 +92,9 @@ export function commentAnchors() {
   const listeners = new Set();
   let frame = 0;
   let searched = new Set();
+  // What the server has for each passage found: the quote or anchor it was
+  // found by, then whatever was last sent.
+  let known = new Map();
 
   const state = () => (view ? key.getState(view.state) : EMPTY);
 
@@ -131,7 +137,10 @@ export function commentAnchors() {
       index ??= indexText(view.dom);
       const at = findQuote(index, t.find);
       const range = at && toRange(view, index, at);
-      if (range) add.push([t.id, range]);
+      if (range) {
+        add.push([t.id, range]);
+        known.set(t.id, { exact: t.find.exact, prefix: t.find.prefix || "", suffix: t.find.suffix || "" });
+      }
     }
     return add;
   };
@@ -170,8 +179,22 @@ export function commentAnchors() {
       }
       return out;
     },
+    changes(quotes) {
+      const out = [];
+      for (const [id, q] of quotes) {
+        const was = known.get(id);
+        const now = q.gone ? { exact: "", prefix: "", suffix: "" } : q;
+        if (!was || (was.exact === now.exact && was.prefix === now.prefix && was.suffix === now.suffix)) continue;
+        out.push({ thread: id, ...now });
+      }
+      return out;
+    },
+    sent(changes) {
+      for (const { thread, exact, prefix, suffix } of changes) known.set(thread, { exact, prefix, suffix });
+    },
     reset() {
       searched = new Set();
+      known = new Map();
       if (!view) return;
       const { items } = state();
       view.dispatch(view.state.tr.setMeta(key, { reset: true }).setMeta("addToHistory", false));
