@@ -37,7 +37,7 @@ export default defineConfig([
   // `Buffer` and friends are real there and `globals.browser` alone reports
   // every one of them as undefined.
   {
-    files: ['scripts/**/*.mjs'],
+    files: ['scripts/**/*.mjs', 'test/**/*.mjs'],
     languageOptions: {
       globals: globals.node,
       parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
