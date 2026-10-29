@@ -24,13 +24,13 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { Editor, Extension } from "@tiptap/core";
-import { closeHistory, isHistoryTransaction } from "@tiptap/pm/history";
+import { isHistoryTransaction } from "@tiptap/pm/history";
 import { marked } from "marked";
 import { ApiError, mediaUrl, request, uploadMedia } from "../api";
 import { clearUnsaved, keepAnchors, writeUnsaved } from "../unsaved";
 import { embeds } from "../../embeds";
 import { canEdit, fromMarkdown, toMarkdown } from "./markdown";
-import { extensions } from "./schema";
+import { extensions, metaChange, replaceAll } from "./schema";
 import { commentAnchors } from "./anchors";
 import { Details, Toolbar } from "./Toolbar";
 import "./editor.css";
@@ -41,6 +41,9 @@ const BACKOFF = [2000, 4000, 8000, 16_000, 30_000];
 const KEEPALIVE = 60_000;
 const PICTURES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif", "image/gif": "gif" };
 const STATUS = { saved: "Saved", pending: "Saving…", saving: "Saving…", offline: "Offline, retrying", conflict: "Changed elsewhere" };
+
+// A transaction that only copies the fields onto the document.
+const FIELDS = "draftFields";
 
 const sameDraft = (a, b) => a.title === b.title && a.date === b.date && a.summary === b.summary && a.body === b.body;
 
@@ -346,7 +349,8 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     const ed = new Editor({
       element: mount.current,
       extensions: [...extensions({ ...tools, known: st.known }), extension, shortcuts],
-      content: doc,
+      // The title, date and summary on the document too (./schema.js).
+      content: { ...doc, attrs: { meta: metaRef.current } },
       editorProps: {
         attributes: { class: "post-body editor-body", "aria-label": "Draft text", spellcheck: "true" },
         handlePaste(view, event) {
@@ -375,7 +379,13 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     let frame = 0;
     const onTransaction = ({ transaction }) => {
       for (const spot of st.spots) spot.pos = transaction.mapping.map(spot.pos);
-      if (transaction.docChanged) changed();
+      // A restore, or its undo or redo, sets the title, date and summary.
+      const m = metaChange(transaction);
+      if (m && m !== metaRef.current) {
+        metaRef.current = m;
+        setMeta(m);
+      }
+      if (transaction.docChanged && !transaction.getMeta(FIELDS)) changed();
       // Once the undone text is on screen, where the passages are looked for.
       if (transaction.docChanged && isHistoryTransaction(transaction)) queueMicrotask(() => st.anchors.findMissing());
       if (!frame)
@@ -445,9 +455,20 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     };
   }, [save, payload, slug]);
 
+  /**
+   * The fields onto the document, outside the undo history (each field has
+   * its own), so that undoing a restore brings back what they said before it.
+   */
+  const copyFields = useCallback((m) => {
+    const ed = s.current.editor;
+    ed?.view.dispatch(ed.state.tr.setDocAttribute("meta", m).setMeta("addToHistory", false).setMeta(FIELDS, true));
+  }, []);
+
   const setField = (name, value) => {
-    setMeta((m) => ({ ...m, [name]: value }));
-    metaRef.current = { ...metaRef.current, [name]: value };
+    const m = { ...metaRef.current, [name]: value };
+    metaRef.current = m;
+    setMeta(m);
+    copyFields(m);
     changed();
   };
 
@@ -482,6 +503,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       const m = { title: next.title, date: next.date, summary: next.summary };
       metaRef.current = m;
       setMeta(m);
+      copyFields(m);
       st.baseline = { ...m, body: serialize() };
       clearUnsaved(slug);
       setConflict(null);
@@ -489,7 +511,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       st.anchors.reset();
       return true;
     },
-    [remember, serialize, slug],
+    [remember, serialize, slug, copyFields],
   );
 
   /**
@@ -507,9 +529,9 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
 
   /**
    * Puts a version from the history in the editor and saves it as a
-   * restore. The text is replaced in one step of its own in the undo
-   * history, so Cmd+Z brings back what was there; the title, date and
-   * summary are the version's too. The passages are then found again in the
+   * restore. The text, title, date and summary are replaced in one step of
+   * its own in the undo history, so Cmd+Z brings back all four as they were
+   * and redo the version's again (./schema.js). The passages are then found again in the
    * new text, as after "Load the latest", and saved after the save as
    * usual. A thread whose words are not in it is not found, and is listed
    * under "On text that changed", its anchor kept as it was.
@@ -524,8 +546,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
         return false;
       }
       const { doc, raws } = fromMarkdown(version.body);
-      const next = ed.schema.nodeFromJSON(doc);
-      ed.view.dispatch(closeHistory(ed.state.tr.replaceWith(0, ed.state.doc.content.size, next.content)));
+      ed.view.dispatch(replaceAll(ed.state, doc, { title: version.title, date: version.date, summary: version.summary }));
       // Each block as the version wrote it. Added to what is kept, not in
       // place of it, so an undo writes back the blocks it brings back as
       // they were written too.
@@ -533,9 +554,6 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
         if (raws[i] != null) st.keep.set(n, raws[i]);
         if (n.type.name === "rawBlock") st.known.add(n.attrs.source);
       });
-      const m = { title: version.title, date: version.date, summary: version.summary };
-      metaRef.current = m;
-      setMeta(m);
       st.anchors.reset();
       return saveAs("restore");
     },

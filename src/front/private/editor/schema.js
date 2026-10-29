@@ -10,6 +10,7 @@
 // No React and no imports from the site that need Vite, so the tests can
 // build the same schema in Node.
 import { Extension, Mark, Node } from "@tiptap/core";
+import { closeHistory } from "@tiptap/pm/history";
 import { StarterKit } from "@tiptap/starter-kit";
 import { Code } from "@tiptap/extension-code";
 import { Link } from "@tiptap/extension-link";
@@ -153,6 +154,31 @@ const Loose = Extension.create({
 });
 
 /**
+ * The draft's title, date and summary, {title, date, summary}, kept on the
+ * document as well as in the fields, so a change to them made in the same
+ * transaction as one to the text (restoring a version) is undone and redone
+ * with it. Never written to the Markdown.
+ */
+const Meta = Extension.create({
+  name: "draftMeta",
+  addGlobalAttributes: () => [{ types: ["doc"], attributes: { meta: { default: null, rendered: false } } }],
+});
+
+/**
+ * A transaction putting a whole draft in the editor, `doc` (JSON, as
+ * ./markdown.js makes it) for the text and `meta` for the title, date and
+ * summary: one step of its own in the undo history, so Cmd+Z brings all four
+ * back together.
+ */
+export function replaceAll(state, doc, meta) {
+  const next = state.schema.nodeFromJSON(doc);
+  return closeHistory(state.tr.replaceWith(0, state.doc.content.size, next.content).setDocAttribute("meta", meta));
+}
+
+/** The title, date and summary a transaction leaves on the document, when it changed them; else null. */
+export const metaChange = (tr) => (tr.doc.attrs.meta && tr.doc.attrs.meta !== tr.before.attrs.meta ? tr.doc.attrs.meta : null);
+
+/**
  * Markdown's link title, `[text](href "title")`, which TipTap's link has no
  * place for. A pasted link's target, rel and class are not Markdown, so they
  * are not read.
@@ -191,5 +217,6 @@ export function extensions({ show, own, render, known } = {}) {
     Picture.configure({ ...(show && { show }), ...(own && { own }) }),
     Raw.configure({ ...(render && { render }), ...(known && { known }) }),
     Loose,
+    Meta,
   ];
 }
