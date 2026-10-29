@@ -135,7 +135,7 @@ test("wordDiff marks words added and removed", () => {
 
 test("a new draft's address comes from its title", () => {
   assert.equal(addressFrom("Hello, World!"), "hello-world");
-  assert.equal(addressFrom("  Ali's  Night City -- part 2  "), "alis-night-city-part-2");
+  assert.equal(addressFrom("  Ali's  Harbour Notes -- part 2  "), "alis-harbour-notes-part-2");
   assert.equal(addressFrom("Café crème brûlée"), "cafe-creme-brulee");
   assert.equal(addressFrom("Über straße, Ærø"), "uber-strasse-aero");
   assert.equal(addressFrom("!!!"), "");

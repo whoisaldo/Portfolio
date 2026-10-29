@@ -10,7 +10,7 @@ const MAX = 80;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const LETTERS = { ß: "ss", æ: "ae", œ: "oe", ø: "o", ł: "l" };
 
-/** "Ali's Night City, part 2!" -> "alis-night-city-part-2". */
+/** "Ali's Harbour Notes, part 2!" -> "alis-harbour-notes-part-2". */
 export function addressFrom(title) {
   const plain = title
     .normalize("NFKD")
