@@ -151,6 +151,8 @@ function decorations(doc, { ranges, items, emphasis }) {
  *                       has, as the anchors endpoint takes them
  *   sent(changes)       the server has them now
  *   reset()             find every passage again (a new document)
+ *   findMissing()       look again for the threads with no passage at all,
+ *                       after an undo or redo
  */
 export function commentAnchors() {
   let view = null;
@@ -263,6 +265,17 @@ export function commentAnchors() {
       if (!view) return;
       const { items } = state();
       view.dispatch(view.state.tr.setMeta(key, { reset: true }).setMeta("addToHistory", false));
+      handle.setItems(items);
+    },
+    // A thread not found in a version that was restored has no range to map,
+    // so undoing the restore cannot bring its passage back by itself: it is
+    // looked for again in the text the undo brought back.
+    findMissing() {
+      if (!view) return;
+      const { ranges, items } = state();
+      const missing = items.filter((t) => !ranges.has(t.id) && searched.has(t.id));
+      if (!missing.length) return;
+      for (const t of missing) searched.delete(t.id);
       handle.setItems(items);
     },
     get dom() {

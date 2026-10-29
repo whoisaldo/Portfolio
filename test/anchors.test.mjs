@@ -164,6 +164,23 @@ test("undo after the whole text is replaced finds the passages again", () => {
   editor.destroy();
 });
 
+test("undoing a restore that had no place for a passage finds it again", () => {
+  const { editor, handle, ferry } = setup();
+  // As restoring a version does: a text without the passage, looked for afresh.
+  editor.commands.setContent(fromMarkdown(BODY.replace("the gulls followed it out", "nobody saw it")).doc, { emitUpdate: false });
+  handle.reset();
+  assert.equal(handle.quotes().has("t-ferry"), false);
+  editor.commands.undo();
+  assert.equal(handle.quotes().has("t-ferry"), false);
+  handle.findMissing();
+  assert.deepEqual(handle.quotes().get("t-ferry"), ferry);
+  // Found as the server has it, so there is nothing to send for it.
+  assert.deepEqual(handle.changes(handle.quotes()), []);
+  // A thread nowhere in the text stays unplaced.
+  assert.equal(handle.quotes().has("t-lost"), false);
+  editor.destroy();
+});
+
 test("text typed where a deleted passage was does not bring it back", () => {
   const { editor, handle } = setup();
   const from = posOf(editor, "lighthouse keeper");

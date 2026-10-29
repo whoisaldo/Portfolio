@@ -23,6 +23,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { Editor, Extension } from "@tiptap/core";
+import { closeHistory, isHistoryTransaction } from "@tiptap/pm/history";
 import { marked } from "marked";
 import { Bold, Code, Highlighter, Italic, Link2, List, ListOrdered, Redo2, Undo2 } from "lucide-react";
 import { ApiError, mediaUrl, request, uploadMedia } from "../api";
@@ -161,8 +162,11 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     }
   }, [slug]);
 
+  // `kind` is the revision the save makes in the history: "manual" and
+  // "restore" are kept as revisions of their own, and sent even when the
+  // text is what the server has.
   const save = useCallback(
-    async ({ keepalive = false } = {}) => {
+    async ({ keepalive = false, kind = "autosave" } = {}) => {
       const st = s.current;
       clearTimeout(st.timer);
       if (!st.editor || st.conflict) return;
@@ -171,7 +175,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
         return st.flight;
       }
       const p = payload();
-      if (sameDraft(p, st.baseline)) {
+      if (kind === "autosave" && sameDraft(p, st.baseline)) {
         clearUnsaved(slug);
         setStatus({ state: "saved" });
         if (st.anchorsDue) await sendAnchors();
@@ -180,7 +184,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       st.flight = (async () => {
         setStatus({ state: "saving" });
         try {
-          const body = { slug, ...p, base: st.base, kind: "autosave" };
+          const body = { slug, ...p, base: st.base, kind };
           const { data } = await request("/api/drafts", { method: "PUT", body, keepalive: keepalive && JSON.stringify(body).length < KEEPALIVE });
           st.base = data.draft.updated_at;
           st.baseline = p;
@@ -311,6 +315,8 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     const onTransaction = ({ transaction }) => {
       for (const spot of st.spots) spot.pos = transaction.mapping.map(spot.pos);
       if (transaction.docChanged) changed();
+      // Once the undone text is on screen, where the passages are looked for.
+      if (transaction.docChanged && isHistoryTransaction(transaction)) queueMicrotask(() => st.anchors.findMissing());
       if (!frame)
         frame = requestAnimationFrame(() => {
           frame = 0;
@@ -410,6 +416,56 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     [remember, serialize, slug],
   );
 
+  /**
+   * Saves the text as it is now as a revision of its own, `kind` "manual"
+   * (Save a version) or "restore". True once the server has it.
+   */
+  const saveAs = useCallback(
+    async (kind) => {
+      while (s.current.flight) await s.current.flight;
+      await save({ kind });
+      return !s.current.conflict && sameDraft(payload(), s.current.baseline);
+    },
+    [save, payload],
+  );
+
+  /**
+   * Puts a version from the history in the editor and saves it as a
+   * restore. The text is replaced in one step of its own in the undo
+   * history, so Cmd+Z brings back what was there; the title, date and
+   * summary are the version's too. The passages are then found again in the
+   * new text, as after "Load the latest", and saved after the save as
+   * usual. A thread whose words are not in it is not found, and is listed
+   * under "On text that changed", its anchor kept as it was.
+   */
+  const restoreVersion = useCallback(
+    async (version) => {
+      const st = s.current;
+      const ed = st.editor;
+      if (!ed || st.conflict) return false;
+      if (!canEdit(version.body, (json) => ed.schema.nodeFromJSON(json)).ok) {
+        setNotice("That version has formatting the editor can't keep exactly, so it can't be restored here.");
+        return false;
+      }
+      const { doc, raws } = fromMarkdown(version.body);
+      const next = ed.schema.nodeFromJSON(doc);
+      ed.view.dispatch(closeHistory(ed.state.tr.replaceWith(0, ed.state.doc.content.size, next.content)));
+      // Each block as the version wrote it. Added to what is kept, not in
+      // place of it, so an undo writes back the blocks it brings back as
+      // they were written too.
+      ed.state.doc.forEach((n, _, i) => {
+        if (raws[i] != null) st.keep.set(n, raws[i]);
+        if (n.type.name === "rawBlock") st.known.add(n.attrs.source);
+      });
+      const m = { title: version.title, date: version.date, summary: version.summary };
+      metaRef.current = m;
+      setMeta(m);
+      st.anchors.reset();
+      return saveAs("restore");
+    },
+    [saveAs],
+  );
+
   const keepMine = () => {
     const st = s.current;
     st.base = st.conflict.updated_at;
@@ -433,8 +489,8 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
   };
 
   // Everything the editing session offers to what goes in the toolbar's
-  // free space: the History and Publish buttons, in a follow-up.
-  const session = { editor, slug, draft: () => ({ ...s.current.latest, ...s.current.baseline, updated_at: s.current.base }), payload, status, flush, replace };
+  // free space, the History and Publish buttons (../owner.jsx).
+  const session = { editor, slug, draft: () => ({ ...s.current.latest, ...s.current.baseline, updated_at: s.current.base }), payload, status, flush, replace, saveAs, restoreVersion };
 
   openLink.current = () => {
     const ed = s.current.editor;
