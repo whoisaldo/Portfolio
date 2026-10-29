@@ -1,0 +1,129 @@
+// test/anchors.test.mjs: comment passages following edits in the editor.
+// Every text here is made up.
+import "./dom.mjs";
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { Editor } from "@tiptap/core";
+import { extensions } from "../src/front/private/editor/schema.js";
+import { fromMarkdown } from "../src/front/private/editor/markdown.js";
+import { commentAnchors } from "../src/front/private/editor/anchors.js";
+import { indexText, quoteFromRange } from "../src/front/quotes.js";
+
+const BODY = `## The harbour
+
+The ferry left at dawn and the gulls followed it out past the breakwater, calling all the way.
+
+A second paragraph about the lighthouse keeper, who kept a ledger of every ship that passed.
+`;
+
+/** The quote a reader's selection of `words` in the read view would make. */
+function readerQuote(words) {
+  const t = document.createElement("template");
+  const { marked } = globalThis.__marked;
+  t.innerHTML = marked.parse(BODY);
+  const root = document.createElement("div");
+  root.append(t.content);
+  const index = indexText(root);
+  const at = index.text.indexOf(words);
+  const range = document.createRange();
+  range.setStart(index.nodes[at], index.offsets[at]);
+  const last = at + words.length - 1;
+  range.setEnd(index.nodes[last], index.offsets[last] + 1);
+  const q = quoteFromRange(index, range, 500);
+  return { exact: q.exact, prefix: q.prefix, suffix: q.suffix };
+}
+
+function setup() {
+  const { extension, handle } = commentAnchors();
+  const element = document.createElement("div");
+  document.body.append(element);
+  const editor = new Editor({ element, extensions: [...extensions(), extension], content: fromMarkdown(BODY).doc, injectCSS: false });
+  const ferry = readerQuote("gulls followed it out");
+  const keeper = readerQuote("lighthouse keeper");
+  handle.setItems([
+    { id: "t-ferry", find: ferry },
+    { id: "t-keeper", find: keeper },
+    { id: "t-lost", find: { exact: "words that are nowhere", prefix: "", suffix: "" } },
+  ]);
+  return { editor, handle, ferry, keeper };
+}
+
+/** The document position of `words` in the editor's text. */
+function posOf(editor, words) {
+  let found = null;
+  editor.state.doc.descendants((node, pos) => {
+    if (found == null && node.isText && node.text.includes(words)) found = pos + node.text.indexOf(words);
+  });
+  return found;
+}
+
+test.before(async () => {
+  globalThis.__marked = await import("marked");
+});
+
+test("passages are found in the editor and drawn as decorations", () => {
+  const { editor, handle } = setup();
+  let found;
+  handle.subscribe((f) => (found = f));
+  assert.ok(found.placed.has("t-ferry"));
+  assert.ok(found.placed.has("t-keeper"));
+  assert.ok(!found.placed.has("t-lost"));
+  const marks = found.marks.get("t-ferry");
+  assert.equal(marks.map((m) => m.textContent).join(""), "gulls followed it out");
+  assert.equal(marks[0].tagName, "MARK");
+  assert.ok(marks[0].classList.contains("post-quote"));
+  // Nothing has changed, so nothing needs saving.
+  const q = handle.quotes();
+  assert.deepEqual(q.get("t-ferry"), readerQuote("gulls followed it out"));
+  assert.equal(q.has("t-lost"), false);
+  editor.destroy();
+});
+
+test("an edit inside a passage stays in it", () => {
+  const { editor, handle, ferry } = setup();
+  editor.commands.insertContentAt(posOf(editor, "followed") + "followed".length, " and circled");
+  const q = handle.quotes().get("t-ferry");
+  assert.equal(q.exact, "gulls followed and circled it out");
+  assert.equal(q.prefix, ferry.prefix);
+  assert.equal(q.suffix, ferry.suffix);
+  editor.destroy();
+});
+
+test("words typed before a passage move it, and change only its context", () => {
+  const { editor, handle, keeper } = setup();
+  editor.commands.insertContentAt(posOf(editor, "lighthouse"), "old ");
+  const q = handle.quotes().get("t-keeper");
+  assert.equal(q.exact, "lighthouse keeper");
+  assert.notEqual(q.prefix, keeper.prefix);
+  assert.ok(q.prefix.endsWith("about the old "));
+  assert.equal(q.suffix, keeper.suffix);
+  // Typing right before it is not inside it either.
+  assert.equal(editor.state.doc.textBetween(...range(handle, editor, "t-keeper")), "lighthouse keeper");
+  editor.destroy();
+});
+
+test("a passage deleted entirely is gone, and undo brings it back", () => {
+  const { editor, handle } = setup();
+  let found;
+  handle.subscribe((f) => (found = f));
+  const from = posOf(editor, "gulls followed it out");
+  editor.commands.deleteRange({ from: from - 1, to: from + "gulls followed it out".length + 1 });
+  assert.deepEqual(handle.quotes().get("t-ferry"), { gone: true });
+  return new Promise((done) =>
+    requestAnimationFrame(() => {
+      assert.ok(!found.placed.has("t-ferry"));
+      editor.commands.undo();
+      assert.equal(handle.quotes().get("t-ferry").exact, "gulls followed it out");
+      editor.destroy();
+      done();
+    }),
+  );
+});
+
+/** A tracked passage's document range, read through its decoration. */
+function range(handle, editor, id) {
+  const marks = handle.quotes() && editor.view.dom.querySelectorAll(`[data-threads~="${id}"]`);
+  const from = editor.view.posAtDOM(marks[0].firstChild, 0);
+  const last = marks[marks.length - 1].lastChild;
+  return [from, editor.view.posAtDOM(last, last.length)];
+}
