@@ -109,8 +109,9 @@ function Status({ label, state, uploading, folded }) {
 export function Toolbar({ editor, label, state, uploading, leaving, onDone, onLink, actions, menu }) {
   const run = () => editor.chain().focus();
   const level = [2, 3].find((l) => editor.isActive("heading", { level: l }));
-  // A picture or a raw block selected has no text style to set.
-  const styled = Boolean(level) || editor.can().setParagraph();
+  // A picture or a raw block selected has no text style to set. (A
+  // paragraph can't be set to a paragraph, so it asks for a heading too.)
+  const styled = Boolean(level) || editor.can().setParagraph() || editor.can().setHeading({ level: 2 });
   const last = editor.storage.highlight.last;
 
   const wrap = useRef(null);
