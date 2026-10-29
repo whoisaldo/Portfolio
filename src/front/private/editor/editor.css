@@ -23,18 +23,13 @@
   border-bottom: 1px solid #24242a;
 }
 
+/* One row, or two on a phone or when the status is long, so the save status
+   and Done are always in reach. */
 .editor-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.15rem;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.editor-bar::-webkit-scrollbar { display: none; }
-/* A phone: two rows, so the save status and Done are always in reach. */
-@media (max-width: 640px) {
-  .editor-bar { flex-wrap: wrap; row-gap: 0.35rem; overflow-x: visible; }
-  .editor-slot { flex: 1 0 auto; }
+  gap: 0.35rem 0.15rem;
 }
 
 .editor-tool {
@@ -104,7 +99,9 @@
 .editor-swatch[data-color="purple"], .editor-color[data-color="purple"] { background: #9d7cf0; }
 
 /* Where the follow-up's History and Publish buttons go. */
-.editor-slot { flex: 1; display: inline-flex; justify-content: flex-end; gap: 0.35rem; min-width: 0.5rem; }
+.editor-slot { flex: 1 1 0; display: inline-flex; justify-content: flex-end; gap: 0.35rem; min-width: 0; }
+/* The save status and Done, together at the right of whichever row they are on. */
+.editor-end { flex: none; margin-left: auto; display: inline-flex; align-items: center; }
 
 .editor-status {
   flex: none;
@@ -179,6 +176,9 @@
 .editor-mount { margin-top: 2.5rem; }
 
 .editor-body { outline: none; caret-color: #fcee0a; }
+/* The site's focus ring (index.css) would frame the whole text while it is
+   typed in; the caret is the focus here. */
+.editor-body.ProseMirror:focus-visible { outline: none; box-shadow: none; }
 .editor-body ::selection { background: rgb(91 156 240 / 0.45); }
 /* An empty paragraph still has a line to type on. */
 .editor-body p:empty::before { content: "\200b"; }

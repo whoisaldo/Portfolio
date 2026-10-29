@@ -567,8 +567,7 @@ function Toolbar({ editor, label, state, leaving, onDone, onLink, children }) {
   const run = () => editor.chain().focus();
   const level = [2, 3].find((l) => editor.isActive("heading", { level: l }));
   const block = level ? `h${level}` : editor.isActive("paragraph") ? "p" : "";
-  // The colours open under their button, outside the toolbar, which scrolls
-  // sideways on a phone and would clip them.
+  // The colours open under their button, over the text.
   const [picking, setPicking] = useState(null); // {left} while open
   const last = editor.storage.highlight.last;
   const pick = (e) => {
@@ -632,12 +631,14 @@ function Toolbar({ editor, label, state, leaving, onDone, onLink, children }) {
           <ListOrdered className="size-4" aria-hidden="true" />
         </Tool>
         <span className="editor-slot">{children}</span>
-        <span className={`editor-status is-${state}`} role="status" aria-live="polite">
-          {label}
+        <span className="editor-end">
+          <span className={`editor-status is-${state}`} role="status" aria-live="polite">
+            {label}
+          </span>
+          <button type="button" className="private-primary chamfer chamfer-sm editor-done" disabled={leaving} onClick={onDone}>
+            {leaving ? "Saving…" : "Done"}
+          </button>
         </span>
-        <button type="button" className="private-primary chamfer chamfer-sm editor-done" disabled={leaving} onClick={onDone}>
-          {leaving ? "Saving…" : "Done"}
-        </button>
       </div>
       {picking && (
         <span className="editor-colors" role="menu" aria-label="Highlight colour" style={{ left: Math.max(0, picking.left) }}>

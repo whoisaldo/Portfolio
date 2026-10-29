@@ -152,10 +152,15 @@ const Loose = Extension.create({
   ],
 });
 
-/** Markdown's link title, `[text](href "title")`, which TipTap's link has no place for. */
+/**
+ * Markdown's link title, `[text](href "title")`, which TipTap's link has no
+ * place for. A pasted link's target, rel and class are not Markdown, so they
+ * are not read.
+ */
 const TitledLink = Link.extend({
   addAttributes() {
-    return { ...this.parent?.(), title: { default: null } };
+    const none = { default: null, parseHTML: () => null };
+    return { ...this.parent?.(), target: none, rel: none, class: none, title: { default: null } };
   },
 });
 
