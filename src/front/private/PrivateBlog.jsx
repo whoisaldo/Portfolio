@@ -312,27 +312,37 @@ function Draft({ session }) {
     }
   }, [viewer.owner, draft, editing]);
 
+  /** The latest draft in place of the one shown. True once it is. */
   const refetch = useCallback(async () => {
     try {
       const { data } = await request(`/api/drafts?slug=${encodeURIComponent(slug)}`);
-      if (current.current.editing) return;
+      if (current.current.editing) return false;
       setState((st) => (st.draft && data.draft.updated_at !== st.draft.updated_at ? { status: "ready", draft: data.draft } : st));
       setNewer(false);
+      return true;
     } catch {
-      // The next poll asks again.
+      return false;
     }
   }, [slug]);
 
-  // Each poll of the comments says when the draft last changed.
+  // Each poll of the comments says when the draft last changed. A time is
+  // heard once the draft as of then is here: until it is, every poll (each
+  // few seconds) asks again, and a reader who was selecting gets it as soon
+  // as they stop.
   const heard = useRef(null);
+  const asking = useRef(false);
   const onDraftChange = useCallback(
-    (updatedAt) => {
+    async (updatedAt) => {
       const { draft: d, editing: e } = current.current;
-      if (e || !d || updatedAt === heard.current) return;
-      heard.current = updatedAt;
-      if (updatedAt === d.updated_at) return;
-      if (undisturbed()) refetch();
-      else setNewer(true);
+      if (e || !d || updatedAt === heard.current || asking.current) return;
+      if (updatedAt === d.updated_at) {
+        heard.current = updatedAt;
+        return;
+      }
+      if (!undisturbed()) return setNewer(true);
+      asking.current = true;
+      if (await refetch()) heard.current = updatedAt;
+      asking.current = false;
     },
     [refetch],
   );
