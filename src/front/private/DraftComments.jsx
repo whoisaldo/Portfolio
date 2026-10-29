@@ -101,6 +101,10 @@ function useThreads(slug, onLost, onDraftChange) {
   heard.current = onDraftChange;
   const version = useRef(null);
   const busy = useRef(false);
+  // The newest time any poll said the draft was saved, passed on after every
+  // poll, a 204 or a failure too: the draft page asks for the draft until
+  // it has that one.
+  const saved = useRef(null);
 
   const poll = useCallback(async (force = false) => {
     if (busy.current && !force) return;
@@ -108,16 +112,18 @@ function useThreads(slug, onLost, onDraftChange) {
     try {
       const v = !force && version.current ? `&v=${encodeURIComponent(version.current)}` : "";
       const { status, data } = await request(`/api/draft-comments?draft=${encodeURIComponent(slug)}${v}`, { timeout: 10_000 });
-      if (status === 204) return;
-      version.current = data.v;
-      setState({ status: "ready", comments: data.comments });
-      if (data.draft_updated_at) heard.current?.(data.draft_updated_at);
+      if (status !== 204) {
+        version.current = data.v;
+        setState({ status: "ready", comments: data.comments });
+        if (data.draft_updated_at && !(saved.current && data.draft_updated_at <= saved.current)) saved.current = data.draft_updated_at;
+      }
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) onLost();
       else setState((s) => (s.status === "loading" ? { ...s, status: "error" } : s));
     } finally {
       busy.current = false;
     }
+    if (saved.current) heard.current?.(saved.current);
   }, [slug, onLost]);
 
   useEffect(() => {
@@ -288,7 +294,7 @@ function useEditorAnchors(bridge, threads, visible) {
  * @param {{slug: string, body: React.RefObject<HTMLElement>, viewer: object, onLost: () => void,
  *   bodyKey?: string, bridge?: object, onDraftChange?: (updatedAt: string) => void}} props
  *   `bodyKey` changes when the draft's text does; `bridge` is the editor's,
- *   while Ali edits; `onDraftChange` hears the draft's updated_at from every poll.
+ *   while Ali edits; `onDraftChange` hears after every poll the newest updated_at the polls have said.
  */
 export default function DraftComments({ slug, body: readBody, viewer, onLost, bodyKey, bridge, onDraftChange }) {
   const wide = useMedia(WIDE);

@@ -358,37 +358,38 @@ function Draft({ session }) {
     };
   }, [viewer.owner, draft, editing, lost]);
 
-  /** The latest draft in place of the one shown. True once it is. */
+  /** The latest draft in place of the one shown. Answers it, or null when it couldn't be had. */
   const refetch = useCallback(async () => {
     try {
       const { data } = await request(`/api/drafts?slug=${encodeURIComponent(slug)}`);
-      if (current.current.editing) return false;
+      if (current.current.editing) return null;
       setState((st) => (st.draft && data.draft.updated_at !== st.draft.updated_at ? { status: "ready", draft: data.draft } : st));
       setNewer(false);
-      return true;
+      return data.draft;
     } catch {
-      return false;
+      return null;
     }
   }, [slug]);
 
-  // Each poll of the comments says when the draft last changed. A time is
-  // heard once the draft as of then is here: until it is, every poll (each
-  // few seconds) asks again, and a reader who was selecting gets it as soon
-  // as they stop.
-  const heard = useRef(null);
+  // Each poll of the comments, answered or not, passes on the newest time
+  // the draft was saved that any poll has said. Until the draft shown is as
+  // new, each poll (each few seconds) asks for it, later and later while
+  // that fails, and a reader who was selecting gets it as soon as they
+  // stop. Both times are the server's, written alike, so they sort as text.
   const asking = useRef(false);
+  const backoff = useRef({ tries: 0, until: 0 });
   const onDraftChange = useCallback(
     async (updatedAt) => {
       const { draft: d, editing: e } = current.current;
-      if (e || !d || updatedAt === heard.current || asking.current) return;
-      if (updatedAt === d.updated_at) {
-        heard.current = updatedAt;
-        return;
-      }
+      if (e || !d || asking.current) return;
+      if (updatedAt <= d.updated_at) return setNewer(false);
       if (!undisturbed()) return setNewer(true);
+      if (Date.now() < backoff.current.until) return;
       asking.current = true;
-      if (await refetch()) heard.current = updatedAt;
+      const got = await refetch();
       asking.current = false;
+      const { tries } = backoff.current;
+      backoff.current = got && updatedAt <= got.updated_at ? { tries: 0, until: 0 } : { tries: tries + 1, until: Date.now() + RETRY[Math.min(tries, RETRY.length - 1)] };
     },
     [refetch],
   );
@@ -425,7 +426,6 @@ function Draft({ session }) {
   const finish = useCallback((latest) => {
     setEditing(null);
     setBridge(null);
-    heard.current = latest.updated_at;
     setState({ status: "ready", draft: latest });
   }, []);
 
