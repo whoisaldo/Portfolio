@@ -26,6 +26,7 @@ import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { findQuote, groupQuotes, indexText, quoteFromRange } from "../../quotes.js";
+import { findMoved } from "../moved.js";
 
 const key = new PluginKey("commentAnchors");
 // As the read view quotes a selection.
@@ -190,6 +191,11 @@ export function commentAnchors() {
   let words = new Map();
   const known = new Map();
   const heard = new Map();
+  // The words and context each passage had in the texts a restore or "Load
+  // the latest" replaced, newest first: undoing one puts that text back,
+  // with the passage on those words.
+  const past = new Map();
+  const PAST = 4;
 
   const state = () => (view ? key.getState(view.state) : EMPTY);
 
@@ -222,9 +228,12 @@ export function commentAnchors() {
 
   /**
    * Each thread not looked for yet, looked for in the editor's text: by the
-   * words it was last on (`lost`, for a passage deleted here), then by its
-   * anchor, then by the reader's own quote, so a thread whose passage was
-   * deleted and saved as gone is found again when its words come back.
+   * words it was last on (`lost`, for a passage deleted here), by those it
+   * had in a text a restore replaced, then by its anchor, then by the
+   * reader's own quote, so a thread whose passage was deleted and saved as
+   * gone is found again when its words come back. Each by its words and
+   * context first; failing all of those, as a passage edited around
+   * (../moved.js), since this text is being edited.
    */
   const search = (items, lost = new Map()) => {
     const add = [];
@@ -233,18 +242,30 @@ export function commentAnchors() {
     let index = null;
     for (const t of todo) {
       searched.add(t.id);
-      for (const q of [lost.get(t.id), t.find, t.quote]) {
-        if (!q?.exact) continue;
-        index ??= indexText(view.dom);
-        const at = findQuote(index, q);
-        const range = at && toRange(view, index, at);
-        if (!range) continue;
-        add.push([t.id, range]);
-        words.set(t.id, quoteOf(q));
-        break;
-      }
+      const by = [lost.get(t.id), ...(past.get(t.id) || []), t.find, t.quote].filter((q) => q?.exact);
+      if (!by.length) continue;
+      index ??= indexText(view.dom);
+      const place = (find) => {
+        for (const q of by) {
+          const at = find(index, q);
+          const range = at && toRange(view, index, at);
+          if (range) return [range, q];
+        }
+        return null;
+      };
+      const hit = place(findQuote) || place(findMoved);
+      if (!hit) continue;
+      add.push([t.id, hit[0]]);
+      words.set(t.id, quoteOf(hit[1]));
     }
     return add;
+  };
+
+  /** A passage's words in a text about to be replaced, kept for an undo that brings it back. */
+  const keepPast = (id, q) => {
+    if (!q?.exact) return;
+    const list = (past.get(id) || []).filter((p) => p.exact !== q.exact || p.prefix !== q.prefix || p.suffix !== q.suffix);
+    past.set(id, [quoteOf(q), ...list].slice(0, PAST));
   };
 
   /**
@@ -326,7 +347,9 @@ export function commentAnchors() {
       searched = new Set();
       words = new Map();
       if (!view) return;
-      const { items } = state();
+      const { items, ranges } = state();
+      // The text was just replaced: each passage was in the one before it.
+      for (const [id, r] of ranges) keepPast(id, r.lost);
       view.dispatch(view.state.tr.setMeta(key, { reset: true }).setMeta("addToHistory", false));
       handle.setItems(items);
     },
@@ -344,7 +367,7 @@ export function commentAnchors() {
       const lost = new Map();
       const missing = items.filter((t) => {
         const r = ranges.get(t.id);
-        return searched.has(t.id) && !(r?.from < r?.to) && (r?.lost?.exact || t.find?.exact || t.quote?.exact);
+        return searched.has(t.id) && !(r?.from < r?.to) && (r?.lost?.exact || past.has(t.id) || t.find?.exact || t.quote?.exact);
       });
       if (!missing.length) return;
       for (const t of missing) {

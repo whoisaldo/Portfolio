@@ -4,10 +4,11 @@ import "./dom.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Editor } from "@tiptap/core";
-import { extensions } from "../src/front/private/editor/schema.js";
+import { extensions, replaceAll } from "../src/front/private/editor/schema.js";
 import { fromMarkdown } from "../src/front/private/editor/markdown.js";
 import { commentAnchors } from "../src/front/private/editor/anchors.js";
-import { indexText, quoteFromRange } from "../src/front/quotes.js";
+import { findQuote, indexText, quoteFromRange } from "../src/front/quotes.js";
+import { findMoved } from "../src/front/private/moved.js";
 
 const BODY = `## The harbour
 
@@ -354,4 +355,64 @@ test("the comments saying the server has a passage elsewhere makes it differ, so
   ]);
   assert.deepEqual(handle.changes(handle.quotes()), [{ thread: "t-ferry", ...ferry }]);
   editor.destroy();
+});
+
+// Words pasted into the words after a passage, saved; the version before
+// them restored, and the restore undone: the passage is beside its words
+// again, on them, not sent as deleted.
+const HARBOUR = `## Notes
+
+Morning notes from the harbour office, written in pencil. The ferry left at dawn and the gulls followed it out past the breakwater, calling all the way to the lighthouse and back again before noon.
+`;
+
+test("undoing a restore puts a passage back on its words even with words pasted beside it", () => {
+  const { extension, handle } = commentAnchors();
+  const element = document.createElement("div");
+  document.body.append(element);
+  const editor = new Editor({ element, extensions: [...extensions(), extension], content: fromMarkdown(HARBOUR).doc, injectCSS: false });
+  const text = indexText(editor.view.dom).text;
+  const at = text.indexOf("gulls followed");
+  const quote = { exact: "gulls followed", prefix: text.slice(at - 32, at), suffix: text.slice(at + 14, at + 46) };
+  handle.setItems([{ id: "t-gulls", find: quote, quote, gone: false }]);
+  assert.deepEqual(handle.quotes().get("t-gulls"), quote);
+
+  // A paste 14 characters into the words after it: under three quarters of
+  // its context is left, so the reader's quote alone no longer finds it.
+  editor.commands.insertContentAt(posOf(editor, "gulls followed") + 14 + 14, " PASTED PLAIN PASTED BOLD");
+  assert.equal(findQuote(indexText(editor.view.dom), quote), null);
+  const moved = handle.quotes().get("t-gulls");
+  assert.equal(moved.exact, "gulls followed");
+  assert.notEqual(moved.suffix, quote.suffix);
+  const saved = handle.changes(handle.quotes());
+  assert.deepEqual(saved, [{ thread: "t-gulls", ...moved }]);
+  handle.sent(saved);
+  handle.setItems([{ id: "t-gulls", find: moved, quote, gone: false }]);
+
+  // The version before the paste restored, as DraftEditor does it.
+  editor.view.dispatch(replaceAll(editor.state, fromMarkdown(HARBOUR).doc, null));
+  handle.reset();
+  assert.deepEqual(handle.quotes().get("t-gulls"), quote);
+  const restored = handle.changes(handle.quotes());
+  assert.deepEqual(restored, [{ thread: "t-gulls", ...quote }]);
+  handle.sent(restored);
+  handle.setItems([{ id: "t-gulls", find: quote, quote, gone: false }]);
+
+  // The restore undone: the paste is back, and so is the passage, on its words.
+  editor.commands.undo();
+  assert.ok(editor.state.doc.textContent.includes("PASTED PLAIN"));
+  handle.findMissing();
+  assert.deepEqual(handle.quotes().get("t-gulls"), moved);
+  assert.deepEqual(handle.changes(handle.quotes()), [{ thread: "t-gulls", ...moved }]);
+  editor.destroy();
+});
+
+test("a passage edited around is found when its words occur once and half their context agrees", () => {
+  const index = { text: "Morning notes. The ferry left at dawn and the gulls followed PASTED it out past the breakwater, calling all the way." };
+  const quote = { exact: "gulls followed", prefix: "The ferry left at dawn and the ", suffix: " it out past the breakwater, cal" };
+  assert.equal(findQuote(index, quote), null, "too little context for findQuote");
+  assert.deepEqual(findMoved(index, quote), [index.text.indexOf("gulls followed"), index.text.indexOf("gulls followed") + 14]);
+  // Words that occur twice are not guessed at.
+  assert.equal(findMoved({ text: `${index.text} Later the gulls followed again.` }, quote), null);
+  // Nor are words with less than half their context.
+  assert.equal(findMoved({ text: "Something else entirely and the gulls followed nothing at all here today." }, quote), null);
 });

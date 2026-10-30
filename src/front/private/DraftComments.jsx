@@ -48,6 +48,7 @@ import { createPortal, flushSync } from "react-dom";
 import { Check, MessageSquare, MessageSquarePlus, X } from "lucide-react";
 import { findQuote, groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
 import { ApiError, request } from "./api";
+import { findMoved } from "./moved";
 
 // As the stats service has them.
 const LIMIT = { body: 2000, quote: 500 };
@@ -233,8 +234,9 @@ function useAnchors(body, items, bodyKey) {
       const index = indexText(root);
       for (const t of list) {
         // A passage deleted and then brought back (a version restored) is
-        // where its reader's words are.
-        const at = (t.find && findQuote(index, t.find)) || (t.gone && t.quote && findQuote(index, t.quote));
+        // where its reader's words are, even with new words beside them
+        // (./moved.js).
+        const at = (t.find && findQuote(index, t.find)) || (t.gone && t.quote && findMoved(index, t.quote));
         if (at) placedAt.push({ id: t.id, at });
       }
     } catch (err) {
