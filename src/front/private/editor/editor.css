@@ -1,0 +1,110 @@
+/* The draft editor (DraftEditor.jsx). In the editor's lazy chunk, so only Ali
+   editing ever loads it. The text itself wears the post's own styles
+   (.post-body in front.css); these are the editor's controls, and what the
+   editor adds to the text: the caret's room, raw blocks, pictures. */
+
+/* ---- the toolbar ------------------------------------------------------------ */
+
+/* The slot the draft page leaves above the title (PrivateBlog.jsx) is what
+   sticks: it sits in the article, so it stays at the top of the screen for
+   the whole text. The toolbar itself is in toolbar.css. */
+.editor-head {
+  position: sticky;
+  top: 0;
+  z-index: 35;
+  margin-top: 1.25rem;
+}
+/* The column's width exactly, over the text as it scrolls under. */
+.editor-bar-wrap {
+  position: relative;
+  padding: 0.5rem 0;
+  background: #0a0a0c;
+  border-bottom: 1px solid #24242a;
+}
+
+.editor-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgb(252 238 10 / 0.45);
+  background: #131316;
+  font-size: 0.875rem;
+  color: #eceae4;
+}
+.editor-alert p { flex: 1 1 16rem; }
+.editor-alert.is-error { border-color: rgb(255 77 109 / 0.6); }
+
+/* ---- the text ------------------------------------------------------------------------- */
+
+/* Where the article's text is, as far below the title. */
+.editor-mount { margin-top: 2.5rem; }
+
+.editor-body { outline: none; caret-color: #fcee0a; }
+/* The site's focus ring (index.css) would frame the whole text while it is
+   typed in; the caret is the focus here. */
+.editor-body.ProseMirror:focus-visible { outline: none; box-shadow: none; }
+.editor-body ::selection { background: rgb(91 156 240 / 0.45); }
+/* An empty paragraph still has a line to type on. */
+.editor-body p:empty::before { content: "\200b"; }
+.editor-body li > p { margin: 0; }
+.editor-body li > p + * { margin-top: 0.45em; }
+.editor-body img { display: inline-block; }
+/* Selected pictures and raw blocks show it only while the editor has focus:
+   it opens with the first block selected when that is a video. */
+.editor-body.ProseMirror-focused img.ProseMirror-selectednode { outline: 2px solid #fcee0a; outline-offset: 2px; }
+
+/* Markdown the editor keeps as written: it reads as the post, and a click
+   selects it whole. */
+.editor-raw { position: relative; cursor: default; }
+.editor-raw::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 1px dashed transparent;
+  pointer-events: none;
+  transition: border-color 150ms;
+}
+.editor-raw:hover::after { border-color: #3a3a42; }
+.editor-body.ProseMirror-focused .editor-raw.ProseMirror-selectednode::after { border: 2px solid #fcee0a; }
+.editor-raw:empty::before {
+  content: "Hidden Markdown";
+  font-size: 0.75rem;
+  color: rgb(236 234 228 / 0.4);
+}
+/* A comment on words inside one (a video's caption). */
+.editor-raw-quoted::after { border-color: rgb(252 238 10 / 0.5); }
+.editor-raw-quoted.is-active::after { border: 2px solid #fcee0a; }
+
+/* The drop line, where dragged text or a picture will land. */
+.ProseMirror-dropcursor { background: #fcee0a; }
+
+/* ---- the link box ---------------------------------------------------------------------- */
+
+.editor-link {
+  position: absolute;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 20rem;
+  padding: 0.45rem 0.6rem;
+  background: #131316;
+  border: 1px solid #3a3a42;
+  box-shadow: 0 12px 32px -14px rgb(0 0 0 / 0.9);
+}
+.editor-link input {
+  flex: 1;
+  min-width: 0;
+  background: #0a0a0c;
+  border: 1px solid #24242a;
+  color: #eceae4;
+  font-size: 0.875rem;
+  padding: 0.3rem 0.45rem;
+}
+.editor-link input:focus-visible { border-color: #fcee0a; }
+.editor-link { flex-wrap: wrap; }
+.editor-link input[aria-invalid] { border-color: #ff5a52; }
+.editor-link-refused { flex-basis: 100%; margin: 0; color: #ff8f88; font-size: 0.8125rem; line-height: 1.4; }

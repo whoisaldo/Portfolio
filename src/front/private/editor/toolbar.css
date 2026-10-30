@@ -1,0 +1,310 @@
+/* The editor's toolbar, and the title, date and summary typed in place
+   (Toolbar.jsx). In the editor's chunk. Barlow for the controls, JetBrains
+   Mono for the save status, which is a readout; volt for what is on and for
+   Done, the one thing to press. */
+
+/* ---- the row ------------------------------------------------------------------ */
+
+.editor-bar-row { position: relative; }
+
+.editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* The formatting: it gives up its room first, a control at a time into More
+   (Toolbar.jsx), so it never needs to scroll. Clipped only for the moment
+   before a fold is measured. */
+.editor-tools {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow: hidden;
+}
+
+/* The status, History, Publish and Done: never fold, never move. */
+.editor-end {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* ---- buttons -------------------------------------------------------------------- */
+
+.editor-tool {
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  color: rgb(236 234 228 / 0.78);
+  transition: color 150ms, background-color 150ms;
+}
+.editor-tool:hover:not(:disabled) { color: #eceae4; background: #1b1b20; }
+.editor-tool.is-on { color: #0a0a0c; background: #fcee0a; }
+.editor-tool.is-on:hover:not(:disabled) { color: #0a0a0c; background: #eceae4; }
+.editor-tool:disabled { opacity: 0.32; cursor: default; }
+/* Inside the clipped row the site's ring (index.css) would be cut off, so
+   it is drawn inside. */
+.editor-bar .editor-tool:focus-visible,
+.editor-bar .editor-status-button:focus-visible,
+.editor-bar .editor-block:focus-visible { box-shadow: inset 0 0 0 2px #fcee0a; }
+
+.editor-sep { flex: none; width: 1px; height: 1.25rem; margin: 0 0.15rem; background: #24242a; }
+
+/* The text style: the select itself, without the browser's box. */
+.editor-style { position: relative; flex: none; display: inline-flex; align-items: center; }
+.editor-block {
+  height: 2rem;
+  width: 6.75rem;
+  padding: 0 1.4rem 0 0.45rem;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  color: #eceae4;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+.editor-block:hover:not(:disabled) { background: #1b1b20; }
+.editor-block:disabled { color: rgb(236 234 228 / 0.4); cursor: default; }
+.editor-block option { background: #131316; color: #eceae4; }
+.editor-style svg {
+  position: absolute;
+  right: 0.35rem;
+  pointer-events: none;
+  color: rgb(236 234 228 / 0.56);
+}
+
+/* The highlight and its colours: one split button, both halves 32px. */
+.editor-picker { flex: none; display: inline-flex; }
+.editor-swatch {
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: 0.25rem;
+  height: 3px;
+}
+.editor-tool.editor-more { color: rgb(236 234 228 / 0.56); }
+.editor-tool.editor-more[aria-expanded="true"] { color: #eceae4; background: #1b1b20; }
+
+.editor-colors {
+  position: absolute;
+  z-index: 50;
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.4rem;
+  background: #131316;
+  border: 1px solid #3a3a42;
+  box-shadow: 0 12px 32px -14px rgb(0 0 0 / 0.9);
+}
+.editor-color {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid #3a3a42;
+  color: rgb(236 234 228 / 0.72);
+  font-size: 0.85rem;
+}
+.editor-color:hover { border-color: #eceae4; }
+
+/* The highlight colours as solid swatches; in the text they are washes
+   (private.css). */
+.editor-swatch[data-color="yellow"], .editor-color[data-color="yellow"] { background: #e8c43a; }
+.editor-swatch[data-color="green"], .editor-color[data-color="green"] { background: #4fbf7a; }
+.editor-swatch[data-color="blue"], .editor-color[data-color="blue"] { background: #5b9cf0; }
+.editor-swatch[data-color="pink"], .editor-color[data-color="pink"] { background: #ec6fae; }
+.editor-swatch[data-color="purple"], .editor-color[data-color="purple"] { background: #9d7cf0; }
+
+/* ---- More ---------------------------------------------------------------------------- */
+
+/* Outside the clipped formatting, so it can't be cut off, but as close to it
+   as the formatting's own buttons are to each other. */
+.editor-bar > .editor-overflow { margin-left: calc(2px - 0.5rem); }
+.editor-tool.editor-overflow[aria-expanded="true"] { color: #eceae4; background: #1b1b20; }
+.editor-menu {
+  position: absolute;
+  z-index: 50;
+  width: 13.75rem;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 0.3rem;
+  background: #131316;
+  border: 1px solid #3a3a42;
+  box-shadow: 0 12px 32px -14px rgb(0 0 0 / 0.9);
+}
+.editor-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0 0.6rem;
+  font-size: 0.875rem;
+  color: #eceae4;
+  text-align: left;
+  transition: background-color 150ms;
+}
+.editor-menu-item:hover,
+.editor-menu-item:focus-visible { background: #1b1b20; box-shadow: none; }
+.editor-menu-item:focus-visible { box-shadow: inset 2px 0 #fcee0a; }
+.editor-menu-item span { flex: 1; }
+.editor-menu-item svg { color: rgb(236 234 228 / 0.72); }
+.editor-menu-item.is-on svg { color: #fcee0a; }
+.editor-menu-item:disabled { opacity: 0.4; cursor: default; }
+.editor-menu-item:disabled:hover { background: none; }
+.editor-menu-sep { display: block; height: 1px; margin: 0.3rem 0.2rem; background: #24242a; }
+/* The highlight's colours, under its item, smaller than the row's. */
+.editor-menu-colors { display: flex; gap: 0.25rem; padding: 0.2rem 0.6rem 0.35rem 2.2rem; }
+.editor-menu-colors .editor-color { width: 1.6rem; height: 1.6rem; font-size: 0.75rem; }
+.editor-menu-item kbd {
+  font-family: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.6875rem;
+  color: rgb(236 234 228 / 0.45);
+}
+
+/* ---- the status, History, Publish, Done ------------------------------------------------ */
+
+.editor-status {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.25rem;
+  font-family: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.01em;
+  color: rgb(236 234 228 / 0.5);
+  white-space: nowrap;
+}
+/* Folded, an icon on a button: pressed or focused, its words under it. */
+.editor-status.is-folded { position: relative; padding: 0; }
+.editor-status-button {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+.editor-status-button:hover { background: #1b1b20; }
+.editor-status-tip {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  width: max-content;
+  max-width: 16rem;
+  padding: 0.4rem 0.6rem;
+  background: #131316;
+  border: 1px solid #3a3a42;
+  box-shadow: 0 12px 32px -14px rgb(0 0 0 / 0.9);
+  font-family: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.6875rem;
+  color: #eceae4;
+  white-space: normal;
+}
+.editor-status-tip.is-offline,
+.editor-status-tip.is-error { border-color: #ff4d6d; }
+.editor-status-tip.is-conflict { border-color: #fcee0a; }
+.editor-status.is-offline,
+.editor-status.is-error { color: #ff4d6d; }
+.editor-status.is-conflict { color: #fcee0a; }
+.editor-spin { animation: editor-spin 1s linear infinite; }
+@keyframes editor-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .editor-spin { animation: none; }
+}
+/* Read out, not shown: the status's words once it is an icon. */
+.editor-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* History in More: its button stays, hidden, for the menu to press. */
+.editor-bar[data-history="menu"] .owner-history { display: none; }
+
+.editor-bar .editor-done { flex: none; margin-top: 0; height: 2rem; padding: 0 0.8rem; font-size: 0.8125rem; }
+.editor-bar .editor-done:focus-visible { color: #0a0a0c; }
+
+/* ---- the title, date and summary ----------------------------------------------------- */
+
+/* Each is the page's own text until the pointer or the focus is on it. */
+.editor-inplace {
+  display: block;
+  width: 100%;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  margin-inline: -0.375rem;
+  padding-inline: 0.375rem;
+  box-sizing: content-box;
+  transition: background-color 150ms, box-shadow 150ms;
+}
+.editor-inplace:hover { background: rgb(236 234 228 / 0.035); }
+.editor-inplace:focus-visible,
+.editor-inplace:focus {
+  outline: none;
+  background: rgb(236 234 228 / 0.05);
+  box-shadow: inset 0 -1px rgb(252 238 10 / 0.7);
+}
+.editor-inplace::placeholder { color: rgb(236 234 228 / 0.3); }
+.editor-title.is-wrong,
+.editor-inplace.is-wrong,
+.editor-summary.is-wrong textarea { box-shadow: inset 0 -2px #ff4d6d; }
+
+/* The post's line under the title: its date, pressed to change it, and its
+   reading time. */
+.editor-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 0.25rem; }
+.editor-meta > span:first-of-type { white-space: pre; }
+.editor-date.editor-inplace {
+  display: inline;
+  width: auto;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.editor-date-input {
+  background: #131316;
+  border: 0;
+  box-shadow: inset 0 -1px rgb(252 238 10 / 0.7);
+  color: #eceae4;
+  font: inherit;
+  padding: 0 0.3rem;
+  color-scheme: dark;
+}
+
+.editor-summary { display: block; margin-top: 1rem; }
+.editor-summary-label {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-family: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(236 234 228 / 0.4);
+}
+.editor-summary textarea {
+  width: 100%;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: rgb(236 234 228 / 0.66);
+  text-wrap: pretty;
+}

@@ -79,10 +79,13 @@ export default function BlogPost() {
  *   rewrite (html) => html, applied to the rendered Markdown once
  *   inside  (body) => what else goes in the <article>, after the text
  *   below   (body) => what goes under the <article>
+ *   editing {head, title, body}, only while the private blog's editor is
+ *           open: what goes under the marker, what takes the place of the
+ *           title and date, and what takes the place of the text
  *
  * `body` is a ref to the element holding the post's text.
  */
-export function PostPage({ post, back, share, marker, rewrite, inside, below }) {
+export function PostPage({ post, back, share, marker, rewrite, inside, below, editing }) {
   // One object for the life of the post: React re-sets innerHTML whenever
   // this prop is a new object, which would throw away the embeds' slots.
   const html = useMemo(() => {
@@ -92,9 +95,11 @@ export function PostPage({ post, back, share, marker, rewrite, inside, below }) 
   const body = useRef(null);
   const [slots, setSlots] = useState([]);
   // Before paint, so an embed never flashes in after the text around it.
+  // Again when the text comes back after editing.
+  const reading = !editing;
   useLayoutEffect(() => {
     setSlots(body.current ? [...body.current.querySelectorAll("[data-embed]")] : []);
-  }, [html]);
+  }, [html, reading]);
 
   return (
     <>
@@ -105,14 +110,21 @@ export function PostPage({ post, back, share, marker, rewrite, inside, below }) 
             <ArrowLeft className="size-3.5" aria-hidden="true" /> {back.label}
           </Link>
           {marker}
-          <h1 className="mt-8 font-display text-3xl font-semibold leading-tight text-bone text-balance sm:text-4xl">
-            {post.title}
-          </h1>
-          <p className="mt-4 text-sm tabular-nums text-dim">
-            <time dateTime={post.date}>{formatDate(post.date)}</time> · {post.minutes} min read
-          </p>
-          <div ref={body} className="post-body mt-10" dangerouslySetInnerHTML={html} />
-          {slots.map((slot, i) => {
+          {editing?.head}
+          {editing ? (
+            editing.title
+          ) : (
+            <>
+              <h1 className="mt-8 font-display text-3xl font-semibold leading-tight text-bone text-balance sm:text-4xl">
+                {post.title}
+              </h1>
+              <p className="mt-4 text-sm tabular-nums text-dim">
+                <time dateTime={post.date}>{formatDate(post.date)}</time> · {post.minutes} min read
+              </p>
+            </>
+          )}
+          {editing ? editing.body : <div ref={body} className="post-body mt-10" dangerouslySetInnerHTML={html} />}
+          {reading && slots.map((slot, i) => {
             const Embed = embeds[slot.dataset.embed];
             return Embed
               ? createPortal(

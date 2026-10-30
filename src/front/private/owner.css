@@ -1,0 +1,83 @@
+/* Ali's History and Publish buttons and New draft (owner.jsx), in the
+   private blog's chunk. What they open is styled with it, in
+   editor/dialogs.css. As private.css, written out rather than in Tailwind
+   classes. */
+
+.owner-tools {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  min-width: 0;
+}
+/* Beside Edit on a draft being read: the row's Edit takes the free space. */
+.private-marker-row .owner-tools .private-edit { margin-left: 0; }
+.owner-tool { white-space: nowrap; }
+
+/* The public post's state, as a dot: none yet, live and up to date, live
+   and changed since. Its words are beside it on a draft being read, and in
+   Publish's tooltip and dialog in the editor. */
+.owner-dot {
+  flex: none;
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px rgb(236 234 228 / 0.45);
+}
+.is-current .owner-dot { background: #4fbf7a; box-shadow: none; }
+.is-changed .owner-dot { background: #fcee0a; box-shadow: none; }
+
+/* Publish in the editor's row: raised, cut like Done, second to it. */
+.owner-publish {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 2rem;
+  padding: 0 0.7rem;
+  background: #1b1b20;
+  color: #eceae4;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 150ms, color 150ms;
+}
+.owner-publish:hover:not(:disabled) { background: #26262c; }
+.owner-publish:focus-visible { color: #0a0a0c; }
+.owner-publish:disabled { opacity: 0.55; cursor: default; }
+
+/* "Not published", "Published · up to date", "Published · changed since". */
+.owner-state {
+  font-size: 0.75rem;
+  color: rgb(236 234 228 / 0.56);
+  white-space: nowrap;
+}
+.owner-state.is-changed { color: #fcee0a; }
+.owner-live {
+  color: #eceae4;
+  text-decoration: underline;
+  text-decoration-color: rgb(236 234 228 / 0.4);
+  text-underline-offset: 3px;
+}
+.owner-live:hover { color: #fcee0a; }
+
+.owner-note {
+  flex: 1 1 100%;
+  font-size: 0.8125rem;
+  color: #ff4d6d;
+}
+/* In the editor's row there is no line to wrap onto: under it, at its end. */
+.editor-end .owner-note {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.6rem);
+  max-width: min(24rem, 100%);
+  padding: 0.5rem 0.75rem;
+  background: #131316;
+  border-left: 2px solid #ff4d6d;
+  color: #eceae4;
+}
+
+.owner-new { margin-left: 0; margin-top: 1.25rem; }
+.owner-loading { margin-top: 1rem; font-size: 0.875rem; color: rgb(236 234 228 / 0.56); }
