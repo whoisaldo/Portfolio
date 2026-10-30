@@ -348,6 +348,13 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       }
     };
     const files = (list) => [...(list || [])].filter((f) => f.type.startsWith("image/"));
+    // Word and Excel put a picture of what was copied beside its text: the
+    // text is what was meant. A picture copied from a page comes with HTML
+    // that is only that picture, and is the picture.
+    const pictureOnly = (html) => {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      return !doc.body.textContent.trim() && doc.body.querySelectorAll("img").length > 0;
+    };
 
     const { doc, raws } = fromMarkdown(start.body);
     const ed = new Editor({
@@ -358,8 +365,11 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       editorProps: {
         attributes: { class: "post-body editor-body", "aria-label": "Draft text", spellcheck: "true" },
         handlePaste(view, event) {
-          const pics = files(event.clipboardData?.files);
+          const data = event.clipboardData;
+          const pics = files(data?.files);
           if (!pics.length) return false;
+          const html = data.getData("text/html");
+          if (html.trim() ? !pictureOnly(html) : data.getData("text/plain").trim()) return false;
           event.preventDefault();
           ed.commands.deleteSelection();
           upload(pics, view.state.selection.from);
