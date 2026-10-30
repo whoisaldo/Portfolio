@@ -26,7 +26,7 @@ import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { groupQuotes, indexText, quoteFromRange } from "../../quotes.js";
-import { findBySides, findWhole } from "../place.js";
+import { findWhole } from "../place.js";
 
 const key = new PluginKey("commentAnchors");
 // As the read view quotes a selection.
@@ -196,18 +196,6 @@ export function commentAnchors() {
   // with the passage on those words.
   const past = new Map();
   const PAST = 4;
-  // Every context each thread has had that this session knows of, newest
-  // first: its reader's quote, its anchors as the server had them and as
-  // they were sent, the words a deleted passage was on and those `past`
-  // keeps. A restored text can have its passage with the words before it as
-  // one had them and those after it as another.
-  const seen = new Map();
-  const SEEN = 20;
-  const see = (id, q) => {
-    if (!q?.exact) return;
-    const list = (seen.get(id) || []).filter((p) => p.exact !== q.exact || p.prefix !== q.prefix || p.suffix !== q.suffix);
-    seen.set(id, [quoteOf(q), ...list].slice(0, SEEN));
-  };
 
   const state = () => (view ? key.getState(view.state) : EMPTY);
 
@@ -243,9 +231,7 @@ export function commentAnchors() {
    * words it was last on (`lost`, for a passage deleted here), by those it
    * had in a text a restore replaced, then by its anchor, then by the
    * reader's own quote, so a thread whose passage was deleted and saved as
-   * gone is found again when its words come back. Failing all of those, where
-   * its words are with the words either side as some context it has had
-   * has them (../place.js).
+   * gone is found again when its words come back.
    */
   const search = (items, lost = new Map()) => {
     const add = [];
@@ -254,26 +240,16 @@ export function commentAnchors() {
     let index = null;
     for (const t of todo) {
       searched.add(t.id);
-      const by = [lost.get(t.id), ...(past.get(t.id) || []), t.find, t.quote].filter((q) => q?.exact);
-      let hit = null;
-      for (const q of by) {
+      for (const q of [lost.get(t.id), ...(past.get(t.id) || []), t.find, t.quote]) {
+        if (!q?.exact) continue;
         index ??= indexText(view.dom);
         const at = findWhole(index, q);
         const range = at && toRange(view, index, at);
-        if (range) {
-          hit = [range, q];
-          break;
-        }
+        if (!range) continue;
+        add.push([t.id, range]);
+        words.set(t.id, quoteOf(q));
+        break;
       }
-      if (!hit && (by.length || seen.has(t.id))) {
-        index ??= indexText(view.dom);
-        const sides = findBySides(index, [...by, ...(seen.get(t.id) || [])]);
-        const range = sides && toRange(view, index, sides.at);
-        if (range) hit = [range, sides.quote];
-      }
-      if (!hit) continue;
-      add.push([t.id, hit[0]]);
-      words.set(t.id, quoteOf(hit[1]));
     }
     return add;
   };
@@ -281,7 +257,6 @@ export function commentAnchors() {
   /** A passage's words in a text about to be replaced, kept for an undo that brings it back. */
   const keepPast = (id, q) => {
     if (!q?.exact) return;
-    see(id, q);
     const list = (past.get(id) || []).filter((p) => p.exact !== q.exact || p.prefix !== q.prefix || p.suffix !== q.suffix);
     past.set(id, [quoteOf(q), ...list].slice(0, PAST));
   };
@@ -293,8 +268,6 @@ export function commentAnchors() {
    */
   const hear = (items) => {
     for (const t of items) {
-      see(t.id, t.quote);
-      see(t.id, t.find);
       const has = held(t);
       const said = JSON.stringify(has);
       if (heard.get(t.id) === said) continue;
@@ -369,10 +342,7 @@ export function commentAnchors() {
       return out;
     },
     sent(changes) {
-      for (const { thread, exact, prefix, suffix } of changes) {
-        known.set(thread, { exact, prefix, suffix });
-        see(thread, { exact, prefix, suffix });
-      }
+      for (const { thread, exact, prefix, suffix } of changes) known.set(thread, { exact, prefix, suffix });
     },
     reset() {
       searched = new Set();
@@ -398,15 +368,12 @@ export function commentAnchors() {
       const lost = new Map();
       const missing = items.filter((t) => {
         const r = ranges.get(t.id);
-        return searched.has(t.id) && !(r?.from < r?.to) && (r?.lost?.exact || past.has(t.id) || seen.has(t.id) || t.find?.exact || t.quote?.exact);
+        return searched.has(t.id) && !(r?.from < r?.to) && (r?.lost?.exact || past.has(t.id) || t.find?.exact || t.quote?.exact);
       });
       if (!missing.length) return;
       for (const t of missing) {
         searched.delete(t.id);
-        if (ranges.get(t.id)?.lost) {
-          lost.set(t.id, ranges.get(t.id).lost);
-          see(t.id, ranges.get(t.id).lost);
-        }
+        if (ranges.get(t.id)?.lost) lost.set(t.id, ranges.get(t.id).lost);
       }
       const add = search(items, lost);
       if (add.length) send({ add });

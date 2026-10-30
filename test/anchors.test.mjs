@@ -8,7 +8,7 @@ import { extensions, replaceAll } from "../src/front/private/editor/schema.js";
 import { fromMarkdown } from "../src/front/private/editor/markdown.js";
 import { commentAnchors } from "../src/front/private/editor/anchors.js";
 import { findQuote, indexText, quoteFromRange } from "../src/front/quotes.js";
-import { findBySides, findThread, findWhole } from "../src/front/private/place.js";
+import { findThread, findWhole } from "../src/front/private/place.js";
 
 const BODY = `## The harbour
 
@@ -445,7 +445,6 @@ test("a gone one-word quote is not put on part of another word that has only its
   assert.equal(findQuote(index, quote), null);
   editor.destroy();
 });
-
 // A passage with a word added just before it (saved, and kept as a version),
 // then a word just after it (saved): the server's anchor has both, the
 // reader's quote neither. The version between restored has the words before
@@ -478,10 +477,16 @@ function harbourEditor(md, items) {
   return { editor, handle };
 }
 
-test("a version restored between edits on both sides of a passage has its thread, in the editor and the read view", () => {
+/** The threads the editor lists, and those of them it has a passage for. */
+function listed(handle) {
+  let f = null;
+  handle.subscribe((x) => (f = x))();
+  return { ids: f.key.split(" "), placed: f.placed };
+}
+
+test("a version restored between edits on both sides of a passage leaves its thread listed without a passage, on no other words", () => {
   const { quote, anchor } = harbourQuotes("gulls followed");
   assert.ok(anchor.prefix.endsWith("grey ") && anchor.suffix.startsWith(" closely"));
-  // A session that never saw the anchor between, as after a reload.
   const { editor, handle } = harbourEditor(V2, [{ id: "t-gulls", find: anchor, quote, gone: false }]);
   assert.deepEqual(handle.quotes().get("t-gulls"), anchor);
   editor.view.dispatch(replaceAll(editor.state, fromMarkdown(V1).doc, null));
@@ -490,34 +495,19 @@ test("a version restored between edits on both sides of a passage has its thread
   // No one context agrees on both sides.
   assert.equal(findQuote(index, anchor), null);
   assert.equal(findQuote(index, quote), null);
-  const now = handle.quotes().get("t-gulls");
-  assert.equal(now.exact, "gulls followed");
-  assert.equal(now.prefix, anchor.prefix);
-  assert.equal(now.suffix, quote.suffix);
-  assert.deepEqual(handle.changes(handle.quotes()), [{ thread: "t-gulls", ...now }]);
-  // The read view, before the editor's anchor is saved.
-  const at = findThread(index, { find: anchor, quote, gone: false });
-  assert.equal(index.text.slice(...at), "gulls followed");
-  assert.equal(index.text.slice(at[0] - 5, at[0]), "grey ");
-  editor.destroy();
-});
-
-test("a session keeps each context a thread has had, so a passage is found across several saves", () => {
-  const { quote } = harbourQuotes("gulls followed");
-  const { editor, handle } = harbourEditor(HARBOUR, [{ id: "t-gulls", find: quote, quote, gone: false }]);
-  editor.commands.insertContentAt(posOf(editor, "gulls followed"), "grey ");
-  const a1 = handle.quotes().get("t-gulls");
-  handle.sent(handle.changes(handle.quotes()));
-  handle.setItems([{ id: "t-gulls", find: a1, quote, gone: false }]);
-  editor.commands.insertContentAt(posOf(editor, "gulls followed") + 14, " closely");
-  const a2 = handle.quotes().get("t-gulls");
-  handle.sent(handle.changes(handle.quotes()));
-  // Another session's anchor for it, and then the one sent here again.
-  handle.setItems([{ id: "t-gulls", find: { exact: "gulls", prefix: "elsewhere ", suffix: " altogether" }, quote, gone: false }]);
-  handle.setItems([{ id: "t-gulls", find: a2, quote, gone: false }]);
-  editor.view.dispatch(replaceAll(editor.state, fromMarkdown(V1).doc, null));
-  handle.reset();
-  assert.deepEqual(handle.quotes().get("t-gulls"), a1);
+  // Not placed, so nothing is sent: the server keeps the anchor it has, and
+  // the thread is listed with the reader's quote.
+  assert.equal(handle.quotes().has("t-gulls"), false);
+  assert.deepEqual(handle.changes(handle.quotes()), []);
+  const { ids, placed } = listed(handle);
+  assert.ok(ids.includes("t-gulls"));
+  assert.equal(placed.has("t-gulls"), false);
+  assert.equal(editor.view.dom.querySelector('[data-threads~="t-gulls"]'), null);
+  handle.findMissing();
+  assert.equal(handle.quotes().has("t-gulls"), false);
+  // The read view too, with the anchor or once it is gone.
+  assert.equal(findThread(index, { find: anchor, quote, gone: false }), null);
+  assert.equal(findThread(index, { find: null, quote, gone: true }), null);
   editor.destroy();
 });
 
@@ -552,6 +542,97 @@ test("a thread's words in two places that each agree with its contexts are place
   editor.destroy();
 });
 
+/**
+ * Every way a thread with these two contexts can be looked for, in `md`: the
+ * read view with either as the anchor or the quote of a gone thread, and the
+ * editor's search when it opens there, after a restore to it from `from`,
+ * after a paste of it, once its passage is saved as gone, and after an undo
+ * that puts it back. Each the passage's words, or null.
+ */
+function everyPath(from, md, q1, q2) {
+  const out = {};
+  const words = (editor, handle) => {
+    const q = handle.quotes().get("t-x");
+    const marks = [...editor.view.dom.querySelectorAll('[data-threads~="t-x"]')].map((m) => m.textContent).join("");
+    assert.equal(Boolean(q && !q.gone), Boolean(marks), "the passage drawn is the one read");
+    return marks || null;
+  };
+  const text = (md) => {
+    const { editor } = harbourEditor(md, []);
+    const t = indexText(editor.view.dom);
+    editor.destroy();
+    return t;
+  };
+  const index = text(md);
+  const read = (t) => {
+    const at = findThread(index, t);
+    return at && index.text.slice(...at);
+  };
+  out.readAnchor = read({ find: q2, quote: q1, gone: false });
+  out.readOther = read({ find: q1, quote: q2, gone: false });
+  out.readGone = read({ find: null, quote: q1, gone: true });
+  out.readGoneOther = read({ find: null, quote: q2, gone: true });
+
+  let e = harbourEditor(md, [{ id: "t-x", find: q2, quote: q1, gone: false }]);
+  out.open = words(e.editor, e.handle);
+  e.editor.destroy();
+
+  e = harbourEditor(from, [{ id: "t-x", find: q2, quote: q1, gone: false }]);
+  assert.ok(e.handle.quotes().has("t-x"), "placed in the text it is from");
+  e.editor.view.dispatch(replaceAll(e.editor.state, fromMarkdown(md).doc, null));
+  e.handle.reset();
+  out.restore = words(e.editor, e.handle);
+  e.editor.destroy();
+
+  e = harbourEditor(from, [{ id: "t-x", find: q2, quote: q1, gone: false }]);
+  e.editor.commands.setContent(fromMarkdown(md).doc);
+  e.handle.findMissing();
+  out.paste = words(e.editor, e.handle);
+  if (!out.paste) {
+    e.handle.sent(e.handle.changes(e.handle.quotes()));
+    e.handle.setItems([{ id: "t-x", find: null, quote: q1, gone: true }]);
+    e.handle.findMissing();
+    out.gone = words(e.editor, e.handle);
+    e.editor.view.dispatch(replaceAll(e.editor.state, fromMarkdown("A wholly new paragraph.\n").doc, null));
+    e.editor.commands.undo();
+    e.handle.findMissing();
+    out.undo = words(e.editor, e.handle);
+  }
+  e.editor.destroy();
+  return out;
+}
+
+test("a place with the words before it as one context had them and those after as another is not the thread's, by any path", () => {
+  const P1 = "The surveyor wrote the figure down as ";
+  const S1 = " and shut the notebook before the rain came.";
+  const P2 = "The baker chalked the price beside ";
+  const S2 = " on the board outside the shop this morning.";
+  const q1 = { exact: "it", prefix: P1.slice(-32), suffix: S1.slice(0, 32) };
+  const q2 = { exact: "it", prefix: P2.slice(-32), suffix: S2.slice(0, 32) };
+  const from = `${P2}it${S2}\n`;
+  // The words before one, those after the other, and the passage elsewhere
+  // with new words either side.
+  const hybrid = `A separate example. ${P1}it${S2}\n\nThe passage is now here: it stands on its own.\n`;
+  assert.equal(findWhole({ text: hybrid }, q1), null);
+  assert.equal(findWhole({ text: hybrid }, q2), null);
+  const none = everyPath(from, hybrid, q1, q2);
+  assert.deepEqual(Object.entries(none).filter(([, w]) => w !== null), []);
+  assert.ok("undo" in none);
+
+  // With the passage elsewhere as the reader quoted it, it is placed there, and only there.
+  const real = `A separate example. ${P1}it${S2}\n\nThen: ${P1}it${S1}\n`;
+  const index = { text: real };
+  const at = findThread(index, { find: q2, quote: q1, gone: true });
+  assert.deepEqual(at, [real.lastIndexOf("it" + S1), real.lastIndexOf("it" + S1) + 2]);
+  const e = harbourEditor(from, [{ id: "t-x", find: null, quote: q1, gone: true }]);
+  e.editor.view.dispatch(replaceAll(e.editor.state, fromMarkdown(real).doc, null));
+  e.handle.reset();
+  const placed = e.handle.quotes().get("t-x");
+  assert.equal(placed.exact, "it");
+  assert.ok(placed.suffix.startsWith(S1.slice(0, 20)));
+  e.editor.destroy();
+});
+
 // A one-word quote at the very start of a text, so with no words before it.
 const OPENING = `It was late when the ferry came in past the breakwater lights.
 `;
@@ -562,7 +643,6 @@ test("a quote with no words before it is not put inside another word, by any pat
   // findQuote alone does put it there.
   assert.deepEqual(findQuote({ text: `A separate example: bullshit${S}` }, quote), [26, 28]);
   assert.equal(findWhole({ text: `A separate example: bullshit${S}` }, quote), null);
-  assert.equal(findBySides({ text: `A separate example: bullshit${S}` }, [quote]), null);
 
   const opening = OPENING.replace("It", "it");
   const other = `A separate example: bullshit${S}.\n`;
@@ -570,35 +650,11 @@ test("a quote with no words before it is not put inside another word, by any pat
   const first = harbourEditor(opening, [{ id: "t-it", find: quote, quote, gone: false }]);
   assert.deepEqual(first.handle.quotes().get("t-it"), quote);
   assert.deepEqual(first.handle.changes(first.handle.quotes()), []);
-  // Inside another word: not by the search after a restore,
-  first.editor.view.dispatch(replaceAll(first.editor.state, fromMarkdown(other).doc, null));
-  first.handle.reset();
-  const index = indexText(first.editor.view.dom);
-  assert.ok(index.text.includes(`bullshit${S}`));
-  assert.equal(first.handle.quotes().has("t-it"), false);
   first.editor.destroy();
-
-  // nor by the search for a passage deleted here, nor once it is saved as
-  // gone, nor by an undo that puts that text back, nor in the read view.
-  const { editor, handle } = harbourEditor(opening, [{ id: "t-it", find: quote, quote, gone: false }]);
-  editor.commands.setContent(fromMarkdown(other).doc);
-  handle.findMissing();
-  const gone = handle.changes(handle.quotes());
-  assert.deepEqual(gone, [{ thread: "t-it", exact: "", prefix: "", suffix: "" }]);
-  handle.sent(gone);
-  handle.setItems([{ id: "t-it", find: null, quote, gone: true }]);
-  handle.findMissing();
-  assert.deepEqual(handle.quotes().get("t-it"), { gone: true });
-  editor.view.dispatch(replaceAll(editor.state, fromMarkdown("A wholly new paragraph.\n").doc, null));
-  editor.commands.undo();
-  assert.ok(indexText(editor.view.dom).text.includes(`bullshit${S}`));
-  assert.deepEqual(handle.quotes().get("t-it"), { gone: true });
-  handle.findMissing();
-  assert.deepEqual(handle.quotes().get("t-it"), { gone: true });
-  assert.deepEqual(handle.changes(handle.quotes()), []);
-  assert.equal(findThread(index, { find: null, quote, gone: true }), null);
-  assert.equal(findThread(index, { find: quote, quote, gone: false }), null);
-  editor.destroy();
+  // Inside another word: not by any path.
+  const all = everyPath(opening, other, quote, quote);
+  assert.deepEqual(Object.entries(all).filter(([, w]) => w !== null), []);
+  assert.ok("undo" in all);
 });
 
 test("a quote of part of a word, as a reader may select it, is still placed on it", () => {
@@ -607,4 +663,10 @@ test("a quote of part of a word, as a reader may select it, is still placed on i
   const quote = { exact: "lined it", prefix: text.slice(at - 32 < 0 ? 0 : at - 32, at), suffix: text.slice(at + 8, at + 40) };
   assert.deepEqual(findWhole({ text }, quote), [at, at + 8]);
   assert.deepEqual(findThread({ text }, { find: quote, quote, gone: false }), [at, at + 8]);
+  // The editor reads a selection of it the same way and keeps it there.
+  const md = `${text}\n`;
+  const e = harbourEditor(md, [{ id: "t-x", find: quote, quote, gone: false }]);
+  assert.deepEqual(e.handle.quotes().get("t-x"), quote);
+  assert.deepEqual(e.handle.changes(e.handle.quotes()), []);
+  e.editor.destroy();
 });

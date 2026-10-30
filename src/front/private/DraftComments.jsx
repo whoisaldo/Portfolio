@@ -234,9 +234,7 @@ function useAnchors(body, items, bodyKey) {
       const index = indexText(root);
       for (const t of list) {
         // A passage deleted and then brought back (a version restored) is
-        // where its reader's words are; one restored between edits on
-        // either side of it, where its words are with the context each side
-        // once had (./place.js).
+        // where its reader's words are (./place.js).
         const at = findThread(index, t);
         if (at) placedAt.push({ id: t.id, at });
       }
