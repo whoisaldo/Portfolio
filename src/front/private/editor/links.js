@@ -57,7 +57,7 @@ export function safeHref(raw) {
 
 /**
  * The address TipTap's link gives a bare address it finds in text
- * ("example.com", "someone@example.com"), checked.
+ * ("example.com", "hello@sideband.studio"), checked.
  */
 export function safeAutoLink(value) {
   const href = /^[a-z][a-z0-9+.-]*:/i.test(value) ? value : value.includes("@") ? `mailto:${value}` : `https://${value}`;

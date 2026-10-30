@@ -51,7 +51,7 @@ const ALLOWED = [
   ["HTTP://EXAMPLE.COM", "HTTP://EXAMPLE.COM"],
   ["  https://example.com  ", "https://example.com"],
   ["https://exa\tmple.com", "https://example.com"],
-  ["mailto:someone@example.com", "mailto:someone@example.com"],
+  ["mailto:hello@sideband.studio", "mailto:hello@sideband.studio"],
   ["/blog/a-made-up-post/", "/blog/a-made-up-post/"],
   ["#a-heading", "#a-heading"],
 ];
@@ -63,7 +63,7 @@ test("only http, https, mailto, paths on this site and places on the page are li
 
 test("a bare address found in text is linked only as a web address or an email", () => {
   assert.equal(safeAutoLink("example.com"), true);
-  assert.equal(safeAutoLink("someone@example.com"), true);
+  assert.equal(safeAutoLink("hello@sideband.studio"), true);
   assert.equal(safeAutoLink("https://example.com"), true);
   assert.equal(safeAutoLink("javascript:alert(1)"), false);
   assert.equal(safeAutoLink("ftp://example.com"), false);
