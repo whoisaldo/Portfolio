@@ -26,7 +26,6 @@ import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { findQuote, groupQuotes, indexText, quoteFromRange } from "../../quotes.js";
-import { findMoved } from "../moved.js";
 
 const key = new PluginKey("commentAnchors");
 // As the read view quotes a selection.
@@ -231,9 +230,7 @@ export function commentAnchors() {
    * words it was last on (`lost`, for a passage deleted here), by those it
    * had in a text a restore replaced, then by its anchor, then by the
    * reader's own quote, so a thread whose passage was deleted and saved as
-   * gone is found again when its words come back. Each by its words and
-   * context first; failing all of those, as a passage edited around
-   * (../moved.js), since this text is being edited.
+   * gone is found again when its words come back.
    */
   const search = (items, lost = new Map()) => {
     const add = [];
@@ -242,21 +239,16 @@ export function commentAnchors() {
     let index = null;
     for (const t of todo) {
       searched.add(t.id);
-      const by = [lost.get(t.id), ...(past.get(t.id) || []), t.find, t.quote].filter((q) => q?.exact);
-      if (!by.length) continue;
-      index ??= indexText(view.dom);
-      const place = (find) => {
-        for (const q of by) {
-          const at = find(index, q);
-          const range = at && toRange(view, index, at);
-          if (range) return [range, q];
-        }
-        return null;
-      };
-      const hit = place(findQuote) || place(findMoved);
-      if (!hit) continue;
-      add.push([t.id, hit[0]]);
-      words.set(t.id, quoteOf(hit[1]));
+      for (const q of [lost.get(t.id), ...(past.get(t.id) || []), t.find, t.quote]) {
+        if (!q?.exact) continue;
+        index ??= indexText(view.dom);
+        const at = findQuote(index, q);
+        const range = at && toRange(view, index, at);
+        if (!range) continue;
+        add.push([t.id, range]);
+        words.set(t.id, quoteOf(q));
+        break;
+      }
     }
     return add;
   };

@@ -8,7 +8,6 @@ import { extensions, replaceAll } from "../src/front/private/editor/schema.js";
 import { fromMarkdown } from "../src/front/private/editor/markdown.js";
 import { commentAnchors } from "../src/front/private/editor/anchors.js";
 import { findQuote, indexText, quoteFromRange } from "../src/front/quotes.js";
-import { findMoved } from "../src/front/private/moved.js";
 
 const BODY = `## The harbour
 
@@ -406,13 +405,42 @@ test("undoing a restore puts a passage back on its words even with words pasted 
   editor.destroy();
 });
 
-test("a passage edited around is found when its words occur once and half their context agrees", () => {
-  const index = { text: "Morning notes. The ferry left at dawn and the gulls followed PASTED it out past the breakwater, calling all the way." };
-  const quote = { exact: "gulls followed", prefix: "The ferry left at dawn and the ", suffix: " it out past the breakwater, cal" };
-  assert.equal(findQuote(index, quote), null, "too little context for findQuote");
-  assert.deepEqual(findMoved(index, quote), [index.text.indexOf("gulls followed"), index.text.indexOf("gulls followed") + 14]);
-  // Words that occur twice are not guessed at.
-  assert.equal(findMoved({ text: `${index.text} Later the gulls followed again.` }, quote), null);
-  // Nor are words with less than half their context.
-  assert.equal(findMoved({ text: "Something else entirely and the gulls followed nothing at all here today." }, quote), null);
+// A one-word quote whose passage was deleted and saved as gone, then a text
+// where the word is only part of another word, with the quote's words after
+// it but none before: it is not that passage, in the editor or the read view.
+const LEDGER = `## Notes
+
+The keeper wrote the date in the ledger, then underlined it twice in red pencil from the drawer by the door.
+`;
+
+test("a gone one-word quote is not put on part of another word that has only its words after it", () => {
+  const { extension, handle } = commentAnchors();
+  const element = document.createElement("div");
+  document.body.append(element);
+  const editor = new Editor({ element, extensions: [...extensions(), extension], content: fromMarkdown(LEDGER).doc, injectCSS: false });
+  const text = indexText(editor.view.dom).text;
+  const at = text.indexOf(" it ") + 1;
+  const quote = { exact: "it", prefix: text.slice(at - 32, at), suffix: text.slice(at + 2, at + 34) };
+  handle.setItems([{ id: "t-it", find: quote, quote, gone: false }]);
+  assert.deepEqual(handle.quotes().get("t-it"), quote);
+
+  // The passage deleted and saved as gone.
+  editor.commands.setContent(fromMarkdown("A wholly new paragraph.\n").doc);
+  handle.findMissing();
+  const gone = handle.changes(handle.quotes());
+  assert.deepEqual(gone, [{ thread: "t-it", exact: "", prefix: "", suffix: "" }]);
+  handle.sent(gone);
+  handle.setItems([{ id: "t-it", find: null, quote, gone: true }]);
+
+  // A new sentence ending in a word with "it" inside it, then the quote's words after it.
+  editor.commands.setContent(fromMarkdown(`A separate example: bullshit${quote.suffix}\n`).doc);
+  handle.findMissing();
+  const index = indexText(editor.view.dom);
+  assert.equal(index.text.indexOf("it"), index.text.lastIndexOf("it"), "the word occurs once, inside another");
+  assert.ok(index.text.includes(`bullshit${quote.suffix}`));
+  assert.deepEqual(handle.quotes().get("t-it"), { gone: true });
+  assert.deepEqual(handle.changes(handle.quotes()), []);
+  // The read view looks for a gone thread by the reader's quote the same way.
+  assert.equal(findQuote(index, quote), null);
+  editor.destroy();
 });
