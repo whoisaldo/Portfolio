@@ -1,5 +1,7 @@
 // test/place.test.mjs: findWhole places a quote just as findQuote does
-// wherever its words start and end at a word's edge. Every text is made up.
+// wherever its words start and end at a word's edge, and reads a word as
+// whole characters, with the apostrophes and hyphens inside it. Every text is
+// made up.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { findQuote } from "../src/front/quotes.js";
@@ -62,4 +64,60 @@ test("where every place of a quote's words starts and ends at a word's edge, fin
   }
   // Not only one kind of case.
   assert.ok(placed > 500 && cases - placed > 500 && several > 500, JSON.stringify({ placed, several }));
+});
+
+// The words after a one-word passage, as a quote stores them.
+const SUN = " follows the path around the sun.";
+const SUN32 = SUN.slice(0, 32);
+
+test("a letter outside the basic plane is part of its word, before a passage or after it", () => {
+  const quote = { exact: "it", prefix: "", suffix: SUN32 };
+  assert.equal(findWhole({ text: `\u{10400}it${SUN}` }, quote), null);
+  assert.equal(findWhole({ text: `\u{1D504}it${SUN}` }, quote), null);
+  assert.deepEqual(findWhole({ text: `it${SUN}` }, quote), [0, 2]);
+  const end = { exact: "orb", prefix: "The clerk called the final witness ".slice(-32), suffix: "." };
+  assert.equal(findWhole({ text: "The clerk called the final witness orb\u{10428}." }, end), null);
+  assert.deepEqual(findWhole({ text: "The clerk called the final witness orb." }, end), [35, 38]);
+  // Or as the part of a word a quote starts inside.
+  const inside = { exact: "it", prefix: "\u{10400}", suffix: SUN32 };
+  assert.deepEqual(findWhole({ text: `\u{10400}it${SUN}` }, inside), [2, 4]);
+  assert.equal(findWhole({ text: `\u{1D504}it${SUN}` }, inside), null);
+  assert.equal(findWhole({ text: `a\u{10400}it${SUN}` }, inside), null);
+});
+
+test("an apostrophe or hyphen inside a word is part of it, and one at a word's edge is not", () => {
+  for (const join of ["'", "\u2019", "-", "\u2010", "\u2011"]) {
+    const quote = { exact: "t", prefix: `don${join}`, suffix: SUN32 };
+    assert.deepEqual(findWhole({ text: `don${join}t${SUN}` }, quote), [4, 5], join);
+    assert.equal(findWhole({ text: `won${join}t${SUN}` }, quote), null, join);
+    assert.equal(findWhole({ text: `t${SUN}` }, quote), null, join);
+    // A quote of the start of the word, which goes on past the joiner.
+    const start = { exact: "don", prefix: "", suffix: `${join}t${SUN}`.slice(0, 32) };
+    assert.deepEqual(findWhole({ text: `don${join}t${SUN}` }, start), [0, 3], join);
+    assert.equal(findWhole({ text: `don${join}tx${SUN}` }, start), null, join);
+  }
+  const entry = { exact: "entry", prefix: "no-", suffix: SUN32 };
+  assert.deepEqual(findWhole({ text: `no-entry${SUN}` }, entry), [3, 8]);
+  assert.equal(findWhole({ text: `re-entry${SUN}` }, entry), null);
+  // A word after a joiner is not at a word's edge.
+  const word = { exact: "entry", prefix: "", suffix: SUN32 };
+  assert.equal(findWhole({ text: `re-entry${SUN}` }, word), null);
+  assert.equal(findWhole({ text: `don't${SUN}` }, { exact: "t", prefix: "", suffix: SUN32 }), null);
+  // A quote mark or a dash between spaces is at an edge.
+  const said = { exact: "tis", prefix: "She said '", suffix: SUN32 };
+  assert.deepEqual(findWhole({ text: `She said 'tis${SUN}` }, said), [10, 13]);
+  const dash = { exact: "entry", prefix: "The way - ", suffix: SUN32 };
+  assert.deepEqual(findWhole({ text: `The way - entry${SUN}` }, dash), [10, 15]);
+});
+
+test("a context cut through a letter outside the basic plane still places its passage", () => {
+  const text = `it${"a".repeat(31)}\u{10400}`;
+  const quote = { exact: "it", prefix: "", suffix: text.slice(2, 34) };
+  assert.deepEqual(findQuote({ text }, quote), [0, 2]);
+  assert.deepEqual(findWhole({ text }, quote), [0, 2]);
+  const before = `\u{10400}${"a".repeat(31)}it${SUN}`;
+  const after = { exact: "it", prefix: before.slice(1, 33), suffix: SUN32 };
+  assert.deepEqual(findWhole({ text: before }, after), [33, 35]);
+  // The part of a word it has is still needed.
+  assert.equal(findWhole({ text: `it${"a".repeat(30)}b\u{10400}` }, quote), null);
 });
