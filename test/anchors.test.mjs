@@ -181,12 +181,15 @@ test("undoing a restore that had no place for a passage finds it again", () => {
   editor.destroy();
 });
 
-test("text typed where a deleted passage was does not bring it back", () => {
-  const { editor, handle } = setup();
+test("text typed where a deleted passage was is not it, until the passage is looked for again", () => {
+  const { editor, handle, keeper } = setup();
   const from = posOf(editor, "lighthouse keeper");
   editor.commands.deleteRange({ from, to: from + "lighthouse keeper".length });
   editor.commands.insertContentAt(from, "lighthouse keeper");
   assert.deepEqual(handle.quotes().get("t-keeper"), { gone: true });
+  // As the editor does once typing pauses: its words and context are back.
+  handle.findMissing();
+  assert.deepEqual(handle.quotes().get("t-keeper"), keeper);
   editor.destroy();
 });
 
@@ -270,6 +273,85 @@ test("a passage deleted, saved as gone, then undone, is sent again on its words"
   assert.deepEqual(gone, [{ thread: "t-ferry", exact: "", prefix: "", suffix: "" }]);
   handle.sent(gone);
   editor.commands.undo();
+  assert.deepEqual(handle.changes(handle.quotes()), [{ thread: "t-ferry", ...ferry }]);
+  editor.destroy();
+});
+
+test("a thread saved as gone is found again by its reader's quote when a restore brings its words back, and sent", () => {
+  const { editor, handle, ferry } = setup();
+  // The server has the passage as deleted: only the reader's quote is left.
+  handle.setItems([
+    { id: "t-ferry", find: null, quote: ferry, gone: true },
+    { id: "t-lost", find: null, quote: { exact: "words that are nowhere", prefix: "", suffix: "" }, gone: true },
+  ]);
+  assert.equal(handle.quotes().has("t-ferry"), true, "its words are in the text");
+  assert.deepEqual(handle.changes(handle.quotes()), [{ thread: "t-ferry", ...ferry }]);
+  // Gone from the text, as the server has it: nothing to send.
+  editor.commands.setContent(fromMarkdown(BODY.replace("the gulls followed it out", "nobody saw it")).doc, { emitUpdate: false });
+  handle.reset();
+  assert.equal(handle.quotes().has("t-ferry"), false);
+  assert.deepEqual(handle.changes(handle.quotes()), []);
+  // A version with the words restored: found, and sent on them.
+  editor.commands.setContent(fromMarkdown(BODY).doc, { emitUpdate: false });
+  handle.reset();
+  assert.deepEqual(handle.quotes().get("t-ferry"), ferry);
+  const back = handle.changes(handle.quotes());
+  assert.deepEqual(back, [{ thread: "t-ferry", ...ferry }]);
+  handle.sent(back);
+  assert.deepEqual(handle.changes(handle.quotes()), []);
+  assert.equal(handle.quotes().has("t-lost"), false);
+  editor.destroy();
+});
+
+test("a thread with no passage is found again when its words are pasted back", () => {
+  const { editor, handle, ferry } = setup();
+  handle.setItems([{ id: "t-ferry", find: null, quote: ferry, gone: true }]);
+  const from = posOf(editor, "gulls followed it out");
+  editor.commands.deleteRange({ from, to: from + "gulls followed it out".length });
+  handle.reset();
+  assert.equal(handle.quotes().has("t-ferry"), false);
+  editor.commands.insertContentAt(from, "gulls followed it out");
+  handle.findMissing();
+  assert.deepEqual(handle.quotes().get("t-ferry"), ferry);
+  assert.deepEqual(handle.changes(handle.quotes()), [{ thread: "t-ferry", ...ferry }]);
+  editor.destroy();
+});
+
+test("a thread whose anchor is not in the text is found by its reader's quote, and its place sent", () => {
+  const { editor, handle, ferry } = setup();
+  const moved = { exact: "gulls flew it out", prefix: ferry.prefix, suffix: ferry.suffix };
+  handle.setItems([{ id: "t-ferry", find: moved, quote: ferry, gone: false }]);
+  assert.deepEqual(handle.quotes().get("t-ferry"), ferry);
+  assert.deepEqual(handle.changes(handle.quotes()), [{ thread: "t-ferry", ...ferry }]);
+  editor.destroy();
+});
+
+test("after Keep mine every passage is sent again, a deleted one as deleted", () => {
+  const { editor, handle, ferry, keeper } = setup();
+  assert.deepEqual(handle.changes(handle.quotes()), []);
+  const from = posOf(editor, "lighthouse keeper");
+  editor.commands.deleteRange({ from, to: from + "lighthouse keeper".length });
+  handle.sent(handle.changes(handle.quotes()));
+  assert.deepEqual(handle.changes(handle.quotes()), []);
+  handle.forget();
+  const all = handle.changes(handle.quotes());
+  assert.deepEqual(all.sort((a, b) => a.thread.localeCompare(b.thread)), [
+    { thread: "t-ferry", ...ferry },
+    { thread: "t-keeper", exact: "", prefix: "", suffix: "" },
+  ]);
+  handle.sent(all);
+  assert.deepEqual(handle.changes(handle.quotes()), []);
+  void keeper;
+  editor.destroy();
+});
+
+test("the comments saying the server has a passage elsewhere makes it differ, so it is sent", () => {
+  const { editor, handle, ferry, keeper } = setup();
+  // Another session moved it; the next poll says so.
+  handle.setItems([
+    { id: "t-ferry", find: { exact: "gulls followed", prefix: ferry.prefix, suffix: " it out" }, quote: ferry },
+    { id: "t-keeper", find: keeper, quote: keeper },
+  ]);
   assert.deepEqual(handle.changes(handle.quotes()), [{ thread: "t-ferry", ...ferry }]);
   editor.destroy();
 });

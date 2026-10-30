@@ -35,8 +35,9 @@
 // A thread's passage is where its `anchor` says, once Ali has edited the
 // draft around it (the editor keeps anchors up to date, ./editor/), and where
 // the reader's own quote says until then. An anchor of {gone: true} is a
-// passage deleted. The reader's quote never changes, and a card whose passage
-// was edited says what it was first on.
+// passage deleted, found again by the reader's quote should its words come
+// back. The reader's quote never changes, and a card whose passage was
+// edited says what it was first on.
 //
 // While Ali edits (`bridge`, from ./editor/DraftEditor.jsx), the cards are the
 // same but the passages are the editor's decorations, which follow his edits
@@ -177,7 +178,8 @@ const byTime = (a, b) => a.created_at.localeCompare(b.created_at) || a.id.locale
  * Comments into threads: each first comment with its replies, oldest first.
  * `quote` is the passage as the reader quoted it; `find` is what to look for
  * in the text now: the anchor when the editor has moved it, null when its
- * passage was deleted.
+ * passage was deleted (`gone`: then the reader's quote is looked for, in
+ * case its words are back).
  */
 function toThreads(comments) {
   const threads = new Map();
@@ -185,7 +187,7 @@ function toThreads(comments) {
     if (c.thread) continue;
     const anchor = c.anchor && typeof c.anchor === "object" ? c.anchor : null;
     const find = anchor?.gone ? null : anchor?.exact ? anchor : c.quote;
-    threads.set(c.id, { id: c.id, root: c, replies: [], quote: c.quote, find, resolved: c.resolved });
+    threads.set(c.id, { id: c.id, root: c, replies: [], quote: c.quote, find, gone: Boolean(anchor?.gone), resolved: c.resolved });
   }
   for (const c of comments) if (c.thread) threads.get(c.thread)?.replies.push(c);
   return [...threads.values()];
@@ -201,7 +203,7 @@ function toThreads(comments) {
 function useAnchors(body, items, bodyKey) {
   // `bodyKey` is the text's: new text (or the text back after editing) is
   // marked afresh.
-  const key = JSON.stringify([bodyKey, ...items.map((i) => [i.id, Boolean(i.resolved), i.find?.exact, i.find?.prefix, i.find?.suffix])]);
+  const key = JSON.stringify([bodyKey, ...items.map((i) => [i.id, Boolean(i.resolved), Boolean(i.gone), i.find?.exact, i.find?.prefix, i.find?.suffix])]);
   const latest = useRef(items);
   latest.current = items;
   const [drawn, setDrawn] = useState(null);
@@ -230,7 +232,9 @@ function useAnchors(body, items, bodyKey) {
     try {
       const index = indexText(root);
       for (const t of list) {
-        const at = t.find && findQuote(index, t.find);
+        // A passage deleted and then brought back (a version restored) is
+        // where its reader's words are.
+        const at = (t.find && findQuote(index, t.find)) || (t.gone && t.quote && findQuote(index, t.quote));
         if (at) placedAt.push({ id: t.id, at });
       }
     } catch (err) {
@@ -280,7 +284,7 @@ function useEditorAnchors(bridge, threads, visible) {
   const [found, setFound] = useState(NOTHING);
   useEffect(() => (bridge ? bridge.subscribe(setFound) : setFound(NOTHING)), [bridge]);
   const shown = new Set(visible.map((t) => t.id));
-  const items = threads.map((t) => ({ id: t.id, find: t.find, resolved: Boolean(t.resolved), hidden: !shown.has(t.id) }));
+  const items = threads.map((t) => ({ id: t.id, find: t.find, quote: t.quote, gone: t.gone, resolved: Boolean(t.resolved), hidden: !shown.has(t.id) }));
   const key = JSON.stringify(items);
   const latest = useRef(items);
   latest.current = items;
@@ -716,7 +720,7 @@ function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHo
       {showQuote && t.quote && <blockquote className="draft-quote">{placed && t.find ? t.find.exact : t.quote.exact}</blockquote>}
       {/* Its passage was edited: what the reader first commented on. In the
           list of changed passages, that is the quote above already. */}
-      {t.quote && t.find !== t.quote && t.find?.exact !== t.quote.exact && (placed || !showQuote) && (
+      {t.quote && t.find && t.find !== t.quote && t.find.exact !== t.quote.exact && (placed || !showQuote) && (
         <p className="draft-original">
           <span>Originally on:</span> {t.quote.exact}
         </p>

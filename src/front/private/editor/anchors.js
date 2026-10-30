@@ -12,7 +12,10 @@
 // are.
 //
 // A passage deleted entirely is a range of nothing: its thread goes to "On
-// text that changed". Undoing the deletion brings the words back inside it.
+// text that changed". Undoing the deletion brings the words back inside it,
+// and a thread with no passage is looked for again after each change, so
+// words brought back any other way (restoring a version, pasting) have their
+// thread again too.
 // A passage in a raw block (a video's caption) is the whole block, outlined;
 // deleting the block deletes it.
 //
@@ -29,6 +32,13 @@ const key = new PluginKey("commentAnchors");
 const MAX = 500;
 
 const EMPTY = { ranges: new Map(), items: [], emphasis: { active: [], hover: [] }, deco: DecorationSet.empty };
+
+const GONE = { exact: "", prefix: "", suffix: "" };
+// Differs from every place a passage can have, so it is sent.
+const UNSENT = { exact: null };
+const quoteOf = (q) => ({ exact: q.exact, prefix: q.prefix || "", suffix: q.suffix || "" });
+/** What the server has for a thread: its anchor, the reader's quote while it has none, empty once deleted. */
+const held = (t) => (t.gone ? GONE : t.find?.exact ? quoteOf(t.find) : null);
 
 const same = (a, b) => (a || []).length === (b || []).length && (a || []).every((x, i) => x === b[i]);
 
@@ -150,8 +160,11 @@ function decorations(doc, { ranges, items, emphasis }) {
  * The TipTap extension that keeps the passages, and the comments' handle on
  * it once the editor is up (`attach(editor)`):
  *
- *   setItems(items)     the threads, [{id, find, resolved, hidden}]: `find` is
- *                       {exact, prefix, suffix} to look for, null for none
+ *   setItems(items)     the threads, [{id, find, quote, gone, resolved, hidden}]:
+ *                       `find` is {exact, prefix, suffix} to look for (the
+ *                       anchor, or the reader's `quote` while there is none),
+ *                       null for none; `gone` when the server has the
+ *                       passage as deleted
  *   emphasize(a, h)     the thread ids in hand and hovered
  *   subscribe(fn)       fn(found) after every change, found as the comments
  *                       margin reads it: {placed, groups, marks, settled}
@@ -161,8 +174,9 @@ function decorations(doc, { ranges, items, emphasis }) {
  *                       has, as the anchors endpoint takes them
  *   sent(changes)       the server has them now
  *   reset()             find every passage again (a new document)
- *   findMissing()       look again for the threads with no passage at all,
- *                       after an undo or redo
+ *   forget()            send every passage again after the next save
+ *   findMissing()       look again for the threads with no passage, after a
+ *                       change that may have brought their words back
  */
 export function commentAnchors() {
   let view = null;
@@ -170,11 +184,12 @@ export function commentAnchors() {
   let frame = 0;
   let searched = new Set();
   // The quote or anchor each passage was found by, and what the server has
-  // for it: that, then whatever it last took, an empty one for gone. Apart,
-  // so a raw block an undo brings back after its deletion was saved is its
-  // words again, not that deletion.
+  // for it: what the comments say, then whatever it last took, an empty one
+  // for gone. Apart, so a raw block an undo brings back after its deletion
+  // was saved is its words again, not that deletion.
   let words = new Map();
-  let known = new Map();
+  const known = new Map();
+  const heard = new Map();
 
   const state = () => (view ? key.getState(view.state) : EMPTY);
 
@@ -205,31 +220,53 @@ export function commentAnchors() {
     });
   };
 
-  /** Each thread not looked for yet, looked for in the editor's text. */
-  const search = (items) => {
+  /**
+   * Each thread not looked for yet, looked for in the editor's text: by the
+   * words it was last on (`lost`, for a passage deleted here), then by its
+   * anchor, then by the reader's own quote, so a thread whose passage was
+   * deleted and saved as gone is found again when its words come back.
+   */
+  const search = (items, lost = new Map()) => {
     const add = [];
     const todo = items.filter((t) => !searched.has(t.id));
     if (!todo.length) return add;
     let index = null;
     for (const t of todo) {
       searched.add(t.id);
-      if (!t.find?.exact) continue;
-      index ??= indexText(view.dom);
-      const at = findQuote(index, t.find);
-      const range = at && toRange(view, index, at);
-      if (range) {
+      for (const q of [lost.get(t.id), t.find, t.quote]) {
+        if (!q?.exact) continue;
+        index ??= indexText(view.dom);
+        const at = findQuote(index, q);
+        const range = at && toRange(view, index, at);
+        if (!range) continue;
         add.push([t.id, range]);
-        const q = { exact: t.find.exact, prefix: t.find.prefix || "", suffix: t.find.suffix || "" };
-        words.set(t.id, q);
-        known.set(t.id, q);
+        words.set(t.id, quoteOf(q));
+        break;
       }
     }
     return add;
   };
 
+  /**
+   * What the server has for each thread, as the comments say it, whenever
+   * that changes: a passage then differing from it is sent. Kept through a
+   * new document: it is the server's, not the text's.
+   */
+  const hear = (items) => {
+    for (const t of items) {
+      const has = held(t);
+      const said = JSON.stringify(has);
+      if (heard.get(t.id) === said) continue;
+      heard.set(t.id, said);
+      if (has) known.set(t.id, has);
+      else known.delete(t.id);
+    }
+  };
+
   const handle = {
     setItems(items) {
       if (!view) return;
+      hear(items);
       const tr = view.state.tr.setMeta(key, { items, add: search(items) });
       view.dispatch(tr.setMeta("addToHistory", false));
     },
@@ -288,22 +325,34 @@ export function commentAnchors() {
     reset() {
       searched = new Set();
       words = new Map();
-      known = new Map();
       if (!view) return;
       const { items } = state();
       view.dispatch(view.state.tr.setMeta(key, { reset: true }).setMeta("addToHistory", false));
       handle.setItems(items);
     },
-    // A thread not found in a version that was restored has no range to map,
-    // so undoing the restore cannot bring its passage back by itself: it is
-    // looked for again in the text the undo brought back.
+    // After "Keep mine": the server may have places another session sent, so
+    // every passage is sent again, a deleted one as deleted.
+    forget() {
+      for (const id of state().ranges.keys()) known.set(id, UNSENT);
+    },
+    // A thread with no passage, never found or deleted, is looked for again
+    // in the text as it is now: an undo, a restore, a paste or typing may
+    // have brought its words back.
     findMissing() {
       if (!view) return;
       const { ranges, items } = state();
-      const missing = items.filter((t) => !ranges.has(t.id) && searched.has(t.id));
+      const lost = new Map();
+      const missing = items.filter((t) => {
+        const r = ranges.get(t.id);
+        return searched.has(t.id) && !(r?.from < r?.to) && (r?.lost?.exact || t.find?.exact || t.quote?.exact);
+      });
       if (!missing.length) return;
-      for (const t of missing) searched.delete(t.id);
-      handle.setItems(items);
+      for (const t of missing) {
+        searched.delete(t.id);
+        if (ranges.get(t.id)?.lost) lost.set(t.id, ranges.get(t.id).lost);
+      }
+      const add = search(items, lost);
+      if (add.length) view.dispatch(view.state.tr.setMeta(key, { add }).setMeta("addToHistory", false));
     },
     get dom() {
       return view?.dom ?? null;

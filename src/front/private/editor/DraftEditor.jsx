@@ -37,6 +37,7 @@ import { Details, Toolbar } from "./Toolbar";
 import "./editor.css";
 
 const WAIT = 1500;
+const SEARCH = 400;
 const BACKOFF = [2000, 4000, 8000, 16_000, 30_000];
 // keepalive requests are limited to 64 KB, body and all.
 const KEEPALIVE = 60_000;
@@ -394,8 +395,14 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
         setMeta(m);
       }
       if (transaction.docChanged && !transaction.getMeta(FIELDS)) changed();
-      // Once the undone text is on screen, where the passages are looked for.
-      if (transaction.docChanged && isHistoryTransaction(transaction)) queueMicrotask(() => st.anchors.findMissing());
+      // Threads with no passage are looked for in the text once it is on
+      // screen: at once after an undo or redo, and after typing or a paste
+      // once it pauses, before the save that sends what is found.
+      if (transaction.docChanged) {
+        clearTimeout(st.search);
+        if (isHistoryTransaction(transaction)) queueMicrotask(() => st.anchors.findMissing());
+        else st.search = setTimeout(() => st.anchors.findMissing(), SEARCH);
+      }
       if (!frame)
         frame = requestAnimationFrame(() => {
           frame = 0;
@@ -424,6 +431,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       clearTimeout(st.timer);
       clearTimeout(st.retry);
       clearTimeout(st.local);
+      clearTimeout(st.search);
       ed.off("transaction", onTransaction);
       ed.off("blur", onBlur);
       onBridge(null);
@@ -540,9 +548,10 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
    * restore. The text, title, date and summary are replaced in one step of
    * its own in the undo history, so Cmd+Z brings back all four as they were
    * and redo the version's again (./schema.js). The passages are then found again in the
-   * new text, as after "Load the latest", and saved after the save as
-   * usual. A thread whose words are not in it is not found, and is listed
-   * under "On text that changed", its anchor kept as it was.
+   * new text, as after "Load the latest", by their anchors or their
+   * readers' quotes, those saved as deleted too, and saved after the save
+   * as usual. A thread whose words are not in it is not found, and is
+   * listed under "On text that changed", its anchor kept as it was.
    */
   const restoreVersion = useCallback(
     async (version) => {
@@ -577,6 +586,9 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     st.latest = { ...st.latest, ...st.conflict };
     st.base = st.conflict.updated_at;
     st.conflict = null;
+    // The other session may have sent its own places for the passages:
+    // they are all sent again after this save, for this text.
+    st.anchors.forget();
     setConflict(null);
     setStatus({ state: "pending" });
     save();
