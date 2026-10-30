@@ -119,8 +119,14 @@ test("a context cut through a letter outside the basic plane still places its pa
   const before = `\u{10400}${"a".repeat(31)}it${SUN}`;
   const after = { exact: "it", prefix: before.slice(1, 33), suffix: SUN32 };
   assert.deepEqual(findWhole({ text: before }, after), [33, 35]);
+  // As the server stores them, with U+FFFD for the half.
+  const stored = { exact: "it", prefix: after.prefix.toWellFormed(), suffix: quote.suffix.toWellFormed() };
+  assert.equal(stored.prefix[0], "\ufffd");
+  assert.deepEqual(findWhole({ text }, { ...quote, suffix: stored.suffix }), [0, 2]);
+  assert.deepEqual(findWhole({ text: before }, { ...after, prefix: stored.prefix }), [33, 35]);
   // The part of a word it has is still needed.
   assert.equal(findWhole({ text: `it${"a".repeat(30)}b\u{10400}` }, quote), null);
+  assert.equal(findWhole({ text: `it${"a".repeat(30)}b\u{10400}` }, { ...quote, suffix: stored.suffix }), null);
 });
 
 // Words for the texts below: their pieces, the marks that join two of them,
@@ -153,13 +159,14 @@ test("on seeded texts, a passage still as it was quoted is placed there, and non
   const pick = (list) => list[Math.floor(rand() * list.length)];
   const word = () => {
     let w = "";
-    for (let n = 1 + Math.floor(rand() * 4); n > 0; n--) w += pick(PIECES);
+    // Now and then one longer than a context, so a context ends inside it.
+    for (let n = rand() < 0.05 ? 14 + Math.floor(rand() * 10) : 1 + Math.floor(rand() * 4); n > 0; n--) w += pick(PIECES);
     if (rand() < 0.25) w += pick(JOINERS) + pick(PIECES) + (rand() < 0.5 ? pick(PIECES) : "");
     if (rand() < 0.08) w = pick(STANDALONE);
     return pick(OPEN) + w + pick(CLOSE);
   };
   const paragraph = () => Array.from({ length: 2 + Math.floor(rand() * 14) }, word).reduce((p, w) => p + pick(GAP) + w);
-  const counts = { intact: 0, duplicates: 0, partial: 0, partialJoiner: 0, partialWide: 0, cutInside: 0, changed: 0, changedJoiner: 0, changedWide: 0 };
+  const counts = { intact: 0, duplicates: 0, partial: 0, partialJoiner: 0, partialWide: 0, cutInside: 0, cutWord: 0, changed: 0, changedJoiner: 0, changedWide: 0 };
   const wide = (s) => /[\u{10000}-\u{10FFFF}]/u.test(s);
   const joined = (chars, a, b) => chars.slice(a, b).some((x) => x.word && !x.letter);
   /** The characters of the word around character `k`, as [first, past last]. */
@@ -206,15 +213,19 @@ test("on seeded texts, a passage still as it was quoted is placed there, and non
       const j = i + fq.exact.length;
       if (flat.slice(i - fq.prefix.length, i) === fq.prefix && flat.slice(j, j + fq.suffix.length) === fq.suffix) same++;
     }
-    const found = findWhole(index, quote);
-    if (same > 1) {
-      assert.ok(found === null || (found[0] === start && found[1] === end), JSON.stringify({ text, quote, found }));
-      counts.duplicates++;
-    } else {
-      assert.deepEqual(found, [start, end], JSON.stringify({ text, quote }));
+    // As quoted, and as the server stores it (a character cut in half at the
+    // end of a context becomes U+FFFD).
+    const saved = { exact: quote.exact, prefix: quote.prefix.toWellFormed(), suffix: quote.suffix.toWellFormed() };
+    for (const q of [quote, saved]) {
+      const found = findWhole(index, q);
+      if (same > 1) assert.ok(found === null || (found[0] === start && found[1] === end), JSON.stringify({ text, q, found }));
+      else assert.deepEqual(found, [start, end], JSON.stringify({ text, q }));
     }
+    if (same > 1) counts.duplicates++;
     counts.intact++;
     if (/^[\udc00-\udfff]/.test(quote.prefix) || /[\ud800-\udbff]$/.test(quote.suffix)) counts.cutInside++;
+    const last = chars[span(chars, b - 1)[1] - 1];
+    if ((inside.start && start - quote.prefix.length > chars[span(chars, a)[0]].i) || (inside.end && end + quote.suffix.length < last.i + last.c.length)) counts.cutWord++;
     const side = inside.start && (!inside.end || rand() < 0.5) ? "start" : inside.end ? "end" : null;
     if (!side) continue;
     const [from, to] = span(chars, side === "start" ? a : b - 1);
@@ -233,14 +244,16 @@ test("on seeded texts, a passage still as it was quoted is placed there, and non
     const x = pick(stored);
     const other = x.c.length === 2 ? (x.c === "\u{10400}" ? "\u{10428}" : "\u{10400}") : x.c === "q" ? "z" : "q";
     const changed = text.slice(0, x.i) + other + text.slice(x.i + x.c.length);
-    const at = findWhole({ text: changed }, quote);
-    assert.ok(!at || at[1] <= lo || at[0] >= hi, JSON.stringify({ changed, quote, at, word: [lo, hi] }));
+    for (const q of [quote, saved]) {
+      const at = findWhole({ text: changed }, q);
+      assert.ok(!at || at[1] <= lo || at[0] >= hi, JSON.stringify({ changed, q, at, word: [lo, hi] }));
+    }
     counts.changed++;
     if (joined(chars, from, to)) counts.changedJoiner++;
     if (wide(text.slice(lo, hi))) counts.changedWide++;
   }
   console.log(JSON.stringify(counts));
   // Every kind of case, many times.
-  for (const [k, n] of Object.entries(counts)) if (k !== "duplicates" && k !== "cutInside") assert.ok(n > 1000, `${k}: ${n}`);
-  assert.ok(counts.cutInside > 50, `cutInside: ${counts.cutInside}`);
+  for (const [k, n] of Object.entries(counts)) if (!["duplicates", "cutInside", "cutWord"].includes(k)) assert.ok(n > 1000, `${k}: ${n}`);
+  assert.ok(counts.cutInside > 100 && counts.cutWord > 100, JSON.stringify(counts));
 });

@@ -60,10 +60,11 @@ const wordBefore = (s, i, open = SHUT) => i > 0 && wordAt(s, i - charBefore(s, i
  * edge. Null for a side whose words start (end) with no word.
  */
 function rule(pre, words, suf) {
-  // A context cut through a character leaves half of it, which is not read.
+  // A context cut through a character keeps half of it, stored as U+FFFD
+  // (the database keeps only whole characters); either is not read.
   const open = { start: pre.length >= CONTEXT, end: suf.length >= CONTEXT };
-  if (/^[\udc00-\udfff]/.test(pre)) pre = pre.slice(1);
-  if (/[\ud800-\udbff]$/.test(suf)) suf = suf.slice(0, -1);
+  if (open.start && /^[\udc00-\udfff\ufffd]/.test(pre)) pre = pre.slice(1);
+  if (open.end && /[\ud800-\udbff\ufffd]$/.test(suf)) suf = suf.slice(0, -1);
   const text = pre + words + suf;
   const at = pre.length;
   const end = at + words.length;
