@@ -1,12 +1,12 @@
 // test/links.test.mjs: which addresses a draft's links may have, by every
-// way the editor makes a link. Every text
+// way the editor makes a link, and plain text pasted as it is. Every text
 // here is made up.
 import "./dom.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Editor } from "@tiptap/core";
-import { extensions } from "../src/front/private/editor/schema.js";
-import { fromMarkdown } from "../src/front/private/editor/markdown.js";
+import { PASTE_RULES, extensions } from "../src/front/private/editor/schema.js";
+import { fromMarkdown, toMarkdown } from "../src/front/private/editor/markdown.js";
 import { safeAutoLink, safeHref } from "../src/front/private/editor/links.js";
 
 const REFUSED = [
@@ -72,7 +72,7 @@ test("a bare address found in text is linked only as a web address or an email",
 function setup(md = "A short made-up paragraph.\n") {
   const element = document.createElement("div");
   document.body.append(element);
-  return new Editor({ element, extensions: extensions(), content: fromMarkdown(md).doc, injectCSS: false });
+  return new Editor({ element, extensions: extensions(), enablePasteRules: PASTE_RULES, content: fromMarkdown(md).doc, injectCSS: false });
 }
 
 const links = (editor) => {
@@ -102,5 +102,33 @@ test("a pasted or dropped <a> keeps only an address the check allows", () => {
   );
   assert.deepEqual(links(editor), ["/blog/x/", "https://example.com/"]);
   assert.ok(editor.state.doc.textContent.includes("one two three four five six seven"), "the words stay, as text");
+  editor.destroy();
+});
+
+test("plain text pastes as it is: no Markdown read into marks, an address still a link", () => {
+  const editor = setup();
+  editor.commands.setTextSelection(editor.state.doc.content.size - 1);
+  editor.view.pasteText(" **notbold** _notitalic_ `notcode` ~~notstruck~~ https://example.com/page");
+  const marks = new Set();
+  editor.state.doc.descendants((n) => n.marks.forEach((m) => marks.add(m.type.name)));
+  assert.deepEqual([...marks], ["link"]);
+  assert.deepEqual(links(editor), ["https://example.com/page"]);
+  assert.match(toMarkdown(editor.state.doc), /\\\*\\\*notbold\\\*\\\*/);
+  editor.destroy();
+});
+
+test("typing Markdown still formats, as before", () => {
+  const editor = setup("\n");
+  editor.commands.focus("end");
+  // An input rule runs on text typed, as the editor's own handleTextInput does.
+  const type = (text) => {
+    const { from, to } = editor.state.selection;
+    const handled = editor.view.someProp("handleTextInput", (f) => f(editor.view, from, to, text, () => editor.state.tr.insertText(text, from, to)));
+    if (!handled) editor.view.dispatch(editor.state.tr.insertText(text, from, to));
+  };
+  for (const ch of "**word**") type(ch);
+  const marks = new Set();
+  editor.state.doc.descendants((n) => n.marks.forEach((m) => marks.add(m.type.name)));
+  assert.ok(marks.has("bold"));
   editor.destroy();
 });

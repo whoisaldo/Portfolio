@@ -183,6 +183,9 @@ export const metaChange = (tr) => (tr.doc.attrs.meta && tr.doc.attrs.meta !== tr
 // dot in the host), kept under ./links.js's check.
 const autoLink = Link.options.shouldAutoLink;
 
+/** Plain text pastes as it is, as in Docs: only addresses in it become links, no Markdown is read into marks. */
+export const PASTE_RULES = ["link"];
+
 /**
  * Markdown's link title, `[text](href "title")`, which TipTap's link has no
  * place for. A pasted link's target, rel and class are not Markdown, so they

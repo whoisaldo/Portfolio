@@ -31,7 +31,7 @@ import { ApiError, mediaUrl, request, uploadMedia } from "../api";
 import { clearUnsaved, keepAnchors, writeUnsaved } from "../unsaved";
 import { embeds } from "../../embeds";
 import { canEdit, fromMarkdown, toMarkdown } from "./markdown";
-import { extensions, metaChange, replaceAll } from "./schema";
+import { PASTE_RULES, extensions, metaChange, replaceAll } from "./schema";
 import { REFUSED, safeHref } from "./links";
 import { commentAnchors } from "./anchors";
 import { Details, Toolbar } from "./Toolbar";
@@ -360,6 +360,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     const { doc, raws } = fromMarkdown(start.body);
     const ed = new Editor({
       element: mount.current,
+      enablePasteRules: PASTE_RULES,
       extensions: [...extensions({ ...tools, known: st.known }), extension, shortcuts],
       // The title, date and summary on the document too (./schema.js).
       content: { ...doc, attrs: { meta: metaRef.current } },
