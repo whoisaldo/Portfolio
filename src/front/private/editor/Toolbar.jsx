@@ -165,8 +165,14 @@ export function Toolbar({ editor, label, state, uploading, leaving, onDone, onLi
   // ---- folding to the room there is --------------------------------------------
   const [fold, setFold] = useState(0);
   const [width, setWidth] = useState("");
-  // The row's width each fold needed, so it unfolds only once there is room.
-  const need = useRef([]);
+  // For each fold, as last measured: how wide the formatting is (`content`),
+  // and how much more the rest of the row (More, the status, History,
+  // Publish, Done) takes at the fold before it (`grow`). A fold is undone
+  // once the formatting it would bring back fits beside the rest of the row
+  // as that is now, so a control is in More only while it does not fit.
+  const content = useRef([]);
+  const grow = useRef([]);
+  const measured = useRef(null);
   useLayoutEffect(() => {
     // The row's room, and the formatting's share of it, which shrinks when
     // the end grows (Publish's chunk arriving, its label changing).
@@ -179,15 +185,18 @@ export function Toolbar({ editor, label, state, uploading, leaving, onDone, onLi
     return () => ro.disconnect();
   }, []);
   useLayoutEffect(() => {
-    const w = bar.current.clientWidth;
-    const t = tools.current;
-    // To the pixel: scrollWidth is rounded, and half a pixel cut off is cut off.
-    const last = t.lastElementChild?.getBoundingClientRect().right ?? 0;
-    const over = Math.max(t.scrollWidth - t.clientWidth, Math.ceil(last - t.getBoundingClientRect().right));
-    if (over > 0 && fold < MOST) {
-      need.current[fold] = w + over;
-      setFold(fold + 1);
-    } else if (fold > 0 && w >= (need.current[fold - 1] ?? Infinity)) setFold(fold - 1);
+    // To the fraction of a pixel: half a pixel cut off is cut off.
+    const row = bar.current.getBoundingClientRect().width;
+    const box = tools.current.getBoundingClientRect();
+    const end = tools.current.lastElementChild?.getBoundingClientRect().right ?? box.left;
+    const rest = row - box.width;
+    content.current[fold] = end - box.left;
+    const prev = measured.current;
+    if (prev && Math.abs(prev.fold - fold) === 1) grow.current[Math.max(prev.fold, fold)] = prev.fold < fold ? prev.rest - rest : rest - prev.rest;
+    measured.current = { fold, rest };
+    const back = content.current[fold - 1];
+    if (end - box.right > 0.01 && fold < MOST) setFold(fold + 1);
+    else if (fold > 0 && back != null && back + rest + (grow.current[fold] ?? 0) <= row) setFold(fold - 1);
     // Measured again whenever the room or what fills it changes (the
     // status's words, Publish's label), not only on a resize.
   }, [fold, width, label, uploading, actions]);
