@@ -657,12 +657,42 @@ test("a quote with no words before it is not put inside another word, by any pat
   assert.ok("undo" in all);
 });
 
-test("a quote of part of a word, as a reader may select it, is still placed on it", () => {
+test("a quote whose context has part of a word is placed in that word, and not inside another that ends or starts the same", () => {
+  // As the brief puts it: the letters before it are all of the prefix.
+  const quote = { exact: "it", prefix: "orb", suffix: " follows the path" };
+  assert.deepEqual(findWhole({ text: "orbit follows the path" }, quote), [3, 5]);
+  // findQuote alone puts it inside "rabbit": its prefix's last letter agrees.
+  assert.deepEqual(findQuote({ text: "rabbit follows the path" }, quote), [4, 6]);
+  assert.equal(findWhole({ text: "rabbit follows the path" }, quote), null);
+  assert.equal(findWhole({ text: "a orbit follows the path" }, { ...quote, prefix: "rb" }), null);
+  const rabbit = everyPath("orbit follows the path.\n", "rabbit follows the path.\n", quote, quote);
+  assert.deepEqual(Object.entries(rabbit).filter(([, w]) => w !== null), []);
+  // Placed in its own word by every path.
+  const orbit = everyPath("Then orbit follows the path again.\n", "orbit follows the path.\n", quote, quote);
+  assert.deepEqual(orbit, { readAnchor: "it", readOther: "it", readGone: "it", readGoneOther: "it", open: "it", restore: "it", paste: "it" });
+
+  // The same after it: the word's rest must be the suffix's first letters.
+  const end = { exact: "orb", prefix: "Far out the ", suffix: "it" };
+  assert.deepEqual(findWhole({ text: "Far out the orbit follows the path" }, end), [12, 15]);
+  assert.deepEqual(findQuote({ text: "Far out the orbital follows the path" }, end), [12, 15]);
+  assert.equal(findWhole({ text: "Far out the orbital follows the path" }, end), null);
+  // Letters of other alphabets are letters too.
+  const greek = { exact: "ος", prefix: "λόγ", suffix: " follows the path" };
+  assert.deepEqual(findWhole({ text: "λόγος follows the path" }, greek), [3, 5]);
+  assert.equal(findWhole({ text: "νόμος follows the path" }, greek), null);
+});
+
+test("a quote of part of a word, as a reader may select it, is still placed on it, and only in its own word", () => {
   const text = "The keeper underlined it twice in red pencil from the drawer by the door.";
   const at = text.indexOf("lined");
   const quote = { exact: "lined it", prefix: text.slice(at - 32 < 0 ? 0 : at - 32, at), suffix: text.slice(at + 8, at + 40) };
   assert.deepEqual(findWhole({ text }, quote), [at, at + 8]);
   assert.deepEqual(findThread({ text }, { find: quote, quote, gone: false }), [at, at + 8]);
+  // In another word ending the same, with all of its context after it, not.
+  const other = text.replace("underlined", "outlined");
+  assert.ok(findQuote({ text: other }, { ...quote, prefix: "under" }));
+  assert.equal(findWhole({ text: other }, { ...quote, prefix: "under" }), null);
+  assert.equal(findThread({ text: other }, { find: { ...quote, prefix: "under" }, quote, gone: true }), null);
   // The editor reads a selection of it the same way and keeps it there.
   const md = `${text}\n`;
   const e = harbourEditor(md, [{ id: "t-x", find: quote, quote, gone: false }]);
