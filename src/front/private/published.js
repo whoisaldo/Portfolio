@@ -10,10 +10,11 @@
 
 // The stats service's rule (its lib/publish.js), kept here exactly and tested
 // against its own cases (test/published.test.mjs). A tag is `<span` and a
-// space or `>`, up to the first `>`, with no `<` in it; or `</span>`. A
-// highlight is its opening tag exactly as the editor writes it.
+// space or `>`, then up to a `>` any characters but `<`, `>` and quotes, or
+// quoted strings ("…" or '…') that may hold `<` and `>` but not `<span`; or
+// `</span>`. A highlight is its opening tag exactly as the editor writes it.
 const COLORS = ["yellow", "green", "blue", "pink", "purple"];
-const TAG = /<span(?=[\s>])[^<>]*>|<\/span\s*>/gi;
+const TAG = /<span(?=[\s>])(?:[^<>"']|"(?:(?!<span)[^"])*"|'(?:(?!<span)[^'])*')*>|<\/span\s*>/gi;
 const OPEN = new RegExp(`^<span data-hl="(${COLORS.join("|")})">$`);
 const ANY_OPEN = new RegExp(`<span data-hl="(${COLORS.join("|")})">`);
 

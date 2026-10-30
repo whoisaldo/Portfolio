@@ -1,6 +1,6 @@
 // test/published.test.mjs: the private blog's highlight unwrapping
 // (src/front/private/published.js), against the stats service's own tests
-// for it, copied from its test/editor.test.js at c0fe33e, so the two cannot
+// for it, copied from its test/editor.test.js at 0e8ad3a, so the two cannot
 // drift. `publishedSource` is the service's name for the public copy,
 // which is publicText here.
 import { test } from "node:test";
@@ -194,12 +194,38 @@ test("a stray <, <span or > anywhere lets no highlight through", () => {
   out("<span data-hl=\"yellow\"<span data-hl=\"yellow\">x</span>", "<span data-hl=\"yellow\"x", "half a tag before one stays as it is");
 });
 
+test("a span whose quoted attribute holds < or > is still a span, and no quote hides a highlight", () => {
+  const out = (md, want, why) => {
+    const got = stripHighlights(md);
+    assert.equal(got, want, why);
+    assert.doesNotMatch(got, EXACT, why);
+  };
+  // Review b1-final's input.
+  out('<span data-hl="yellow"><span title="a < b">inside</span> after</span>',
+    '<span title="a < b">inside</span> after', "a < in a quoted attribute of a span inside one");
+  out('<span data-hl="pink"><span title="a > b">in</span> out</span>', '<span title="a > b">in</span> out',
+    "a > in a quoted attribute of a span inside one");
+  out("<span data-hl=\"blue\"><span title='x < y > z'>in</span> out</span>", "<span title='x < y > z'>in</span> out",
+    "single quotes");
+  out("<span data-hl=\"green\"><span title='say \"<\"' data-x=\"it's >\">in</span> out</span>",
+    "<span title='say \"<\"' data-x=\"it's >\">in</span> out", "each kind of quote holding the other");
+  out('<span title="oops><span data-hl="yellow">x</span> done', '<span title="oops>x done',
+    "a quote never closed before one");
+  out("<span title='oops><span data-hl=\"purple\">x</span> done", "<span title='oops>x done",
+    "a single quote never closed before one");
+  out('<span title="a <span data-hl="yellow">">x</span>', '<span title="a ">x', "one inside a closed quote");
+  out("<span title='<span data-hl=\"pink\">'>x</span>", "<span title=''>x", "one inside a closed single quote");
+  out('<span title="<SPAN>">x</span> <span data-hl="blue">y</span>', '<span title="<SPAN>">x</span> y',
+    "a quote holding <span, in any case, does not make a tag; the <SPAN> in it is one");
+});
+
 test("fuzz: stray <, <span and >, unclosed tags and > in quotes: no highlight is left, and nothing else changes", () => {
   // The rule a character at a time, written apart from lib/publish.js: a tag
-  // is `<span` and a space or `>`, up to the first `>`, with no `<` before
-  // it, or `</span` and spaces and `>`, in any case; a highlight is the
-  // exact opening tag, and loses it and the `</span>` that closes it,
-  // counting every span; again until none is left.
+  // is `<span` and a space or `>`, then up to a `>` any characters but `<`,
+  // `>` and quotes, or quoted strings ("…" or '…') with no `<span` in them,
+  // or `</span` and spaces and `>`, in any case; a highlight is the exact
+  // opening tag, and loses it and the `</span>` that closes it, counting
+  // every span; again until none is left.
   const byHand = (md) => {
     for (;;) {
       const tags = [];
@@ -208,9 +234,14 @@ test("fuzz: stray <, <span and >, unclosed tags and > in quotes: no highlight is
         const rest = md.slice(i);
         let len = 0;
         if (rest.slice(0, 5).toLowerCase() === "<span" && /[\s>]/.test(rest[5] ?? "")) {
-          const gt = rest.indexOf(">");
-          const lt = rest.indexOf("<", 1);
-          if (gt > 0 && (lt < 0 || gt < lt)) len = gt + 1;
+          for (let j = 5; j < rest.length; j++) {
+            if (rest[j] === ">") len = j + 1;
+            if (rest[j] === ">" || rest[j] === "<") break;
+            if (rest[j] !== '"' && rest[j] !== "'") continue;
+            const k = rest.indexOf(rest[j], j + 1);
+            if (k < 0 || rest.slice(j + 1, k).toLowerCase().includes("<span")) break;
+            j = k;
+          }
         } else if (rest.slice(0, 6).toLowerCase() === "</span") {
           let j = 6;
           while (/\s/.test(rest[j] ?? "")) j++;
@@ -255,6 +286,9 @@ test("fuzz: stray <, <span and >, unclosed tags and > in quotes: no highlight is
     "<spanx>", "<span-x>", "</spanx>", "</span", "</span>", "</SPAN >", "<span>", '<span class="x">', "<span\n>",
     '<span title="a > b">', '<span title="<b>">', "<span data-hl=\"", '<span data-hl="yel', 'low">', '">', '" >',
     "data-hl=\"pink\">", "pink", "plain words", " ", "\n", "\n\n", "a < b > c", "`", "<b>", "</b>", "<!-- <span -->",
+    '<span title="a < b">', "<span title='a < b'>", "<span title='x > y'>", '<span title="it\'s">', "<span title='say \"hi\"'>",
+    '<span title="', "<span title='", '<span a="<span">', "<span a='<SPAN'>", '<span title="<b>', "<span title='>",
+    '"', "'", '""', "''", '"<"', "'>'", '"<span"', "'<span'", ' title="', "='",
   ];
   const tag = () => pick([...HIGHLIGHTS.map((c) => `<span data-hl="${c}">`), "<span>", '<span class="kbd">']);
   const gen = (depth) => {
