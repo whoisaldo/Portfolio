@@ -46,8 +46,9 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { Check, MessageSquare, MessageSquarePlus, X } from "lucide-react";
-import { findQuote, groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
+import { groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
 import { ApiError, request } from "./api";
+import { findThread } from "./place";
 
 // As the stats service has them.
 const LIMIT = { body: 2000, quote: 500 };
@@ -233,8 +234,10 @@ function useAnchors(body, items, bodyKey) {
       const index = indexText(root);
       for (const t of list) {
         // A passage deleted and then brought back (a version restored) is
-        // where its reader's words are.
-        const at = (t.find && findQuote(index, t.find)) || (t.gone && t.quote && findQuote(index, t.quote));
+        // where its reader's words are; one restored between edits on
+        // either side of it, where its words are with the context each side
+        // once had (./place.js).
+        const at = findThread(index, t);
         if (at) placedAt.push({ id: t.id, at });
       }
     } catch (err) {
