@@ -284,24 +284,32 @@ export function commentAnchors() {
     }
   };
 
+  /**
+   * A change to the passages alone, outside the undo history. It can redraw
+   * them, and a redraw puts ProseMirror's selection on the page: so the
+   * browser's, when ProseMirror has not read it yet (a click, or Shift and an
+   * arrow, a moment ago), goes with it rather than being put back as it was.
+   */
+  const send = (meta) => {
+    const tr = view.state.tr.setMeta(key, meta).setMeta("addToHistory", false);
+    const caret = unreadSelection(view);
+    if (caret) tr.setSelection(caret);
+    view.dispatch(tr);
+  };
+
   const handle = {
     setItems(items) {
       if (!view) return;
       hear(items);
-      const tr = view.state.tr.setMeta(key, { items, add: search(items) });
-      view.dispatch(tr.setMeta("addToHistory", false));
+      send({ items, add: search(items) });
     },
     emphasize(active, hover) {
       const now = state().emphasis;
       if (!view || (same(now.active, active) && same(now.hover, hover))) return;
-      const tr = view.state.tr.setMeta(key, { emphasis: { active: active || [], hover: hover || [] } }).setMeta("addToHistory", false);
       // A click on a passage makes its thread the one in hand before the
-      // browser has told ProseMirror where the click put the caret (that
-      // comes with "selectionchange", after the click). Redrawn without it,
-      // the passage would get the caret back where it was before the click.
-      const caret = unreadSelection(view);
-      if (caret) tr.setSelection(caret);
-      view.dispatch(tr);
+      // browser has told ProseMirror where the click put the caret: sent
+      // with it, the caret stays where the click put it.
+      send({ emphasis: { active: active || [], hover: hover || [] } });
     },
     subscribe(fn) {
       listeners.add(fn);
@@ -350,7 +358,7 @@ export function commentAnchors() {
       const { items, ranges } = state();
       // The text was just replaced: each passage was in the one before it.
       for (const [id, r] of ranges) keepPast(id, r.lost);
-      view.dispatch(view.state.tr.setMeta(key, { reset: true }).setMeta("addToHistory", false));
+      send({ reset: true });
       handle.setItems(items);
     },
     // After "Keep mine": the server may have places another session sent, so
@@ -375,7 +383,7 @@ export function commentAnchors() {
         if (ranges.get(t.id)?.lost) lost.set(t.id, ranges.get(t.id).lost);
       }
       const add = search(items, lost);
-      if (add.length) view.dispatch(view.state.tr.setMeta(key, { add }).setMeta("addToHistory", false));
+      if (add.length) send({ add });
     },
     get dom() {
       return view?.dom ?? null;
@@ -465,9 +473,11 @@ const holdsAtom = (doc, { from, to }) => {
 
 /**
  * The browser's selection in the editor's text when ProseMirror has not
- * read it yet, as a TextSelection; else null.
+ * read it yet, as a TextSelection; else null. ProseMirror reads it on
+ * "selectionchange", which the browser sends a moment after a click or a
+ * key moved it.
  */
-function unreadSelection(view) {
+export function unreadSelection(view) {
   const sel = view.root.getSelection?.() ?? document.getSelection();
   if (!view.hasFocus() || !sel?.anchorNode || !view.dom.contains(sel.anchorNode) || !view.dom.contains(sel.focusNode)) return null;
   let anchor;
@@ -482,6 +492,15 @@ function unreadSelection(view) {
   if (anchor < 0 || head < 0 || !doc.resolve(anchor).parent.inlineContent || !doc.resolve(head).parent.inlineContent) return null;
   const next = TextSelection.create(doc, anchor, head);
   return next.eq(selection) ? null : next;
+}
+
+/**
+ * Takes the browser's selection into the editor's state when ProseMirror has
+ * not read it yet, so a command acts on the selection the page shows.
+ */
+export function readSelection(view) {
+  const sel = unreadSelection(view);
+  if (sel) view.dispatch(view.state.tr.setSelection(sel).setMeta("addToHistory", false));
 }
 
 /** A document range as a DOM Range over the editor's text. */

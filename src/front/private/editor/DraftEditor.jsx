@@ -33,7 +33,7 @@ import { embeds } from "../../embeds";
 import { canEdit, fromMarkdown, toMarkdown } from "./markdown";
 import { PASTE_RULES, extensions, metaChange, replaceAll } from "./schema";
 import { REFUSED, safeHref } from "./links";
-import { commentAnchors } from "./anchors";
+import { commentAnchors, readSelection } from "./anchors";
 import { Details, Toolbar } from "./Toolbar";
 import "./editor.css";
 
@@ -366,6 +366,16 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       content: { ...doc, attrs: { meta: metaRef.current } },
       editorProps: {
         attributes: { class: "post-body editor-body", "aria-label": "Draft text", spellcheck: "true" },
+        // Pasted, cut, copied and a shortcut (Cmd/Ctrl) applied where the
+        // selection is on screen: right after a click or a key that moved
+        // it, the state can still have the one before (./anchors.js,
+        // readSelection). Other keys move and type as the browser does.
+        handleDOMEvents: {
+          paste: (view) => void readSelection(view),
+          cut: (view) => void readSelection(view),
+          copy: (view) => void readSelection(view),
+          keydown: (view, event) => void ((event.metaKey || event.ctrlKey) && !event.isComposing && readSelection(view)),
+        },
         handlePaste(view, event) {
           const data = event.clipboardData;
           const pics = files(data?.files);

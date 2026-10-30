@@ -20,6 +20,7 @@ import {
   Bold, Check, CloudOff, Code, Ellipsis, Heading2, Heading3, Highlighter, Italic, Link2, List, ListOrdered, LoaderCircle, Pilcrow, Redo2, TriangleAlert, Undo2, Upload,
 } from "lucide-react";
 import { COLORS } from "./schema";
+import { readSelection } from "./anchors";
 import "./toolbar.css";
 
 // As the post's own date line has it (../posts.js), written out here so this
@@ -149,7 +150,11 @@ function Status({ label, state, uploading, folded }) {
  *   is what of them goes in More once History has folded.
  */
 export function Toolbar({ editor, label, state, uploading, leaving, onDone, onLink, actions, menu }) {
-  const run = () => editor.chain().focus();
+  // On the selection the page shows (./anchors.js).
+  const run = () => {
+    readSelection(editor.view);
+    return editor.chain().focus();
+  };
   const level = [2, 3].find((l) => editor.isActive("heading", { level: l }));
   // A picture or a raw block selected has no text style to set. (A
   // paragraph can't be set to a paragraph, so it asks for a heading too.)
