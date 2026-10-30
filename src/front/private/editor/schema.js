@@ -15,6 +15,7 @@ import { StarterKit } from "@tiptap/starter-kit";
 import { Code } from "@tiptap/extension-code";
 import { Link } from "@tiptap/extension-link";
 import { marked } from "marked";
+import { safeAutoLink, safeHref } from "./links.js";
 
 /** Ali's highlight colours, as `<span data-hl="…">` stores them. */
 export const COLORS = ["yellow", "green", "blue", "pink", "purple"];
@@ -178,6 +179,10 @@ export function replaceAll(state, doc, meta) {
 /** The title, date and summary a transaction leaves on the document, when it changed them; else null. */
 export const metaChange = (tr) => (tr.doc.attrs.meta && tr.doc.attrs.meta !== tr.before.attrs.meta ? tr.doc.attrs.meta : null);
 
+// TipTap's own rule for which bare addresses to link (not IP addresses, a
+// dot in the host), kept under ./links.js's check.
+const autoLink = Link.options.shouldAutoLink;
+
 /**
  * Markdown's link title, `[text](href "title")`, which TipTap's link has no
  * place for. A pasted link's target, rel and class are not Markdown, so they
@@ -212,6 +217,10 @@ export function extensions({ show, own, render, known } = {}) {
       autolink: true,
       linkOnPaste: true,
       HTMLAttributes: { target: null, rel: null, class: null },
+      // One check for every way a link is made (./links.js): a pasted or
+      // dropped <a>, setLink, and addresses linked as typed or pasted.
+      isAllowedUri: (url) => safeHref(url) !== null,
+      shouldAutoLink: (url) => autoLink(url) && safeAutoLink(url),
     }),
     Highlight,
     Picture.configure({ ...(show && { show }), ...(own && { own }) }),

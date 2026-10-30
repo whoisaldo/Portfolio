@@ -32,6 +32,7 @@ import { clearUnsaved, keepAnchors, writeUnsaved } from "../unsaved";
 import { embeds } from "../../embeds";
 import { canEdit, fromMarkdown, toMarkdown } from "./markdown";
 import { extensions, metaChange, replaceAll } from "./schema";
+import { REFUSED, safeHref } from "./links";
 import { commentAnchors } from "./anchors";
 import { Details, Toolbar } from "./Toolbar";
 import "./editor.css";
@@ -729,6 +730,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
 /** Cmd/Ctrl + K: the address for the selection, or for the link the caret is in. */
 function LinkBox({ at, editor, onClose }) {
   const [href, setHref] = useState(at.href);
+  const [refused, setRefused] = useState(false);
   const input = useRef(null);
   useEffect(() => {
     input.current?.focus();
@@ -740,28 +742,51 @@ function LinkBox({ at, editor, onClose }) {
   };
   const apply = (e) => {
     e.preventDefault();
-    const url = href.trim();
+    if (!href.trim()) {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      onClose();
+      return;
+    }
+    // The address checked here too: inserted with nothing selected, it is
+    // not made by setLink, which checks its own.
+    const url = safeHref(href);
+    if (!url) {
+      setRefused(true);
+      input.current?.focus();
+      return;
+    }
     const chain = editor.chain().focus().extendMarkRange("link");
-    if (!url) chain.unsetLink().run();
-    else if (editor.state.selection.empty && !editor.isActive("link")) chain.insertContent({ type: "text", text: url, marks: [{ type: "link", attrs: { href: url } }] }).run();
+    if (editor.state.selection.empty && !editor.isActive("link")) chain.insertContent({ type: "text", text: url, marks: [{ type: "link", attrs: { href: url } }] }).run();
     else chain.setLink({ href: url }).run();
     onClose();
   };
   return createPortal(
-    <form className="editor-link" style={{ top: at.top, left: Math.max(8, Math.min(at.left, window.scrollX + document.documentElement.clientWidth - 328)) }} onSubmit={apply}>
+    // Not the browser's own check of a URL field: a path on this site is a
+    // link too, and ./links.js is the check.
+    <form className="editor-link" noValidate style={{ top: at.top, left: Math.max(8, Math.min(at.left, window.scrollX + document.documentElement.clientWidth - 328)) }} onSubmit={apply}>
       <input
         ref={input}
         type="url"
         value={href}
         placeholder="Paste or type a link"
         aria-label="Link address"
-        onChange={(e) => setHref(e.target.value)}
+        aria-invalid={refused || undefined}
+        aria-describedby={refused ? "editor-link-refused" : undefined}
+        onChange={(e) => {
+          setHref(e.target.value);
+          setRefused(false);
+        }}
         onKeyDown={(e) => e.key === "Escape" && close()}
         onBlur={(e) => !e.currentTarget.form.contains(e.relatedTarget) && onClose()}
       />
       <button type="submit" className="draft-text-button">
         {href.trim() ? "Apply" : "Remove"}
       </button>
+      {refused && (
+        <p id="editor-link-refused" className="editor-link-refused" role="alert">
+          {REFUSED}
+        </p>
+      )}
     </form>,
     document.body,
   );
