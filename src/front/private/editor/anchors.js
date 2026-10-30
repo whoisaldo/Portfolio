@@ -20,7 +20,7 @@
 // reader's selection would have them, for the anchors the server keeps after
 // a save (./DraftEditor.jsx).
 import { Extension } from "@tiptap/core";
-import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { findQuote, groupQuotes, indexText, quoteFromRange } from "../../quotes.js";
 
@@ -236,7 +236,14 @@ export function commentAnchors() {
     emphasize(active, hover) {
       const now = state().emphasis;
       if (!view || (same(now.active, active) && same(now.hover, hover))) return;
-      view.dispatch(view.state.tr.setMeta(key, { emphasis: { active: active || [], hover: hover || [] } }).setMeta("addToHistory", false));
+      const tr = view.state.tr.setMeta(key, { emphasis: { active: active || [], hover: hover || [] } }).setMeta("addToHistory", false);
+      // A click on a passage makes its thread the one in hand before the
+      // browser has told ProseMirror where the click put the caret (that
+      // comes with "selectionchange", after the click). Redrawn without it,
+      // the passage would get the caret back where it was before the click.
+      const caret = unreadSelection(view);
+      if (caret) tr.setSelection(caret);
+      view.dispatch(tr);
     },
     subscribe(fn) {
       listeners.add(fn);
@@ -383,6 +390,27 @@ const holdsAtom = (doc, { from, to }) => {
   });
   return any;
 };
+
+/**
+ * The browser's selection in the editor's text when ProseMirror has not
+ * read it yet, as a TextSelection; else null.
+ */
+function unreadSelection(view) {
+  const sel = view.root.getSelection?.() ?? document.getSelection();
+  if (!view.hasFocus() || !sel?.anchorNode || !view.dom.contains(sel.anchorNode) || !view.dom.contains(sel.focusNode)) return null;
+  let anchor;
+  let head;
+  try {
+    anchor = view.posAtDOM(sel.anchorNode, sel.anchorOffset);
+    head = view.posAtDOM(sel.focusNode, sel.focusOffset);
+  } catch {
+    return null;
+  }
+  const { doc, selection } = view.state;
+  if (anchor < 0 || head < 0 || !doc.resolve(anchor).parent.inlineContent || !doc.resolve(head).parent.inlineContent) return null;
+  const next = TextSelection.create(doc, anchor, head);
+  return next.eq(selection) ? null : next;
+}
 
 /** A document range as a DOM Range over the editor's text. */
 function domRange(view, from, to) {
