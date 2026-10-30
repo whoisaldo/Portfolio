@@ -700,3 +700,61 @@ test("a quote of part of a word, as a reader may select it, is still placed on i
   assert.deepEqual(e.handle.changes(e.handle.quotes()), []);
   e.editor.destroy();
 });
+
+// The words after a one-word passage, as a quote stores them.
+const SUN = " follows the path around the sun.";
+const SUN32 = SUN.slice(0, 32);
+
+test("a quote of the end of a word is not put on the same letters standing alone, by any path, even with its word elsewhere", () => {
+  const quote = { exact: "it", prefix: "orb", suffix: SUN32 };
+  const text = `Unrelated example: it${SUN} The original orbit now circles a planet.`;
+  assert.deepEqual(findQuote({ text }, quote), [19, 21]);
+  assert.equal(findWhole({ text }, quote), null);
+  const moved = `Unrelated example: it${SUN}\n\nThe original orbit now circles a planet.\n`;
+  const all = everyPath(`orbit${SUN}\n`, moved, quote, quote);
+  assert.deepEqual(Object.entries(all).filter(([, w]) => w !== null), []);
+  assert.ok("undo" in all);
+  // The same at its end: the rest of the word must follow.
+  const end = { exact: "orb", prefix: "The clerk called the final witness ".slice(-32), suffix: "ital." };
+  assert.equal(findWhole({ text: "The clerk called the final witness orb." }, end), null);
+  assert.deepEqual(findWhole({ text: "The clerk called the final witness orbital." }, end), [35, 38]);
+});
+
+test("a combining mark is part of its word, before a passage or after it", () => {
+  const quote = { exact: "lan", prefix: "", suffix: SUN32 };
+  assert.equal(findWhole({ text: `élan${SUN}` }, quote), null);
+  assert.deepEqual(findWhole({ text: `lan${SUN}` }, quote), [0, 3]);
+  const all = everyPath(`lan${SUN}\n`, `élan${SUN}\n`, quote, quote);
+  assert.deepEqual(Object.entries(all).filter(([, w]) => w !== null), []);
+  const name = { exact: "Jose", prefix: "The clerk called the final witness ".slice(-32), suffix: "." };
+  assert.equal(findWhole({ text: "The clerk called the final witness José." }, name), null);
+  assert.deepEqual(findWhole({ text: "The clerk called the final witness Jose." }, name), [35, 39]);
+});
+
+test("a place inside another word does not tie with a passage still as it was, by any path", () => {
+  const quote = { exact: "it", prefix: "", suffix: SUN32 };
+  const text = `it${SUN} A rabbit${SUN}`;
+  // findQuote alone finds the two equal, so places neither.
+  assert.equal(findQuote({ text }, quote), null);
+  assert.deepEqual(findWhole({ text }, quote), [0, 2]);
+  const all = everyPath(`it${SUN}\n`, `it${SUN}\n\nA rabbit${SUN}\n`, quote, quote);
+  assert.deepEqual(all, { readAnchor: "it", readOther: "it", readGone: "it", readGoneOther: "it", open: "it", restore: "it", paste: "it" });
+});
+
+test("a quote inside a word longer than its context is placed on first load, and a short context of one word is not taken for a longer one", () => {
+  const word = "a".repeat(40);
+  const quote = { exact: "it", prefix: "a".repeat(32), suffix: SUN32 };
+  assert.deepEqual(findWhole({ text: `${word}it${SUN}` }, quote), [40, 42]);
+  const e = harbourEditor(`${word}it${SUN}\n`, [{ id: "t-x", find: quote, quote, gone: false }]);
+  assert.deepEqual(e.handle.quotes().get("t-x"), quote);
+  assert.deepEqual(e.handle.changes(e.handle.quotes()), []);
+  e.editor.destroy();
+  const after = { exact: "it", prefix: "Before the ", suffix: "a".repeat(32) };
+  assert.deepEqual(findWhole({ text: `Before the it${word}.` }, after), [11, 13]);
+  // A context shorter than that, all of a word, is where the text began or
+  // ended: a word going on past it is another.
+  assert.equal(findWhole({ text: `rabbit${SUN}` }, { exact: "it", prefix: "bb", suffix: SUN32 }), null);
+  assert.deepEqual(findWhole({ text: `bbit${SUN}` }, { exact: "it", prefix: "bb", suffix: SUN32 }), [2, 4]);
+  assert.equal(findWhole({ text: "Before the itaaab" }, { exact: "it", prefix: "Before the ", suffix: "aaa" }), null);
+  assert.deepEqual(findWhole({ text: "Before the itaaa" }, { exact: "it", prefix: "Before the ", suffix: "aaa" }), [11, 13]);
+});
