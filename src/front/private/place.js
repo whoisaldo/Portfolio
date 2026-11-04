@@ -118,6 +118,13 @@ export function findWhole(index, quote) {
   return [best.at, best.end];
 }
 
+/** The quote the words at [start, end) in the text make, with their context as quoteFromRange takes it. */
+export const quoteAt = (index, [start, end]) => ({
+  exact: index.text.slice(start, end),
+  prefix: index.text.slice(Math.max(0, start - CONTEXT), start),
+  suffix: index.text.slice(end, end + CONTEXT),
+});
+
 /**
  * Where the read view puts a thread ({find, quote, gone}, as DraftComments
  * has it): by its anchor; for a passage deleted, by the reader's quote should
