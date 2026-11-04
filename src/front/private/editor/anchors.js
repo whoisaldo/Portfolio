@@ -140,12 +140,14 @@ function findText(doc, inFrom, inTo, lost) {
 function decorations(doc, { ranges, items, emphasis }) {
   const placed = items.filter((t) => !t.hidden && ranges.get(t.id)?.from < ranges.get(t.id)?.to).map((t) => ({ id: t.id, at: [ranges.get(t.id).from, ranges.get(t.id).to] }));
   const resolved = new Set(items.filter((t) => t.resolved).map((t) => t.id));
+  const review = new Set(items.filter((t) => t.pending).map((t) => t.id));
   const out = [];
   for (const { at, ids } of groupQuotes(placed)) {
     const cls = ["post-quote"];
     if (ids.some((id) => emphasis.active.includes(id))) cls.push("is-active");
     if (ids.some((id) => emphasis.hover.includes(id))) cls.push("is-hover");
     if (ids.every((id) => resolved.has(id))) cls.push("is-resolved");
+    if (ids.some((id) => review.has(id))) cls.push("is-review");
     const attrs = { class: cls.join(" "), "data-threads": ids.join(" ") };
     out.push(Decoration.inline(at[0], at[1], { nodeName: "mark", ...attrs }));
     // A passage in a raw block (a video's caption) has no text of the
@@ -161,11 +163,12 @@ function decorations(doc, { ranges, items, emphasis }) {
  * The TipTap extension that keeps the passages, and the comments' handle on
  * it once the editor is up (`attach(editor)`):
  *
- *   setItems(items)     the threads, [{id, find, quote, gone, resolved, hidden}]:
+ *   setItems(items)     the threads, [{id, find, quote, gone, resolved, pending, hidden}]:
  *                       `find` is {exact, prefix, suffix} to look for (the
  *                       anchor, or the reader's `quote` while there is none),
  *                       null for none; `gone` when the server has the
- *                       passage as deleted
+ *                       passage as deleted; `pending` for one of Ali's not
+ *                       published yet (../review.js)
  *   emphasize(a, h)     the thread ids in hand and hovered
  *   subscribe(fn)       fn(found) after every change, found as the comments
  *                       margin reads it: {placed, groups, marks, settled}
