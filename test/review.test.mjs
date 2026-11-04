@@ -5,8 +5,8 @@ import { window } from "./dom.mjs";
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  MAX_REVIEW, addPending, cleanBody, dropSent, editPending, followPending, isReviewKey, locked, newId, publishReview,
-  publishingNow, readReview, removePending, toBatch,
+  MAX_REVIEW, addPending, cleanBody, dropSent, editPending, followPending, isReviewKey, locked, movePending, newId,
+  publishReview, publishedAsIs, publishingNow, readReview, removePending, toBatch,
 } from "../src/front/private/review.js";
 
 // Node has a localStorage of its own, unusable without a file, so dom.mjs
@@ -156,27 +156,43 @@ test("a passage the editor moved is kept where it is now, and one deleted where 
   assert.deepEqual(toBatch([ra])[0], { id: a.id, body: "On a moved passage.", quote: "Lorem draft", prefix: "A new line, then ", suffix: " and after." });
 });
 
-test("letting go of what was sent leaves one edited since", () => {
+test("letting go of what was sent leaves one edited or moved since", () => {
   const a = addPending(SLUG, { body: "As sent." });
   const b = addPending(SLUG, { body: "Before an edit." });
+  const c = addPending(SLUG, { body: "Before a move.", quote: QUOTE });
   const sent = readReview(SLUG);
   editPending(SLUG, b.id, "After the snapshot.");
+  movePending(SLUG, c.id, { ...QUOTE, prefix: "Moved before the " });
   dropSent(SLUG, sent);
-  assert.deepEqual(readReview(SLUG).map((x) => [x.id, x.body]), [[b.id, "After the snapshot."]]);
+  assert.deepEqual(readReview(SLUG).map((x) => [x.id, x.body]), [[b.id, "After the snapshot."], [c.id, "Before a move."]]);
   assert.ok(a.id);
+});
+
+test("one is in already only with its text and its passage, where the server has it now", () => {
+  const c = addPending(SLUG, { body: "On a passage.", quote: QUOTE });
+  const moved = { exact: "Lorem draft", prefix: "Moved before the ", suffix: " and after." };
+  const there = { id: c.id, body: "On a passage.", quote: QUOTE, mine: true, thread: null };
+  assert.equal(publishedAsIs(c, there), true);
+  assert.equal(publishedAsIs({ ...c, quote: moved }, there), false, "a moved passage is still to publish");
+  assert.equal(publishedAsIs({ ...c, quote: moved }, { ...there, anchor: moved }), true, "the server's anchor is where it is");
+  assert.equal(publishedAsIs(c, { ...there, anchor: { gone: true } }), false);
+  assert.equal(publishedAsIs({ ...c, body: "Other." }, there), false);
+  assert.equal(publishedAsIs(c, undefined), false);
 });
 
 /** A stats service for publishReview: comments by id, as Ali sees his own. */
 function server() {
   const has = new Map();
   const calls = [];
-  const asShown = (c) => ({ id: c.id, body: cleanBody(c.body), mine: true, thread: null });
+  const asShown = (c) => ({ id: c.id, body: cleanBody(c.body), quote: c.quote ?? null, anchor: null, mine: true, thread: null });
+  // As the batch endpoint compares them: the text, and the quote as sent (never the anchor).
+  const differs = (c) => has.get(c.id).body !== cleanBody(c.body) || JSON.stringify(has.get(c.id).quote) !== JSON.stringify(c.quote ?? null);
   return {
     has,
     calls,
     send: async (list) => {
       calls.push(["send", list.map((c) => c.id)]);
-      const taken = list.filter((c) => has.has(c.id) && has.get(c.id).body !== cleanBody(c.body)).map((c) => c.id);
+      const taken = list.filter((c) => has.has(c.id) && differs(c)).map((c) => c.id);
       if (taken.length) throw Object.assign(new Error("In already with other text."), { status: 409, data: { ids: taken } });
       for (const c of list) if (!has.has(c.id)) has.set(c.id, asShown(c));
       return list.map((c) => has.get(c.id));
@@ -185,6 +201,12 @@ function server() {
       calls.push(["edit", id, body]);
       if (!has.has(id)) throw Object.assign(new Error("That comment was deleted."), { status: 404 });
       has.get(id).body = cleanBody(body);
+    },
+    anchor: async (id, quote) => {
+      calls.push(["anchor", id, quote]);
+      if (!has.has(id)) return false;
+      has.get(id).anchor = quote;
+      return true;
     },
     refresh: async () => [...has.values()],
   };
@@ -302,4 +324,37 @@ test("one added while a publish runs waits for the next", async () => {
   assert.equal(await publishReview(SLUG, { posted: new Map(), ...s, send }), 1);
   assert.deepEqual([...s.has.keys()], [a.id]);
   assert.deepEqual(readReview(SLUG).map((c) => c.id), [later.id]);
+});
+
+test("one moved after a publish whose answer was lost keeps its new passage, sent as its anchor", async () => {
+  const a = addPending(SLUG, { body: "On a passage.", quote: QUOTE });
+  const s = server();
+  await s.send([a]); // in, but its answer was lost
+  s.calls.length = 0;
+  // An edit to the draft moves the passage.
+  const moved = { exact: "Lorem draft, revised", prefix: "Before the ", suffix: " and after." };
+  assert.equal(movePending(SLUG, a.id, moved), true);
+  // Not polled since: the server's has the first passage, and the page keeps this one.
+  assert.equal(publishedAsIs(readReview(SLUG)[0], s.has.get(a.id)), false);
+  assert.equal(await publishReview(SLUG, { posted: new Map(), ...s }), 1);
+  assert.deepEqual(s.calls, [["send", [a.id]], ["anchor", a.id, moved]]);
+  assert.deepEqual(s.has.get(a.id).quote, QUOTE, "the quote as first sent stays");
+  assert.deepEqual(s.has.get(a.id).anchor, moved, "and the passage is where it moved");
+  assert.equal(s.has.size, 1, "posted once");
+  assert.deepEqual(readReview(SLUG), []);
+});
+
+test("one moved and deleted on the server since is kept, and published anew where it is", async () => {
+  const a = addPending(SLUG, { body: "On a passage.", quote: QUOTE });
+  const s = server();
+  await s.send([a]);
+  const moved = { ...QUOTE, prefix: "Moved before the " };
+  movePending(SLUG, a.id, moved);
+  const posted = new Map(s.has);
+  s.has.delete(a.id); // deleted in another tab, after the last poll
+  assert.equal(await publishReview(SLUG, { posted, ...s }), 1);
+  const [only] = [...s.has.values()];
+  assert.notEqual(only.id, a.id);
+  assert.deepEqual(only.quote, moved);
+  assert.deepEqual(readReview(SLUG), []);
 });

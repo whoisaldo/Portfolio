@@ -58,7 +58,7 @@ import { Check, MessageSquare, MessageSquarePlus, Send, X } from "lucide-react";
 import { groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
 import { ApiError, request } from "./api";
 import { findThread } from "./place";
-import { addPending, cleanBody, dropSent, editPending, followPending, isReviewKey, locked, own, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
+import { addPending, dropSent, editPending, followPending, isReviewKey, locked, publishedAsIs, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
 
 // As the stats service has them.
 const LIMIT = { body: 2000, quote: 500 };
@@ -176,6 +176,11 @@ function useThreads(slug, onLost, onDraftChange) {
       remove: (id) =>
         after(request(`/api/draft-comments?id=${encodeURIComponent(id)}`, { method: "DELETE" })).then(() =>
           setState((s) => ({ ...s, comments: s.comments.filter((c) => c.id !== id && c.thread !== id) })),
+        ),
+      // Where a published passage is now, onto whatever text the server has. False when it has no such thread.
+      anchor: (id, quote) =>
+        after(request("/api/draft-comments?a=anchors", { method: "PUT", body: { draft: slug, anchors: [{ thread: id, ...quote }] } })).then(
+          ({ data }) => !data.ignored?.includes(id),
         ),
       // Every comment as the server has it now, or an ApiError: never the last poll's.
       list: () => request(`/api/draft-comments?draft=${encodeURIComponent(slug)}`, { timeout: 10_000 }).then(({ data }) => data.comments),
@@ -416,12 +421,13 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   const review = useReview(slug, viewer.owner);
   // Publishing: `failed` is the comment the service refused, if it named one.
   const [publishing, setPublishing] = useState({ busy: false, error: "", failed: null, done: 0 });
-  // One the server has already as it is here (a publish whose answer was
-  // lost) is let go, and a publish that seemed to fail is shown as the one
-  // that went in. One there with other text (edited after it was sent) is
-  // still to publish, as an edit: counted, though its card is the server's.
+  // One the server has already as it is here, text and passage (a publish
+  // whose answer was lost), is let go, and a publish that seemed to fail is
+  // shown as the one that went in. One there with other text or another
+  // passage (edited or moved after it was sent) is still to publish, as an
+  // edit or an anchor: counted, though its card is the server's.
   const posted = useMemo(() => new Map(comments.map((c) => [c.id, c])), [comments]);
-  const inAlready = useCallback((c) => own(posted.get(c.id)) && posted.get(c.id).body === cleanBody(c.body), [posted]);
+  const inAlready = useCallback((c) => publishedAsIs(c, posted.get(c.id)), [posted]);
   const waiting = useMemo(() => review.list.filter((c) => !inAlready(c)), [review.list, inAlready]);
   const pendingList = useMemo(() => waiting.filter((c) => !posted.has(c.id)), [waiting, posted]);
   useEffect(() => {
@@ -600,7 +606,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     try {
       // Each passage where it is now, first.
       await follow();
-      const done = await review.publish({ posted, send: act.publish, edit: act.edit, refresh: act.list });
+      const done = await review.publish({ posted, send: act.publish, edit: act.edit, anchor: act.anchor, refresh: act.list });
       setPublishing({ busy: false, error: "", failed: null, done });
     } catch (err) {
       const failed = err.data?.id ?? null;

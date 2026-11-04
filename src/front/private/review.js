@@ -23,8 +23,10 @@
 //
 // Each comment has the id it will be published under. A publish sent again
 // after its answer was lost posts nothing twice. One the server has already
-// is let go once its text there is the text here, and is sent as an edit
-// when it is not, so a word changed after a send is never lost.
+// is let go once its text and passage there are the ones here. Other text
+// there is sent as an edit, and another passage as its anchor (where the
+// editor says a published passage is now), so a word changed or a passage
+// moved after a send is never lost.
 
 const prefix = (slug) => `draft-review:${slug}:`;
 const flagKey = (slug) => `draft-review-publishing:${slug}`;
@@ -44,6 +46,13 @@ const quoteOf = (q) => q && { exact: q.exact, prefix: q.prefix || "", suffix: q.
 /** A body as the stats service stores it (lib/comments.js, cleanText), to tell an edit from a space. */
 export const cleanBody = (v) =>
   v.normalize("NFC").replace(/\r\n?/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+
+const sameQuote = (a, b) => (!a || !b ? !a && !b : a.exact === b.exact && (a.prefix || "") === (b.prefix || "") && (a.suffix || "") === (b.suffix || ""));
+/** Where the server has a comment's passage: its anchor, its quote while it has none. */
+const placeOf = (there) => (there.anchor?.exact ? there.anchor : there.anchor?.gone ? { exact: "" } : there.quote);
+
+/** True when `there`, the server's comment, is this pending one exactly: Ali's own, with its text and passage. */
+export const publishedAsIs = (c, there) => own(there) && there.body === cleanBody(c.body) && sameQuote(placeOf(there), c.quote);
 
 /** [{id, body, quote: {exact, prefix, suffix} | null, at}], in the order they were written. */
 export function readReview(slug) {
@@ -121,7 +130,7 @@ export function editPending(slug, id, body) {
 export function movePending(slug, id, quote) {
   const c = readOne(slug, id);
   const q = quoteOf(quote);
-  if (!c?.quote || (c.quote.exact === q.exact && c.quote.prefix === q.prefix && c.quote.suffix === q.suffix)) return false;
+  if (!c?.quote || sameQuote(c.quote, q)) return false;
   write(slug, { ...c, quote: q });
   return true;
 }
@@ -135,9 +144,12 @@ export function removePending(slug, ids) {
   for (const id of ids) drop(slug, id);
 }
 
-/** Lets go of each of these that is still as it was then: one edited since stays. */
+/** Lets go of each of these that is still as it was then: one edited or moved since stays. */
 export function dropSent(slug, list) {
-  for (const c of list) if (readOne(slug, c.id)?.body === c.body) drop(slug, c.id);
+  for (const c of list) {
+    const now = readOne(slug, c.id);
+    if (now?.body === c.body && sameQuote(now.quote, c.quote)) drop(slug, c.id);
+  }
 }
 
 /** The comment again under a new id, which it returns: the server's under its old one is not this. */
@@ -183,17 +195,20 @@ export const own = (c) => Boolean(c?.mine && !c.thread);
  * in already counted as its going in. `posted` is the
  * server's comments by id, as last polled; `send(list)` the batch request,
  * resolving to the comments it answers with; `edit(id, body)` an edit of a
- * published one; `refresh()` polls, resolving to the server's comments.
+ * published one; `anchor(id, quote)` moves a published one's passage,
+ * resolving to false when the server has no such thread any more;
+ * `refresh()` polls, resolving to the server's comments.
  *
  * One the server has already is published: with other text there, the text
- * here goes as an edit. The rest are sent, MAX_REVIEW at a time. When the
- * server has one of them under its id with other text (a publish whose
- * answer was lost, edited since), it refuses them all (409, naming it): it
- * is sent as an edit then, or under a new id when the server's is not his
- * thread, and the rest are sent again. One added while this runs waits for
- * the next publish.
+ * here goes as an edit, and with another passage, the passage here goes as
+ * its anchor. The rest are sent, MAX_REVIEW at a time. When the server has
+ * one of them under its id with other text or another passage (a publish
+ * whose answer was lost, changed since), it refuses them all (409, naming
+ * it): it is sent as an edit or an anchor then, or under a new id when the
+ * server's is not his thread, and the rest are sent again. One added while
+ * this runs waits for the next publish.
  */
-export function publishReview(slug, { posted, send, edit, refresh }) {
+export function publishReview(slug, { posted, send, edit, anchor, refresh }) {
   return locked(slug, async () => {
     const ids = new Set(readReview(slug).map((c) => c.id));
     let known = posted;
@@ -208,7 +223,8 @@ export function publishReview(slug, { posted, send, edit, refresh }) {
         flag(slug, true);
         for (const c of readReview(slug).filter((x) => ids.has(x.id) && known.has(x.id))) {
           const there = known.get(c.id);
-          if (!own(there)) {
+          // One on the whole draft is not one on a passage, nor the other way.
+          if (!own(there) || !c.quote !== !there.quote) {
             again(c.id);
             continue;
           }
@@ -218,6 +234,14 @@ export function publishReview(slug, { posted, send, edit, refresh }) {
             } catch (err) {
               // Deleted since it was published: this text is kept, to publish anew.
               if (err?.status !== 404) throw err;
+              again(c.id);
+              continue;
+            }
+            went.add(c.id);
+          }
+          if (!sameQuote(placeOf(there), c.quote)) {
+            // Deleted since it was published: kept, to publish anew.
+            if (!(await anchor(c.id, c.quote))) {
               again(c.id);
               continue;
             }
