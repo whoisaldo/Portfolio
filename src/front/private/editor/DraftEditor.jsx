@@ -446,6 +446,14 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       st.saved.add(fn);
       return () => st.saved.delete(fn);
     };
+    // The save the text is, for a passage read off it: null while it has changes not saved.
+    handle.base = () => {
+      try {
+        return st.baseline && !st.conflict && serialize() === st.baseline.body ? st.base : null;
+      } catch {
+        return null;
+      }
+    };
     onBridge(handle);
 
     return () => {

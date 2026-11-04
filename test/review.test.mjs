@@ -180,9 +180,13 @@ test("one is in already only with its text and its passage, where the server has
   assert.equal(publishedAsIs(c, undefined), false);
 });
 
-/** A stats service for publishReview: comments by id, as Ali sees his own. */
+/**
+ * A stats service for publishReview: comments by id, as Ali sees his own,
+ * and the draft's updated_at (`saved`), which an anchor must name as its base.
+ */
 function server() {
   const has = new Map();
+  const at = { saved: "v1" };
   const calls = [];
   const asShown = (c) => ({ id: c.id, body: cleanBody(c.body), quote: c.quote ?? null, anchor: null, mine: true, thread: null });
   // As the batch endpoint compares them: the text, and the quote as sent (never the anchor).
@@ -190,6 +194,7 @@ function server() {
   return {
     has,
     calls,
+    at,
     send: async (list) => {
       calls.push(["send", list.map((c) => c.id)]);
       const taken = list.filter((c) => has.has(c.id) && differs(c)).map((c) => c.id);
@@ -202,8 +207,9 @@ function server() {
       if (!has.has(id)) throw Object.assign(new Error("That comment was deleted."), { status: 404 });
       has.get(id).body = cleanBody(body);
     },
-    anchor: async (id, quote) => {
+    anchor: async (id, quote, base) => {
       calls.push(["anchor", id, quote]);
+      if (base !== at.saved) throw Object.assign(new Error("This draft was saved since."), { status: 409, data: { draft_updated_at: at.saved } });
       if (!has.has(id)) return false;
       has.get(id).anchor = quote;
       return true;
@@ -327,13 +333,14 @@ test("one added while a publish runs waits for the next", async () => {
 });
 
 test("one moved after a publish whose answer was lost keeps its new passage, sent as its anchor", async () => {
-  const a = addPending(SLUG, { body: "On a passage.", quote: QUOTE });
+  const a = addPending(SLUG, { body: "On a passage.", quote: QUOTE, base: "v1" });
   const s = server();
   await s.send([a]); // in, but its answer was lost
   s.calls.length = 0;
-  // An edit to the draft moves the passage.
+  // An edit to the draft moves the passage, and is saved.
+  s.at.saved = "v2";
   const moved = { exact: "Lorem draft, revised", prefix: "Before the ", suffix: " and after." };
-  assert.equal(movePending(SLUG, a.id, moved), true);
+  assert.equal(movePending(SLUG, a.id, moved, "v2"), true);
   // Not polled since: the server's has the first passage, and the page keeps this one.
   assert.equal(publishedAsIs(readReview(SLUG)[0], s.has.get(a.id)), false);
   assert.equal(await publishReview(SLUG, { posted: new Map(), ...s }), 1);
@@ -345,11 +352,11 @@ test("one moved after a publish whose answer was lost keeps its new passage, sen
 });
 
 test("one moved and deleted on the server since is kept, and published anew where it is", async () => {
-  const a = addPending(SLUG, { body: "On a passage.", quote: QUOTE });
+  const a = addPending(SLUG, { body: "On a passage.", quote: QUOTE, base: "v1" });
   const s = server();
   await s.send([a]);
   const moved = { ...QUOTE, prefix: "Moved before the " };
-  movePending(SLUG, a.id, moved);
+  movePending(SLUG, a.id, moved, "v1");
   const posted = new Map(s.has);
   s.has.delete(a.id); // deleted in another tab, after the last poll
   assert.equal(await publishReview(SLUG, { posted, ...s }), 1);
@@ -357,4 +364,59 @@ test("one moved and deleted on the server since is kept, and published anew wher
   assert.notEqual(only.id, a.id);
   assert.deepEqual(only.quote, moved);
   assert.deepEqual(readReview(SLUG), []);
+});
+
+test("a passage kept for text saved over in another tab is not sent onto that tab's: it waits, and goes once found in the new text", async () => {
+  const { tabs: [one, two], arrive } = twoTabs();
+  const s = server();
+  useStorage(one);
+  const a = addPending(SLUG, { body: "On a passage.", quote: QUOTE, base: "v1" });
+  await s.send([a]); // in, but its answer was lost
+  // This tab's editor revises the comment and moves its passage, in the text saved at v1.
+  const moved = { exact: "Lorem draft", prefix: "Moved before the ", suffix: " and after." };
+  editPending(SLUG, a.id, "On a passage, revised.");
+  movePending(SLUG, a.id, moved, "v1");
+  const b = addPending(SLUG, { body: "On the whole draft." });
+  arrive();
+  // The other tab saves newer text, and its editor anchors the thread there.
+  useStorage(two);
+  s.at.saved = "v2";
+  const theirs = { exact: "Lorem draft", prefix: "Newer text before the ", suffix: " and after." };
+  assert.equal(await s.anchor(a.id, theirs, "v2"), true);
+  s.calls.length = 0;
+  // Publishing from the first tab, not polled since.
+  useStorage(one);
+  await assert.rejects(publishReview(SLUG, { posted: new Map(), ...s }), (err) => err.status === 409 && err.data.id === a.id);
+  assert.deepEqual(s.has.get(a.id).anchor, theirs, "the newer text's passage is left as it is");
+  assert.equal(s.has.get(a.id).body, "On a passage, revised.", "the revised text went in");
+  assert.ok(s.has.has(b.id), "the rest of the review went in");
+  const [kept] = readReview(SLUG);
+  assert.deepEqual([readReview(SLUG).length, kept.id, kept.body, kept.quote, kept.base], [1, a.id, "On a passage, revised.", moved, "v1"], "pending as it was");
+  assert.equal(publishingNow(SLUG), false);
+  // Published again before it is found in the new text: refused again, and still pending.
+  await assert.rejects(publishReview(SLUG, { posted: new Map(s.has), ...s }), (err) => err.status === 409);
+  assert.deepEqual(s.has.get(a.id).anchor, theirs);
+  assert.deepEqual(readReview(SLUG).map((c) => [c.id, c.quote]), [[a.id, moved]]);
+  // The page finds it in the text saved at v2, and keeps it for that text; then it goes.
+  const found = { exact: "Lorem draft", prefix: "Moved, in newer text, before the ", suffix: " and after." };
+  assert.equal(followPending(SLUG, new Map([[a.id, found]]), "v2"), 1);
+  assert.equal(await publishReview(SLUG, { posted: new Map(s.has), ...s }), 1);
+  assert.deepEqual(s.has.get(a.id).anchor, found);
+  assert.deepEqual(readReview(SLUG), []);
+});
+
+test("a passage read off text not saved yet is not sent as an anchor", async () => {
+  const a = addPending(SLUG, { body: "On a passage.", quote: QUOTE, base: "v1" });
+  const s = server();
+  await s.send([a]);
+  s.calls.length = 0;
+  const moved = { ...QUOTE, prefix: "Typed before the " };
+  movePending(SLUG, a.id, moved, null);
+  await assert.rejects(publishReview(SLUG, { posted: new Map(s.has), ...s }), (err) => err.status === 409 && err.data.id === a.id);
+  assert.deepEqual(s.calls, []);
+  assert.deepEqual(readReview(SLUG)[0].quote, moved);
+  // Saved: the same passage, now in text the server has.
+  assert.equal(movePending(SLUG, a.id, moved, "v1"), true, "the same passage in saved text is kept for it");
+  assert.equal(await publishReview(SLUG, { posted: new Map(s.has), ...s }), 1);
+  assert.deepEqual(s.has.get(a.id).anchor, moved);
 });

@@ -50,14 +50,16 @@
 // The service takes all of them or none, and names the one it refused; until
 // they are in, they stay pending. While they go, no tab changes them: an edit
 // open then waits, and is the published comment's once they are in. A
-// pending passage the editor moves is kept where it moved. His replies, edits
-// and resolves are sent as he makes them, as everyone's are.
+// pending passage the editor moves is kept where it moved, with the save its
+// text is, and one kept for text older than the page's is found again in the
+// text now. His replies, edits and resolves are sent as he makes them, as
+// everyone's are.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { Check, MessageSquare, MessageSquarePlus, Send, X } from "lucide-react";
 import { groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
 import { ApiError, request } from "./api";
-import { findThread } from "./place";
+import { findThread, findWhole, quoteAt } from "./place";
 import { addPending, dropSent, editPending, followPending, isReviewKey, locked, publishedAsIs, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
 
 // As the stats service has them.
@@ -177,9 +179,10 @@ function useThreads(slug, onLost, onDraftChange) {
         after(request(`/api/draft-comments?id=${encodeURIComponent(id)}`, { method: "DELETE" })).then(() =>
           setState((s) => ({ ...s, comments: s.comments.filter((c) => c.id !== id && c.thread !== id) })),
         ),
-      // Where a published passage is now, onto whatever text the server has. False when it has no such thread.
-      anchor: (id, quote) =>
-        after(request("/api/draft-comments?a=anchors", { method: "PUT", body: { draft: slug, anchors: [{ thread: id, ...quote }] } })).then(
+      // Where a published passage is now in the text saved at `base`. False when the server has no such
+      // thread; a 409 when the draft was saved since, and nothing is written.
+      anchor: (id, quote, base) =>
+        after(request("/api/draft-comments?a=anchors", { method: "PUT", body: { draft: slug, base, anchors: [{ thread: id, ...quote }] } })).then(
           ({ data }) => !data.ignored?.includes(id),
         ),
       // Every comment as the server has it now, or an ApiError: never the last poll's.
@@ -248,8 +251,8 @@ function useReview(slug, on) {
       remove: held((ids) => removePending(slug, ids)),
       // Each that is still as it was, let go: the server has it so.
       drop: held((sent) => dropSent(slug, sent)),
-      // Pending passages where the editor has them now: a Map of id → quote.
-      follow: (quotes) => locked(slug, () => followPending(slug, quotes)).then((moved) => moved && load()),
+      // Pending passages where they are now in the text saved at `base`: a Map of id → quote.
+      follow: (quotes, base) => locked(slug, () => followPending(slug, quotes, base)).then((moved) => moved && load()),
       publish: (opts) => {
         setPublishing(true);
         return publishReview(slug, opts).finally(() => {
@@ -272,12 +275,12 @@ function useFollow(slug, bridge, review, on) {
   latest.current = review;
   useEffect(() => {
     if (!bridge || !on) return;
-    const going = () => followPending(slug, bridge.quotes());
+    const going = () => followPending(slug, bridge.quotes(), bridge.base());
     window.addEventListener("pagehide", going);
     return () => window.removeEventListener("pagehide", going);
   }, [slug, bridge, on]);
   return useCallback(async () => {
-    if (bridge && on) await latest.current.follow(bridge.quotes());
+    if (bridge && on) await latest.current.follow(bridge.quotes(), bridge.base());
   }, [bridge, on]);
 }
 
@@ -411,7 +414,7 @@ function useEditorAnchors(bridge, threads, visible) {
 /**
  * @param {{slug: string, body: React.RefObject<HTMLElement>, viewer: object, onLost: () => void,
  *   bodyKey?: string, bridge?: object, onDraftChange?: (updatedAt: string) => void}} props
- *   `bodyKey` changes when the draft's text does; `bridge` is the editor's,
+ *   `bodyKey` is the updated_at of the draft's text shown; `bridge` is the editor's,
  *   while Ali edits; `onDraftChange` hears after every poll the newest updated_at the polls have said.
  */
 export default function DraftComments({ slug, body: readBody, viewer, onLost, bodyKey, bridge, onDraftChange }) {
@@ -470,6 +473,25 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     const t = setTimeout(follow, 400);
     return () => clearTimeout(t);
   }, [follow, live]);
+  // One kept for other text (saved since, or not saved then) is found again
+  // in the text shown, and kept for it. One not found stays as it was.
+  useEffect(() => {
+    const root = readBody.current;
+    if (bridge || !root || !bodyKey || review.publishing) return;
+    const old = review.list.filter((c) => c.quote && c.base !== bodyKey);
+    if (!old.length) return;
+    const quotes = new Map();
+    try {
+      const index = indexText(root);
+      for (const c of old) {
+        const at = findWhole(index, c.quote);
+        if (at) quotes.set(c.id, quoteAt(index, at));
+      }
+    } catch (err) {
+      console.warn("comments: could not find the pending passages", err);
+    }
+    if (quotes.size) review.follow(quotes, bodyKey);
+  }, [bridge, readBody, bodyKey, review]);
   const inText = visible.filter((t) => found.placed.has(t.id));
   const changed = visible.filter((t) => t.quote && !found.placed.has(t.id));
   const general = visible.filter((t) => !t.quote);
@@ -678,7 +700,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
         >
           {inText.map((t) => card(t, { inMargin: true }))}
           {showNew && (
-            <Composer key="new" id="new" quote={pending.quote} act={act} review={viewer.owner ? review : null} unsent={unsent} onDone={(c) => { setPending(null); setActive(c.id); }} onCancel={cancelNew} />
+            <Composer key="new" id="new" quote={pending.quote} act={act} review={viewer.owner ? review : null} base={bridge ? null : bodyKey} unsent={unsent} onDone={(c) => { setPending(null); setActive(c.id); }} onCancel={cancelNew} />
           )}
         </Margin>
       )}
@@ -731,7 +753,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
           onClose={() => (sheet.compose ? cancelNew() : setSheet(null))}
         >
           {sheet.compose === "new" && pending && (
-            <Composer id="new" quote={pending.quote} showQuote act={act} review={viewer.owner ? review : null} unsent={unsent} onDone={(c) => { setPending(null); setActive(null); setSheet({ ids: [c.id] }); }} onCancel={cancelNew} />
+            <Composer id="new" quote={pending.quote} showQuote act={act} review={viewer.owner ? review : null} base={bridge ? null : bodyKey} unsent={unsent} onDone={(c) => { setPending(null); setActive(null); setSheet({ ids: [c.id] }); }} onCancel={cancelNew} />
           )}
           {sheet.compose === "general" && (
             <Composer id="general" act={act} review={viewer.owner ? review : null} unsent={unsent} onDone={(c) => { setActive(null); setSheet({ ids: [c.id] }); }} onCancel={cancelNew} />
@@ -1225,9 +1247,10 @@ function ReplyBox({ thread, act, unsent, active, onActivate }) {
 
 /**
  * The card a new thread is written in, focused as soon as it opens. Ali's
- * goes into his review (`review`), to be published with the rest.
+ * goes into his review (`review`), to be published with the rest, its
+ * passage kept with `base`, the updated_at of the text it is in.
  */
-function Composer({ id, quote, showQuote, act, review, unsent, onDone, onCancel }) {
+function Composer({ id, quote, showQuote, act, review, base, unsent, onDone, onCancel }) {
   return (
     <div data-card={id} className="draft-card is-active is-composer">
       {showQuote && quote && <blockquote className="draft-quote">{quote.exact}</blockquote>}
@@ -1239,7 +1262,7 @@ function Composer({ id, quote, showQuote, act, review, unsent, onDone, onCancel 
         sendLabel={review ? "Add to review" : undefined}
         submit={async (text) => {
           const c = review
-            ? review.add({ body: text, quote })
+            ? review.add({ body: text, quote, base })
             : await act.create(quote ? { body: text, quote: quote.exact, prefix: quote.prefix, suffix: quote.suffix } : { body: text });
           onDone(c);
         }}

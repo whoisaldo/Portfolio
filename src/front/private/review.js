@@ -27,6 +27,12 @@
 // there is sent as an edit, and another passage as its anchor (where the
 // editor says a published passage is now), so a word changed or a passage
 // moved after a send is never lost.
+//
+// A passage is kept with `base`, the draft's updated_at of the text it was
+// found in (null for text not saved yet), and its anchor goes with that base:
+// the server refuses it (409) once the draft has been saved since, and the
+// comment stays pending, its text and passage as they were, until its
+// passage is found again in the draft as saved now.
 
 const prefix = (slug) => `draft-review:${slug}:`;
 const flagKey = (slug) => `draft-review-publishing:${slug}`;
@@ -40,7 +46,8 @@ export const MAX_REVIEW = 500;
 const FLAG_FOR = 60_000;
 
 const isQuote = (q) => q && typeof q.exact === "string" && typeof q.prefix === "string" && typeof q.suffix === "string";
-const valid = (c) => typeof c?.id === "string" && typeof c.body === "string" && (c.quote === null || isQuote(c.quote)) && Number.isFinite(c.at);
+const valid = (c) =>
+  typeof c?.id === "string" && typeof c.body === "string" && (c.quote === null || isQuote(c.quote)) && (c.base == null || typeof c.base === "string") && Number.isFinite(c.at);
 const quoteOf = (q) => q && { exact: q.exact, prefix: q.prefix || "", suffix: q.suffix || "" };
 
 /** A body as the stats service stores it (lib/comments.js, cleanText), to tell an edit from a space. */
@@ -54,7 +61,7 @@ const placeOf = (there) => (there.anchor?.exact ? there.anchor : there.anchor?.g
 /** True when `there`, the server's comment, is this pending one exactly: Ali's own, with its text and passage. */
 export const publishedAsIs = (c, there) => own(there) && there.body === cleanBody(c.body) && sameQuote(placeOf(there), c.quote);
 
-/** [{id, body, quote: {exact, prefix, suffix} | null, at}], in the order they were written. */
+/** [{id, body, quote: {exact, prefix, suffix} | null, base, at}], in the order they were written. */
 export function readReview(slug) {
   const out = [];
   try {
@@ -108,12 +115,12 @@ export function locked(slug, fn) {
 let last = 0;
 
 /** Adds a comment to the review and returns it. Throws when storage refuses it, or the review is full. */
-export function addPending(slug, { body, quote = null }) {
+export function addPending(slug, { body, quote = null, base = null }) {
   if (readReview(slug).length >= MAX_REVIEW) {
     throw new Error(`A review holds ${MAX_REVIEW} comments at most. Publish these, then add more.`);
   }
   last = Math.max(Date.now(), last + 1);
-  const c = { id: newId(), body, quote: quoteOf(quote), at: last };
+  const c = { id: newId(), body, quote: quoteOf(quote), base: quote ? base : null, at: last };
   write(slug, c);
   return c;
 }
@@ -126,18 +133,22 @@ export function editPending(slug, id, body) {
   return true;
 }
 
-/** Keeps a pending passage where the editor has it now. True when it had moved. */
-export function movePending(slug, id, quote) {
+/**
+ * Keeps a pending passage where it is now in the text saved at `base` (null
+ * for text not saved yet). True when it had moved, or that text is not the
+ * one it was kept for.
+ */
+export function movePending(slug, id, quote, base = null) {
   const c = readOne(slug, id);
   const q = quoteOf(quote);
-  if (!c?.quote || sameQuote(c.quote, q)) return false;
-  write(slug, { ...c, quote: q });
+  if (!c?.quote || (sameQuote(c.quote, q) && (c.base ?? null) === base)) return false;
+  write(slug, { ...c, quote: q, base });
   return true;
 }
 
-/** Each pending passage in `quotes` (id → quote, or {gone: true}) kept where it is; how many had moved. */
-export function followPending(slug, quotes) {
-  return readReview(slug).filter((c) => quotes.get(c.id) && !quotes.get(c.id).gone && movePending(slug, c.id, quotes.get(c.id))).length;
+/** Each pending passage in `quotes` (id → quote, or {gone: true}) kept where it is in the text saved at `base`; how many had moved. */
+export function followPending(slug, quotes, base = null) {
+  return readReview(slug).filter((c) => quotes.get(c.id) && !quotes.get(c.id).gone && movePending(slug, c.id, quotes.get(c.id), base)).length;
 }
 
 export function removePending(slug, ids) {
@@ -195,8 +206,9 @@ export const own = (c) => Boolean(c?.mine && !c.thread);
  * in already counted as its going in. `posted` is the
  * server's comments by id, as last polled; `send(list)` the batch request,
  * resolving to the comments it answers with; `edit(id, body)` an edit of a
- * published one; `anchor(id, quote)` moves a published one's passage,
- * resolving to false when the server has no such thread any more;
+ * published one; `anchor(id, quote, base)` moves a published one's passage,
+ * found in the text saved at `base`, resolving to false when the server has
+ * no such thread any more and throwing a 409 when the draft was saved since;
  * `refresh()` polls, resolving to the server's comments.
  *
  * One the server has already is published: with other text there, the text
@@ -207,6 +219,10 @@ export const own = (c) => Boolean(c?.mine && !c.thread);
  * it): it is sent as an edit or an anchor then, or under a new id when the
  * server's is not his thread, and the rest are sent again. One added while
  * this runs waits for the next publish.
+ *
+ * A passage found in text the server no longer has (or never had: text not
+ * saved yet) is not sent. Its comment stays pending as it is, the rest go,
+ * and the publish then throws a 409 naming it.
  */
 export function publishReview(slug, { posted, send, edit, anchor, refresh }) {
   return locked(slug, async () => {
@@ -214,6 +230,8 @@ export function publishReview(slug, { posted, send, edit, anchor, refresh }) {
     let known = posted;
     const went = new Set();
     let refused = false;
+    // Their passages are in text older than the server's.
+    const stale = new Set();
     const again = (id) => {
       const next = renew(slug, id);
       if (next) ids.add(next);
@@ -221,7 +239,7 @@ export function publishReview(slug, { posted, send, edit, anchor, refresh }) {
     try {
       for (;;) {
         flag(slug, true);
-        for (const c of readReview(slug).filter((x) => ids.has(x.id) && known.has(x.id))) {
+        for (const c of readReview(slug).filter((x) => ids.has(x.id) && known.has(x.id) && !stale.has(x.id))) {
           const there = known.get(c.id);
           // One on the whole draft is not one on a passage, nor the other way.
           if (!own(there) || !c.quote !== !there.quote) {
@@ -240,8 +258,18 @@ export function publishReview(slug, { posted, send, edit, anchor, refresh }) {
             went.add(c.id);
           }
           if (!sameQuote(placeOf(there), c.quote)) {
+            let placed;
+            try {
+              placed = c.base ? await anchor(c.id, c.quote, c.base) : null;
+            } catch (err) {
+              if (err?.status !== 409) throw err;
+            }
+            if (placed == null) {
+              stale.add(c.id);
+              continue;
+            }
             // Deleted since it was published: kept, to publish anew.
-            if (!(await anchor(c.id, c.quote))) {
+            if (!placed) {
               again(c.id);
               continue;
             }
@@ -250,7 +278,13 @@ export function publishReview(slug, { posted, send, edit, anchor, refresh }) {
           dropSent(slug, [c]);
         }
         const list = readReview(slug).filter((c) => ids.has(c.id) && !known.has(c.id)).slice(0, MAX_REVIEW);
-        if (!list.length) return went.size;
+        if (!list.length) {
+          if (!stale.size) return went.size;
+          throw Object.assign(new Error("The draft was saved since its passage was placed. It is kept here, and goes once its passage is found in the draft as saved."), {
+            status: 409,
+            data: { id: [...stale][0] },
+          });
+        }
         try {
           const got = await send(list);
           dropSent(slug, list);

@@ -6,7 +6,7 @@ import "./dom.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { findQuote, indexText, quoteFromRange } from "../src/front/quotes.js";
-import { findWhole } from "../src/front/private/place.js";
+import { findWhole, quoteAt } from "../src/front/private/place.js";
 
 /** A seeded generator of numbers in [0, 1). */
 function random(seed) {
@@ -256,4 +256,18 @@ test("on seeded texts, a passage still as it was quoted is placed there, and non
   // Every kind of case, many times.
   for (const [k, n] of Object.entries(counts)) if (!["duplicates", "cutInside", "cutWord"].includes(k)) assert.ok(n > 1000, `${k}: ${n}`);
   assert.ok(counts.cutInside > 100 && counts.cutWord > 100, JSON.stringify(counts));
+});
+
+test("a passage found again makes the quote a selection of it would", () => {
+  document.body.innerHTML = "<p>A first line of made-up text.</p><p>Then the passage found again, and what follows it here.</p>";
+  const index = indexText(document.body);
+  const at = findWhole(index, { exact: "passage found", prefix: "text.\nThen the ", suffix: " again, and" });
+  assert.ok(at);
+  const range = document.createRange();
+  const text = document.body.lastChild.firstChild;
+  range.setStart(text, 9);
+  range.setEnd(text, 22);
+  const { trimmed, ...selected } = quoteFromRange(index, range, 500);
+  assert.equal(trimmed, false);
+  assert.deepEqual(quoteAt(index, at), selected);
 });
