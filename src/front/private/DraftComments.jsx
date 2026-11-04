@@ -48,15 +48,17 @@
 // is kept in his browser as pending, seen by him alone and edited or deleted
 // freely, until "Publish" at the foot of the screen sends them all at once.
 // The service takes all of them or none, and names the one it refused; until
-// they are in, they stay pending. His replies, edits and resolves are sent as
-// he makes them, as everyone's are.
+// they are in, they stay pending. While they go, no tab changes them: an edit
+// open then waits, and is the published comment's once they are in. A
+// pending passage the editor moves is kept where it moved. His replies, edits
+// and resolves are sent as he makes them, as everyone's are.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { Check, MessageSquare, MessageSquarePlus, Send, X } from "lucide-react";
 import { groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
 import { ApiError, request } from "./api";
 import { findThread } from "./place";
-import { addPending, editPending, readReview, removePending, reviewKey, toBatch } from "./review";
+import { addPending, cleanBody, dropSent, editPending, followPending, isReviewKey, locked, own, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
 
 // As the stats service has them.
 const LIMIT = { body: 2000, quote: 500 };
@@ -175,6 +177,8 @@ function useThreads(slug, onLost, onDraftChange) {
         after(request(`/api/draft-comments?id=${encodeURIComponent(id)}`, { method: "DELETE" })).then(() =>
           setState((s) => ({ ...s, comments: s.comments.filter((c) => c.id !== id && c.thread !== id) })),
         ),
+      // Every comment as the server has it now, or an ApiError: never the last poll's.
+      list: () => request(`/api/draft-comments?draft=${encodeURIComponent(slug)}`, { timeout: 10_000 }).then(({ data }) => data.comments),
       // Ali's review, all of it in one request.
       publish: (list) =>
         after(request("/api/draft-comments?a=batch", { method: "POST", body: { draft: slug, comments: toBatch(list) }, timeout: 20_000 })).then(({ data }) => {
@@ -191,34 +195,85 @@ const byTime = (a, b) => a.created_at.localeCompare(b.created_at) || a.id.locale
 
 /**
  * Ali's review of this draft (./review.js), and the ways to change it. Read
- * again whenever another tab changes it. Each change throws an Error to show
- * when the browser would not keep it.
+ * again whenever another tab changes it. `publishing` while a tab, this one
+ * or another, is publishing it: nothing in it is to change then. Adding
+ * throws an Error to show when the browser would not keep it; an edit
+ * resolves to false when the comment was published or deleted meanwhile.
  */
 function useReview(slug, on) {
   const [list, setList] = useState(() => (on ? readReview(slug) : []));
+  const [publishing, setPublishing] = useState(() => on && publishingNow(slug));
   useEffect(() => {
-    if (!on) return setList([]);
-    const load = () => setList(readReview(slug));
+    if (!on) {
+      setList([]);
+      setPublishing(false);
+      return;
+    }
+    let lapse = 0;
+    const load = () => {
+      setList(readReview(slug));
+      setPublishing(publishingNow(slug));
+      // A flag left by a tab that closed mid-way lapses.
+      clearTimeout(lapse);
+      if (publishingNow(slug)) lapse = setTimeout(load, publishingUntil(slug) - Date.now() + 50);
+    };
     load();
-    const heard = (e) => (e.key === null || e.key === reviewKey(slug)) && load();
+    const heard = (e) => isReviewKey(slug, e.key) && load();
     window.addEventListener("storage", heard);
-    return () => window.removeEventListener("storage", heard);
+    return () => {
+      clearTimeout(lapse);
+      window.removeEventListener("storage", heard);
+    };
   }, [slug, on]);
   return useMemo(() => {
+    const load = () => setList(readReview(slug));
     const then = (fn) => (...args) => {
       try {
         return fn(...args);
       } finally {
-        setList(readReview(slug));
+        load();
       }
     };
+    const held = (fn) => (...args) => locked(slug, () => fn(...args)).finally(load);
     return {
       list: on ? list : [],
+      publishing: on && publishing,
       add: then((fields) => addPending(slug, fields)),
-      edit: then((id, body) => editPending(slug, id, body)),
-      remove: then((ids) => removePending(slug, ids)),
+      edit: held((id, body) => editPending(slug, id, body)),
+      remove: held((ids) => removePending(slug, ids)),
+      // Each that is still as it was, let go: the server has it so.
+      drop: held((sent) => dropSent(slug, sent)),
+      // Pending passages where the editor has them now: a Map of id → quote.
+      follow: (quotes) => locked(slug, () => followPending(slug, quotes)).then((moved) => moved && load()),
+      publish: (opts) => {
+        setPublishing(true);
+        return publishReview(slug, opts).finally(() => {
+          load();
+          setPublishing(publishingNow(slug));
+        });
+      },
     };
-  }, [slug, on, list]);
+  }, [slug, on, list, publishing]);
+}
+
+/**
+ * Keeps Ali's pending passages where the editor has them, so a publish sends
+ * them there and a reload finds them there. The function returned does it;
+ * it is called a moment after each change and before a publish, and the page
+ * does it as it goes, with no waiting for the lock then.
+ */
+function useFollow(slug, bridge, review, on) {
+  const latest = useRef(review);
+  latest.current = review;
+  useEffect(() => {
+    if (!bridge || !on) return;
+    const going = () => followPending(slug, bridge.quotes());
+    window.addEventListener("pagehide", going);
+    return () => window.removeEventListener("pagehide", going);
+  }, [slug, bridge, on]);
+  return useCallback(async () => {
+    if (bridge && on) await latest.current.follow(bridge.quotes());
+  }, [bridge, on]);
 }
 
 /** A pending comment as a thread, so it is placed and listed as threads are. */
@@ -331,7 +386,8 @@ const NOTHING = { key: null, placed: new Set(), groups: new Map(), marks: new Ma
  * The passages as the editor has them, in the shape useAnchors gives. Every
  * thread is handed over, hidden ones too, so a resolved thread's passage is
  * kept up to date as well. A pending one has no `find`: the server has no
- * thread for it, so it is looked for by its quote and no anchor is sent.
+ * thread for it, so it is looked for by its quote and no anchor is sent;
+ * its quote follows it instead (useFollow).
  */
 function useEditorAnchors(bridge, threads, visible) {
   const [found, setFound] = useState(NOTHING);
@@ -360,16 +416,20 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   const review = useReview(slug, viewer.owner);
   // Publishing: `failed` is the comment the service refused, if it named one.
   const [publishing, setPublishing] = useState({ busy: false, error: "", failed: null, done: 0 });
-  // One the server has already (a publish whose answer was lost) is let go,
-  // and a publish that seemed to fail is shown as the one that went in.
-  const posted = useMemo(() => new Set(comments.map((c) => c.id)), [comments]);
-  const pendingList = useMemo(() => review.list.filter((c) => !posted.has(c.id)), [review.list, posted]);
+  // One the server has already as it is here (a publish whose answer was
+  // lost) is let go, and a publish that seemed to fail is shown as the one
+  // that went in. One there with other text (edited after it was sent) is
+  // still to publish, as an edit: counted, though its card is the server's.
+  const posted = useMemo(() => new Map(comments.map((c) => [c.id, c])), [comments]);
+  const inAlready = useCallback((c) => own(posted.get(c.id)) && posted.get(c.id).body === cleanBody(c.body), [posted]);
+  const waiting = useMemo(() => review.list.filter((c) => !inAlready(c)), [review.list, inAlready]);
+  const pendingList = useMemo(() => waiting.filter((c) => !posted.has(c.id)), [waiting, posted]);
   useEffect(() => {
-    const done = review.list.filter((c) => posted.has(c.id)).map((c) => c.id);
-    if (!done.length) return;
-    review.remove(done);
+    const done = review.list.filter(inAlready);
+    if (!done.length || review.publishing) return;
+    review.drop(done);
     setPublishing((p) => (p.error ? { busy: false, error: "", failed: null, done: done.length } : p));
-  }, [review, posted]);
+  }, [review, inAlready]);
   const published = useMemo(() => toThreads(comments), [comments]);
   const threads = useMemo(() => [...published, ...pendingList.map(pendingThread)], [published, pendingList]);
   // The element holding the draft's text: the article's, or the editor's.
@@ -377,6 +437,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   const body = useMemo(() => (bridge ? { current: editorDom } : readBody), [bridge, editorDom, readBody]);
   // After the editor saves new anchors, they are fetched at once.
   useEffect(() => bridge?.onAnchorsSaved(() => poll(true)), [bridge, poll]);
+  const follow = useFollow(slug, bridge, review, viewer.owner);
 
   const [showResolved, setShowResolved] = useState(false);
   const [active, setActive] = useState(null); // a thread's id, "new" or "general"
@@ -398,6 +459,11 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   const read = useAnchors(bridge ? NOWHERE : readBody, bridge ? [] : items, bridge ? "editing" : bodyKey);
   const live = useEditorAnchors(bridge, threads, visible);
   const found = bridge ? live : read;
+  // A pending passage an edit moved is kept where it is now, a moment after.
+  useEffect(() => {
+    const t = setTimeout(follow, 400);
+    return () => clearTimeout(t);
+  }, [follow, live]);
   const inText = visible.filter((t) => found.placed.has(t.id));
   const changed = visible.filter((t) => t.quote && !found.placed.has(t.id));
   const general = visible.filter((t) => !t.quote);
@@ -529,13 +595,13 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   }, [status, threads, found, wide, focusThread, showResolved]);
 
   const publish = useCallback(async () => {
-    const list = pendingList;
-    if (!list.length) return;
+    if (!waiting.length) return;
     setPublishing({ busy: true, error: "", failed: null, done: 0 });
     try {
-      await act.publish(list);
-      review.remove(list.map((c) => c.id));
-      setPublishing({ busy: false, error: "", failed: null, done: list.length });
+      // Each passage where it is now, first.
+      await follow();
+      const done = await review.publish({ posted, send: act.publish, edit: act.edit, refresh: act.list });
+      setPublishing({ busy: false, error: "", failed: null, done });
     } catch (err) {
       const failed = err.data?.id ?? null;
       setPublishing({ busy: false, error: err.message, failed, done: 0 });
@@ -545,7 +611,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
         if (!found.placed.has(failed)) requestAnimationFrame(() => document.getElementById(`thread-${failed}`)?.scrollIntoView({ block: "center" }));
       }
     }
-  }, [act, review, pendingList, focusThread, found]);
+  }, [act, review, waiting, posted, follow, focusThread, found]);
   const settle = useCallback(() => setPublishing((p) => ({ ...p, done: 0 })), []);
   // An edit to the one refused takes its error away: the next publish says anew.
   const fixed = useCallback((id) => setPublishing((p) => (p.failed === id ? { ...p, error: "", failed: null } : p)), []);
@@ -557,8 +623,10 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       t={t}
       viewer={viewer}
       review={review}
+      act={act}
+      unsent={unsent}
       error={publishing.failed === t.id ? publishing.error : ""}
-      busy={publishing.busy}
+      busy={publishing.busy || review.publishing}
       onFixed={fixed}
       active={active === t.id}
       related={(found.groups.get(active) || []).includes(t.id) || (hover || []).includes(t.id)}
@@ -592,7 +660,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
           toolbar={
             <Toolbar
               open={open}
-              pending={pendingList.length}
+              pending={waiting.length}
               resolved={resolvedCount}
               showResolved={showResolved}
               onShowResolved={setShowResolved}
@@ -639,8 +707,8 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
 
       {!bridge && <SelectButton body={body} onComment={startNew} />}
 
-      {viewer.owner && (pendingList.length > 0 || publishing.done > 0) &&
-        createPortal(<ReviewBar count={pendingList.length} {...publishing} onPublish={publish} onSettled={settle} />, document.body)}
+      {viewer.owner && (waiting.length > 0 || publishing.done > 0) &&
+        createPortal(<ReviewBar count={waiting.length} {...publishing} busy={publishing.busy || review.publishing} onPublish={publish} onSettled={settle} />, document.body)}
 
       {!wide &&
         createPortal(
@@ -670,7 +738,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
           )}
           {sheet.all && (
             <>
-              <Toolbar open={open} pending={pendingList.length} resolved={resolvedCount} showResolved={showResolved} onShowResolved={setShowResolved} onGeneral={startGeneral} />
+              <Toolbar open={open} pending={waiting.length} resolved={resolvedCount} showResolved={showResolved} onShowResolved={setShowResolved} onGeneral={startGeneral} />
               {visible.length === 0 && <p className="draft-empty">No comments yet. Select words in the draft to comment on them.</p>}
               <Group title="In the text" threads={inText} render={(t) => card(t, { showQuote: true, onActivate: () => setSheet({ ids: [t.id] }) })} />
               <Group title="On the whole draft" threads={general} render={(t) => card(t, { onActivate: () => setSheet({ ids: [t.id] }) })} />
@@ -834,7 +902,7 @@ function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHo
           <span>Originally on:</span> {t.quote.exact}
         </p>
       )}
-      <Comment c={t.root} now={now} viewer={viewer} act={act} onError={setError} clamp={compact} onMore={onActivate}>
+      <Comment c={t.root} now={now} viewer={viewer} act={act} unsent={unsent} onError={setError} clamp={compact} onMore={onActivate}>
         {resolved ? (
           <button type="button" className="draft-text-button" onClick={() => run(act.resolve(t.id, false))}>
             Reopen
@@ -859,7 +927,7 @@ function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHo
               {replies} {replies === 1 ? "reply" : "replies"}
             </button>
           )
-        : t.replies.map((r) => <Comment key={r.id} c={r} now={now} viewer={viewer} act={act} onError={setError} reply />)}
+        : t.replies.map((r) => <Comment key={r.id} c={r} now={now} viewer={viewer} act={act} unsent={unsent} onError={setError} reply />)}
       {error && (
         <p role="alert" className="private-error">
           {error}
@@ -873,21 +941,23 @@ function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHo
 /**
  * One of Ali's comments not published yet. Its passage is marked as his
  * other threads' are, with a dashed line; it has no replies or resolve, as
- * nobody else has seen it. While it is being published it is left as it is.
+ * nobody else has seen it. While it is being published, from any tab, it is
+ * left as it is: an edit open then waits, and is the published one's after.
  */
-function PendingThread({ t, viewer, review, error, busy, onFixed, active, related, onActivate, onHover, showQuote, inMargin }) {
+function PendingThread({ t, viewer, review, act, unsent, error, busy, onFixed, active, related, onActivate, onHover, showQuote, inMargin }) {
   const [problem, setProblem] = useState("");
   const c = t.pending;
   const comment = { id: c.id, author: { name: viewer.name, owner: true }, body: c.body, created_at: new Date(c.at).toISOString(), mine: !busy };
   const local = useMemo(
     () => ({
       edit: async (id, body) => {
-        review.edit(id, body);
+        // Published meanwhile: the edit is made to it there.
+        if (!(await review.edit(id, body))) await act.edit(id, body);
         onFixed(id);
       },
-      remove: async (id) => review.remove([id]),
+      remove: (id) => review.remove([id]),
     }),
-    [review, onFixed],
+    [review, act, onFixed],
   );
   return (
     <article
@@ -899,7 +969,7 @@ function PendingThread({ t, viewer, review, error, busy, onFixed, active, relate
       onMouseLeave={() => onHover?.(false)}
     >
       {showQuote && t.quote && <blockquote className="draft-quote">{t.quote.exact}</blockquote>}
-      <Comment c={comment} viewer={viewer} act={local} onError={setProblem} clamp={inMargin && !active} onMore={onActivate} pending />
+      <Comment c={comment} viewer={viewer} act={local} unsent={unsent} locked={busy} onError={setProblem} clamp={inMargin && !active} onMore={onActivate} pending />
       {(error || problem) && (
         <p role="alert" className="private-error">
           {error || problem}
@@ -935,7 +1005,7 @@ function ReviewBar({ count, busy, error, failed, done, onPublish, onSettled }) {
       </p>
       {error && count > 0 && (
         <p role="alert" className="private-error">
-          {failed ? `The comment marked in red couldn't go in: ${error}` : error} Nothing was published, and every comment is still here.
+          {failed ? `The comment marked in red couldn't go in: ${error}` : error} Every comment that didn't go in is still here.
         </p>
       )}
       {count > 0 && (
@@ -947,8 +1017,10 @@ function ReviewBar({ count, busy, error, failed, done, onPublish, onSettled }) {
   );
 }
 
-function Comment({ c, now, viewer, act, onError, reply, clamp, onMore, pending, children }) {
-  const [editing, setEditing] = useState(false);
+function Comment({ c, now, viewer, act, unsent, locked, onError, reply, clamp, onMore, pending, children }) {
+  // An edit not saved is open again when its comment is back: a pending
+  // one's, once it is published, on the published card.
+  const [editing, setEditing] = useState(() => Boolean(unsent?.has(`edit:${c.id}`)));
   const text = useRef(null);
   const [cut, setCut] = useState(false);
   useLayoutEffect(() => {
@@ -989,7 +1061,7 @@ function Comment({ c, now, viewer, act, onError, reply, clamp, onMore, pending, 
         {children}
       </div>
       {editing ? (
-        <EditBox c={c} act={act} onDone={() => setEditing(false)} />
+        <EditBox c={c} act={act} unsent={unsent} locked={locked} onDone={() => setEditing(false)} />
       ) : (
         <>
           <p ref={text} className={`draft-body${clamp ? " is-clamped" : ""}`}>
@@ -1029,9 +1101,10 @@ const kept = (unsent, key) => ({
 /**
  * A textarea that grows with what is typed, sends on Ctrl/Cmd+Enter.
  * `onText` hears every change, and "" once it is sent or cancelled; Escape
- * closes without cancelling.
+ * closes without cancelling. While `held` (why, to show) it is not sent and
+ * its text is left as it is.
  */
-function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoFocus, sendLabel = "Comment" }) {
+function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoFocus, sendLabel = "Comment", held }) {
   const [text, setText] = useState(initial);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -1057,7 +1130,7 @@ function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoF
 
   async function send(e) {
     e?.preventDefault();
-    if (!text.trim() || sending) return;
+    if (!text.trim() || sending || held) return;
     setSending(true);
     setError("");
     try {
@@ -1080,6 +1153,7 @@ function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoF
         maxLength={LIMIT.body}
         placeholder={placeholder}
         aria-label={label}
+        readOnly={Boolean(held)}
         onChange={(e) => change(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(e);
@@ -1087,13 +1161,18 @@ function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoF
         }}
       />
       {text.length > LIMIT.body - 200 && <p className="draft-left tabular-nums">{LIMIT.body - text.length} characters left</p>}
+      {held && (
+        <p className="draft-left" role="status">
+          {held}
+        </p>
+      )}
       {error && (
         <p role="alert" className="private-error">
           {error}
         </p>
       )}
       <div className="draft-box-buttons">
-        <button type="submit" className="private-primary chamfer chamfer-sm" disabled={sending || !text.trim()}>
+        <button type="submit" className="private-primary chamfer chamfer-sm" disabled={sending || !text.trim() || Boolean(held)}>
           {sending ? "Sending…" : sendLabel}
         </button>
         {onCancel && (
@@ -1106,10 +1185,14 @@ function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoF
   );
 }
 
-function EditBox({ c, act, onDone }) {
+/** Its text not saved yet is kept in `unsent`, as "edit:<id>", until it is saved or cancelled. */
+function EditBox({ c, act, unsent, locked, onDone }) {
+  const keep = unsent ? kept(unsent, `edit:${c.id}`) : {};
   return (
     <Box
-      initial={c.body}
+      initial={keep.initial || c.body}
+      onText={keep.onText}
+      held={locked && "Publishing. Save once it's in."}
       label="Edit your comment"
       sendLabel="Save"
       autoFocus
