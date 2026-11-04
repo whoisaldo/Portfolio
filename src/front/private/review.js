@@ -146,6 +146,24 @@ export function movePending(slug, id, quote, base = null) {
   return true;
 }
 
+/** True when `there`, Ali's published thread, is on another passage than the one kept here for it: a move still to send. */
+export const movedHere = (c, there) => Boolean(c?.quote) && own(there) && Boolean(there.quote) && !sameQuote(placeOf(there), c.quote);
+
+/**
+ * Lets go of where a published one's passage was moved here, and keeps it
+ * where the server has it (`there`): for a passage not to be found in the
+ * draft as saved now. One with nothing else to send is let go; text edited
+ * since still goes, as an edit. False when it is not pending any more.
+ */
+export function keepPublishedPlace(slug, id, there) {
+  const c = readOne(slug, id);
+  if (!c || !movedHere(c, there)) return false;
+  const next = { ...c, quote: quoteOf(placeOf(there)), base: null };
+  if (publishedAsIs(next, there)) drop(slug, id);
+  else write(slug, next);
+  return true;
+}
+
 /** Each pending passage in `quotes` (id → quote, or {gone: true}) kept where it is in the text saved at `base`; how many had moved. */
 export function followPending(slug, quotes, base = null) {
   return readReview(slug).filter((c) => quotes.get(c.id) && !quotes.get(c.id).gone && movePending(slug, c.id, quotes.get(c.id), base)).length;

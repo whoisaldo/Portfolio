@@ -60,7 +60,7 @@ import { Check, MessageSquare, MessageSquarePlus, Send, X } from "lucide-react";
 import { groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
 import { ApiError, request } from "./api";
 import { findThread, findWhole, quoteAt } from "./place";
-import { addPending, dropSent, editPending, followPending, isReviewKey, locked, publishedAsIs, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
+import { addPending, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, publishedAsIs, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
 
 // As the stats service has them.
 const LIMIT = { body: 2000, quote: 500 };
@@ -251,6 +251,8 @@ function useReview(slug, on) {
       remove: held((ids) => removePending(slug, ids)),
       // Each that is still as it was, let go: the server has it so.
       drop: held((sent) => dropSent(slug, sent)),
+      // A published one's passage kept where the server has it, its move here let go.
+      keep: held((id, there) => keepPublishedPlace(slug, id, there)),
       // Pending passages where they are now in the text saved at `base`: a Map of id → quote.
       follow: (quotes, base) => locked(slug, () => followPending(slug, quotes, base)).then((moved) => moved && load()),
       publish: (opts) => {
@@ -441,6 +443,14 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   }, [review, inAlready]);
   const published = useMemo(() => toThreads(comments), [comments]);
   const threads = useMemo(() => [...published, ...pendingList.map(pendingThread)], [published, pendingList]);
+  // His published threads whose passage he moved here, the move refused, or
+  // kept for other text than the one shown and not found in it (one found
+  // is kept for it, below). Each card says so, and keeps the published
+  // passage or has it chosen again in the text shown.
+  const held = useMemo(
+    () => new Set(waiting.filter((c) => movedHere(c, posted.get(c.id)) && (c.id === publishing.failed || (!bridge && bodyKey && c.base !== bodyKey))).map((c) => c.id)),
+    [waiting, posted, publishing.failed, bridge, bodyKey],
+  );
   // The element holding the draft's text: the article's, or the editor's.
   const editorDom = bridge?.dom;
   const body = useMemo(() => (bridge ? { current: editorDom } : readBody), [bridge, editorDom, readBody]);
@@ -453,13 +463,14 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   const [hover, setHover] = useState(null); // the ids on a hovered passage or card
   const [pending, setPending] = useState(null); // the passage a new thread is on
   const [sheet, setSheet] = useState(null); // {ids} | {all: true} | {compose: "new" | "general"}
+  const [placing, setPlacing] = useState(null); // a held thread whose passage is being chosen again
   // Unsent text by "new", "general" or a thread's id. A ref: a box reads it
   // only when it opens, so typing renders nothing here.
   const unsent = useRef(new Map()).current;
 
   const visible = useMemo(
-    () => threads.filter((t) => showResolved || !t.resolved || t.id === active),
-    [threads, showResolved, active],
+    () => threads.filter((t) => showResolved || !t.resolved || t.id === active || held.has(t.id)),
+    [threads, showResolved, active, held],
   );
   const items = useMemo(
     () => (pending ? [...visible, { id: "new", quote: pending.quote, find: pending.quote, resolved: null }] : visible),
@@ -636,13 +647,34 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       // The one refused is brought into view, to be fixed.
       if (failed) {
         focusThread(failed);
+        if (!wide && found.placed.has(failed)) setSheet({ ids: [failed] });
         if (!found.placed.has(failed)) requestAnimationFrame(() => document.getElementById(`thread-${failed}`)?.scrollIntoView({ block: "center" }));
       }
     }
-  }, [act, review, waiting, posted, follow, focusThread, found]);
+  }, [act, review, waiting, posted, follow, focusThread, found, wide]);
   const settle = useCallback(() => setPublishing((p) => ({ ...p, done: 0 })), []);
   // An edit to the one refused takes its error away: the next publish says anew.
   const fixed = useCallback((id) => setPublishing((p) => (p.failed === id ? { ...p, error: "", failed: null } : p)), []);
+  // A held one's way out: its move let go for the passage the server has now,
+  // or its passage chosen again.
+  const keep = useCallback(
+    (id) => act.list().then((now) => review.keep(id, now.find((c) => c.id === id))).then(() => { fixed(id); poll(true); }),
+    [act, review, fixed, poll],
+  );
+  const place = useCallback(
+    (quote) => {
+      const id = placing;
+      setPlacing(null);
+      window.getSelection()?.removeAllRanges();
+      review.follow(new Map([[id, quote]]), bodyKey).then(() => fixed(id));
+    },
+    [placing, review, bodyKey, fixed],
+  );
+  useEffect(() => {
+    if (placing && !held.has(placing)) setPlacing(null);
+  }, [placing, held]);
+  // The bar points at a card only when there is one marked.
+  const marked = threads.some((t) => t.id === publishing.failed) ? publishing.failed : null;
 
   const shared = { viewer, now, act, onLost, unsent };
   const card = (t, extra = {}) => t.pending ? (
@@ -673,6 +705,19 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       onHover={(on) => setHover(on ? found.groups.get(t.id) || [t.id] : null)}
       onResolved={() => setActive((a) => (a === t.id ? null : a))}
       placed={found.placed.has(t.id)}
+      failure={publishing.failed === t.id ? publishing.error : ""}
+      move={
+        held.has(t.id)
+          ? {
+              busy: publishing.busy || review.publishing,
+              placing: placing === t.id,
+              onKeep: () => keep(t.id),
+              // Chosen by a selection in the page: not the editor's, which is for
+              // formatting, nor behind a phone's sheet.
+              onPlace: bridge || !wide ? null : () => setPlacing((p) => (p === t.id ? null : t.id)),
+            }
+          : null
+      }
       {...extra}
     />
   );
@@ -733,10 +778,10 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
         )}
       </section>
 
-      {!bridge && <SelectButton body={body} onComment={startNew} />}
+      {!bridge && <SelectButton body={body} onComment={placing ? place : startNew} label={placing ? "Move here" : "Comment"} />}
 
       {viewer.owner && (waiting.length > 0 || publishing.done > 0) &&
-        createPortal(<ReviewBar count={waiting.length} {...publishing} busy={publishing.busy || review.publishing} onPublish={publish} onSettled={settle} />, document.body)}
+        createPortal(<ReviewBar count={waiting.length} {...publishing} failed={marked} busy={publishing.busy || review.publishing} onPublish={publish} onSettled={settle} />, document.body)}
 
       {!wide &&
         createPortal(
@@ -890,7 +935,7 @@ function Margin({ body, found, active, order, toolbar, children }) {
 }
 
 /** One thread: its first comment, its replies, and a box to reply. */
-function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed }) {
+function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed, failure, move }) {
   const [error, setError] = useState("");
   const resolved = t.resolved;
   // In the margin a thread that is not in hand is a summary, as in Docs: the
@@ -912,7 +957,7 @@ function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHo
     <article
       id={`thread-${t.id}`}
       data-card={t.id}
-      className={`draft-card${active ? " is-active" : ""}${related && !active ? " is-related" : ""}${resolved ? " is-resolved" : ""}`}
+      className={`draft-card${failure ? " is-failed" : ""}${active ? " is-active" : ""}${related && !active ? " is-related" : ""}${resolved ? " is-resolved" : ""}`}
       onClick={(e) => !active && !e.target.closest("button, a, textarea") && onActivate()}
       onMouseEnter={() => onHover?.(true)}
       onMouseLeave={() => onHover?.(false)}
@@ -956,9 +1001,33 @@ function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHo
             </button>
           )
         : t.replies.map((r) => <Comment key={r.id} c={r} now={now} viewer={viewer} act={act} unsent={unsent} onError={setError} reply />)}
-      {error && (
+      {/* His move of its passage, held: what the server has is kept, or the
+          passage is chosen again. */}
+      {move && (
+        <div className="draft-held">
+          <p>
+            <span className="draft-badge">Pending</span> You moved this comment to a passage that isn't in the draft as saved now.
+          </p>
+          <p className="draft-held-actions">
+            <button type="button" onClick={() => run(move.onKeep())} disabled={move.busy}>
+              Keep the published passage
+            </button>
+            {move.onPlace && (
+              <button type="button" onClick={move.onPlace} disabled={move.busy}>
+                {move.placing ? "Cancel" : "Choose the passage again"}
+              </button>
+            )}
+          </p>
+          {move.placing && (
+            <p className="draft-left" role="status">
+              Select the words it is on now, then press Move here.
+            </p>
+          )}
+        </div>
+      )}
+      {(error || failure) && (
         <p role="alert" className="private-error">
-          {error}
+          {error || failure}
         </p>
       )}
       {!compact && <ReplyBox thread={t.id} act={act} unsent={unsent} active={active} onActivate={onActivate} />}
@@ -1335,7 +1404,7 @@ function Sheet({ title, onClose, children }) {
  * embed, the video or the comments themselves are not the draft's words and
  * get no button.
  */
-function SelectButton({ body, onComment }) {
+function SelectButton({ body, onComment, label }) {
   const [pick, setPick] = useState(null);
   const current = useRef(null);
   const button = useRef(null);
@@ -1428,7 +1497,7 @@ function SelectButton({ body, onComment }) {
       }}
     >
       <MessageSquarePlus className="size-4" aria-hidden="true" />
-      Comment
+      {label}
       <kbd aria-hidden="true">{mac ? "⌘⌥M" : "Ctrl+Alt+M"}</kbd>
     </button>,
     document.body,

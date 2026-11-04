@@ -5,9 +5,11 @@ import { window } from "./dom.mjs";
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  MAX_REVIEW, addPending, cleanBody, dropSent, editPending, followPending, isReviewKey, locked, movePending, newId,
+  MAX_REVIEW, addPending, cleanBody, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, movePending, newId,
   publishReview, publishedAsIs, publishingNow, readReview, removePending, toBatch,
 } from "../src/front/private/review.js";
+import { indexText } from "../src/front/quotes.js";
+import { findWhole } from "../src/front/private/place.js";
 
 // Node has a localStorage of its own, unusable without a file, so dom.mjs
 // leaves it be; here it is the page's.
@@ -419,4 +421,54 @@ test("a passage read off text not saved yet is not sent as an anchor", async () 
   assert.equal(movePending(SLUG, a.id, moved, "v1"), true, "the same passage in saved text is kept for it");
   assert.equal(await publishReview(SLUG, { posted: new Map(s.has), ...s }), 1);
   assert.deepEqual(s.has.get(a.id).anchor, moved);
+});
+
+test("a held passage an edit nearby left nowhere to be found keeps the published one, and the review publishes cleanly after", async () => {
+  const s = server();
+  const a = addPending(SLUG, { body: "On a passage.", quote: QUOTE, base: "v1" });
+  await s.send([a]);
+  // Moved here, in the text saved at v1, and revised.
+  const moved = { exact: "Lorem draft", prefix: "Now a moved ", suffix: " at the end." };
+  movePending(SLUG, a.id, moved, "v1");
+  editPending(SLUG, a.id, "On a passage, revised.");
+  // Another tab edits around it and saves, and anchors the thread there.
+  s.at.saved = "v2";
+  const theirs = { exact: "Lorem draft", prefix: "Now a much moved ", suffix: ", near the end." };
+  assert.equal(await s.anchor(a.id, theirs, "v2"), true);
+  await assert.rejects(publishReview(SLUG, { posted: new Map(s.has), ...s }), (err) => err.status === 409 && err.data.id === a.id);
+  assert.equal(s.has.get(a.id).body, "On a passage, revised.", "the revised text went in");
+  // The read view looks for it in the text saved at v2, and it is not there.
+  const article = document.createElement("article");
+  article.innerHTML = "<p>Before the Lorem draft and after. Now a much moved Lorem draft, near the end.</p>";
+  assert.equal(findWhole(indexText(article), moved), null);
+  const [held] = readReview(SLUG);
+  assert.equal(movedHere(held, s.has.get(a.id)), true, "held: its card says so");
+  // Kept where the server has it: with nothing else to send, it is let go.
+  assert.equal(keepPublishedPlace(SLUG, a.id, s.has.get(a.id)), true);
+  assert.deepEqual(readReview(SLUG), []);
+  assert.equal(publishedAsIs(held, s.has.get(a.id)), false, "and nothing of it was published");
+  assert.deepEqual(s.has.get(a.id).anchor, theirs);
+  // The review publishes as usual after.
+  const b = addPending(SLUG, { body: "On the whole draft." });
+  s.calls.length = 0;
+  assert.equal(await publishReview(SLUG, { posted: new Map(s.has), ...s }), 1);
+  assert.deepEqual(s.calls, [["send", [b.id]]]);
+  assert.deepEqual(readReview(SLUG), []);
+  assert.equal(keepPublishedPlace(SLUG, a.id, s.has.get(a.id)), false, "one not pending is left alone");
+});
+
+test("a held passage kept where the server has it still sends text edited since, and no anchor", async () => {
+  const s = server();
+  const a = addPending(SLUG, { body: "On a passage.", quote: QUOTE, base: "v1" });
+  await s.send([a]);
+  movePending(SLUG, a.id, { ...QUOTE, prefix: "Moved before the " }, null);
+  await assert.rejects(publishReview(SLUG, { posted: new Map(s.has), ...s }), (err) => err.status === 409);
+  editPending(SLUG, a.id, "Edited while held.");
+  assert.equal(keepPublishedPlace(SLUG, a.id, s.has.get(a.id)), true);
+  const [kept] = readReview(SLUG);
+  assert.deepEqual([kept.body, kept.quote, movedHere(kept, s.has.get(a.id))], ["Edited while held.", QUOTE, false]);
+  s.calls.length = 0;
+  assert.equal(await publishReview(SLUG, { posted: new Map(s.has), ...s }), 1);
+  assert.deepEqual(s.calls, [["edit", a.id, "Edited while held."]]);
+  assert.deepEqual(readReview(SLUG), []);
 });

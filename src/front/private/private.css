@@ -276,7 +276,17 @@
 .draft-card.is-review { border-style: dashed; }
 .draft-card.is-review.is-active { border-left-style: solid; }
 /* The one the service refused, until it is edited or published. */
+.draft-card.is-failed,
 .draft-card.is-review.is-failed { border-color: #ff4d6d; }
+/* A published thread's passage he moved, held: always shown, compact or not. */
+.draft-held { margin-top: 0.6rem; font-size: 0.75rem; line-height: 1.45; color: rgb(236 234 228 / 0.72); }
+.draft-held .draft-badge { margin: 0 0.3rem 0 0; }
+.draft-held-actions { margin-top: 0.3rem; display: flex; flex-wrap: wrap; gap: 0.85rem; }
+.draft-held-actions button { font-weight: 600; color: #eceae4; transition: color 150ms; }
+.draft-held-actions button:hover,
+.draft-held-actions button:focus-visible { color: #fcee0a; }
+.draft-held-actions button:disabled { opacity: 0.5; cursor: default; }
+.draft-held .draft-left { text-align: left; }
 .draft-badge {
   display: inline-block;
   margin-top: 0.2rem;
