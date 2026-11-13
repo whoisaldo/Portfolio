@@ -26,11 +26,9 @@ import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { groupQuotes, indexText, quoteFromRange } from "../../quotes.js";
-import { findWhole } from "../place.js";
+import { QUOTE_MAX, findWhole } from "../place.js";
 
 const key = new PluginKey("commentAnchors");
-// As the read view quotes a selection.
-const MAX = 500;
 
 const EMPTY = { ranges: new Map(), items: [], emphasis: { active: [], hover: [] }, deco: DecorationSet.empty };
 
@@ -324,7 +322,9 @@ export function commentAnchors() {
         if (r.from < r.to && words.has(id) && holdsAtom(view.state.doc, r)) q = words.get(id);
         else if (r.from < r.to) {
           try {
-            q = quoteFromRange(index, domRange(view, r.from, r.to), MAX);
+            // A passage edits made longer than the server keeps is sent as
+            // much of it as it keeps.
+            q = quoteFromRange(index, domRange(view, r.from, r.to), QUOTE_MAX);
           } catch (err) {
             console.warn("comments: could not read a passage", err);
             continue;

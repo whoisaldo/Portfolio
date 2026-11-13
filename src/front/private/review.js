@@ -42,6 +42,10 @@ export const isReviewKey = (slug, key) => key === null || key.startsWith(prefix(
 
 // As many as one publish sends (the stats service's MAX_BATCH).
 export const MAX_REVIEW = 500;
+// As much as one publish sends: under the 4.5 MB a request to the stats
+// service (on Vercel) can carry. Only a review of hundreds of passages
+// thousands of characters long is more, and goes in more than one.
+export const MAX_BATCH_BYTES = 4_000_000;
 // A publish's flag is let go after this, should its tab have closed mid-way.
 const FLAG_FOR = 60_000;
 
@@ -231,7 +235,8 @@ export const own = (c) => Boolean(c?.mine && !c.thread);
  *
  * One the server has already is published: with other text there, the text
  * here goes as an edit, and with another passage, the passage here goes as
- * its anchor. The rest are sent, MAX_REVIEW at a time. When the server has
+ * its anchor. The rest are sent, MAX_REVIEW at a time and at most
+ * MAX_BATCH_BYTES of them. When the server has
  * one of them under its id with other text or another passage (a publish
  * whose answer was lost, changed since), it refuses them all (409, naming
  * it): it is sent as an edit or an anchor then, or under a new id when the
@@ -295,7 +300,7 @@ export function publishReview(slug, { posted, send, edit, anchor, refresh }) {
           }
           dropSent(slug, [c]);
         }
-        const list = readReview(slug).filter((c) => ids.has(c.id) && !known.has(c.id)).slice(0, MAX_REVIEW);
+        const list = batchOf(readReview(slug).filter((c) => ids.has(c.id) && !known.has(c.id)));
         if (!list.length) {
           if (!stale.size) return went.size;
           throw Object.assign(new Error("The draft was saved since its passage was placed. It is kept here, and goes once its passage is found in the draft as saved."), {
@@ -337,3 +342,16 @@ export function newId() {
 /** The review as the batch endpoint takes it. */
 export const toBatch = (list) =>
   list.map(({ id, body, quote }) => (quote ? { id, body, quote: quote.exact, prefix: quote.prefix, suffix: quote.suffix } : { id, body }));
+
+const utf8 = new TextEncoder();
+/** As many of `list`, from the first, as one publish sends: at least one. */
+export function batchOf(list) {
+  let size = 0;
+  let n = 0;
+  for (const c of list.slice(0, MAX_REVIEW)) {
+    size += utf8.encode(JSON.stringify(toBatch([c]))).length;
+    if (n && size > MAX_BATCH_BYTES) break;
+    n++;
+  }
+  return list.slice(0, n);
+}

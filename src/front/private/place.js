@@ -13,6 +13,18 @@
 // As much context as a quote stores either side of its words (quotes.js and
 // the editor store this much). Less of it means the text began or ended there.
 const CONTEXT = 32;
+// The longest passage a draft comment or anchor holds, as the stats service
+// has it (its lib/private.js, LIMITS.quote): several paragraphs. A longer
+// selection is refused in the comment box, never cut short.
+export const QUOTE_MAX = 5000;
+
+const count = (n) => n.toLocaleString("en-US");
+/** Why a quote's passage is too long to comment on, saying by how much; "" when it is not. */
+export function tooLong(quote) {
+  const over = (quote?.exact?.length ?? 0) - QUOTE_MAX;
+  if (over <= 0) return "";
+  return `This passage is ${count(over)} character${over === 1 ? "" : "s"} over the ${count(QUOTE_MAX)} a comment can hold. Select a shorter one to comment on it.`;
+}
 // A letter, digit or combining mark, tested on one whole character.
 const WORD = /[\p{L}\p{N}\p{M}]/u;
 // An apostrophe or hyphen between two of those is part of the word, as in

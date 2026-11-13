@@ -5,7 +5,7 @@ import { window } from "./dom.mjs";
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  MAX_REVIEW, addPending, cleanBody, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, movePending, newId,
+  MAX_BATCH_BYTES, MAX_REVIEW, addPending, batchOf, cleanBody, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, movePending, newId,
   publishReview, publishedAsIs, publishingNow, readReview, removePending, toBatch,
 } from "../src/front/private/review.js";
 import { indexText } from "../src/front/quotes.js";
@@ -227,6 +227,28 @@ test("a 40-comment review goes in one request, and is let go once it is in", asy
   assert.deepEqual(s.calls, [["send", list.map((c) => c.id)]]);
   assert.deepEqual(readReview(SLUG), []);
   assert.equal(publishingNow(SLUG), false);
+});
+
+test("a review of long passages goes whole in one request, and one over 4 MB in more, each under it", async () => {
+  // Made-up passages of 5,000 characters, the longest a comment holds.
+  const passage = (c) => ({ exact: c.repeat(5000), prefix: "", suffix: "" });
+  const list = Array.from({ length: 100 }, (_, i) => addPending(SLUG, { body: `Note ${i}.`, quote: passage("a"), base: "v1" }));
+  const s = server();
+  assert.equal(await publishReview(SLUG, { posted: new Map(), ...s }), 100);
+  assert.deepEqual(s.calls, [["send", list.map((c) => c.id)]], "about half a megabyte: one request");
+  assert.equal(s.has.get(list[99].id).quote.exact.length, 5000, "sent whole");
+
+  // 500 of them in letters of two bytes each: about 5 MB.
+  const wide = Array.from({ length: MAX_REVIEW }, (_, i) => addPending(SLUG, { body: "é".repeat(2000), quote: passage(i % 2 ? "é" : "ü"), base: "v1" }));
+  const t = server();
+  assert.equal(await publishReview(SLUG, { posted: new Map(), ...t }), MAX_REVIEW);
+  const sends = t.calls.filter((c) => c[0] === "send").map((c) => c[1]);
+  assert.equal(sends.length, 2);
+  assert.deepEqual(sends.flat(), wide.map((c) => c.id), "every one, in order");
+  const bytes = (ids) => new TextEncoder().encode(JSON.stringify(toBatch(ids.map((id) => wide.find((c) => c.id === id))))).length;
+  assert.ok(sends.every((ids) => bytes(ids) <= MAX_BATCH_BYTES));
+  assert.deepEqual(readReview(SLUG), []);
+  assert.deepEqual(batchOf([]), []);
 });
 
 test("while one tab publishes, every tab sees it, and an edit waits for it and goes to the published comment", async () => {

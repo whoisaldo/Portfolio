@@ -59,11 +59,11 @@ import { createPortal, flushSync } from "react-dom";
 import { Check, MessageSquare, MessageSquarePlus, Send, X } from "lucide-react";
 import { groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
 import { ApiError, request } from "./api";
-import { findThread, findWhole, quoteAt } from "./place";
+import { QUOTE_MAX, findThread, findWhole, quoteAt, tooLong } from "./place";
 import { addPending, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, publishedAsIs, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
 
 // As the stats service has them.
-const LIMIT = { body: 2000, quote: 500 };
+const LIMIT = { body: 2000, quote: QUOTE_MAX };
 const WIDE = "(min-width: 1240px)";
 const POLL = { visible: 4000, hidden: 30_000 };
 const GAP = 10;
@@ -1199,9 +1199,10 @@ const kept = (unsent, key) => ({
  * A textarea that grows with what is typed, sends on Ctrl/Cmd+Enter.
  * `onText` hears every change, and "" once it is sent or cancelled; Escape
  * closes without cancelling. While `held` (why, to show) it is not sent and
- * its text is left as it is.
+ * its text is left as it is; while `refused` (why, to show) it is not sent,
+ * and its text can still be written.
  */
-function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoFocus, sendLabel = "Comment", held }) {
+function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoFocus, sendLabel = "Comment", held, refused }) {
   const [text, setText] = useState(initial);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -1227,7 +1228,7 @@ function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoF
 
   async function send(e) {
     e?.preventDefault();
-    if (!text.trim() || sending || held) return;
+    if (!text.trim() || sending || held || refused) return;
     setSending(true);
     setError("");
     try {
@@ -1263,13 +1264,18 @@ function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoF
           {held}
         </p>
       )}
+      {refused && (
+        <p role="alert" className="private-error">
+          {refused}
+        </p>
+      )}
       {error && (
         <p role="alert" className="private-error">
           {error}
         </p>
       )}
       <div className="draft-box-buttons">
-        <button type="submit" className="private-primary chamfer chamfer-sm" disabled={sending || !text.trim() || Boolean(held)}>
+        <button type="submit" className="private-primary chamfer chamfer-sm" disabled={sending || !text.trim() || Boolean(held) || Boolean(refused)}>
           {sending ? "Sending…" : sendLabel}
         </button>
         {onCancel && (
@@ -1329,6 +1335,7 @@ function Composer({ id, quote, showQuote, act, review, base, unsent, onDone, onC
         placeholder={quote ? "Comment on this passage" : "Comment on the whole draft"}
         label={quote ? "Comment on the selected passage" : "Comment on the whole draft"}
         sendLabel={review ? "Add to review" : undefined}
+        refused={quote ? tooLong(quote) : ""}
         submit={async (text) => {
           const c = review
             ? review.add({ body: text, quote, base })
@@ -1429,7 +1436,9 @@ function SelectButton({ body, onComment, label }) {
       if (!quotable(root, range)) return hide();
       let q = null;
       try {
-        q = quoteFromRange(indexText(root), range, LIMIT.quote);
+        // Whole, however long: a passage over the limit is refused in the
+        // comment box, which says by how much, never cut short here.
+        q = quoteFromRange(indexText(root), range, Infinity);
       } catch {
         // A selection the index cannot place. No button, nothing broken.
       }
