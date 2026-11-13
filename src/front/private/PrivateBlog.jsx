@@ -31,6 +31,7 @@ import { PostPage } from "../BlogPost";
 import { API, ApiError, mediaUrl, request } from "./api";
 import DraftComments from "./DraftComments";
 import { clearUnsaved, keepAnchors, newerThan, readAnchors, readUnsaved } from "./unsaved";
+import { anchorsTooLarge } from "./budget";
 import "./private.css";
 
 const TITLE = `Private · ${profile.name}`;
@@ -272,15 +273,18 @@ const kept = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", 
  * or, when the editor never heard back from it, this page's draft, the text
  * they were found in; the server refuses them (409) once the draft has been
  * saved since, and they are dropped: whoever saved it sends places for that.
+ * Places too large for the draft's comments to hold (./budget.js) are
+ * dropped too: the editor said so when it found them, and each comment
+ * keeps the place it had.
  */
 async function sendLeftAnchors(draft) {
   const due = readAnchors(draft.slug).find((e) => e.body === draft.body);
   if (!due) return true;
   const body = { draft: draft.slug, anchors: due.changes, base: due.base ?? draft.updated_at };
   try {
-    await request("/api/draft-comments?a=anchors", { method: "PUT", body });
+    if (!anchorsTooLarge(body)) await request("/api/draft-comments?a=anchors", { method: "PUT", body });
   } catch (err) {
-    if (!(err instanceof ApiError && err.status === 409)) throw err;
+    if (!(err instanceof ApiError && (err.status === 409 || err.status === 413))) throw err;
   }
   keepAnchors(draft.slug, due.body, null);
   return true;

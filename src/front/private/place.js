@@ -25,6 +25,16 @@ export function tooLong(quote) {
   if (over <= 0) return "";
   return `This passage is ${count(over)} character${over === 1 ? "" : "s"} over the ${count(QUOTE_MAX)} a comment can hold. Select a shorter one to comment on it.`;
 }
+
+/**
+ * What the editor says on a comment whose passage edits made `characters`
+ * long, past what a comment holds: its new place is not saved, never cut
+ * short, and the comment keeps the one it had until the passage is shortened.
+ */
+export function grewTooLong(characters) {
+  const over = characters - QUOTE_MAX;
+  return `This passage is now ${count(characters)} characters, ${count(over)} more than the ${count(QUOTE_MAX)} a comment can hold, so its new place isn't saved and the comment keeps the one it had. Shorten the passage by ${count(over)} character${over === 1 ? "" : "s"} to save where it is now.`;
+}
 // A letter, digit or combining mark, tested on one whole character.
 const WORD = /[\p{L}\p{N}\p{M}]/u;
 // An apostrophe or hyphen between two of those is part of the word, as in

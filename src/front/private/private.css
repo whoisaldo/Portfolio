@@ -541,6 +541,8 @@
 .draft-review-text { flex: 1 1 14rem; }
 .draft-review-text b { color: #eceae4; }
 .draft-review .private-error { flex-basis: 100%; order: 3; margin-top: 0; }
+/* A review too large to publish at once: sending the first that fit, under why. */
+.draft-review-first { order: 4; }
 .draft-review .private-primary { margin-top: 0; padding: 0.45rem 0.85rem; font-size: 0.8125rem; }
 @media (max-width: 1239px) {
   .draft-review {

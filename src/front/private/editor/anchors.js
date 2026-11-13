@@ -21,7 +21,10 @@
 //
 // quotes() reads each passage's words and context off the editor's DOM as a
 // reader's selection would have them, for the anchors the server keeps after
-// a save (./DraftEditor.jsx).
+// a save (./DraftEditor.jsx). A passage edits made longer than a comment
+// holds (QUOTE_MAX) is never cut short: it is left out, so the server keeps
+// the place it had, and the comments margin says so on its card (`long`)
+// until it is shortened.
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
@@ -169,9 +172,12 @@ function decorations(doc, { ranges, items, emphasis }) {
  *                       published yet (../review.js)
  *   emphasize(a, h)     the thread ids in hand and hovered
  *   subscribe(fn)       fn(found) after every change, found as the comments
- *                       margin reads it: {placed, groups, marks, settled}
+ *                       margin reads it: {placed, groups, marks, settled,
+ *                       long}, `long` a Map of id → length for each passage
+ *                       longer than a comment holds
  *   quotes()            Map of id → {exact, prefix, suffix}, or {gone: true}
- *                       for a passage deleted entirely
+ *                       for a passage deleted entirely; none for one longer
+ *                       than a comment holds
  *   changes(quotes)     of those, the ones that differ from what the server
  *                       has, as the anchors endpoint takes them
  *   sent(changes)       the server has them now
@@ -215,7 +221,29 @@ export function commentAnchors() {
     // Looked up when asked: ProseMirror redraws a decoration's elements
     // whenever the text inside it changes.
     const marks = { get: (id) => (dom && placed.has(id) ? [...dom.querySelectorAll(`[data-threads~="${id}"]`)] : undefined) };
-    return { key: items.map((t) => t.id).join(" "), placed, groups, marks, settled: true };
+    return { key: items.map((t) => t.id).join(" "), placed, groups, marks, settled: true, long: tooLong() };
+  };
+
+  /**
+   * Each passage longer than a comment holds, by id, with its length. A
+   * range's positions are never fewer than its characters, so only one
+   * spanning more than QUOTE_MAX is read.
+   */
+  const tooLong = () => {
+    const out = new Map();
+    if (!view) return out;
+    let index = null;
+    for (const [id, r] of state().ranges) {
+      if (r.to - r.from <= QUOTE_MAX || (words.has(id) && holdsAtom(view.state.doc, r))) continue;
+      try {
+        index ??= indexText(view.dom);
+        const n = readPassage(view, index, r).exact.length;
+        if (n > QUOTE_MAX) out.set(id, n);
+      } catch (err) {
+        console.warn("comments: could not read a passage", err);
+      }
+    }
+    return out;
   };
 
   const emit = () => {
@@ -322,13 +350,14 @@ export function commentAnchors() {
         if (r.from < r.to && words.has(id) && holdsAtom(view.state.doc, r)) q = words.get(id);
         else if (r.from < r.to) {
           try {
-            // A passage edits made longer than the server keeps is sent as
-            // much of it as it keeps.
-            q = quoteFromRange(index, domRange(view, r.from, r.to), QUOTE_MAX);
+            q = readPassage(view, index, r);
           } catch (err) {
             console.warn("comments: could not read a passage", err);
             continue;
           }
+          // Longer than a comment holds: not cut short, and not sent. Its
+          // card says so (tooLong).
+          if (q.exact.length > QUOTE_MAX) continue;
         }
         out.set(id, q ? { exact: q.exact, prefix: q.prefix, suffix: q.suffix } : { gone: true });
       }
@@ -498,6 +527,9 @@ export function readSelection(view) {
   const sel = unreadSelection(view);
   if (sel) view.dispatch(view.state.tr.setSelection(sel).setMeta("addToHistory", false));
 }
+
+/** A passage's words and context, whole, however long. */
+const readPassage = (view, index, r) => quoteFromRange(index, domRange(view, r.from, r.to), Infinity);
 
 /** A document range as a DOM Range over the editor's text. */
 function domRange(view, from, to) {

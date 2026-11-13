@@ -5,10 +5,11 @@ import { window } from "./dom.mjs";
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  MAX_BATCH_BYTES, MAX_REVIEW, addPending, batchOf, cleanBody, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, movePending, newId,
+  MAX_REVIEW, addPending, cleanBody, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, movePending, newId,
   publishReview, publishedAsIs, publishingNow, readReview, removePending, toBatch,
 } from "../src/front/private/review.js";
 import { indexText } from "../src/front/quotes.js";
+import { COMMENT_BYTES, commentBytes, jsonBytes } from "../src/front/private/budget.js";
 import { findWhole } from "../src/front/private/place.js";
 
 // Node has a localStorage of its own, unusable without a file, so dom.mjs
@@ -229,7 +230,7 @@ test("a 40-comment review goes in one request, and is let go once it is in", asy
   assert.equal(publishingNow(SLUG), false);
 });
 
-test("a review of long passages goes whole in one request, and one over 4 MB in more, each under it", async () => {
+test("a review of long passages goes whole in one request", async () => {
   // Made-up passages of 5,000 characters, the longest a comment holds.
   const passage = (c) => ({ exact: c.repeat(5000), prefix: "", suffix: "" });
   const list = Array.from({ length: 100 }, (_, i) => addPending(SLUG, { body: `Note ${i}.`, quote: passage("a"), base: "v1" }));
@@ -237,18 +238,71 @@ test("a review of long passages goes whole in one request, and one over 4 MB in 
   assert.equal(await publishReview(SLUG, { posted: new Map(), ...s }), 100);
   assert.deepEqual(s.calls, [["send", list.map((c) => c.id)]], "about half a megabyte: one request");
   assert.equal(s.has.get(list[99].id).quote.exact.length, 5000, "sent whole");
-
-  // 500 of them in letters of two bytes each: about 5 MB.
-  const wide = Array.from({ length: MAX_REVIEW }, (_, i) => addPending(SLUG, { body: "é".repeat(2000), quote: passage(i % 2 ? "é" : "ü"), base: "v1" }));
-  const t = server();
-  assert.equal(await publishReview(SLUG, { posted: new Map(), ...t }), MAX_REVIEW);
-  const sends = t.calls.filter((c) => c[0] === "send").map((c) => c[1]);
-  assert.equal(sends.length, 2);
-  assert.deepEqual(sends.flat(), wide.map((c) => c.id), "every one, in order");
-  const bytes = (ids) => new TextEncoder().encode(JSON.stringify(toBatch(ids.map((id) => wide.find((c) => c.id === id))))).length;
-  assert.ok(sends.every((ids) => bytes(ids) <= MAX_BATCH_BYTES));
   assert.deepEqual(readReview(SLUG), []);
-  assert.deepEqual(batchOf([]), []);
+});
+
+test("a publish that fails part way publishes nothing: 500 long comments go in one request, or not at all", async () => {
+  const list = Array.from({ length: MAX_REVIEW }, (_, i) =>
+    addPending(SLUG, { body: `Note ${i} on a made-up passage.`, quote: { exact: `Passage ${i} `.padEnd(2000, "x"), prefix: "", suffix: "" }, base: "v1" }));
+  const s = server();
+  let tries = 0;
+  // The one request fails, as a function cut off part way would.
+  const send = async (batch) => {
+    tries++;
+    throw Object.assign(new Error("Something went wrong. Try again in a minute."), { status: 500, data: { size: batch.length } });
+  };
+  await assert.rejects(publishReview(SLUG, { posted: new Map(), ...s, send }), /went wrong/);
+  assert.equal(tries, 1, "one request, never a second with the rest");
+  assert.equal(s.has.size, 0, "nothing published");
+  assert.equal(readReview(SLUG).length, MAX_REVIEW, "every comment still here");
+  assert.equal(publishingNow(SLUG), false);
+  // Sent again, all of it goes, in one.
+  assert.equal(await publishReview(SLUG, { posted: new Map(), ...s }), MAX_REVIEW);
+  assert.deepEqual(s.calls, [["send", list.map((c) => c.id)]]);
+  assert.deepEqual(readReview(SLUG), []);
+});
+
+test("a review too large for the draft's comments is not sent, says by how much, and can send the first that fit alone", async () => {
+  // 500 made-up comments in two-byte letters, as long as they go: about 7.5 MB counted.
+  const wide = Array.from({ length: MAX_REVIEW }, (_, i) =>
+    addPending(SLUG, { body: "é".repeat(2000), quote: { exact: (i % 2 ? "é" : "ü").repeat(5000), prefix: "", suffix: "" }, base: "v1" }));
+  const total = wide.reduce((n, c) => n + commentBytes(c), 0);
+  assert.ok(total > 7_000_000, `${total}`);
+  const s = server();
+  const err = await publishReview(SLUG, { posted: new Map(), ...s }).catch((e) => e);
+  assert.equal(err.status, 413);
+  const over = total - COMMENT_BYTES.draft;
+  assert.equal(err.message, `This review is too large to publish at once. That's ${Math.ceil(over / 100_000) / 10} MB more than this draft's comments have room for: they hold 3 MB in all, so they always load at once. Nothing was published. Shorten or delete some, or publish the first ${err.data.fits.length} now and the rest after.`);
+  assert.deepEqual(s.calls, [], "nothing sent");
+  assert.equal(readReview(SLUG).length, MAX_REVIEW, "nothing lost");
+  const fits = err.data.fits;
+  assert.deepEqual(fits, wide.slice(0, fits.length).map((c) => c.id), "the first, in order");
+  assert.ok(wide.slice(0, fits.length).reduce((n, c) => n + commentBytes(c), 0) <= COMMENT_BYTES.draft);
+  assert.ok(wide.slice(0, fits.length + 1).reduce((n, c) => n + commentBytes(c), 0) > COMMENT_BYTES.draft, "as many as fit");
+
+  // Ali chooses to send those now: one request, of them alone.
+  assert.equal(await publishReview(SLUG, { posted: new Map(), ...s, only: new Set(fits) }), fits.length);
+  assert.deepEqual(s.calls, [["send", fits]]);
+  assert.ok(jsonBytes(toBatch(wide.slice(0, fits.length))) < 4_500_000, "under what a request to Vercel carries");
+  assert.deepEqual(readReview(SLUG).map((c) => c.id), wide.slice(fits.length).map((c) => c.id), "the rest wait");
+
+  // The rest, with the first in, are still too many for what is left.
+  const posted = new Map([...s.has.values()].map((c) => [c.id, c]));
+  const next = await publishReview(SLUG, { posted, ...s }).catch((e) => e);
+  assert.equal(next.status, 413);
+  assert.equal(next.data.fits.length, 0, "the draft is full: none fits");
+  assert.match(next.message, /Nothing was published\. Shorten these, or delete comments on this draft you're done with\.$/);
+  assert.equal(s.calls.length, 1);
+});
+
+test("a normal review is far from the budget", () => {
+  // Forty made-up comments of a few lines on whole paragraphs, each moved by the editor.
+  const line = "A made-up remark about this paragraph, a sentence or two long, as a review has them. ";
+  const paragraph = "Sentence of a made-up paragraph that runs on for a while. ".repeat(17).trim();
+  const one = { body: line.repeat(3).trim(), quote: { exact: paragraph, prefix: "x".repeat(32), suffix: "y".repeat(32) }, anchor: { exact: paragraph, prefix: "x".repeat(32), suffix: "y".repeat(32) } };
+  const forty = 40 * commentBytes(one);
+  assert.ok(forty > 120_000 && forty < 140_000, `${forty} bytes`);
+  assert.ok(forty < COMMENT_BYTES.draft * 0.05);
 });
 
 test("while one tab publishes, every tab sees it, and an edit waits for it and goes to the published comment", async () => {

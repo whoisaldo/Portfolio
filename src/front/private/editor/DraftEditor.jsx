@@ -29,6 +29,7 @@ import { TextSelection } from "@tiptap/pm/state";
 import { marked } from "marked";
 import { ApiError, mediaUrl, request, uploadMedia } from "../api";
 import { clearUnsaved, keepAnchors, writeUnsaved } from "../unsaved";
+import { anchorsTooLarge } from "../budget";
 import { embeds } from "../../embeds";
 import { canEdit, fromMarkdown, toMarkdown } from "./markdown";
 import { PASTE_RULES, extensions, metaChange, replaceAll } from "./schema";
@@ -169,8 +170,11 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
    * "Saved", and they are tried again, later and later. Once the draft has
    * been saved somewhere else since, the server refuses them (409): they are
    * dropped, as that session sends places for its own text, and this one
-   * says the draft changed, as a save would. True when nothing is left to
-   * send.
+   * says the draft changed, as a save would. Places that would take the
+   * draft's comments past what they may hold (../budget.js) are refused too
+   * (413), or not sent at all when the request alone is past it: they are
+   * dropped, each comment keeps the place it had, and a notice says so; the
+   * next save tries again. True when nothing is left to send.
    */
   const sendAnchors = useCallback(
     async ({ keepalive = false } = {}) => {
@@ -185,9 +189,17 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       }
       const pending = st.pending?.base === st.base ? st.pending : null;
       if (!pending) return true;
+      const body = { draft: slug, anchors: pending.changes, base: pending.base };
+      const refused = (message) => {
+        if (st.pending === pending) st.pending = null;
+        keepAnchors(slug, pending.body, null);
+        setNotice(message);
+        return true;
+      };
+      const large = anchorsTooLarge(body);
+      if (large) return refused(large);
       st.sending = (async () => {
         try {
-          const body = { draft: slug, anchors: pending.changes, base: pending.base };
           await request("/api/draft-comments?a=anchors", { method: "PUT", body, keepalive: keepalive && JSON.stringify(body).length < KEEPALIVE });
           st.anchors.sent(pending.changes);
           st.tries = 0;
@@ -199,6 +211,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
           return true;
         } catch (err) {
           console.warn("comments: the passages' new places were not saved", err);
+          if (err instanceof ApiError && err.status === 413) return refused(err.message);
           if (err instanceof ApiError && err.status === 409) {
             if (st.pending === pending) st.pending = null;
             keepAnchors(slug, pending.body, null);

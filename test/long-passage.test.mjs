@@ -11,7 +11,7 @@ import { extensions } from "../src/front/private/editor/schema.js";
 import { fromMarkdown } from "../src/front/private/editor/markdown.js";
 import { commentAnchors } from "../src/front/private/editor/anchors.js";
 import { indexText, quoteFromRange } from "../src/front/quotes.js";
-import { QUOTE_MAX, findWhole, quoteAt, tooLong } from "../src/front/private/place.js";
+import { QUOTE_MAX, findWhole, grewTooLong, quoteAt, tooLong } from "../src/front/private/place.js";
 
 /** A made-up paragraph of about 950 characters, its sentences numbered from `n`. */
 const paragraph = (word, n = 1) =>
@@ -137,5 +137,85 @@ test("the editor places a whole paragraph and a passage across paragraphs, and s
   q = handle.quotes();
   assert.equal(q.get("t-three").exact, three.exact.replace("Sentence 25 ", "An added sentence. Sentence 25 "));
   assert.deepEqual(q.get("t-one"), one, "the first paragraph is as it was");
+  editor.destroy();
+});
+
+/** A made-up passage of exactly QUOTE_MAX characters, a paragraph of its own. */
+const FULL = (() => {
+  const t = Array.from({ length: 6 }, (_, i) => paragraph(`full ${i}`, i * 17)).join(" ").slice(0, QUOTE_MAX - 1) + ".";
+  assert.equal(t.length, QUOTE_MAX);
+  return t;
+})();
+const FULL_BODY = `A short opening line.\n\n${FULL}\n\nA short closing line.\n`;
+
+/** An editor on `body`, with the comments' anchors, and a way to read what they say now. */
+function editorOn(body, items) {
+  const { extension, handle } = commentAnchors();
+  const element = document.createElement("div");
+  document.body.append(element);
+  const editor = new Editor({ element, extensions: [...extensions(), extension], content: fromMarkdown(body).doc, injectCSS: false });
+  handle.setItems(items);
+  const found = () => {
+    let f;
+    handle.subscribe((x) => (f = x))();
+    return f;
+  };
+  /** Where `text` starts in the document. */
+  const at = (text) => {
+    let pos = null;
+    editor.state.doc.descendants((node, p) => {
+      if (pos == null && node.isText && node.text.includes(text)) pos = p + node.text.indexOf(text);
+    });
+    return pos;
+  };
+  return { editor, handle, found, at };
+}
+
+test("a passage edits make longer than a comment holds is never cut short: its last place is kept, and its card says so", () => {
+  document.body.innerHTML = "";
+  const t = document.createElement("template");
+  t.innerHTML = globalThis.__marked.marked.parse(FULL_BODY);
+  document.body.replaceChildren(t.content);
+  const index = indexText(document.body);
+  const q = quoteOf(index, select(index, FULL));
+  assert.equal(q.exact.length, QUOTE_MAX);
+  document.body.innerHTML = "";
+
+  // Published, its anchor this passage: what the server has for it.
+  const { editor, handle, found, at } = editorOn(FULL_BODY, [{ id: "t-full", find: q, quote: q }]);
+  assert.ok(found().placed.has("t-full"));
+  assert.deepEqual(handle.quotes().get("t-full"), q);
+  assert.deepEqual(handle.changes(handle.quotes()), [], "nothing to send");
+
+  // Thirteen characters typed inside it: 5,013.
+  const pos = at("Sentence 20 ");
+  assert.ok(pos != null);
+  editor.commands.insertContentAt(pos, "Added words. ");
+  assert.equal("Added words. ".length, 13);
+  assert.equal(found().long.get("t-full"), QUOTE_MAX + 13, "the card is told its length");
+  assert.ok(found().placed.has("t-full"), "and the editor still marks all of it");
+  assert.equal(handle.quotes().has("t-full"), false, "not read as 5,000 of it, nor as anything");
+  assert.deepEqual(handle.changes(handle.quotes()), [], "so the server keeps the place it had");
+  assert.equal(grewTooLong(5013), "This passage is now 5,013 characters, 13 more than the 5,000 a comment can hold, so its new place isn't saved and the comment keeps the one it had. Shorten the passage by 13 characters to save where it is now.");
+  assert.match(grewTooLong(5001), /Shorten the passage by 1 character to save/);
+
+  // Shortened again, by more than it grew: its new place goes, whole.
+  editor.commands.deleteRange({ from: pos, to: pos + 13 + 12 });
+  assert.equal(found().long.size, 0, "the card says nothing now");
+  const now = handle.quotes().get("t-full");
+  assert.equal(now.exact, FULL.replace("Added words. ", "").replace(FULL.slice(FULL.indexOf("Sentence 20 "), FULL.indexOf("Sentence 20 ") + 12), ""));
+  assert.equal(now.exact.length, QUOTE_MAX - 12);
+  assert.deepEqual(handle.changes(handle.quotes()), [{ thread: "t-full", ...now }]);
+  editor.destroy();
+});
+
+test("one still pending, grown past what a comment holds, keeps the passage it had too", () => {
+  const index = indexText(render());
+  const one = quoteOf(index, select(index, FIRST));
+  const { editor, handle, found, at } = editorOn(BODY, [{ id: "p-one", find: null, quote: one, pending: true }]);
+  assert.ok(found().placed.has("p-one"));
+  editor.commands.insertContentAt(at("Sentence 5 "), "More made-up words. ".repeat(250));
+  assert.ok(found().long.get("p-one") > QUOTE_MAX);
+  assert.equal(handle.quotes().has("p-one"), false, "nothing for the review to follow");
   editor.destroy();
 });
