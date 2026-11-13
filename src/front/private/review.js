@@ -33,6 +33,15 @@
 // the server refuses it (409) once the draft has been saved since, and the
 // comment stays pending, its text and passage as they were, until its
 // passage is found again in the draft as saved now.
+//
+// A review goes in one request, so whatever reads the comments sees it whole
+// or not at all. One that would take the draft's comments past what they may
+// hold (./budget.js) is not sent: the publish throws a 413 saying by how
+// much, nothing is published and every comment stays here. It names the
+// first of them that fit, which a publish can be told to send alone
+// (`only`), the rest staying for the next.
+
+import { COMMENT_BYTES, commentBytes, overBudget } from "./budget.js";
 
 const prefix = (slug) => `draft-review:${slug}:`;
 const flagKey = (slug) => `draft-review-publishing:${slug}`;
@@ -227,11 +236,14 @@ export const own = (c) => Boolean(c?.mine && !c.thread);
  * published one; `anchor(id, quote, base)` moves a published one's passage,
  * found in the text saved at `base`, resolving to false when the server has
  * no such thread any more and throwing a 409 when the draft was saved since;
- * `refresh()` polls, resolving to the server's comments.
+ * `refresh()` polls, resolving to the server's comments. With `only`, a
+ * set of ids, those alone are published, and the rest wait.
  *
  * One the server has already is published: with other text there, the text
  * here goes as an edit, and with another passage, the passage here goes as
- * its anchor. The rest are sent, MAX_REVIEW at a time. When the server has
+ * its anchor. The rest are sent in one request, all or none, unless they
+ * would take the draft past its budget: then none is, and the publish
+ * throws a 413 naming those that fit (`data.fits`). When the server has
  * one of them under its id with other text or another passage (a publish
  * whose answer was lost, changed since), it refuses them all (409, naming
  * it): it is sent as an edit or an anchor then, or under a new id when the
@@ -242,9 +254,9 @@ export const own = (c) => Boolean(c?.mine && !c.thread);
  * saved yet) is not sent. Its comment stays pending as it is, the rest go,
  * and the publish then throws a 409 naming it.
  */
-export function publishReview(slug, { posted, send, edit, anchor, refresh }) {
+export function publishReview(slug, { posted, send, edit, anchor, refresh, only = null }) {
   return locked(slug, async () => {
-    const ids = new Set(readReview(slug).map((c) => c.id));
+    const ids = new Set(readReview(slug).map((c) => c.id).filter((id) => !only || only.has(id)));
     let known = posted;
     const went = new Set();
     let refused = false;
@@ -303,6 +315,7 @@ export function publishReview(slug, { posted, send, edit, anchor, refresh }) {
             data: { id: [...stale][0] },
           });
         }
+        tooLarge(list, known);
         try {
           const got = await send(list);
           dropSent(slug, list);
@@ -337,3 +350,26 @@ export function newId() {
 /** The review as the batch endpoint takes it. */
 export const toBatch = (list) =>
   list.map(({ id, body, quote }) => (quote ? { id, body, quote: quote.exact, prefix: quote.prefix, suffix: quote.suffix } : { id, body }));
+
+/**
+ * Throws a 413 when `list`, the comments to publish, would take the draft's
+ * comments (`known`, the server's by id) past their budget, saying by how
+ * much: none is sent then. `data.fits` is the ids of the first of them that
+ * would go in, as many as fit, in order.
+ */
+export function tooLarge(list, known) {
+  let room = COMMENT_BYTES.draft;
+  for (const c of known.values()) room -= commentBytes(c);
+  const sizes = list.map((c) => commentBytes({ body: cleanBody(c.body), quote: c.quote }));
+  const total = sizes.reduce((a, b) => a + b, 0);
+  if (total <= room) return;
+  let fits = 0;
+  for (let used = 0; fits < sizes.length && used + sizes[fits] <= room; fits++) used += sizes[fits];
+  const then = fits
+    ? `Nothing was published. Shorten or delete some, or publish the first ${fits} now and the rest after.`
+    : "Nothing was published. Shorten these, or delete comments on this draft you're done with.";
+  throw Object.assign(new Error(`This review is too large to publish at once. ${overBudget(total - room, then)}`), {
+    status: 413,
+    data: { fits: list.slice(0, fits).map((c) => c.id) },
+  });
+}

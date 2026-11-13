@@ -59,11 +59,11 @@ import { createPortal, flushSync } from "react-dom";
 import { Check, MessageSquare, MessageSquarePlus, Send, X } from "lucide-react";
 import { groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
 import { ApiError, request } from "./api";
-import { findThread, findWhole, quoteAt } from "./place";
+import { QUOTE_MAX, findThread, findWhole, grewTooLong, quoteAt, tooLong } from "./place";
 import { addPending, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, publishedAsIs, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
 
 // As the stats service has them.
-const LIMIT = { body: 2000, quote: 500 };
+const LIMIT = { body: 2000, quote: QUOTE_MAX };
 const WIDE = "(min-width: 1240px)";
 const POLL = { visible: 4000, hidden: 30_000 };
 const GAP = 10;
@@ -424,8 +424,9 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   const now = useNow(30_000);
   const [{ status, comments }, act, poll] = useThreads(slug, onLost, onDraftChange);
   const review = useReview(slug, viewer.owner);
-  // Publishing: `failed` is the comment the service refused, if it named one.
-  const [publishing, setPublishing] = useState({ busy: false, error: "", failed: null, done: 0 });
+  // Publishing: `failed` is the comment the service refused, if it named one;
+  // `fits`, for a review too large to publish at once, the first of it that would go in.
+  const [publishing, setPublishing] = useState({ busy: false, error: "", failed: null, done: 0, fits: null });
   // One the server has already as it is here, text and passage (a publish
   // whose answer was lost), is let go, and a publish that seemed to fail is
   // shown as the one that went in. One there with other text or another
@@ -439,7 +440,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     const done = review.list.filter(inAlready);
     if (!done.length || review.publishing) return;
     review.drop(done);
-    setPublishing((p) => (p.error ? { busy: false, error: "", failed: null, done: done.length } : p));
+    setPublishing((p) => (p.error ? { busy: false, error: "", failed: null, done: done.length, fits: null } : p));
   }, [review, inAlready]);
   const published = useMemo(() => toThreads(comments), [comments]);
   const threads = useMemo(() => [...published, ...pendingList.map(pendingThread)], [published, pendingList]);
@@ -633,17 +634,19 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     if (!found.placed.has(id)) requestAnimationFrame(() => document.getElementById(`thread-${id}`)?.scrollIntoView({ block: "center" }));
   }, [status, threads, found, wide, focusThread, showResolved]);
 
-  const publish = useCallback(async () => {
+  // `only`: the ids of the first of a review too large to publish at once, sent alone.
+  const publish = useCallback(async (only = null) => {
     if (!waiting.length) return;
-    setPublishing({ busy: true, error: "", failed: null, done: 0 });
+    setPublishing({ busy: true, error: "", failed: null, done: 0, fits: null });
     try {
       // Each passage where it is now, first.
       await follow();
-      const done = await review.publish({ posted, send: act.publish, edit: act.edit, anchor: act.anchor, refresh: act.list });
-      setPublishing({ busy: false, error: "", failed: null, done });
+      const done = await review.publish({ posted, send: act.publish, edit: act.edit, anchor: act.anchor, refresh: act.list, only: only && new Set(only) });
+      setPublishing({ busy: false, error: "", failed: null, done, fits: null });
     } catch (err) {
       const failed = err.data?.id ?? null;
-      setPublishing({ busy: false, error: err.message, failed, done: 0 });
+      const fits = err.status === 413 && err.data?.fits?.length ? err.data.fits : null;
+      setPublishing({ busy: false, error: err.message, failed, done: 0, fits });
       // The one refused is brought into view, to be fixed.
       if (failed) {
         focusThread(failed);
@@ -688,6 +691,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       error={publishing.failed === t.id ? publishing.error : ""}
       busy={publishing.busy || review.publishing}
       onFixed={fixed}
+      long={found.long?.get(t.id)}
       active={active === t.id}
       related={(found.groups.get(active) || []).includes(t.id) || (hover || []).includes(t.id)}
       onActivate={() => focusThread(t.id)}
@@ -705,6 +709,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       onHover={(on) => setHover(on ? found.groups.get(t.id) || [t.id] : null)}
       onResolved={() => setActive((a) => (a === t.id ? null : a))}
       placed={found.placed.has(t.id)}
+      long={found.long?.get(t.id)}
       failure={publishing.failed === t.id ? publishing.error : ""}
       move={
         held.has(t.id)
@@ -781,7 +786,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       {!bridge && <SelectButton body={body} onComment={placing ? place : startNew} label={placing ? "Move here" : "Comment"} />}
 
       {viewer.owner && (waiting.length > 0 || publishing.done > 0) &&
-        createPortal(<ReviewBar count={waiting.length} {...publishing} failed={marked} busy={publishing.busy || review.publishing} onPublish={publish} onSettled={settle} />, document.body)}
+        createPortal(<ReviewBar count={waiting.length} {...publishing} fits={publishing.fits?.filter((id) => waiting.some((c) => c.id === id))} failed={marked} busy={publishing.busy || review.publishing} onPublish={() => publish()} onPublishFirst={() => publish(publishing.fits)} onSettled={settle} />, document.body)}
 
       {!wide &&
         createPortal(
@@ -935,7 +940,7 @@ function Margin({ body, found, active, order, toolbar, children }) {
 }
 
 /** One thread: its first comment, its replies, and a box to reply. */
-function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed, failure, move }) {
+function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed, long, failure, move }) {
   const [error, setError] = useState("");
   const resolved = t.resolved;
   // In the margin a thread that is not in hand is a summary, as in Docs: the
@@ -1025,6 +1030,7 @@ function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHo
           )}
         </div>
       )}
+      <TooLong characters={long} />
       {(error || failure) && (
         <p role="alert" className="private-error">
           {error || failure}
@@ -1041,7 +1047,7 @@ function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHo
  * nobody else has seen it. While it is being published, from any tab, it is
  * left as it is: an edit open then waits, and is the published one's after.
  */
-function PendingThread({ t, viewer, review, act, unsent, error, busy, onFixed, active, related, onActivate, onHover, showQuote, inMargin }) {
+function PendingThread({ t, viewer, review, act, unsent, error, busy, onFixed, long, active, related, onActivate, onHover, showQuote, inMargin }) {
   const [problem, setProblem] = useState("");
   const c = t.pending;
   const comment = { id: c.id, author: { name: viewer.name, owner: true }, body: c.body, created_at: new Date(c.at).toISOString(), mine: !busy };
@@ -1067,6 +1073,7 @@ function PendingThread({ t, viewer, review, act, unsent, error, busy, onFixed, a
     >
       {showQuote && t.quote && <blockquote className="draft-quote">{t.quote.exact}</blockquote>}
       <Comment c={comment} viewer={viewer} act={local} unsent={unsent} locked={busy} onError={setProblem} clamp={inMargin && !active} onMore={onActivate} pending />
+      <TooLong characters={long} />
       {(error || problem) && (
         <p role="alert" className="private-error">
           {error || problem}
@@ -1077,11 +1084,27 @@ function PendingThread({ t, viewer, review, act, unsent, error, busy, onFixed, a
 }
 
 /**
+ * In the editor, on a card whose passage edits made longer than a comment
+ * holds (`characters`, its length now): its new place is not saved, and
+ * the comment keeps the one it had, until the passage is shortened.
+ */
+function TooLong({ characters }) {
+  if (!characters) return null;
+  return (
+    <p className="draft-held" role="status">
+      <span className="draft-badge">Too long</span> {grewTooLong(characters)}
+    </p>
+  );
+}
+
+/**
  * Ali's review, at the foot of the screen while it has comments: how many,
  * and the button that publishes them all. A publish that fails keeps every
- * one, says why, and is sent again from the same button.
+ * one, says why, and is sent again from the same button. One too large to
+ * publish at once (`fits`, the first of it that would go in) can also send
+ * just those.
  */
-function ReviewBar({ count, busy, error, failed, done, onPublish, onSettled }) {
+function ReviewBar({ count, busy, error, failed, done, fits, onPublish, onPublishFirst, onSettled }) {
   // "Published", for a moment after the last of them is in.
   useEffect(() => {
     if (!done || count) return;
@@ -1104,6 +1127,11 @@ function ReviewBar({ count, busy, error, failed, done, onPublish, onSettled }) {
         <p role="alert" className="private-error">
           {failed ? `The comment marked in red couldn't go in: ${error}` : error} Every comment that didn't go in is still here.
         </p>
+      )}
+      {count > 0 && fits?.length > 0 && !busy && (
+        <button type="button" className="draft-text-button draft-review-first" onClick={onPublishFirst}>
+          Publish the first {n(fits.length)}
+        </button>
       )}
       {count > 0 && (
         <button type="button" className="private-primary chamfer chamfer-sm" onClick={onPublish} disabled={busy}>
@@ -1199,9 +1227,10 @@ const kept = (unsent, key) => ({
  * A textarea that grows with what is typed, sends on Ctrl/Cmd+Enter.
  * `onText` hears every change, and "" once it is sent or cancelled; Escape
  * closes without cancelling. While `held` (why, to show) it is not sent and
- * its text is left as it is.
+ * its text is left as it is; while `refused` (why, to show) it is not sent,
+ * and its text can still be written.
  */
-function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoFocus, sendLabel = "Comment", held }) {
+function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoFocus, sendLabel = "Comment", held, refused }) {
   const [text, setText] = useState(initial);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -1227,7 +1256,7 @@ function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoF
 
   async function send(e) {
     e?.preventDefault();
-    if (!text.trim() || sending || held) return;
+    if (!text.trim() || sending || held || refused) return;
     setSending(true);
     setError("");
     try {
@@ -1263,13 +1292,18 @@ function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoF
           {held}
         </p>
       )}
+      {refused && (
+        <p role="alert" className="private-error">
+          {refused}
+        </p>
+      )}
       {error && (
         <p role="alert" className="private-error">
           {error}
         </p>
       )}
       <div className="draft-box-buttons">
-        <button type="submit" className="private-primary chamfer chamfer-sm" disabled={sending || !text.trim() || Boolean(held)}>
+        <button type="submit" className="private-primary chamfer chamfer-sm" disabled={sending || !text.trim() || Boolean(held) || Boolean(refused)}>
           {sending ? "Sending…" : sendLabel}
         </button>
         {onCancel && (
@@ -1329,6 +1363,7 @@ function Composer({ id, quote, showQuote, act, review, base, unsent, onDone, onC
         placeholder={quote ? "Comment on this passage" : "Comment on the whole draft"}
         label={quote ? "Comment on the selected passage" : "Comment on the whole draft"}
         sendLabel={review ? "Add to review" : undefined}
+        refused={quote ? tooLong(quote) : ""}
         submit={async (text) => {
           const c = review
             ? review.add({ body: text, quote, base })
@@ -1429,7 +1464,9 @@ function SelectButton({ body, onComment, label }) {
       if (!quotable(root, range)) return hide();
       let q = null;
       try {
-        q = quoteFromRange(indexText(root), range, LIMIT.quote);
+        // Whole, however long: a passage over the limit is refused in the
+        // comment box, which says by how much, never cut short here.
+        q = quoteFromRange(indexText(root), range, Infinity);
       } catch {
         // A selection the index cannot place. No button, nothing broken.
       }
