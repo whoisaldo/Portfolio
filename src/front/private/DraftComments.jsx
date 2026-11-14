@@ -83,7 +83,7 @@ import { Check, MessageSquare, MessageSquarePlus, PencilLine, Send, X } from "lu
 import { groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
 import { ApiError, request } from "./api";
 import { QUOTE_MAX, findThread, findWhole, grewTooLong, quoteAt, tooLong } from "./place";
-import { acceptNote, acceptNotes, acceptOffered, suggestionParts } from "./suggest";
+import { acceptNote, acceptNotes, acceptOffered, sameAsPassage, suggestionParts } from "./suggest";
 import { selectLeft } from "./select";
 import { passageSlot, sendTyped, startPassage, sweepTyped, toReopen, typedStore, who } from "./typed";
 import { addPending, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, publishedAsIs, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
@@ -1748,7 +1748,7 @@ function SuggestComposer({ id, slot, quote, blocked, showQuote, act, unsent, onD
     el.setSelectionRange(el.value.length, el.value.length);
   }, []);
 
-  const same = words.trim().replace(/\s+/g, " ") === quote.exact.trim().replace(/\s+/g, " ");
+  const same = sameAsPassage(words, quote.exact);
   const refused = tooLong(quote);
   const forget = () => unsent.drop(slot);
   // Both kept as one; as it opened, nothing is kept.

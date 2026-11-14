@@ -561,6 +561,24 @@ test("P2: a comment, a reply, an edit and a suggestion's note hold 5,000 charact
   assert.equal(fake.posts()[0].body.body.length, 5000);
 });
 
+// ---- round 2: invisible characters in a suggestion ----------------------------------------
+
+test("P3: a suggestion that differs from the passage only by invisible characters cannot be sent", async () => {
+  const fake = service();
+  await mount(PrivateBlog, fake);
+  await selectAnd("harbour wall", "Suggest edit");
+  for (const w of ["harbour​ wall", "har­bour wall", "﻿harbour wall⁠"]) {
+    await type(field("What the selected words should say"), w);
+    assert.equal(button("Suggest").disabled, true, JSON.stringify(w));
+    assert.match(composer().textContent, /Same words as the passage/);
+  }
+  await press(field("What the selected words should say"), "Enter", { ctrlKey: true });
+  assert.equal(fake.posts().length, 0);
+  // A joiner is a real difference.
+  await type(field("What the selected words should say"), "harbour‍wall");
+  assert.equal(button("Suggest").disabled, false);
+});
+
 /** Runs `fn` inside React's act(). */
 async function act(fn) {
   const { act: reactAct } = await import("react");
