@@ -162,7 +162,9 @@ function useThreads(slug, onLost, onDraftChange, as, onSomeoneElse) {
   // it has that one.
   const saved = useRef(null);
   // A 404: signed out, or the draft is no longer theirs. The page finds out
-  // which (`onLost`), once, and nothing more is asked about this draft.
+  // which (`onLost`), once, and nothing more is asked about this draft. If
+  // it could not find out (no answer: `onLost` gives false), the comments
+  // are asked for again as before.
   const lost = useRef(false);
   // A 401 from any request here: the session ended. The page asks who is
   // signed in (`onSomeoneElse`), and signed out, shows the sign-in with what
@@ -192,7 +194,7 @@ function useThreads(slug, onLost, onDraftChange, as, onSomeoneElse) {
       if (err instanceof ApiError && err.status === 404) {
         if (!lost.current) {
           lost.current = true;
-          onLost();
+          if ((await onLost()) === false) lost.current = false;
         }
       } else setState((s) => (s.status === "loading" ? { ...s, status: "error" } : s));
     } finally {
@@ -524,6 +526,10 @@ function useAnchors(body, items, bodyKey) {
         if (!els.length) continue;
         for (const el of els) {
           el.dataset.threads = ids.join(" ");
+          // A drag that starts on a highlight selects words, as anywhere
+          // else in the text, rather than dragging the link away (and see
+          // `down` below).
+          el.setAttribute("draggable", "false");
           el.classList.toggle("is-pending", ids.includes("new"));
           el.classList.toggle("is-review", ids.some((id) => review.has(id)));
           el.classList.toggle("is-resolved", ids.every((id) => resolved.has(id)));
@@ -820,26 +826,60 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     [found],
   );
 
+  // The thread whose card Enter on its highlight opened: Escape gives focus back there.
+  const opener = useRef(null);
+
   // Hovering and clicking a passage.
   useEffect(() => {
     const root = body.current;
     if (!root) return;
     const idsOf = (target) => target.closest?.("[data-threads]")?.dataset.threads.split(" ").filter((id) => id !== "new");
+    // The highlight Enter was pressed on: the click that follows is the
+    // keyboard's (Firefox gives it a `detail` of 1, as a mouse's).
+    let entered = null;
+    const enter = (e) => {
+      entered = e.key === "Enter" ? e.target.closest?.("[data-threads]") : null;
+    };
     const click = (e) => {
       const ids = idsOf(e.target);
+      const mark = e.target.closest?.("[data-threads]");
+      const byKey = e.detail === 0 || (mark && mark === entered);
+      entered = null;
       if (!ids?.length) return;
       // Editing on a phone, a tap is for the caret; the corner button has the threads.
       if (bridge && !wide) return;
       e.preventDefault();
-      if (wide) focusThread(ids[0], { scroll: false });
-      else setSheet({ ids });
+      // The mouse let go in the highlight at the end of a drag that selected
+      // words: they are for commenting, not a click on it. Enter opens it as
+      // before.
+      const sel = window.getSelection();
+      if (!byKey && sel && !sel.isCollapsed && mark.contains(sel.focusNode)) return;
+      if (wide) {
+        opener.current = byKey ? ids[0] : null;
+        focusThread(ids[0], { scroll: false });
+      } else setSheet({ ids });
+    };
+    // Chromium and Safari never start a selection on a link, so while the
+    // mouse goes down on a highlight it is not one; it is again at once, for
+    // Tab, Enter and the click that opens its card.
+    const down = (e) => {
+      entered = null;
+      const link = e.pointerType === "mouse" && e.button === 0 && e.target.closest?.("a[data-threads][href]");
+      if (!link) return;
+      const href = link.getAttribute("href");
+      link.removeAttribute("href");
+      setTimeout(() => link.setAttribute("href", href), 0);
     };
     const over = (e) => setHover(idsOf(e.target) || null);
     const out = (e) => !e.relatedTarget?.closest?.("[data-threads]") && setHover(null);
+    root.addEventListener("pointerdown", down);
+    root.addEventListener("keydown", enter);
     root.addEventListener("click", click);
     root.addEventListener("mouseover", over);
     root.addEventListener("mouseout", out);
     return () => {
+      root.removeEventListener("pointerdown", down);
+      root.removeEventListener("keydown", enter);
       root.removeEventListener("click", click);
       root.removeEventListener("mouseover", over);
       root.removeEventListener("mouseout", out);
@@ -874,7 +914,13 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       if (e.target.closest?.(".draft-card, [data-threads], .draft-sheet, .draft-select")) return;
       setActive(null);
     };
-    const key = (e) => e.key === "Escape" && !typing(e.target) && setActive(null);
+    const key = (e) => {
+      if (e.key !== "Escape" || typing(e.target)) return;
+      // Opened from its highlight with the keyboard, focus goes back to it.
+      const back = opener.current === active ? document.getElementById(`quote-${active}`) : null;
+      setActive(null);
+      back?.focus();
+    };
     document.addEventListener("pointerdown", away);
     document.addEventListener("keydown", key);
     return () => {
@@ -1071,7 +1117,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
         {changed.length > 0 && (
           <>
             <h2 className="draft-after-title font-display text-lg font-semibold text-bone">On text that changed</h2>
-            <p className="draft-empty">These passages were edited after the comment, so they are no longer highlighted.</p>
+            <p className="draft-empty">These passages were edited after the comment, or their words appear in more than one place, so they aren't highlighted.</p>
             <div className="draft-list">{changed.map((t) => card(t, { showQuote: true }))}</div>
           </>
         )}
@@ -1306,6 +1352,9 @@ function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, 
   const replies = t.replies.length;
   // Accept, or word to press Done first while he edits (./suggest.js).
   const offer = onAccept ? acceptOffered({ accepted, resolved, clamped: compact, editing }) : null;
+  // A resolve or reopen on its way: its button says so and takes no second press.
+  const [resolving, setResolving] = useState(false);
+  const resolvingNow = useRef(false);
 
   async function run(p) {
     setError("");
@@ -1314,6 +1363,16 @@ function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, 
     } catch (err) {
       setError(err.message);
     }
+  }
+
+  async function resolveAs(value) {
+    if (resolvingNow.current) return;
+    resolvingNow.current = true;
+    setResolving(true);
+    // Resolving lets the thread go, so it hides at once, as in Docs.
+    await run(value ? act.resolve(t.id, true).then(onResolved) : act.resolve(t.id, false));
+    resolvingNow.current = false;
+    setResolving(false);
   }
 
   return (
@@ -1370,20 +1429,20 @@ function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, 
       )}
       <Comment c={t.root} now={now} viewer={viewer} act={act} unsent={unsent} onError={setError} clamp={compact} onMore={onActivate}>
         {resolved ? (
-          <button type="button" className="draft-text-button" onClick={() => run(act.resolve(t.id, false))}>
-            Reopen
+          <button type="button" className="draft-text-button" disabled={resolving} onClick={() => resolveAs(false)}>
+            {resolving ? "Reopening…" : "Reopen"}
           </button>
         ) : (
           <button
             type="button"
-            className="draft-icon-button"
+            className={resolving ? "draft-text-button" : "draft-icon-button"}
             title="Resolve"
-            aria-label="Resolve this thread"
-            // Resolving lets the thread go, so it hides at once, as in Docs.
+            aria-label={resolving ? undefined : "Resolve this thread"}
+            disabled={resolving}
             // One resolved by someone else stays while it is in hand.
-            onClick={() => run(act.resolve(t.id, true).then(onResolved))}
+            onClick={() => resolveAs(true)}
           >
-            <Check className="size-4" aria-hidden="true" />
+            {resolving ? "Resolving…" : <Check className="size-4" aria-hidden="true" />}
           </button>
         )}
       </Comment>

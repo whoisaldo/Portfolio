@@ -48,6 +48,11 @@ export async function load() {
     PrivateBlog: (await vite.ssrLoadModule("/src/front/private/PrivateBlog.jsx")).default,
   };
 }
+/** Any of the site's modules, loaded the same way. */
+export async function loadModule(path) {
+  await load();
+  return vite.ssrLoadModule(path);
+}
 export const unload = async () => {
   await vite?.close();
   vite = null;

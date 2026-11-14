@@ -57,6 +57,8 @@ export default function PrivateBlog() {
   // Why the page changed under the reader: signed out, or someone else in.
   const [notice, setNotice] = useState("");
   const [signOutFailed, setSignOutFailed] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const leaving = useRef(false);
   const shown = useRef(undefined);
   shown.current = viewer;
 
@@ -70,12 +72,17 @@ export default function PrivateBlog() {
     return () => meta.remove();
   }, []);
 
-  // Answers the viewer now, null when signed out (or not known).
-  const check = useCallback(async () => {
+  // Answers the viewer now, null when signed out (or not known). With
+  // `keep`, only an answer that says who is signed in changes anything: with
+  // none, the page stays as it is and the answer is undefined.
+  const check = useCallback(async (keep = false) => {
     let now = null;
     try {
-      now = (await request("/api/reader")).data.viewer;
+      const { data } = await request("/api/reader");
+      if (keep && !(data && typeof data === "object" && "viewer" in data && typeof data.viewer === "object")) return undefined;
+      now = data.viewer;
     } catch {
+      if (keep) return undefined;
       // As before: not known is signed out.
     }
     if (shown.current && !now) setNotice(SIGNED_OUT);
@@ -121,14 +128,21 @@ export default function PrivateBlog() {
     };
   }, [viewer, recheck]);
 
-  // Signed out only once the service says so.
+  // Signed out only once the service says so. One request at a time, and
+  // the button says it is on its way.
   const signOut = useCallback(async () => {
+    if (leaving.current) return;
+    leaving.current = true;
+    setSigningOut(true);
     setSignOutFailed(false);
     try {
       await request("/api/reader?a=logout", { method: "POST", body: {} });
     } catch {
       setSignOutFailed(true);
       return;
+    } finally {
+      leaving.current = false;
+      setSigningOut(false);
     }
     setNotice("");
     setViewer(null);
@@ -143,7 +157,7 @@ export default function PrivateBlog() {
   else if (viewer === undefined) page = <Shell />;
   else if (!viewer) page = <Login onIn={signIn} notice={notice} />;
   else {
-    const session = { viewer, signOut, lost: check, recheck, notice, signOutFailed, dismiss: () => setNotice("") };
+    const session = { viewer, signOut, signingOut, lost: check, recheck, notice, signOutFailed, dismiss: () => setNotice("") };
     // Keyed by who it is: someone else is a page from scratch.
     page = (
       <Routes key={who(viewer)}>
@@ -192,7 +206,7 @@ function NotFound({ title = "No draft at this address", children = "It may have 
 
 /** Who is signed in, and the way out. */
 function SignedIn({ session }) {
-  const { viewer, signOut } = session;
+  const { viewer, signOut, signingOut } = session;
   return (
     <p className="private-who">
       <LockKeyhole className="size-3.5" aria-hidden="true" />
@@ -200,8 +214,8 @@ function SignedIn({ session }) {
         Signed in as <b>{viewer.name}</b>
       </span>
       <span aria-hidden="true">·</span>
-      <button type="button" onClick={signOut}>
-        Sign out
+      <button type="button" onClick={signOut} disabled={signingOut}>
+        {signingOut ? "Signing out…" : "Sign out"}
       </button>
     </p>
   );
@@ -553,9 +567,11 @@ function Draft({ session }) {
 
   // The comments answered 404: signed out, or the draft is no longer this
   // person's to read. Still signed in as them, it is said to be gone, and
-  // nothing more is asked about it.
+  // nothing more is asked about it. No answer about who is signed in leaves
+  // the page as it is (false), and the comments ask again.
   const gone = useCallback(async () => {
-    const now = await lost();
+    const now = await lost(true);
+    if (now === undefined) return false;
     if (now && who(now) === who(viewer)) setState({ status: "gone", draft: null });
   }, [lost, viewer]);
 

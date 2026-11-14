@@ -6,7 +6,7 @@
 import { test, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  API, READERS, button, click, field, load, mount, press, reload, resize, selectAnd, service, settle, storage, text, type, unload, unmount, until,
+  API, BODY, READERS, button, click, field, load, mount, press, reload, resize, selectAnd, service, settle, storage, text, type, unload, unmount, until,
 } from "./page.mjs";
 
 let PrivateBlog;
@@ -1002,3 +1002,245 @@ async function act(fn) {
   });
   await settle();
 }
+
+// ---- round 4: T1. A drag that starts on a highlighted word selects text ------------------
+
+/** The highlight on `quote`, the link a reader tabs to. */
+const highlight = (quote) => until(() => [...document.querySelectorAll("a[data-threads]")].find((m) => m.textContent.includes(quote)), `the highlight on "${quote}"`);
+const isOpen = (id) => document.querySelector(`[data-card="${id}"]`)?.classList.contains("is-active");
+
+test("T1: a highlight cannot be dragged as a link, so a drag on it selects words", async () => {
+  const fake = service();
+  seed(fake);
+  await mount(PrivateBlog, fake);
+  const mark = await highlight("lighthouse keeper");
+  assert.equal(mark.getAttribute("draggable"), "false");
+  // Pressed with the mouse it is not a link (a browser starts no selection on one), and is again at once.
+  const href = mark.getAttribute("href");
+  mark.firstChild.dispatchEvent(new window.PointerEvent("pointerdown", { bubbles: true, pointerType: "mouse", button: 0 }));
+  assert.equal(mark.hasAttribute("href"), false);
+  await settle(10);
+  assert.equal(mark.getAttribute("href"), href);
+  // A finger is left as it is.
+  mark.firstChild.dispatchEvent(new window.PointerEvent("pointerdown", { bubbles: true, pointerType: "touch", button: 0 }));
+  assert.equal(mark.getAttribute("href"), href);
+});
+
+test("T1: the click that ends a drag-selection on a highlight does not open its card; a plain click and Enter do", async () => {
+  const fake = service();
+  const c = seed(fake);
+  await mount(PrivateBlog, fake);
+  const mark = await highlight("lighthouse keeper");
+  // The mouse went down on "lighthouse" and up on "keeper": words are selected.
+  const range = document.createRange();
+  range.setStart(mark.firstChild.firstChild, 0);
+  range.setEnd(mark.firstChild.firstChild, "lighthouse".length);
+  let ended;
+  await act(() => {
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    ended = new window.MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 });
+    mark.dispatchEvent(ended);
+  });
+  assert.ok(!isOpen(c.id), "the card stays closed");
+  assert.equal(ended.defaultPrevented, true, "the link is not followed");
+  assert.equal(window.getSelection().toString(), "lighthouse", "the words stay selected");
+  // A plain click, nothing selected.
+  await act(() => {
+    window.getSelection().removeAllRanges();
+    mark.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+  });
+  await until(() => isOpen(c.id), "the card open on a click");
+  await press(mark.ownerDocument.body, "Escape");
+  await until(() => !isOpen(c.id), "the card closed");
+  // Enter on the link (a click with no mouse), even with words selected elsewhere.
+  await act(() => {
+    window.getSelection().addRange(range);
+    mark.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true, detail: 0 }));
+  });
+  await until(() => isOpen(c.id), "the card open on Enter");
+});
+
+// ---- T3. Resolve and Sign out show they are working ---------------------------------------
+
+test("T3: Resolve is disabled and says it is resolving while its request is out, and a second press sends nothing", async () => {
+  const fake = service();
+  seed(fake);
+  await mount(PrivateBlog, fake);
+  await openThread("lighthouse keeper");
+  const release = hold(fake, (r) => r.method === "PATCH");
+  const resolve = document.querySelector('button[aria-label="Resolve this thread"]');
+  // Two presses before the page has drawn again, then one more after.
+  await act(() => {
+    resolve.click();
+    resolve.click();
+  });
+  const busy = await until(() => button("Resolving…"), "the busy Resolve");
+  assert.equal(busy.disabled, true);
+  await click(busy);
+  assert.equal(writes(fake, "PATCH"), 1);
+  release();
+  await until(() => !button("Resolving…"), "the resolve done");
+  assert.equal(writes(fake, "PATCH"), 1);
+});
+
+test("T3: Reopen is disabled and says it is reopening while its request is out", async () => {
+  const fake = service();
+  const c = seed(fake);
+  c.resolved = { by: "Ali", at: "2026-01-01T00:00:06.000Z" };
+  await mount(PrivateBlog, fake);
+  const show = await until(() => [...document.querySelectorAll('input[type="checkbox"]')].find((i) => i.closest("label")?.textContent.includes("Show resolved")), "Show resolved");
+  await click(show);
+  const reopen = await until(() => button("Reopen"), "Reopen");
+  const release = hold(fake, (r) => r.method === "PATCH");
+  await act(() => {
+    reopen.click();
+    reopen.click();
+  });
+  const busy = await until(() => button("Reopening…"), "the busy Reopen");
+  assert.equal(busy.disabled, true);
+  await click(busy);
+  assert.equal(writes(fake, "PATCH"), 1);
+  release();
+  await until(() => !button("Reopening…"), "the reopen done");
+  assert.equal(writes(fake, "PATCH"), 1);
+});
+
+test("T3: Sign out is disabled and says it is signing out while its request is out, and a second press sends nothing", async () => {
+  const fake = service();
+  await mount(PrivateBlog, fake);
+  await signedIn("Ada Reader");
+  const release = hold(fake, (r) => r.query.a === "logout");
+  const out = button("Sign out");
+  await act(() => {
+    out.click();
+    out.click();
+  });
+  const busy = await until(() => button("Signing out…"), "the busy Sign out");
+  assert.equal(busy.disabled, true);
+  await click(busy);
+  const logouts = () => fake.requests.filter((r) => r.query.a === "logout").length;
+  assert.equal(logouts(), 1);
+  release();
+  await until(() => document.querySelector('form[aria-label="Sign in"]'), "signed out");
+  assert.equal(logouts(), 1);
+});
+
+// ---- T4. The group of cards that cannot be placed says something true --------------------
+
+test("T4: a passage whose words appear twice is listed with words that do not say it was edited", async () => {
+  const fake = service();
+  fake.draft.body = `${BODY}\n\nThe tide was out.\n\nThe tide was out.`;
+  const c = seed(fake, { quote: "The tide was out." });
+  await mount(PrivateBlog, fake);
+  const card = await until(() => document.querySelector(`.draft-after-title ~ .draft-list [data-card="${c.id}"]`), "the card under the text that changed");
+  assert.ok(card);
+  const said = document.querySelector(".draft-after-title + .draft-empty").textContent;
+  assert.equal(said, "These passages were edited after the comment, or their words appear in more than one place, so they aren't highlighted.");
+});
+
+// ---- T5. Escape gives focus back to the highlight ----------------------------------------
+
+test("T5: a card opened from its highlight by the keyboard and closed with Escape gives focus back to the highlight", async () => {
+  const fake = service();
+  const c = seed(fake);
+  await mount(PrivateBlog, fake);
+  const mark = await highlight("lighthouse keeper");
+  await act(() => {
+    mark.focus();
+    mark.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true, detail: 0 }));
+  });
+  await until(() => isOpen(c.id), "the card open");
+  // Tabbed into the card, out of the reply box, then Escape.
+  const inCard = document.querySelector('button[aria-label="Resolve this thread"]');
+  await act(() => inCard.focus());
+  await press(inCard, "Escape");
+  await until(() => !isOpen(c.id), "the card closed");
+  const back = document.activeElement;
+  assert.ok(back === document.getElementById(`quote-${c.id}`), `focus on the highlight, not on ${back?.tagName} ${back?.getAttribute?.("aria-label") ?? ""}`);
+});
+
+test("T5: so does Enter as Firefox sends it, a click with a detail of 1 after the key", async () => {
+  const fake = service();
+  const c = seed(fake);
+  await mount(PrivateBlog, fake);
+  const mark = await highlight("lighthouse keeper");
+  await act(() => {
+    mark.focus();
+    mark.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    mark.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+  });
+  await until(() => isOpen(c.id), "the card open");
+  const inCard = document.querySelector('button[aria-label="Resolve this thread"]');
+  await act(() => inCard.focus());
+  await press(inCard, "Escape");
+  await until(() => !isOpen(c.id), "the card closed");
+  assert.ok(document.activeElement === document.getElementById(`quote-${c.id}`), "focus on the highlight");
+});
+
+// ---- T6. The editor's save after it is gone, and a check that got no answer --------------
+
+test("T6a: a save still out when the editor is taken down finishes without an error and writes nothing from it", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  // The service stores the save at once; its answer comes only on release().
+  let release;
+  const gate = new Promise((r) => (release = r));
+  let first = true;
+  fake.hooks.push(async (req) => {
+    if (!first || req.method !== "PUT" || req.path !== "/api/drafts") return;
+    first = false;
+    const answer = await fake.fetch(`${API}${req.path}`, { method: "PUT", body: JSON.stringify(req.body) });
+    await gate;
+    return answer;
+  });
+  await typeInEditor(dom, " Made-up words saved late.");
+  await until(() => fake.requests.some((r) => r.method === "PUT" && r.path === "/api/drafts"), "the save out", 4000);
+  const errors = [];
+  const heard = (err) => errors.push(err);
+  process.on("unhandledRejection", heard);
+  try {
+    fake.signedIn = READERS.ada;
+    await act(() => window.dispatchEvent(new window.Event("focus")));
+    await signedIn("Ada Reader");
+    const copy = editorCopy();
+    assert.match(copy ?? "", /Made-up words saved late\./);
+    release();
+    await settle(200);
+    assert.deepEqual(errors.map(String), []);
+    assert.equal(editorCopy(), copy, "the copy as the teardown left it");
+    assert.match(fake.draft.body, /Made-up words saved late\./);
+  } finally {
+    process.off("unhandledRejection", heard);
+  }
+});
+
+test("T6b: after a comments 404, an identity check that gets no answer leaves the page as it is, and the comments are asked again", async () => {
+  const fake = service();
+  await mount(PrivateBlog, fake);
+  await selectAnd("fishing boats");
+  await type(field("Comment on the selected passage"), "Kept through the outage.");
+  // One comments request answers 404, and the identity check after it gets nothing back.
+  let outage = true;
+  fake.hooks.push(async (req) => {
+    if (!outage) return;
+    if (req.path === "/api/reader") return "network";
+    if (req.path === "/api/draft-comments" && req.method === "GET") return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+  });
+  await poll();
+  await until(() => fake.requests.some((r) => r.path === "/api/reader" && r.query.a !== "logout"), "the identity check");
+  await settle(50);
+  assert.ok(!document.querySelector('form[aria-label="Sign in"]'), "not signed out");
+  assert.ok(!/no longer available|signed out/i.test(text()), "no note");
+  assert.ok(text().includes("Signed in as Ada Reader"));
+  assert.equal(field("Comment on the selected passage")?.value, "Kept through the outage.");
+  // The outage over, the comments are asked for again and come.
+  outage = false;
+  const asked = fake.requests.filter((r) => r.path === "/api/draft-comments").length;
+  await poll();
+  await until(() => fake.requests.filter((r) => r.path === "/api/draft-comments").length > asked, "the comments asked again");
+  seed(fake, { quote: "harbour wall", body: "A made-up note after the outage." });
+  await poll();
+  await until(() => text().includes("A made-up note after the outage."), "the comments, fresh");
+});

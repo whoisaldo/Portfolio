@@ -266,7 +266,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       }
       if (kind === "autosave" && sameDraft(p, st.baseline)) {
         clearUnsaved(slug);
-        if ((await sendAnchors({ keepalive })) && sameDraft(payload(), st.baseline)) setStatus({ state: "saved" });
+        if ((await sendAnchors({ keepalive })) && st.editor && sameDraft(payload(), st.baseline)) setStatus({ state: "saved" });
         return;
       }
       st.flight = (async () => {
@@ -278,11 +278,15 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
           st.baseline = p;
           st.latest = { ...st.latest, ...data.draft, ...p };
           st.tries = 0;
+          // Taken down while this was on its way (Done, or someone else
+          // signed in): its copy in this browser was written then, and there
+          // is no editor left to read or write from.
+          if (!st.editor) return;
           // The anchors are for the text that was saved: if more was typed
           // meanwhile, the next save sends them.
           if (sameDraft(payload(), p)) {
             clearUnsaved(slug);
-            if ((await sendAnchors({ keepalive })) && sameDraft(payload(), p)) setStatus({ state: "saved" });
+            if ((await sendAnchors({ keepalive })) && st.editor && sameDraft(payload(), p)) setStatus({ state: "saved" });
           } else st.again = true;
         } catch (err) {
           if (!(err instanceof ApiError)) throw err;

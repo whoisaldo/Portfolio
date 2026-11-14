@@ -72,6 +72,7 @@
 }
 .private-who button:hover,
 .private-link:hover { color: #eceae4; }
+.private-who button:disabled { opacity: 0.6; cursor: default; color: #fcee0a; }
 
 .private-back {
   display: inline-flex;
@@ -456,6 +457,7 @@
   transition: color 150ms;
 }
 .draft-text-button:hover { color: #eceae4; }
+.draft-comment-head .draft-text-button:disabled { opacity: 0.6; cursor: default; color: #fcee0a; }
 
 .draft-reply-ghost {
   display: block;
