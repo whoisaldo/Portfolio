@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import {
   API, BODY, READERS, button, click, field, load, mount, press, reload, resize, selectAnd, service, settle, storage, text, type, unload, unmount, until,
 } from "./page.mjs";
+import { markOf } from "../src/front/private/unsaved.js";
 
 let PrivateBlog;
 before(async () => {
@@ -1209,10 +1210,14 @@ test("T6a: a save still out when the editor is taken down finishes without an er
     release();
     await settle(200);
     assert.deepEqual(errors.map(String), []);
-    // The save carried everything the copy had (round 5, M1): it goes.
-    assert.notEqual(copy, null);
-    assert.equal(editorCopy(), null, "nothing left to offer");
+    assert.equal(editorCopy(), copy, "nothing written after the editor was gone");
     assert.match(fake.draft.body, /Made-up words saved late\./);
+    // The save carried everything the copy had: it goes when Ali opens the draft again.
+    await nowSignedIn(fake, "owner");
+    await until(() => button("Edit"), "the draft");
+    await settle(100);
+    assert.equal(offered(), false);
+    assert.equal(editorCopy(), null, "nothing left to offer");
   } finally {
     process.off("unhandledRejection", heard);
   }
@@ -1310,7 +1315,7 @@ test("M1: words typed after a save began, the editor taken down before it answer
     await settle(200);
     assert.match(fake.draft.body, /Saved while switching, made up\./);
     assert.doesNotMatch(fake.draft.body, /Typed after the save began/);
-    assert.equal(copyOf()?.base, fake.draft.updated_at, "the copy is on top of the save that went in");
+    assert.equal(copyOf()?.sent, markOf(fake.draft), "the copy carries the mark of the save that went in");
     await nowSignedIn(fake, "owner");
     await until(offered, "the offer of the later words");
     assert.match(copyOf()?.body ?? "", /Saved while switching, made up\. Typed after the save began, made up\./);
@@ -1333,11 +1338,11 @@ test("M1: a late save that carried everything leaves no copy and no offer", asyn
   release();
   await settle(200);
   assert.match(fake.draft.body, /All of it saved late, made up\./);
-  assert.equal(editorCopy(), null);
   await nowSignedIn(fake, "owner");
   await until(() => button("Edit"), "the draft");
   await settle(100);
   assert.equal(offered(), false);
+  assert.equal(editorCopy(), null);
 });
 
 test("M1: a copy discarded before the late save answers stays discarded", async () => {
@@ -1491,10 +1496,276 @@ test("M1: a version restored from the history, its save answered after the edito
     await settle(300);
     assert.deepEqual(errors, []);
     assert.equal(fake.draft.body.trim(), "An older made-up text.");
-    assert.equal(editorCopy(), null, "the restore is saved: nothing to offer");
+    await nowSignedIn(fake, "owner");
+    await until(() => button("Edit"), "the draft");
+    await settle(100);
+    assert.equal(offered(), false, "the restore is saved: nothing to offer");
+    assert.equal(editorCopy(), null);
   } finally {
     stop();
   }
+});
+
+// ---- round 6: a save that lands after the page went away ---------------------------------
+
+/**
+ * Ali's next save of the draft held in two steps: land() stores it in the
+ * service, with the service's clock at now; answer() then gives the page the
+ * service's answer. A save never answered is one whose page went away first.
+ * `fail` answers it with a 500 and stores nothing.
+ */
+function holdSaveApart(fake, { fail = false } = {}) {
+  let land, answer;
+  const landed = new Promise((r) => (land = r));
+  const answered = new Promise((r) => (answer = r));
+  let taken = false;
+  let inner = false;
+  fake.hooks.push(async (req) => {
+    if (taken || inner || req.method !== "PUT" || req.path !== "/api/drafts") return;
+    taken = true;
+    const by = fake.signedIn;
+    await landed;
+    let res;
+    if (fail) res = new Response(JSON.stringify({ error: "A made-up failure." }), { status: 500 });
+    else {
+      fake.clock = Math.ceil((Date.now() - Date.UTC(2026, 0, 1)) / 1000) + 1;
+      const now = fake.signedIn;
+      inner = true;
+      fake.signedIn = by;
+      try {
+        res = await fake.fetch(`${API}${req.path}`, { method: "PUT", body: JSON.stringify(req.body) });
+      } finally {
+        inner = false;
+        fake.signedIn = now;
+      }
+    }
+    await answered;
+    return res;
+  });
+  return { land: () => land(), answer: () => answer() };
+}
+const sentSaves = (fake) => fake.requests.filter((r) => r.method === "PUT" && r.path === "/api/drafts");
+/** Restores the offered words and answers the editor's text. */
+async function restoreOffer() {
+  await click(button("Restore them"));
+  return (await until(() => editorText()?.editor && editorText(), "the editor, restored", 8000)).textContent;
+}
+/** Ali opens the draft again, the page as a reload leaves it. */
+async function reopened(fake) {
+  await reload(PrivateBlog, fake);
+  await until(() => button("Edit"), "the draft");
+  await settle(100);
+}
+
+test("R6: the copy carries a mark of what each save sends, written as it is sent", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  const save = holdSaveApart(fake);
+  await typeInEditor(dom, " Marked as sent, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  const sent = sentSaves(fake)[0].body;
+  const copy = copyOf();
+  assert.equal(copy?.body, sent.body, "the copy is the text as it was sent");
+  assert.equal(copy?.sent, markOf(sent));
+  // Typing on keeps the mark.
+  await typeInEditor(dom, " Typed on, made up.");
+  await until(() => /Typed on/.test(copyOf()?.body ?? ""), "the copy with the later words");
+  assert.equal(copyOf().sent, markOf(sent));
+  // Answered with the editor open: the mark goes, the copy is on top of the new save.
+  save.land();
+  save.answer();
+  await until(() => savesOut(fake) >= 2, "the save of the later words", 4000);
+  await until(() => editorCopy() === null, "the copy gone once everything is in", 4000);
+  assert.match(fake.draft.body, /Typed on, made up\./);
+});
+
+test("R6: a reload while a save is out, the save landing during the navigation and never answered: the later words are offered", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  const save = holdSaveApart(fake);
+  await typeInEditor(dom, " Saved before the reload, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  await typeInEditor(dom, " Later words before the reload, made up.");
+  await until(() => /Later words before the reload/.test(copyOf()?.body ?? ""), "the copy with the later words");
+  const { errors, stop } = heardErrors();
+  try {
+    await unmount();
+    save.land();
+    await until(() => /Saved before the reload/.test(fake.draft.body), "the save in");
+    assert.doesNotMatch(fake.draft.body, /Later words/);
+    await mount(PrivateBlog, fake);
+    await until(offered, "the offer of the later words");
+    assert.match(copyOf()?.body ?? "", /Saved before the reload, made up\. Later words before the reload, made up\./);
+    assert.match(await restoreOffer(), /Saved before the reload, made up\. Later words before the reload, made up\./);
+    assert.deepEqual(errors, []);
+  } finally {
+    stop();
+  }
+});
+
+test("R6: the editor taken down, the save landing, Ali back and the page loaded before the save's answer: the later words are offered, and stay after it", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  const save = holdSaveApart(fake);
+  await typeInEditor(dom, " First saved sentence, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  await typeInEditor(dom, " Later words at risk, made up.");
+  const { errors, stop } = heardErrors();
+  try {
+    await nowSignedIn(fake, "ada");
+    save.land();
+    await until(() => /First saved sentence/.test(fake.draft.body), "the save in");
+    const loads = fake.requests.filter((r) => r.method === "GET" && r.path === "/api/drafts" && r.query.slug).length;
+    await nowSignedIn(fake, "owner");
+    await until(() => fake.requests.filter((r) => r.method === "GET" && r.path === "/api/drafts" && r.query.slug).length > loads, "the draft loaded again");
+    await settle(100);
+    assert.equal(offered(), true, "offered before the answer");
+    save.answer();
+    await settle(200);
+    assert.equal(offered(), true, "still offered after it");
+    assert.match(copyOf()?.body ?? "", /Later words at risk, made up\./);
+    assert.match(await restoreOffer(), /First saved sentence, made up\. Later words at risk, made up\./);
+    assert.deepEqual(errors, []);
+  } finally {
+    stop();
+  }
+});
+
+test("R6: a reload while a save is out, the save landing only after the next page judged the copy: offered then, and after another reload", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  const save = holdSaveApart(fake);
+  await typeInEditor(dom, " Landed late, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  await typeInEditor(dom, " Typed before the reload, made up.");
+  await unmount();
+  await mount(PrivateBlog, fake);
+  await until(offered, "the offer, the save not in yet");
+  save.land();
+  await until(() => /Landed late/.test(fake.draft.body), "the save in");
+  await reopened(fake);
+  assert.equal(offered(), true, "still offered once it is in");
+  assert.match(await restoreOffer(), /Landed late, made up\. Typed before the reload, made up\./);
+});
+
+test("R6: a reload while a save is out that carried everything: no offer, the copy gone", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  const save = holdSaveApart(fake);
+  await typeInEditor(dom, " All of it, saved during the reload, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  await unmount();
+  save.land();
+  await until(() => /saved during the reload/.test(fake.draft.body), "the save in");
+  await reopened(fake);
+  assert.equal(offered(), false);
+  assert.equal(editorCopy(), null);
+});
+
+test("R6: a reload while a save is out that never reaches the service: the words are offered on top of the old saved text", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  holdSaveApart(fake);
+  await typeInEditor(dom, " Never reached the service, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  await typeInEditor(dom, " Nor this, made up.");
+  await unmount();
+  await mount(PrivateBlog, fake);
+  await until(offered, "the offer");
+  assert.equal(fake.draft.body, BODY);
+  assert.match(await restoreOffer(), /Never reached the service, made up\. Nor this, made up\./);
+});
+
+test("R6: a late save that fails, the editor taken down: the words are offered on top of the old saved text", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  const save = holdSaveApart(fake, { fail: true });
+  await typeInEditor(dom, " Failed late, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  await typeInEditor(dom, " Typed after, made up.");
+  await nowSignedIn(fake, "ada");
+  save.land();
+  save.answer();
+  await settle(200);
+  assert.equal(fake.draft.body, BODY);
+  await nowSignedIn(fake, "owner");
+  await until(offered, "the offer");
+  assert.match(await restoreOffer(), /Failed late, made up\. Typed after, made up\./);
+});
+
+test("R6: a save that fails with the editor open drops the mark and keeps the copy", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  const save = holdSaveApart(fake, { fail: true });
+  // Retries fail too, so the copy is looked at between them.
+  fake.hooks.push(async (req) => (sentSaves(fake).length > 1 && req.method === "PUT" && req.path === "/api/drafts" ? new Response(JSON.stringify({ error: "A made-up failure." }), { status: 500 }) : undefined));
+  await typeInEditor(dom, " Failed with the editor open, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  assert.ok(copyOf()?.sent);
+  save.land();
+  save.answer();
+  await until(() => text().includes("Offline, retrying"), "the failure heard");
+  assert.match(copyOf()?.body ?? "", /Failed with the editor open, made up\./);
+  assert.equal(copyOf()?.sent ?? null, null, "no mark");
+  await reopened(fake);
+  assert.equal(offered(), true);
+});
+
+test("R6: a stale copy whose mark is of an earlier save, the draft saved since from another device: removed, not offered", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  const save = holdSaveApart(fake);
+  await typeInEditor(dom, " Saved here first, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  await typeInEditor(dom, " Typed here after, made up.");
+  await nowSignedIn(fake, "ada");
+  save.land();
+  save.answer();
+  await until(() => /Saved here first/.test(fake.draft.body), "the save in");
+  await settle(100);
+  // Another device saves newer text a moment later.
+  fake.draft = { ...fake.draft, body: "Made-up text saved on another device.", updated_at: new Date(Date.now() + 5000).toISOString() };
+  await nowSignedIn(fake, "owner");
+  await until(() => button("Edit"), "the draft");
+  await settle(100);
+  assert.equal(offered(), false);
+  assert.equal(editorCopy(), null);
+});
+
+test("R6: Done with everything saved leaves no copy and no offer", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  await typeInEditor(dom, " Done with it, made up.");
+  await click(button("Done"));
+  await until(() => !editorText(), "the editor closed", 4000);
+  assert.match(fake.draft.body, /Done with it, made up\./);
+  assert.equal(editorCopy(), null);
+  await reopened(fake);
+  assert.equal(offered(), false);
+});
+
+test("R6: an offer of words typed after a late save, discarded, stays discarded", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  const save = holdSaveApart(fake);
+  await typeInEditor(dom, " Saved before, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  await typeInEditor(dom, " Then discarded, made up.");
+  await unmount();
+  save.land();
+  await until(() => /Saved before/.test(fake.draft.body), "the save in");
+  await mount(PrivateBlog, fake);
+  await until(offered, "the offer");
+  const confirm = window.confirm;
+  try {
+    window.confirm = () => true;
+    await click(button("Discard"));
+  } finally {
+    window.confirm = confirm;
+  }
+  assert.equal(editorCopy(), null);
+  await reopened(fake);
+  assert.equal(offered(), false);
 });
 
 // ---- M2. A phone sheet the browser closes by itself never leaves the page stuck -----------

@@ -456,7 +456,9 @@ function Draft({ session }) {
   }, [slug, lost]);
 
   // An edit this browser never got saved, offered back if it is newer than
-  // the server's copy, and let go if it is not.
+  // the server's copy, and let go if it is not. Newer counts a save that
+  // landed after the page that sent it was gone: the edit carries its mark
+  // (./unsaved.js, newerThan).
   const draft = state.draft;
   useEffect(() => {
     if (!viewer.owner || !draft || editing) return;
