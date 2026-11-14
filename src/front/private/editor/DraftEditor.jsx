@@ -113,7 +113,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       retry: 0,
       tries: 0,
       flight: null,
-      sent: null, // the mark of the save on its way (../unsaved.js, markOf)
+      sent: null, // the mark of the last save sent and not yet answered (../unsaved.js, markOf)
       again: false,
       pending: null, // {body, base, changes}: passages' places in the body saved at base, not confirmed yet
       sending: null,
@@ -152,7 +152,8 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
 
   // The copy in this browser, a moment after typing; at once when a save
   // is sent (`p`, what it sends) and when the editor is taken down with it
-  // still to come. Each carries the mark of the save on its way, if one is.
+  // still to come. Each carries the mark of the last save sent, while the
+  // server has not answered it.
   // The text as the server has it (saved, or the latest loaded in place of
   // changes) leaves no copy, unless a save of other text is on its way: that
   // one may yet land.
@@ -308,9 +309,14 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
             st.again = true;
           }
         } catch (err) {
-          st.sent = null;
-          // Not saved: the copy stays, on top of the save before, without the mark.
-          if (st.editor) writeLocal();
+          // Refused by the server: not saved, and the copy stays on top of
+          // the save before, without the mark. With no answer at all (a
+          // network gone, or a reload cutting it off) it may have landed:
+          // the mark stays until the next save is sent.
+          if (err instanceof ApiError && err.status) {
+            st.sent = null;
+            if (st.editor) writeLocal();
+          }
           if (!(err instanceof ApiError)) throw err;
           if (err.status === 409 && err.data?.draft) {
             st.conflict = err.data.draft;

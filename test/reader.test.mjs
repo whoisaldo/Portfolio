@@ -1693,7 +1693,7 @@ test("R6: a late save that fails, the editor taken down: the words are offered o
   assert.match(await restoreOffer(), /Failed late, made up\. Typed after, made up\./);
 });
 
-test("R6: a save that fails with the editor open drops the mark and keeps the copy", async () => {
+test("R6: a save the service refuses with the editor open drops the mark and keeps the copy", async () => {
   const fake = service({ who: "owner" });
   const dom = await openEditor(fake);
   const save = holdSaveApart(fake, { fail: true });
@@ -1709,6 +1709,35 @@ test("R6: a save that fails with the editor open drops the mark and keeps the co
   assert.equal(copyOf()?.sent ?? null, null, "no mark");
   await reopened(fake);
   assert.equal(offered(), true);
+});
+
+test("R6: a save the browser got no answer to, which landed all the same, the page then reloaded: the later words are offered", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  // The service stores the first save, and the browser hears nothing back,
+  // as when a navigation cuts the request off after it was sent.
+  let first = true;
+  let land;
+  const landed = new Promise((r) => (land = r));
+  fake.hooks.push(async (req) => {
+    if (!first || req.method !== "PUT" || req.path !== "/api/drafts") return;
+    first = false;
+    await landed;
+    fake.draft = { ...fake.draft, ...req.body, slug: fake.draft.slug, updated_at: new Date().toISOString() };
+    return "network";
+  });
+  await typeInEditor(dom, " Landed unheard, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  await typeInEditor(dom, " Typed while it was out, made up.");
+  await until(() => /Typed while it was out/.test(copyOf()?.body ?? ""), "the later words in the copy");
+  land();
+  await until(() => text().includes("Offline, retrying"), "no answer heard");
+  assert.match(fake.draft.body, /Landed unheard, made up\./);
+  assert.equal(copyOf()?.sent, markOf(fake.draft), "the mark stays: the save may have landed");
+  await unmount();
+  await mount(PrivateBlog, fake);
+  await until(offered, "the offer of the later words");
+  assert.match(await restoreOffer(), /Landed unheard, made up\. Typed while it was out, made up\./);
 });
 
 test("R6: a stale copy whose mark is of an earlier save, the draft saved since from another device: removed, not offered", async () => {
