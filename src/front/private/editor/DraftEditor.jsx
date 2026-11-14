@@ -467,6 +467,9 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
         return null;
       }
     };
+    // An accepted suggestion, made in the text (handle.replaceWords), saved as
+    // a version of its own. True once the server has it.
+    handle.saveVersion = () => st.saveAs("manual");
     onBridge(handle);
 
     return () => {
@@ -585,6 +588,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     },
     [save, payload],
   );
+  s.current.saveAs = saveAs;
 
   /**
    * Puts a version from the history in the editor and saves it as a

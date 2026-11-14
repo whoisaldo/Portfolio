@@ -26,6 +26,7 @@
 // the place it had, and the comments margin says so on its card (`long`)
 // until it is shortened.
 import { Extension } from "@tiptap/core";
+import { Mark } from "@tiptap/pm/model";
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { groupQuotes, indexText, quoteFromRange } from "../../quotes.js";
@@ -185,6 +186,15 @@ function decorations(doc, { ranges, items, emphasis }) {
  *   forget()            send every passage again after the next save
  *   findMissing()       look again for the threads with no passage, after a
  *                       change that may have brought their words back
+ *   replaceWords(index, at, text, thread, passage)
+ *                       an accepted suggestion (../accept.js): the words at
+ *                       `at` of an indexText index of the editor's text
+ *                       replaced by `text`, in one step of the undo history,
+ *                       and the thread's passage, at `passage` before, kept
+ *                       on the words it covers after. Only words in one
+ *                       paragraph, all with the same formatting, with no
+ *                       line break in `text`; false, and nothing changed,
+ *                       otherwise
  */
 export function commentAnchors() {
   let view = null;
@@ -409,6 +419,37 @@ export function commentAnchors() {
       }
       const add = search(items, lost);
       if (add.length) send({ add });
+    },
+    replaceWords(index, at, text, thread, passage) {
+      if (!view || /[\r\n]/.test(text)) return false;
+      const r = toRange(view, index, at);
+      if (!r) return false;
+      const { doc } = view.state;
+      const $from = doc.resolve(r.from);
+      if (!$from.sameParent(doc.resolve(r.to)) || !$from.parent.inlineContent) return false;
+      // The words as the index has them, character for character: no
+      // picture, line break or collapsed space among them.
+      if (doc.textBetween(r.from, r.to) !== index.text.slice(at[0], at[1])) return false;
+      let marks = null;
+      let plain = true;
+      doc.nodesBetween(r.from, r.to, (node) => {
+        if (!node.isInline) return;
+        if (!node.isText) plain = false;
+        else if (!marks) marks = node.marks;
+        else if (!Mark.sameSet(marks, node.marks)) plain = false;
+      });
+      if (!plain) return false;
+      const whole = toRange(view, index, passage);
+      const tr = view.state.tr;
+      if (text) tr.insertText(text, r.from, r.to);
+      else tr.delete(r.from, r.to);
+      if (whole) {
+        const from = tr.mapping.map(whole.from, -1);
+        const to = tr.mapping.map(whole.to, 1);
+        if (from < to) tr.setMeta(key, { add: [[thread, { from, to }]] });
+      }
+      view.dispatch(tr);
+      return true;
     },
     get dom() {
       return view?.dom ?? null;

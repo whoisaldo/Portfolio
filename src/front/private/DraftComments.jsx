@@ -20,6 +20,15 @@
 // starts from under the text, where those threads are listed together with
 // any whose passage was edited away ("On text that changed").
 //
+// A reader can also press "Suggest edit" by a selection: its words open in a
+// box, to be changed into what they should say, with a note if they like.
+// The thread's card shows the words that change struck through and the new
+// ones marked as added (./suggest.js). Ali has "Accept" on it, which puts the
+// new words in the draft, saves that as a version, and marks the thread
+// accepted and resolved (./accept.js). An accepted thread's passage is the
+// new words; one whose words are gone (a deletion) is listed under the text,
+// under "Accepted edits", not with the passages that changed.
+//
 // Passages are found again by their words and context (../quotes.js, shared
 // with the public comments), so a draft can be edited under its comments.
 // Overlapping passages are one highlight that leads to every thread on it.
@@ -59,10 +68,11 @@
 // everyone's are.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
-import { Check, MessageSquare, MessageSquarePlus, Send, X } from "lucide-react";
+import { Check, MessageSquare, MessageSquarePlus, PencilLine, Send, X } from "lucide-react";
 import { groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
 import { ApiError, request } from "./api";
 import { QUOTE_MAX, findThread, findWhole, grewTooLong, quoteAt, tooLong } from "./place";
+import { suggestionParts } from "./suggest";
 import { addPending, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, publishedAsIs, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
 
 // As the stats service has them.
@@ -178,6 +188,9 @@ function useThreads(slug, onLost, onDraftChange) {
         after(request("/api/draft-comments", { method: "PATCH", body: { id, body } })).then(({ data }) => merge(data.comment)),
       resolve: (id, resolved) =>
         after(request("/api/draft-comments", { method: "PATCH", body: { id, resolved } })).then(({ data }) => merge(data.comment)),
+      // A suggestion marked accepted (Ali's), once its words are in the text.
+      accept: (id) =>
+        after(request("/api/draft-comments", { method: "PATCH", body: { id, accepted: true } })).then(({ data }) => merge(data.comment)),
       remove: (id) =>
         after(request(`/api/draft-comments?id=${encodeURIComponent(id)}`, { method: "DELETE" })).then(() =>
           setState((s) => ({ ...s, comments: s.comments.filter((c) => c.id !== id && c.thread !== id) })),
@@ -508,7 +521,10 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     if (quotes.size) review.follow(quotes, bodyKey);
   }, [bridge, readBody, bodyKey, review]);
   const inText = visible.filter((t) => found.placed.has(t.id));
-  const changed = visible.filter((t) => t.quote && !found.placed.has(t.id));
+  // An accepted suggestion's words are not lost when its passage is not in
+  // the text: they were changed by accepting it.
+  const changed = visible.filter((t) => t.quote && !found.placed.has(t.id) && !t.root?.accepted);
+  const acceptedAway = visible.filter((t) => t.quote && !found.placed.has(t.id) && t.root?.accepted);
   const general = visible.filter((t) => !t.quote);
   // A new passage is normally found where it was selected. If its words and
   // context are not unique enough to find, its card goes to the top.
@@ -521,15 +537,17 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     if (active && active !== "new" && active !== "general" && status === "ready" && !threads.some((t) => t.id === active)) setActive(null);
   }, [active, threads, status]);
 
+  // `suggest`: a suggested edit, rather than a comment.
   const startNew = useCallback(
-    (quote) => {
+    (quote, suggest = false) => {
       window.getSelection()?.removeAllRanges();
-      setPending({ quote });
+      setPending({ quote, suggest });
       setActive("new");
       if (!wide) setSheet({ compose: "new" });
     },
     [wide],
   );
+  const suggestNew = useCallback((quote) => startNew(quote, true), [startNew]);
   const cancelNew = useCallback(() => {
     setPending(null);
     setActive((a) => (a === "new" || a === "general" ? null : a));
@@ -682,7 +700,23 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   // The bar points at a card only when there is one marked.
   const marked = threads.some((t) => t.id === publishing.failed) ? publishing.failed : null;
 
-  const shared = { viewer, now, act, onLost, unsent };
+  // Ali's Accept on a suggestion: through the editor's text while it is
+  // open, else through the draft as the server has it (./accept.js).
+  const accept = useCallback(
+    async (t) => {
+      let mod;
+      try {
+        mod = await import("./accept");
+      } catch {
+        throw new Error("Accept couldn't load. Check your connection and try again.");
+      }
+      const target = bridge ? mod.editorText(bridge) : mod.pageText({ slug, threads: published, request });
+      await mod.acceptSuggestion({ slug, t, target, mark: act.accept });
+    },
+    [bridge, slug, published, act],
+  );
+
+  const shared = { viewer, now, act, onLost, unsent, onAccept: viewer.owner ? accept : null };
   const card = (t, extra = {}) => t.pending ? (
     <PendingThread
       key={t.id}
@@ -753,7 +787,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
         >
           {inText.map((t) => card(t, { inMargin: true }))}
           {showNew && (
-            <Composer key="new" id="new" quote={pending.quote} act={act} review={viewer.owner ? review : null} base={bridge ? null : bodyKey} unsent={unsent} onDone={(c) => { setPending(null); setActive(c.id); }} onCancel={cancelNew} />
+            <Composer key={pending.suggest ? "suggest" : "new"} id="new" quote={pending.quote} suggest={pending.suggest} act={act} review={viewer.owner ? review : null} base={bridge ? null : bodyKey} unsent={unsent} onDone={(c) => { setPending(null); setActive(c.id); }} onCancel={cancelNew} />
           )}
         </Margin>
       )}
@@ -784,9 +818,24 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
             <div className="draft-list">{changed.map((t) => card(t, { showQuote: true }))}</div>
           </>
         )}
+        {acceptedAway.length > 0 && (
+          <>
+            <h2 className="draft-after-title font-display text-lg font-semibold text-bone">Accepted edits</h2>
+            <p className="draft-empty">These suggestions were accepted, so the words they were on are no longer in the draft.</p>
+            <div className="draft-list">{acceptedAway.map((t) => card(t, { showQuote: true }))}</div>
+          </>
+        )}
       </section>
 
-      {!bridge && <SelectButton body={body} onComment={placing ? place : startNew} label={placing ? "Move here" : "Comment"} />}
+      {!bridge && (
+        <SelectButton
+          body={body}
+          onComment={placing ? place : startNew}
+          // Ali edits the text himself, so suggesting is a reader's.
+          onSuggest={placing || viewer.owner ? null : suggestNew}
+          label={placing ? "Move here" : "Comment"}
+        />
+      )}
 
       {viewer.owner && (waiting.length > 0 || publishing.done > 0) &&
         createPortal(<ReviewBar count={waiting.length} {...publishing} fits={publishing.fits?.filter((id) => waiting.some((c) => c.id === id))} failed={marked} busy={publishing.busy || review.publishing} onPublish={() => publish()} onPublishFirst={() => publish(publishing.fits)} onSettled={settle} />, document.body)}
@@ -802,11 +851,11 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
 
       {!wide && sheet && (
         <Sheet
-          title={sheet.compose ? (sheet.compose === "new" ? "New comment" : "Comment on the whole draft") : sheet.all ? "Comments" : "Comment"}
+          title={sheet.compose ? (sheet.compose === "new" ? (pending?.suggest ? "Suggest an edit" : "New comment") : "Comment on the whole draft") : sheet.all ? "Comments" : "Comment"}
           onClose={() => (sheet.compose ? cancelNew() : setSheet(null))}
         >
           {sheet.compose === "new" && pending && (
-            <Composer id="new" quote={pending.quote} showQuote act={act} review={viewer.owner ? review : null} base={bridge ? null : bodyKey} unsent={unsent} onDone={(c) => { setPending(null); setActive(null); setSheet({ ids: [c.id] }); }} onCancel={cancelNew} />
+            <Composer id="new" quote={pending.quote} suggest={pending.suggest} showQuote act={act} review={viewer.owner ? review : null} base={bridge ? null : bodyKey} unsent={unsent} onDone={(c) => { setPending(null); setActive(null); setSheet({ ids: [c.id] }); }} onCancel={cancelNew} />
           )}
           {sheet.compose === "general" && (
             <Composer id="general" act={act} review={viewer.owner ? review : null} unsent={unsent} onDone={(c) => { setActive(null); setSheet({ ids: [c.id] }); }} onCancel={cancelNew} />
@@ -824,6 +873,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
               <Group title="In the text" threads={inText} render={(t) => card(t, { showQuote: true, onActivate: () => setSheet({ ids: [t.id] }) })} />
               <Group title="On the whole draft" threads={general} render={(t) => card(t, { onActivate: () => setSheet({ ids: [t.id] }) })} />
               <Group title="On text that changed" threads={changed} render={(t) => card(t, { showQuote: true, onActivate: () => setSheet({ ids: [t.id] }) })} />
+              <Group title="Accepted edits" threads={acceptedAway} render={(t) => card(t, { showQuote: true, onActivate: () => setSheet({ ids: [t.id] }) })} />
             </>
           )}
         </Sheet>
@@ -943,9 +993,13 @@ function Margin({ body, found, active, order, toolbar, children }) {
 }
 
 /** One thread: its first comment, its replies, and a box to reply. */
-function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed, long, failure, move }) {
+function Thread({ t, viewer, now, act, unsent, onAccept, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed, long, failure, move }) {
   const [error, setError] = useState("");
+  const [accepting, setAccepting] = useState(false);
   const resolved = t.resolved;
+  // A suggested edit's new words, "" to delete the passage; null for a comment.
+  const suggestion = t.quote ? (t.root.suggestion ?? null) : null;
+  const accepted = t.root.accepted;
   // In the margin a thread that is not in hand is a summary, as in Docs: the
   // first comment's opening lines and a count of replies. A long card would
   // otherwise push every card below it away from its passage.
@@ -970,15 +1024,36 @@ function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHo
       onMouseEnter={() => onHover?.(true)}
       onMouseLeave={() => onHover?.(false)}
     >
-      {resolved && (
+      {/* Accepted says so itself, below. */}
+      {resolved && !accepted && (
         <p className="draft-resolved">
           <Check className="size-3.5" aria-hidden="true" /> Resolved by {resolved.by}
         </p>
       )}
-      {showQuote && t.quote && <blockquote className="draft-quote">{placed && t.find ? t.find.exact : t.quote.exact}</blockquote>}
+      {/* A suggestion shows its passage as the words it changes, wherever it is listed. */}
+      {suggestion != null ? (
+        <Suggestion
+          old={t.quote.exact}
+          text={suggestion}
+          accepted={accepted}
+          clamp={compact}
+          busy={accepting}
+          onAccept={
+            onAccept && !accepted && !resolved
+              ? async () => {
+                  setAccepting(true);
+                  await run(onAccept(t).then(onResolved));
+                  setAccepting(false);
+                }
+              : null
+          }
+        />
+      ) : (
+        showQuote && t.quote && <blockquote className="draft-quote">{placed && t.find ? t.find.exact : t.quote.exact}</blockquote>
+      )}
       {/* Its passage was edited: what the reader first commented on. In the
           list of changed passages, that is the quote above already. */}
-      {t.quote && t.find && t.find !== t.quote && t.find.exact !== t.quote.exact && (placed || !showQuote) && (
+      {suggestion == null && t.quote && t.find && t.find !== t.quote && t.find.exact !== t.quote.exact && (placed || !showQuote) && (
         <p className="draft-original">
           <span>Originally on:</span> {t.quote.exact}
         </p>
@@ -1041,6 +1116,52 @@ function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHo
       )}
       {!compact && <ReplyBox thread={t.id} act={act} unsent={unsent} active={active} onActivate={onActivate} />}
     </article>
+  );
+}
+
+/**
+ * A suggested edit on its card: the words it takes out struck through and
+ * the words it puts in marked as added, between the passage's words that
+ * stay (./suggest.js). In the margin, a thread not in hand shows its opening
+ * lines. Ali's has Accept while it is open (`onAccept`).
+ */
+function Suggestion({ old, text, accepted, clamp, busy, onAccept }) {
+  const { lead, removed, added, tail } = suggestionParts(old, text);
+  return (
+    <div className="draft-suggestion">
+      <p className="draft-suggest-head">
+        <span>
+          {accepted ? (
+            <>
+              <Check className="size-3.5" aria-hidden="true" /> Accepted
+            </>
+          ) : (
+            "Suggested edit"
+          )}
+        </span>
+        {onAccept && (
+          <button type="button" className="draft-text-button" onClick={onAccept} disabled={busy}>
+            <Check className="size-4" aria-hidden="true" /> {busy ? "Accepting…" : "Accept"}
+          </button>
+        )}
+      </p>
+      <p className={`draft-suggest${clamp ? " is-clamped" : ""}`}>
+        {lead}
+        {removed && (
+          <del>
+            <span className="sr-only">Delete: </span>
+            {removed}
+          </del>
+        )}
+        {added && (
+          <ins>
+            <span className="sr-only">Add: </span>
+            {added}
+          </ins>
+        )}
+        {tail}
+      </p>
+    </div>
   );
 }
 
@@ -1192,9 +1313,12 @@ function Comment({ c, now, viewer, act, unsent, locked, onError, reply, clamp, o
         <EditBox c={c} act={act} unsent={unsent} locked={locked} onDone={() => setEditing(false)} />
       ) : (
         <>
-          <p ref={text} className={`draft-body${clamp ? " is-clamped" : ""}`}>
-            {c.body}
-          </p>
+          {/* A suggestion's note may be empty. */}
+          {c.body && (
+            <p ref={text} className={`draft-body${clamp ? " is-clamped" : ""}`}>
+              {c.body}
+            </p>
+          )}
           {clamp && cut && (
             <button type="button" className="draft-more" onClick={onMore}>
               See more
@@ -1206,7 +1330,7 @@ function Comment({ c, now, viewer, act, unsent, locked, onError, reply, clamp, o
         <p className="draft-actions">
           {c.mine && (
             <button type="button" onClick={() => setEditing(true)}>
-              Edit
+              {c.suggestion != null && !c.body ? "Add a note" : "Edit"}
             </button>
           )}
           {canDelete && (
@@ -1231,9 +1355,9 @@ const kept = (unsent, key) => ({
  * `onText` hears every change, and "" once it is sent or cancelled; Escape
  * closes without cancelling. While `held` (why, to show) it is not sent and
  * its text is left as it is; while `refused` (why, to show) it is not sent,
- * and its text can still be written.
+ * and its text can still be written. `optional`: it can be sent empty.
  */
-function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoFocus, sendLabel = "Comment", held, refused }) {
+function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoFocus, sendLabel = "Comment", held, refused, optional }) {
   const [text, setText] = useState(initial);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -1259,7 +1383,7 @@ function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoF
 
   async function send(e) {
     e?.preventDefault();
-    if (!text.trim() || sending || held || refused) return;
+    if ((!text.trim() && !optional) || sending || held || refused) return;
     setSending(true);
     setError("");
     try {
@@ -1306,7 +1430,7 @@ function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoF
         </p>
       )}
       <div className="draft-box-buttons">
-        <button type="submit" className="private-primary chamfer chamfer-sm" disabled={sending || !text.trim() || Boolean(held) || Boolean(refused)}>
+        <button type="submit" className="private-primary chamfer chamfer-sm" disabled={sending || (!text.trim() && !optional) || Boolean(held) || Boolean(refused)}>
           {sending ? "Sending…" : sendLabel}
         </button>
         {onCancel && (
@@ -1322,12 +1446,16 @@ function Box({ initial = "", placeholder, label, submit, onCancel, onText, autoF
 /** Its text not saved yet is kept in `unsent`, as "edit:<id>", until it is saved or cancelled. */
 function EditBox({ c, act, unsent, locked, onDone }) {
   const keep = unsent ? kept(unsent, `edit:${c.id}`) : {};
+  // A suggestion's note, which may be left empty.
+  const note = c.suggestion != null;
   return (
     <Box
       initial={keep.initial || c.body}
       onText={keep.onText}
       held={locked && "Publishing. Save once it's in."}
-      label="Edit your comment"
+      optional={note}
+      placeholder={note ? "Add a note (optional)" : undefined}
+      label={note ? "Edit your note" : "Edit your comment"}
       sendLabel="Save"
       autoFocus
       submit={async (text) => {
@@ -1354,9 +1482,11 @@ function ReplyBox({ thread, act, unsent, active, onActivate }) {
 /**
  * The card a new thread is written in, focused as soon as it opens. Ali's
  * goes into his review (`review`), to be published with the rest, its
- * passage kept with `base`, the updated_at of the text it is in.
+ * passage kept with `base`, the updated_at of the text it is in. A
+ * reader's suggested edit (`suggest`) is written in SuggestComposer.
  */
-function Composer({ id, quote, showQuote, act, review, base, unsent, onDone, onCancel }) {
+function Composer({ id, quote, suggest, showQuote, act, review, base, unsent, onDone, onCancel }) {
+  if (suggest && quote) return <SuggestComposer id={id} quote={quote} act={act} unsent={unsent} onDone={onDone} onCancel={onCancel} />;
   return (
     <div data-card={id} className="draft-card is-active is-composer">
       {showQuote && quote && <blockquote className="draft-quote">{quote.exact}</blockquote>}
@@ -1375,6 +1505,115 @@ function Composer({ id, quote, showQuote, act, review, base, unsent, onDone, onC
         }}
         onCancel={onCancel}
       />
+    </div>
+  );
+}
+
+/** A textarea that grows with what is typed. */
+function Grow({ value, ...props }) {
+  const area = useRef(null);
+  useLayoutEffect(() => {
+    const el = area.current;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return <textarea ref={area} rows={1} value={value} {...props} />;
+}
+
+/**
+ * The card a suggested edit is written in: the passage's words, ready to be
+ * changed into what they should say, and a note, which may be left empty. So
+ * may the words, which suggests deleting the passage. Words the same as the
+ * passage's are not sent. Both are kept unsent, as a comment is, for this
+ * passage's words only.
+ */
+function SuggestComposer({ id, quote, act, unsent, onDone, onCancel }) {
+  const keepWords = kept(unsent, `suggest:${quote.exact}`);
+  const keepNote = kept(unsent, `suggest-note:${quote.exact}`);
+  const [words, setWords] = useState(() => keepWords.initial || quote.exact);
+  const [note, setNote] = useState(keepNote.initial);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+  const first = useRef(null);
+  useEffect(() => {
+    const el = first.current?.querySelector("textarea");
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    el.setSelectionRange(el.value.length, el.value.length);
+  }, []);
+
+  const same = words.trim().replace(/\s+/g, " ") === quote.exact.trim().replace(/\s+/g, " ");
+  const refused = tooLong(quote);
+  const forget = () => {
+    keepWords.onText("");
+    keepNote.onText("");
+  };
+
+  async function send(e) {
+    e?.preventDefault();
+    if (sending || same || refused) return;
+    setSending(true);
+    setError("");
+    try {
+      const c = await act.create({ quote: quote.exact, prefix: quote.prefix, suffix: quote.suffix, suggestion: words, body: note });
+      forget();
+      onDone(c);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
+  }
+  const keys = (e) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(e);
+    if (e.key === "Escape") onCancel?.();
+  };
+
+  return (
+    <div data-card={id} className="draft-card is-active is-composer">
+      <form ref={first} className="draft-box" onSubmit={send}>
+        <p className="draft-suggest-head">Suggest an edit</p>
+        <Grow
+          value={words}
+          maxLength={LIMIT.quote}
+          aria-label="What the selected words should say"
+          onChange={(e) => {
+            setWords(e.target.value);
+            keepWords.onText(e.target.value);
+          }}
+          onKeyDown={keys}
+        />
+        <Grow
+          value={note}
+          maxLength={LIMIT.body}
+          placeholder="Add a note (optional)"
+          aria-label="A note on your suggestion (optional)"
+          onChange={(e) => {
+            setNote(e.target.value);
+            keepNote.onText(e.target.value);
+          }}
+          onKeyDown={keys}
+        />
+        {note.length > LIMIT.body - 200 && <p className="draft-left tabular-nums">{LIMIT.body - note.length} characters left</p>}
+        {!words.trim() && !refused && (
+          <p className="draft-left" role="status">
+            Sent like this, it suggests deleting the passage.
+          </p>
+        )}
+        {(refused || error) && (
+          <p role="alert" className="private-error">
+            {refused || error}
+          </p>
+        )}
+        <div className="draft-box-buttons">
+          <button type="submit" className="private-primary chamfer chamfer-sm" disabled={sending || same || Boolean(refused)}>
+            {sending ? "Sending…" : "Suggest"}
+          </button>
+          <button type="button" className="draft-text-button" onClick={() => { forget(); onCancel(); }}>
+            Cancel
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -1440,9 +1679,9 @@ function Sheet({ title, onClose, children }) {
  * Touch: under the phone's own selection handles. Keyboard: Ctrl/Cmd + Alt +
  * M, Docs' shortcut, comments on whatever is selected. Selections in an
  * embed, the video or the comments themselves are not the draft's words and
- * get no button.
+ * get no button. With `onSuggest`, "Suggest edit" is beside it.
  */
-function SelectButton({ body, onComment, label }) {
+function SelectButton({ body, onComment, onSuggest, label }) {
   const [pick, setPick] = useState(null);
   const current = useRef(null);
   const button = useRef(null);
@@ -1517,29 +1756,46 @@ function SelectButton({ body, onComment, label }) {
   }, [body, onComment]);
 
   if (!pick) return null;
-  const width = button.current?.offsetWidth ?? 130;
+  const width = button.current?.offsetWidth ?? (onSuggest ? 270 : 130);
   const min = window.scrollX + 8;
   const max = window.scrollX + document.documentElement.clientWidth - width - 8;
   const left = Math.max(min, Math.min(pick.x - width / 2, max));
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
   return createPortal(
-    <button
+    <div
       ref={button}
-      type="button"
-      className="draft-select chamfer chamfer-sm"
+      className="draft-select-group"
       style={{ top: pick.top + 10, left }}
-      aria-keyshortcuts={mac ? "Meta+Alt+M" : "Control+Alt+M"}
       // Keeps the selection: a mouse press would otherwise clear it.
       onPointerDown={(e) => e.pointerType === "mouse" && e.preventDefault()}
-      onClick={() => {
-        onComment(pick.quote);
-        setPick(null);
-      }}
     >
-      <MessageSquarePlus className="size-4" aria-hidden="true" />
-      {label}
-      <kbd aria-hidden="true">{mac ? "⌘⌥M" : "Ctrl+Alt+M"}</kbd>
-    </button>,
+      <button
+        type="button"
+        className="draft-select chamfer chamfer-sm"
+        aria-keyshortcuts={mac ? "Meta+Alt+M" : "Control+Alt+M"}
+        onClick={() => {
+          onComment(pick.quote);
+          setPick(null);
+        }}
+      >
+        <MessageSquarePlus className="size-4" aria-hidden="true" />
+        {label}
+        <kbd aria-hidden="true">{mac ? "⌘⌥M" : "Ctrl+Alt+M"}</kbd>
+      </button>
+      {onSuggest && (
+        <button
+          type="button"
+          className="draft-select chamfer chamfer-sm"
+          onClick={() => {
+            onSuggest(pick.quote);
+            setPick(null);
+          }}
+        >
+          <PencilLine className="size-4" aria-hidden="true" />
+          Suggest edit
+        </button>
+      )}
+    </div>,
     document.body,
   );
 }
