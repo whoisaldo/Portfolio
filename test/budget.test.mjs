@@ -14,11 +14,24 @@ test("a comment is counted as the service counts it: its texts as JSON writes th
   assert.equal(jsonBytes("字"), 5);
   assert.equal(jsonBytes('a "b" \\ \n\t'), 17);
   const c = { body: "On it.", quote: { exact: "字字", prefix: "", suffix: "\n" }, anchor: { exact: "é", prefix: "", suffix: "" } };
-  assert.equal(commentBytes(c), COMMENT_BYTES.each + 8 + 8 + 0 + 4 + 4);
-  assert.equal(commentBytes({ ...c, anchor: { gone: true } }), COMMENT_BYTES.each + 8 + 8 + 4);
+  assert.equal(commentBytes(c), COMMENT_BYTES.each + 8 + 8 + 2 + 4 + 4 + 2 + 2);
+  // A passage deleted is kept as an anchor of three empty texts.
+  assert.equal(commentBytes({ ...c, anchor: { gone: true } }), COMMENT_BYTES.each + 8 + 8 + 2 + 4 + 6);
   assert.equal(commentBytes({ body: "x", quote: null }), COMMENT_BYTES.each + 3);
   assert.deepEqual([bytesText(1), bytesText(240_001), bytesText(1_000_000), bytesText(3_000_000), bytesText(3_200_001)], ["1 KB", "241 KB", "1 MB", "3 MB", "3.3 MB"]);
   assert.equal(overBudget(240_000, "Do this."), "That's 240 KB more than this draft's comments have room for: they hold 3 MB in all, so they always load at once. Do this.");
+});
+
+test("a suggestion is counted as its passage is, and an empty text as JSON writes it, as the service counts them", () => {
+  const quote = { exact: "a cat", prefix: "", suffix: "." };
+  const each = COMMENT_BYTES.each + 2 + 7 + 2 + 3;
+  assert.equal(commentBytes({ body: "", quote, suggestion: "a dog" }), each + 7);
+  assert.equal(commentBytes({ body: "", quote, suggestion: "字" }), each + 5);
+  // A deletion's words, "", are '""'.
+  assert.equal(commentBytes({ body: "", quote, suggestion: "" }), each + 2);
+  // An ordinary comment has none.
+  assert.equal(commentBytes({ body: "", quote, suggestion: null }), each);
+  assert.equal(commentBytes({ body: "", quote }), each);
 });
 
 test("500 anchors of 5,000 wide characters are not sent: past the budget, and past what a request carries", () => {
@@ -35,7 +48,7 @@ test("an anchors request the service could take always fits one request, and is 
   for (const [what, text] of [["ASCII", (n) => "a".repeat(n)], ["wide", (n) => "字".repeat(Math.floor(n / 3))], ["escaped", (n) => '"\\'.repeat(Math.floor(n / 4))]]) {
     for (const count of [1, 100, 500]) {
       const per = Math.floor(COMMENT_BYTES.draft / count) - COMMENT_BYTES.each;
-      const anchors = Array.from({ length: count }, (_, i) => ({ thread: thread(i), exact: text(Math.min(per - 4, 15_000)).slice(0, 5000), prefix: "", suffix: "" }));
+      const anchors = Array.from({ length: count }, (_, i) => ({ thread: thread(i), exact: text(Math.min(per - 6, 15_000)).slice(0, 5000), prefix: "", suffix: "" }));
       const counted = anchors.reduce((n, a) => n + commentBytes({ body: "", quote: null, anchor: a }) - 2, 0);
       const body = request(anchors);
       assert.ok(counted <= COMMENT_BYTES.draft, `${what} × ${count}: ${counted} counted`);

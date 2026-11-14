@@ -4,9 +4,9 @@
 // (GET /api/draft-comments), and an answer from a Vercel function is at
 // most 4.5 MB. So a draft's comments are held to a budget in bytes, its
 // lib/private.js's COMMENT_BYTES, 1.5 MB under that: each text (body,
-// passage and its context, anchor) counted as JSON writes it, in UTF-8,
-// quotes and escapes included, and 1 KB more for each comment's ids, times
-// and names. The service refuses a write that would take a draft past it
+// passage and its context, a suggested edit's words, anchor) counted as JSON
+// writes it, in UTF-8, quotes and escapes included, an empty one too (""),
+// and 1 KB more for each comment's ids, times and names. The service refuses a write that would take a draft past it
 // (413) and writes nothing. The page checks a review against it before
 // sending one (./review.js), so a review too large is never sent, and none
 // of it is lost.
@@ -29,17 +29,20 @@ const utf8 = new TextEncoder();
 /** A value's bytes as JSON writes it, in UTF-8. */
 export const jsonBytes = (v) => utf8.encode(JSON.stringify(v)).length;
 
-/** A text's bytes as the budget counts it; 0 for none. */
-const textBytes = (t) => (typeof t === "string" && t ? jsonBytes(t) : 0);
+/** A text's bytes as the budget counts it, 2 for ""; 0 for none. */
+const textBytes = (t) => (typeof t === "string" ? jsonBytes(t) : 0);
+
+// The service keeps a deleted passage as an anchor of empty texts.
+const GONE = { exact: "", prefix: "", suffix: "" };
 
 /**
  * A comment as the budget counts it: one as the service answers with it
- * (`quote`, `anchor`), or one of the review's ({body, quote}).
+ * (`quote`, `suggestion`, `anchor`), or one of the review's ({body, quote}).
  */
 export function commentBytes(c) {
   const q = c.quote;
-  const a = c.anchor && !c.anchor.gone ? c.anchor : null;
-  return COMMENT_BYTES.each + textBytes(c.body) + textBytes(q?.exact) + textBytes(q?.prefix) + textBytes(q?.suffix) + textBytes(a?.exact) + textBytes(a?.prefix) + textBytes(a?.suffix);
+  const a = c.anchor?.gone ? GONE : c.anchor;
+  return COMMENT_BYTES.each + textBytes(c.body) + textBytes(q?.exact) + textBytes(q?.prefix) + textBytes(q?.suffix) + textBytes(c.suggestion) + textBytes(a?.exact) + textBytes(a?.prefix) + textBytes(a?.suffix);
 }
 
 /** Bytes as the messages say them: "240 KB", "1.2 MB", rounded up. */
