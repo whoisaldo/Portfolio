@@ -163,7 +163,7 @@
   cursor: pointer;
   transition: background-color 150ms, box-shadow 150ms;
 }
-.post-body a.post-quote-link[data-threads] { color: inherit; text-decoration: none; }
+.post-body a.post-quote-link[data-threads] { color: inherit; text-decoration: none; -webkit-touch-callout: none; }
 .post-body .is-hover mark.post-quote,
 .post-body mark.post-quote.is-hover { background: rgb(252 238 10 / 0.24); }
 .post-body .is-active mark.post-quote,

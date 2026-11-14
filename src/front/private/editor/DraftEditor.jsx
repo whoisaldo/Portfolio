@@ -28,7 +28,7 @@ import { isHistoryTransaction } from "@tiptap/pm/history";
 import { TextSelection } from "@tiptap/pm/state";
 import { marked } from "marked";
 import { ApiError, mediaUrl, request, uploadMedia } from "../api";
-import { clearUnsaved, keepAnchors, writeUnsaved } from "../unsaved";
+import { clearUnsaved, keepAnchors, readUnsaved, writeUnsaved } from "../unsaved";
 import { anchorsTooLarge } from "../budget";
 import { embeds } from "../../embeds";
 import { canEdit, fromMarkdown, toMarkdown } from "./markdown";
@@ -166,6 +166,18 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     clearTimeout(s.current.local);
     s.current.local = setTimeout(writeLocal, 300);
   }, [writeLocal]);
+  // A save that went in after the editor was taken down (Done, or someone
+  // else signed in): the copy written then was on top of the save before.
+  // Unless it is what was just saved, it is kept on top of this one, so it
+  // is offered next time the draft opens; if it is, it goes.
+  const settleLocal = useCallback(
+    (saved) => {
+      const k = readUnsaved(slug);
+      if (k && !sameDraft(k, saved)) writeUnsaved(slug, { title: k.title, date: k.date, summary: k.summary, body: k.body, base: s.current.base });
+      else clearUnsaved(slug);
+    },
+    [slug],
+  );
 
   /**
    * Sends the passages' new places in the text the server has, after that
@@ -278,10 +290,12 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
           st.baseline = p;
           st.latest = { ...st.latest, ...data.draft, ...p };
           st.tries = 0;
-          // Taken down while this was on its way (Done, or someone else
-          // signed in): its copy in this browser was written then, and there
-          // is no editor left to read or write from.
-          if (!st.editor) return;
+          // Taken down while this was on its way: there is no editor left to
+          // read from, and the copy in this browser is put right for it.
+          if (!st.editor) {
+            settleLocal(p);
+            return;
+          }
           // The anchors are for the text that was saved: if more was typed
           // meanwhile, the next save sends them.
           if (sameDraft(payload(), p)) {
@@ -313,7 +327,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       })();
       return st.flight;
     },
-    [payload, slug, sendAnchors, onLost],
+    [payload, slug, sendAnchors, onLost, settleLocal],
   );
   s.current.save = save;
 
@@ -548,7 +562,8 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     await save();
     while (s.current.flight) await s.current.flight;
     const sent = await sendAnchors();
-    return sent && !s.current.conflict && sameDraft(payload(), s.current.baseline);
+    // Taken down meanwhile: the save put the copy in this browser right.
+    return sent && Boolean(s.current.editor) && !s.current.conflict && sameDraft(payload(), s.current.baseline);
   }, [save, sendAnchors, payload]);
 
   /**
@@ -593,7 +608,8 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     async (kind) => {
       while (s.current.flight) await s.current.flight;
       await save({ kind });
-      return !s.current.conflict && sameDraft(payload(), s.current.baseline);
+      // As in flush.
+      return Boolean(s.current.editor) && !s.current.conflict && sameDraft(payload(), s.current.baseline);
     },
     [save, payload],
   );
@@ -657,6 +673,8 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
   const done = async () => {
     setLeaving(true);
     const all = await flush().catch(() => false);
+    // Taken down meanwhile (someone else signed in): nothing is left to ask about.
+    if (!s.current.editor) return;
     setLeaving(false);
     if (!all && !window.confirm("Some changes aren't saved yet. They stay in this browser and will be offered next time you open this draft. Stop editing anyway?")) return;
     onDone({ ...s.current.latest, ...s.current.baseline });

@@ -1209,7 +1209,9 @@ test("T6a: a save still out when the editor is taken down finishes without an er
     release();
     await settle(200);
     assert.deepEqual(errors.map(String), []);
-    assert.equal(editorCopy(), copy, "the copy as the teardown left it");
+    // The save carried everything the copy had (round 5, M1): it goes.
+    assert.notEqual(copy, null);
+    assert.equal(editorCopy(), null, "nothing left to offer");
     assert.match(fake.draft.body, /Made-up words saved late\./);
   } finally {
     process.off("unhandledRejection", heard);
@@ -1243,4 +1245,456 @@ test("T6b: after a comments 404, an identity check that gets no answer leaves th
   seed(fake, { quote: "harbour wall", body: "A made-up note after the outage." });
   await poll();
   await until(() => text().includes("A made-up note after the outage."), "the comments, fresh");
+});
+
+// ---- round 5: M1. Words typed after a save began are never lost ---------------------------
+
+const offered = () => text().includes("weren't saved");
+const copyOf = () => JSON.parse(editorCopy() ?? "null");
+const savesOut = (fake) => fake.requests.filter((r) => r.method === "PUT" && r.path === "/api/drafts").length;
+/** Who is signed in changes, and the check on focus hears it. */
+async function nowSignedIn(fake, who) {
+  fake.signedIn = READERS[who];
+  await act(() => window.dispatchEvent(new window.Event("focus")));
+  await signedIn(READERS[who].name);
+}
+/** Errors that reach the page unheld, until stop(). */
+function heardErrors() {
+  const errors = [];
+  const heard = (err) => errors.push(String(err));
+  process.on("unhandledRejection", heard);
+  process.on("uncaughtException", heard);
+  return { errors, stop: () => (process.off("unhandledRejection", heard), process.off("uncaughtException", heard)) };
+}
+/**
+ * Ali's saves of the draft held until release(), then answered by the
+ * service, whose clock is now, as a real service's is: the save is later
+ * than anything the page did meanwhile. `fail` answers them with a 500.
+ */
+function holdSaves(fake, { fail = false } = {}) {
+  let release;
+  const gate = new Promise((r) => (release = r));
+  let inner = false;
+  fake.hooks.push(async (req) => {
+    if (inner || req.method !== "PUT" || req.path !== "/api/drafts") return;
+    // The session it went with, whoever signs in meanwhile.
+    const by = fake.signedIn;
+    await gate;
+    if (fail) return new Response(JSON.stringify({ error: "A made-up failure." }), { status: 500 });
+    fake.clock = Math.ceil((Date.now() - Date.UTC(2026, 0, 1)) / 1000) + 1;
+    const now = fake.signedIn;
+    inner = true;
+    fake.signedIn = by;
+    try {
+      return await fake.fetch(`${API}${req.path}`, { method: "PUT", body: JSON.stringify(req.body) });
+    } finally {
+      inner = false;
+      fake.signedIn = now;
+    }
+  });
+  return () => release();
+}
+
+test("M1: words typed after a save began, the editor taken down before it answered, are offered when Ali opens the draft again", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  const release = holdSaves(fake);
+  await typeInEditor(dom, " Saved while switching, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  await typeInEditor(dom, " Typed after the save began, made up.");
+  const { errors, stop } = heardErrors();
+  try {
+    await nowSignedIn(fake, "ada");
+    assert.equal(Boolean(editorText()), false);
+    release();
+    await settle(200);
+    assert.match(fake.draft.body, /Saved while switching, made up\./);
+    assert.doesNotMatch(fake.draft.body, /Typed after the save began/);
+    assert.equal(copyOf()?.base, fake.draft.updated_at, "the copy is on top of the save that went in");
+    await nowSignedIn(fake, "owner");
+    await until(offered, "the offer of the later words");
+    assert.match(copyOf()?.body ?? "", /Saved while switching, made up\. Typed after the save began, made up\./);
+    await click(button("Restore them"));
+    const back = await until(() => editorText()?.editor && editorText(), "the editor, restored", 8000);
+    assert.match(back.textContent, /Typed after the save began, made up\./);
+    assert.deepEqual(errors, []);
+  } finally {
+    stop();
+  }
+});
+
+test("M1: a late save that carried everything leaves no copy and no offer", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  const release = holdSaves(fake);
+  await typeInEditor(dom, " All of it saved late, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  await nowSignedIn(fake, "ada");
+  release();
+  await settle(200);
+  assert.match(fake.draft.body, /All of it saved late, made up\./);
+  assert.equal(editorCopy(), null);
+  await nowSignedIn(fake, "owner");
+  await until(() => button("Edit"), "the draft");
+  await settle(100);
+  assert.equal(offered(), false);
+});
+
+test("M1: a copy discarded before the late save answers stays discarded", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  const release = holdSaves(fake);
+  await typeInEditor(dom, " Saved, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  await typeInEditor(dom, " Then discarded, made up.");
+  await nowSignedIn(fake, "ada");
+  await nowSignedIn(fake, "owner");
+  await until(offered, "the offer");
+  const confirm = window.confirm;
+  try {
+    window.confirm = () => true;
+    await click(button("Discard"));
+  } finally {
+    window.confirm = confirm;
+  }
+  assert.equal(editorCopy(), null);
+  release();
+  await settle(200);
+  assert.equal(editorCopy(), null, "not written again");
+  await reload(PrivateBlog, fake);
+  await until(() => button("Edit"), "the draft");
+  await settle(100);
+  assert.equal(offered(), false);
+});
+
+test("M1: after Load the latest, the editor taken down leaves no copy and no offer", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  await typeInEditor(dom, " Lost to the latest, made up.");
+  fake.draft = { ...fake.draft, body: "Made-up text saved elsewhere.", updated_at: "2026-01-02T00:00:00.000Z" };
+  const confirm = window.confirm;
+  try {
+    window.confirm = () => false;
+    await click(button("Done"));
+    await until(() => button("Load the latest"), "the conflict");
+    window.confirm = () => true;
+    await click(button("Load the latest"));
+    await until(() => !button("Load the latest"), "the latest loaded");
+  } finally {
+    window.confirm = confirm;
+  }
+  await nowSignedIn(fake, "ada");
+  await settle(200);
+  assert.equal(editorCopy(), null);
+  await nowSignedIn(fake, "owner");
+  await until(() => button("Edit"), "the draft");
+  await settle(100);
+  assert.equal(offered(), false);
+});
+
+test("M1: a late save that fails leaves the copy as the editor's teardown wrote it", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  const release = holdSaves(fake, { fail: true });
+  await typeInEditor(dom, " Not saved, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  await typeInEditor(dom, " Nor this, made up.");
+  await nowSignedIn(fake, "ada");
+  const copy = editorCopy();
+  assert.match(copy ?? "", /Nor this, made up\./);
+  release();
+  await settle(200);
+  assert.equal(editorCopy(), copy);
+});
+
+test("M1: Done pressed while a save is out, the editor taken down, asks nothing and loses nothing", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  const release = holdSaves(fake);
+  await typeInEditor(dom, " Before Done, made up.");
+  await until(() => savesOut(fake), "the save out", 4000);
+  await typeInEditor(dom, " After the save began, made up.");
+  const asked = [];
+  const confirm = window.confirm;
+  const { errors, stop } = heardErrors();
+  try {
+    window.confirm = (q) => (asked.push(q), true);
+    await click(button("Done"));
+    await nowSignedIn(fake, "ada");
+    release();
+    await settle(300);
+    assert.deepEqual(asked, [], "nothing asked of an editor that is gone");
+    assert.deepEqual(errors, []);
+    await nowSignedIn(fake, "owner");
+    await until(offered, "the offer of the later words");
+    assert.match(copyOf()?.body ?? "", /After the save began, made up\./);
+  } finally {
+    window.confirm = confirm;
+    stop();
+  }
+});
+
+test("M1: Done's last send of the passages' places, answered after the editor was taken down, throws nothing", async () => {
+  const fake = service({ who: "owner" });
+  seed(fake, { quote: "evening fog" });
+  const dom = await openEditor(fake);
+  // The first send of the places fails; Done sends them again, and that one is held.
+  let anchors = 0;
+  let release;
+  const gate = new Promise((r) => (release = r));
+  fake.hooks.push(async (req) => {
+    if (req.query.a !== "anchors") return;
+    if (++anchors === 1) return new Response(JSON.stringify({ error: "A made-up failure." }), { status: 500 });
+    await gate;
+  });
+  await typeInEditor(dom, " Placed again, made up.");
+  const asked = [];
+  const confirm = window.confirm;
+  const { errors, stop } = heardErrors();
+  try {
+    window.confirm = (q) => (asked.push(q), true);
+    await click(button("Done"));
+    await until(() => anchors === 2, "Done's send of the places", 4000);
+    await nowSignedIn(fake, "ada");
+    release();
+    await settle(300);
+    assert.deepEqual(errors, []);
+    assert.deepEqual(asked, []);
+    assert.match(fake.draft.body, /Placed again, made up\./);
+  } finally {
+    window.confirm = confirm;
+    stop();
+  }
+});
+
+test("M1: a version restored from the history, its save answered after the editor was taken down, throws nothing", async () => {
+  const fake = service({ who: "owner" });
+  const older = { id: "r-made-up", at: "2026-01-01T00:00:00.500Z", kind: "manual", words: 4, title: "A made-up draft", date: "2026-01-01", summary: "Made up.", body: "An older made-up text." };
+  fake.hooks.push(async (req) => {
+    if (req.method !== "GET" || req.path !== "/api/drafts") return;
+    if (req.query.history) return new Response(JSON.stringify({ revisions: [older] }), { status: 200 });
+    if (req.query.revision) return new Response(JSON.stringify({ revision: older }), { status: 200 });
+  });
+  await openEditor(fake);
+  await click(await until(() => document.querySelector('button[aria-label="Version history"]'), "History"));
+  const row = await until(() => [...document.querySelectorAll(".history-row")].find((b) => !b.textContent.includes("Current version")), "the older version", 8000);
+  await click(row);
+  await click(await until(() => button("Restore this version"), "Restore this version"));
+  await until(() => button("Restore"), "the question");
+  const release = holdSaves(fake);
+  const { errors, stop } = heardErrors();
+  try {
+    await click(button("Restore"));
+    await until(() => savesOut(fake), "the restore's save", 4000);
+    await nowSignedIn(fake, "ada");
+    release();
+    await settle(300);
+    assert.deepEqual(errors, []);
+    assert.equal(fake.draft.body.trim(), "An older made-up text.");
+    assert.equal(editorCopy(), null, "the restore is saved: nothing to offer");
+  } finally {
+    stop();
+  }
+});
+
+// ---- M2. A phone sheet the browser closes by itself never leaves the page stuck -----------
+
+/** The page and its dialog agree: locked only while a sheet is shown, and no sheet hidden. */
+function agree(what) {
+  const locked = document.documentElement.classList.contains("draft-sheet-open");
+  const dialog = document.querySelector("dialog.draft-sheet");
+  assert.equal(locked, Boolean(dialog?.open), `${what}: the page locked ${locked}, a sheet shown ${Boolean(dialog?.open)}`);
+  if (dialog) assert.ok(dialog.open, `${what}: a sheet in the page is shown`);
+}
+
+for (const kind of ["comment", "suggestion", "reply"]) {
+  test(`M2: on a phone, the browser closing the sheet while a ${kind} is sending leaves no page stuck`, async () => {
+    const k = KINDS[kind];
+    const fake = service();
+    seed(fake, { body: "An original made-up note." });
+    await mount(PrivateBlog, fake, { width: 390 });
+    await k.open(fake, false);
+    const release = hold(fake, (r) => r.method === k.write);
+    await click(k.send());
+    await until(() => writes(fake, k.write) === 1, "the send");
+    // What a browser does on a second Escape, or a back gesture: the dialog's own close().
+    await act(() => document.querySelector("dialog.draft-sheet").close());
+    await settle();
+    agree(`${kind}, closed by the browser mid-send`);
+    release();
+    await until(() => fake.comments.length === 2, `the ${kind} stored`);
+    await settle(300);
+    agree(`${kind}, sent`);
+    assert.equal(writes(fake, k.write), 1, "sent once");
+    // The corner button opens the sheet; Close lets it go.
+    await click(document.querySelector(".draft-fab"));
+    const sheet = await until(() => document.querySelector("dialog.draft-sheet[open]"), "the sheet from the corner button");
+    agree(`${kind}, the corner button`);
+    await click(sheet.querySelector(".draft-sheet-close"));
+    await until(() => !document.querySelector("dialog.draft-sheet"), "the sheet closed");
+    agree(`${kind}, closed`);
+    // A new comment opens its sheet.
+    await selectAnd("evening fog");
+    await until(() => document.querySelector("dialog.draft-sheet[open]") && field("Comment on the selected passage"), "a new comment's sheet");
+    agree(`${kind}, a new comment`);
+  });
+}
+
+// ---- S1. A bad value in the browser's storage never blanks the page ------------------------
+
+test("S1: kept slots of the wrong shape are dropped, that slot only, and the page loads", async () => {
+  const at = Date.now();
+  const shapes = {
+    "a body that is a number": { "reply:x": { body: 5, at } },
+    "a new comment with no passage": { 'new:comment:["a","",""]': { kind: "comment", body: "words", at } },
+    "a suggestion whose passage is null": { 'new:suggest:["a","",""]': { kind: "suggest", quote: null, words: "w", note: "", at } },
+    "a suggestion whose words are a number": { 'new:suggest:["a","",""]': { kind: "suggest", quote: { exact: "a", prefix: "", suffix: "" }, words: 7, note: "", at } },
+    "a passage whose words are not a string": { 'new:comment:["a","",""]': { kind: "comment", quote: { exact: ["a"] }, body: "words", at } },
+    "slots that are a list": ["x"],
+    "a slot that is a string": { general: "hello" },
+    "a time that is not a number": { general: { body: "words", at: "yesterday" } },
+    "a key that is an object": { general: { body: "words", key: {}, at } },
+    "a reply with a kind": { "reply:x": { kind: "suggest", body: "words", at } },
+    "a new comment's words with no kind or passage": { 'new:comment:["a","",""]': { body: "words", at } },
+  };
+  for (const [what, slots] of Object.entries(shapes)) {
+    localStorage.clear();
+    const fake = service();
+    seed(fake);
+    const good = { general: { body: "Kept good words, made up.", key: crypto.randomUUID(), at: at + 1 } };
+    const all = Array.isArray(slots) ? slots : { ...slots, ...good };
+    localStorage.setItem("draft-unsent:reader.ada:made-up", JSON.stringify({ slots: all }));
+    const { errors, stop } = heardErrors();
+    try {
+      await mount(PrivateBlog, fake);
+      await until(() => text().includes("The lighthouse keeper rose"), `${what}: the draft`);
+      await until(() => document.querySelector(`[data-card="${fake.comments[0].id}"]`), `${what}: the comments`);
+      assert.ok(text().includes("Signed in as Ada Reader"), `${what}: signed in`);
+      assert.deepEqual(errors, [], what);
+      if (!Array.isArray(slots)) assert.equal(field("Comment on the whole draft")?.value, "Kept good words, made up.", `${what}: the good slot beside it is back`);
+      assert.ok(!orphan(), `${what}: nothing shown for it`);
+    } finally {
+      stop();
+    }
+    await unmount();
+  }
+});
+
+test("S1: Ali's kept copy of the wrong shape is dropped, not offered, and the draft loads", async () => {
+  for (const bad of [{ body: "Made-up words.", title: 5, date: "2026-01-01", summary: "", at: Date.now() }, { body: "Made-up words.", title: "T", date: "2026-01-01", summary: "", at: "yesterday" }]) {
+    localStorage.clear();
+    localStorage.setItem("draft-editor:made-up", JSON.stringify({ ...bad, base: "2026-01-01T00:00:01.000Z", slug: "made-up" }));
+    const fake = service({ who: "owner" });
+    await mount(PrivateBlog, fake);
+    await until(() => button("Edit"), "the draft");
+    await settle(50);
+    assert.equal(offered(), false);
+    await unmount();
+  }
+});
+
+// ---- S2. An old error does not come back --------------------------------------------------
+
+/** The error shown on the box holding `label`, or null. */
+const errorOn = (label) => field(label)?.closest("form")?.querySelector('[role="alert"]')?.textContent ?? null;
+const failWrites = (fake) => {
+  const hook = async (req) => (req.method === "POST" ? new Response(JSON.stringify({ error: "A made-up wait of 4 minutes." }), { status: 429 }) : undefined);
+  fake.hooks.push(hook);
+  return () => fake.hooks.splice(fake.hooks.indexOf(hook), 1);
+};
+
+test("S2: a failed reply's error goes once its card is closed with Escape, or another card is opened", async () => {
+  const fake = service();
+  const c = seed(fake);
+  seed(fake, { quote: "fishing boats", body: "Another made-up thought." });
+  await mount(PrivateBlog, fake);
+  for (const close of ["Escape", "another card"]) {
+    await openThread("lighthouse keeper");
+    await type(field("Reply"), "A reply that fails, made up.");
+    const mend = failWrites(fake);
+    await click(button("Reply", document.querySelector(`[data-card="${c.id}"]`)));
+    await until(() => errorOn("Reply"), "the error");
+    mend();
+    if (close === "Escape") await press(document.querySelector('button[aria-label="Resolve this thread"]'), "Escape");
+    else await openThread("fishing boats");
+    await until(() => !isOpen(c.id), `closed by ${close}`);
+    await openThread("lighthouse keeper");
+    const box = await until(() => field("Reply", document.querySelector(`[data-card="${c.id}"]`)), "the reply box again");
+    assert.equal(box.value, "A reply that fails, made up.", `${close}: the words are kept`);
+    assert.equal(errorOn("Reply"), null, `${close}: the old error is gone`);
+  }
+});
+
+test("S2: a failed comment's error goes once it is closed with Escape; on a phone, once its sheet is closed", async () => {
+  for (const width of [1300, 390]) {
+    localStorage.clear();
+    const fake = service();
+    await mount(PrivateBlog, fake, { width });
+    await selectAnd("fishing boats");
+    await type(field("Comment on the selected passage"), "A comment that fails, made up.");
+    const mend = failWrites(fake);
+    await click(button("Comment", composer()));
+    await until(() => errorOn("Comment on the selected passage"), "the error");
+    mend();
+    if (width > 1240) await press(field("Comment on the selected passage"), "Escape");
+    else await click(document.querySelector(".draft-sheet-close"));
+    await until(() => !field("Comment on the selected passage"), "the composer closed");
+    await selectAnd("fishing boats");
+    const box = await until(() => field("Comment on the selected passage"), "the composer again");
+    assert.equal(box.value, "A comment that fails, made up.", `${width}: the words are kept`);
+    assert.equal(errorOn("Comment on the selected passage"), null, `${width}: the old error is gone`);
+    await unmount();
+  }
+});
+
+test("S2: a failed send's error stays on its box across the layout both ways while it is open", async () => {
+  const fake = service();
+  const c = seed(fake);
+  await mount(PrivateBlog, fake);
+  await openThread("lighthouse keeper");
+  await type(field("Reply"), "A reply that fails, made up.");
+  failWrites(fake);
+  await click(button("Reply", document.querySelector(`[data-card="${c.id}"]`)));
+  await until(() => errorOn("Reply"), "the error");
+  await resize(390);
+  await until(() => field("Reply"), "the reply in the sheet");
+  assert.equal(errorOn("Reply"), "A made-up wait of 4 minutes.", "in the sheet");
+  await resize(1300);
+  await until(() => field("Reply"), "the reply in the margin");
+  assert.equal(errorOn("Reply"), "A made-up wait of 4 minutes.", "back in the margin");
+});
+
+// ---- S3. A reply that waited to come back does not open after the person moved on ----------
+
+test("S3: a reply waiting for the comments does not open by itself once the person has sent something; it is in its box when they open the card", async () => {
+  for (const width of [1300, 390]) {
+    localStorage.clear();
+    const fake = service();
+    const c = seed(fake);
+    await mount(PrivateBlog, fake);
+    await openThread("lighthouse keeper");
+    await type(field("Reply"), "Kept for later, made up.");
+    await unmount();
+    let fail = true;
+    fake.hooks.push(async (r) => (r.path === "/api/draft-comments" && r.method === "GET" && fail ? new Response(JSON.stringify({ error: "made-up outage" }), { status: 500 }) : undefined));
+    await mount(PrivateBlog, fake, { width });
+    await settle(100);
+    await selectAnd("fishing boats");
+    await type(field("Comment on the selected passage"), "Sent meanwhile, made up.");
+    await click(button("Comment", composer()));
+    await until(() => !field("Comment on the selected passage"), "sent");
+    if (width < 1240) await click(document.querySelector(".draft-sheet-close"));
+    fail = false;
+    await poll();
+    await until(() => document.querySelector(`[data-card="${c.id}"]`) || document.querySelector(".draft-fab")?.textContent.match(/\d/), "the comments");
+    await settle(100);
+    assert.equal(Boolean(field("Reply", document.querySelector(`[data-card="${c.id}"]`) ?? document.createElement("div"))), false, `${width}: nothing opened by itself`);
+    if (width > 1240) assert.ok(!isOpen(c.id), "its card is not in hand");
+    else assert.equal(Boolean(document.querySelector("dialog.draft-sheet")), false, "no sheet");
+    if (width > 1240) await openThread("lighthouse keeper");
+    else await click(await until(() => [...document.querySelectorAll("[data-threads]")].find((m) => m.textContent.includes("lighthouse keeper")), "the highlight"));
+    const box = await until(() => field("Reply", document.querySelector(`[data-card="${c.id}"]`) ?? document.createElement("div")), "the reply box");
+    assert.equal(box.value, "Kept for later, made up.", `${width}: the words are there`);
+    await unmount();
+  }
 });

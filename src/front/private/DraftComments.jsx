@@ -89,7 +89,7 @@ import { ApiError, request } from "./api";
 import { QUOTE_MAX, findThread, findWhole, grewTooLong, quoteAt, tooLong } from "./place";
 import { acceptNote, acceptNotes, acceptOffered, sameAsPassage, suggestionParts } from "./suggest";
 import { selectLeft } from "./select";
-import { hasWords, passageSlot, sendTyped, startPassage, sweepTyped, toReopen, typedStore, who } from "./typed";
+import { hasWords, isPassageSlot, passageSlot, sendTyped, startPassage, sweepTyped, toReopen, typedStore, who } from "./typed";
 import { addPending, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, publishedAsIs, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
 
 // As the stats service has them.
@@ -347,6 +347,18 @@ function useSends(unsent) {
     },
     [unsent, put],
   );
+  // The failures of every box not open now (`open(slot)` false) let go.
+  const forgetClosed = useCallback(
+    (open) =>
+      setState((m) => {
+        const closed = [...m].filter(([slot, v]) => v.error && !open(slot));
+        if (!closed.length) return m;
+        const next = new Map(m);
+        for (const [slot, v] of closed) next.set(slot, { ...v, error: "" });
+        return next;
+      }),
+    [],
+  );
   return useMemo(
     () => ({
       of: (slot) => state.get(slot) || IDLE,
@@ -354,8 +366,9 @@ function useSends(unsent) {
       run,
       // Cancelled or discarded: its failure is not to show again.
       forget: (slot) => state.get(slot)?.error && put(slot, (v) => ({ ...v, error: "" })),
+      forgetClosed,
     }),
-    [state, run, put],
+    [state, run, put, forgetClosed],
   );
 }
 
@@ -731,6 +744,12 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   // comments are in, so its thread is there to open, however many tries that
   // takes. With nothing to open, on a phone, words kept for a thread that is
   // gone open the sheet that shows them.
+  // Once the person has opened, started or sent anything, nothing opens by
+  // itself: the words are in their box when they open it.
+  const acted = useRef(false);
+  useEffect(() => {
+    if (active || pending || sheet) acted.current = true;
+  }, [active, pending, sheet]);
   const reopened = useRef(false);
   useEffect(() => {
     if (reopened.current || status === "loading") return;
@@ -738,6 +757,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     const last = toReopen(unsent, () => true);
     if (!ready && last && last !== "general" && !last.startsWith("new:")) return;
     reopened.current = true;
+    if (acted.current) return;
     const slot = toReopen(unsent, (s) => s === "general" || s.startsWith("new:") || Boolean(threadOfSlot(threads, s)));
     if (!slot) {
       if (ready && !wide && orphansOf(unsent, threads).length) setSheet({ all: true });
@@ -783,6 +803,25 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     }
     setSheet(null);
   }, [wide, pending, active, sheet, threads, unsent]);
+
+  // A failed send's error stays on its box while the box is open, across
+  // that width too, and goes once it is closed (Escape, Close, another card
+  // or box opened): it never shows again on a box opened later.
+  const { forgetClosed } = sends;
+  const across = useRef(wide);
+  useEffect(() => {
+    if (across.current !== wide) {
+      across.current = wide;
+      return;
+    }
+    const inHand = wide ? [active] : sheet?.ids || [];
+    forgetClosed((slot) => {
+      if (slot === "general") return (active === "general" && (wide || !sheet)) || (!wide && sheet?.compose === "general");
+      if (isPassageSlot(slot)) return pending?.slot === slot && (wide || sheet?.compose === "new");
+      const id = threadOfSlot(threads, slot);
+      return Boolean(id) && inHand.includes(id);
+    });
+  }, [wide, active, pending, sheet, threads, forgetClosed]);
 
   // A new thread or a comment on the whole draft that went in: its card in
   // hand, in the margin or a sheet as the screen is now, which may not be as
@@ -2049,6 +2088,16 @@ function Sheet({ title, onClose, children }) {
   // What it holds waits until it is open, so a composer inside can size
   // itself and take focus: a closed dialog is display: none.
   const [open, setOpen] = useState(false);
+  // Closed by the browser itself (a second Escape, a back gesture) while the
+  // page keeps it, its words still going: shown again, so the page is never
+  // left locked with no sheet. One the page lets go is gone by then.
+  const [shut, setShut] = useState(0);
+  useLayoutEffect(() => {
+    const el = dialog.current;
+    if (!shut || going.current || el.open) return;
+    el.showModal();
+    el.querySelector(".draft-sheet-close")?.focus({ preventScroll: true });
+  }, [shut]);
   // Once, when it opens: focus goes in, and back where it was when it closes.
   useLayoutEffect(() => {
     const el = dialog.current;
@@ -2068,13 +2117,17 @@ function Sheet({ title, onClose, children }) {
   return createPortal(
     // The browser's Escape would close the dialog behind React's back, so it
     // closes the way the Close button does. If the browser closes it anyway,
-    // the sheet goes too.
+    // the sheet goes too, or is shown again while the page keeps it.
     <dialog
       ref={dialog}
       className="draft-sheet"
       aria-label={title}
       onCancel={(e) => { e.preventDefault(); close.current(); }}
-      onClose={() => !going.current && close.current()}
+      onClose={() => {
+        if (going.current) return;
+        close.current();
+        setShut((n) => n + 1);
+      }}
     >
       {/* A tap outside closes it. Hidden from screen readers, which have the
           Close button and Escape. */}

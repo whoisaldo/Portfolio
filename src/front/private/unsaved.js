@@ -13,7 +13,9 @@ const key = (slug) => `draft-editor:${slug}`;
 export function readUnsaved(slug) {
   try {
     const v = JSON.parse(localStorage.getItem(key(slug)));
-    return v && typeof v.body === "string" ? v : null;
+    // As the editor writes it, or not at all: a hand edit is not offered.
+    const kept = v && ["title", "date", "summary", "body"].every((f) => typeof v[f] === "string") && (v.base == null || typeof v.base === "string") && Number.isFinite(v.at);
+    return kept ? v : null;
   } catch {
     return null;
   }

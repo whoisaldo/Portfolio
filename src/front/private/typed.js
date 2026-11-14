@@ -57,11 +57,31 @@ export function hasWords(slot, entry) {
   return Boolean(entry.body?.trim());
 }
 
+const isText = (v) => v === undefined || typeof v === "string";
+const isQuote = (q) => Boolean(q) && typeof q === "object" && typeof q.exact === "string" && isText(q.prefix) && isText(q.suffix);
+
+/**
+ * Whether a kept slot is as this page writes it (above): its words strings,
+ * a passage's quote a quote, a time. Anything else (a hand edit, an
+ * extension) is let go, that slot alone, and never read further.
+ */
+function wellFormed(slot, e) {
+  if (!e || typeof e !== "object" || Array.isArray(e) || !Number.isFinite(e.at)) return false;
+  if (![e.body, e.words, e.note, e.key, e.keyFor].every(isText)) return false;
+  const none = (...fields) => fields.every((f) => e[f] === undefined);
+  if (!isPassageSlot(slot)) return none("kind", "quote", "words", "note");
+  // Back to how it opened: only its key and time.
+  if (e.kind === undefined) return none("quote", "body", "words", "note");
+  if (!isQuote(e.quote)) return false;
+  if (e.kind === "comment") return typeof e.body === "string" && none("words", "note");
+  return e.kind === "suggest" && typeof e.words === "string" && typeof e.note === "string" && none("body");
+}
+
 function readAll(key, now) {
   try {
     const v = JSON.parse(localStorage.getItem(key));
     const slots = v && typeof v.slots === "object" && v.slots ? v.slots : {};
-    return Object.fromEntries(Object.entries(slots).filter(([, e]) => e && typeof e === "object" && now - e.at < MONTH));
+    return Object.fromEntries(Object.entries(slots).filter(([slot, e]) => wellFormed(slot, e) && now - e.at < MONTH));
   } catch {
     return {};
   }
