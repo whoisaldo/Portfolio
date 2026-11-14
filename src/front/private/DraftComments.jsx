@@ -47,8 +47,9 @@
 // formatting.
 //
 // Ali's own new threads are a review, as in a code review (./review.js): each
-// is kept in his browser as pending, seen by him alone and edited or deleted
-// freely, until "Publish" at the foot of the screen sends them all at once.
+// is kept in his browser as pending, edited or deleted freely, until "Publish"
+// at the foot of the screen sends them all at once. Published, they are still
+// his alone: no reader sees a thread he starts.
 // The service takes all of them or none, and names the one it refused; until
 // they are in, they stay pending. While they go, no tab changes them: an edit
 // open then waits, and is the published comment's once they are in. A
@@ -1046,7 +1047,7 @@ function Thread({ t, viewer, now, act, unsent, active, related, onActivate, onHo
 /**
  * One of Ali's comments not published yet. Its passage is marked as his
  * other threads' are, with a dashed line; it has no replies or resolve, as
- * nobody else has seen it. While it is being published, from any tab, it is
+ * it is not on the service yet. While it is being published, from any tab, it is
  * left as it is: an edit open then waits, and is the published one's after.
  */
 function PendingThread({ t, viewer, review, act, unsent, error, busy, onFixed, long, active, related, onActivate, onHover, showQuote, inMargin }) {
