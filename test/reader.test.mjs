@@ -516,6 +516,51 @@ test("11: Suggest disabled because nothing changed says why", async () => {
   assert.ok(!/Same words as the passage/.test(composer().textContent));
 });
 
+// ---- round 2: a comment's length -------------------------------------------------------
+
+const FULL = "That's as long as a comment can be: 5,000 characters.";
+const FULL_SUGGESTION = "That's as long as a suggestion can be: 5,000 characters.";
+const words = (n) => "made up ".repeat(Math.ceil(n / 8)).slice(0, n);
+
+test("P2: a comment, a reply, an edit and a suggestion's note hold 5,000 characters, and a box that is full says so", async () => {
+  const fake = service();
+  const mine = seed(fake, { body: "An older made-up note." });
+  await mount(PrivateBlog, fake);
+  // A comment.
+  await selectAnd("fishing boats");
+  const box = field("Comment on the selected passage");
+  assert.equal(box.maxLength, 5000);
+  await type(box, words(4999));
+  assert.ok(!text().includes(FULL), "not full yet");
+  assert.match(text(), /1 characters left|1 character left/);
+  await type(box, words(5000));
+  assert.ok(composer().textContent.includes(FULL), "full");
+  await click(button("Cancel", composer()));
+  // A reply and an edit.
+  await openThread("lighthouse keeper");
+  const card = () => document.querySelector(`[data-card="${mine.id}"]`);
+  assert.equal(field("Reply").maxLength, 5000);
+  await type(field("Reply"), words(5000));
+  assert.equal(card().textContent.split(FULL).length, 2, "the reply says it is full, once");
+  await click(button("Edit", card()));
+  assert.equal(field("Edit your comment").maxLength, 5000);
+  await type(field("Edit your comment"), words(5000));
+  assert.equal(card().textContent.split(FULL).length, 3, "and the edit");
+  // A suggestion's note; its words say so too.
+  await selectAnd("harbour wall", "Suggest edit");
+  const note = field("A note on your suggestion (optional)");
+  assert.equal(note.maxLength, 5000);
+  await type(note, words(5000));
+  assert.ok(composer().textContent.includes(FULL));
+  assert.ok(!composer().textContent.includes(FULL_SUGGESTION));
+  await type(field("What the selected words should say"), words(5000));
+  assert.ok(composer().textContent.includes(FULL_SUGGESTION));
+  // Sent whole.
+  await click(button("Suggest", composer()));
+  await until(() => fake.posts().length === 1, "the suggestion sent");
+  assert.equal(fake.posts()[0].body.body.length, 5000);
+});
+
 /** Runs `fn` inside React's act(). */
 async function act(fn) {
   const { act: reactAct } = await import("react");

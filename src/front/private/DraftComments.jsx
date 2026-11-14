@@ -89,7 +89,17 @@ import { passageSlot, sendTyped, startPassage, sweepTyped, toReopen, typedStore,
 import { addPending, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, publishedAsIs, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
 
 // As the stats service has them.
-const LIMIT = { body: 2000, quote: QUOTE_MAX };
+const LIMIT = { body: 5000, quote: QUOTE_MAX };
+
+/** Under a box at its limit (`most`), in place of what is left: that it is full, of a `what`. */
+const full = (what, most) => `That's as long as ${what} can be: ${most.toLocaleString("en-US")} characters.`;
+
+/** What is left of a box's `most` once it is near it, or that it is full. */
+function Left({ length, most, what = "a comment" }) {
+  if (length >= most) return <p className="draft-left">{full(what, most)}</p>;
+  if (length > most - 200) return <p className="draft-left tabular-nums">{most - length} characters left</p>;
+  return null;
+}
 const WIDE = "(min-width: 1240px)";
 const POLL = { visible: 4000, hidden: 30_000 };
 const GAP = 10;
@@ -1603,7 +1613,7 @@ function Box({ initial = "", placeholder, label, submit, onCancel, onText, onFor
           {note}
         </p>
       )}
-      {text.length > LIMIT.body - 200 && <p className="draft-left tabular-nums">{LIMIT.body - text.length} characters left</p>}
+      <Left length={text.length} most={LIMIT.body} />
       {held && (
         <p className="draft-left" role="status">
           {held}
@@ -1780,6 +1790,7 @@ function SuggestComposer({ id, slot, quote, blocked, showQuote, act, unsent, onD
           }}
           onKeyDown={keys}
         />
+        {words.length >= LIMIT.quote && <p className="draft-left">{full("a suggestion", LIMIT.quote)}</p>}
         <Grow
           value={note}
           maxLength={LIMIT.body}
@@ -1792,7 +1803,7 @@ function SuggestComposer({ id, slot, quote, blocked, showQuote, act, unsent, onD
           }}
           onKeyDown={keys}
         />
-        {note.length > LIMIT.body - 200 && <p className="draft-left tabular-nums">{LIMIT.body - note.length} characters left</p>}
+        <Left length={note.length} most={LIMIT.body} />
         {!words.trim() && !refused && (
           <p className="draft-left" role="status">
             Sent like this, it suggests deleting the passage.
