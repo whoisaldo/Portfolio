@@ -26,7 +26,7 @@
 // ones marked as added (./suggest.js). Ali has "Accept" on it once it is
 // open, showing the whole change (a margin card not in hand is cut to its
 // opening lines): it puts the new words in the draft, saves that as a version, and marks the thread
-// accepted and resolved (./accept.js). An accepted thread's passage is the
+// accepted and resolved with the same save (./accept.js). An accepted thread's passage is the
 // new words; one whose words are gone (a deletion) is listed under the text,
 // under "Accepted edits", not with the passages that changed.
 //
@@ -711,10 +711,16 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       } catch {
         throw new Error("Accept couldn't load. Check your connection and try again.");
       }
-      const target = bridge ? mod.editorText(bridge) : mod.pageText({ slug, threads: published, request });
-      await mod.acceptSuggestion({ slug, t, target, mark: act.accept });
+      const target = bridge ? mod.editorText(bridge, act.accept) : mod.pageText({ slug, threads: published, request });
+      const acceptedNow = (id) => act.list().then((list) => list.find((c) => c.id === id)?.accepted ?? null);
+      try {
+        await mod.acceptSuggestion({ t, target, acceptedNow });
+      } finally {
+        // The thread as the service has it now, accepted or not, and the draft saved with it.
+        poll(true);
+      }
     },
-    [bridge, slug, published, act],
+    [bridge, slug, published, act, poll],
   );
 
   const shared = { viewer, now, act, onLost, unsent, onAccept: viewer.owner ? accept : null };

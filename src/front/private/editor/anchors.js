@@ -197,6 +197,9 @@ function decorations(doc, { ranges, items, emphasis }) {
  *                       paragraph, all with the same formatting, with no
  *                       line break in `text`; false, and nothing changed,
  *                       otherwise
+ *   passage(id)         the words of thread `id`'s passage in the text now,
+ *                       "" when they were deleted entirely, null when it
+ *                       has none here (../accept.js)
  */
 export function commentAnchors() {
   let view = null;
@@ -454,6 +457,11 @@ export function commentAnchors() {
       // What is typed next starts a step of its own.
       view.dispatch(closeHistory(view.state.tr));
       return true;
+    },
+    passage(id) {
+      const r = state().ranges.get(id);
+      if (!view || !r) return null;
+      return r.from < r.to ? flatText(view.state.doc, r.from, r.to) : "";
     },
     get dom() {
       return view?.dom ?? null;

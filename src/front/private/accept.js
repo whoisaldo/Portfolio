@@ -2,9 +2,15 @@
 //
 // Loaded the first time he presses Accept on one (./DraftComments.jsx), so a
 // reader never fetches it. Accept puts the suggested words in place of the
-// passage in the draft's text, saves that as a version of its own in the
-// draft's history ("Saved version"), and only once the server has the text
-// marks the thread accepted, which resolves it. It never guesses:
+// passage in the draft's text and saves that as a version of its own in the
+// draft's history ("Saved version"), and the same save marks the thread
+// accepted, which resolves it: the stats service makes both or neither
+// (`PUT /api/drafts` with `accept`). So a thread is accepted exactly when its
+// edit was saved, and the service is the only record of it. Each press starts
+// by asking the service whether the thread is accepted; if it is, nothing is
+// changed. A press after one whose answer never came needs nothing else, and
+// two at once, in two tabs or on two devices, change the text once: the
+// service refuses the second (409). It never guesses:
 //
 // - The passage is looked for where the thread is (./place.js): by its
 //   anchor, or the reader's quote while it has none. It must be there with
@@ -17,11 +23,6 @@
 //   make the edit by hand.
 // - Only the words that change are replaced (./suggest.js, editRegion), so
 //   formatting on the words around them stays as it is.
-// - With the editor open, the change is made in the editor's own document
-//   (./editor/anchors.js, replaceWords) and the editor saves it, so its next
-//   save neither conflicts with the change nor writes over it, and Cmd+Z
-//   undoes it. There only words within one paragraph, all with the same
-//   formatting, are changed.
 // - Without the editor, the change is made in the draft's Markdown as the
 //   server has it now, and saved onto exactly that text: the save names the
 //   updated_at it started from, and one saved since is refused (409). The
@@ -32,21 +33,18 @@
 //   with the same formatting. A place inside a link's address, a picture's
 //   description or a comment changes the wrong thing or nothing, and does not
 //   count. One place counts, or nothing is changed.
-//
-// Text that only looks as if the edit had been made is never taken for it.
-// Accept marks a thread without changing the text only when it can show the
-// edit is in the text as saved now, by either of:
-// - this browser's record of the save it made for the thread: the draft's
-//   Markdown as that save made it, written just before the save is sent, so
-//   a save whose answer never came is covered too. It counts only while the
-//   draft as saved now (the editor's text, saved, while it is open) is still
-//   exactly that text; otherwise it is dropped and the press is a first one.
-// - the thread's passage as the server has it, which Accept and the editor
-//   move onto the new words, reading as the suggested words, there in the
-//   text with all of its context; for a deletion, the passage deleted and
-//   the reader's words nowhere the read view would place them.
-// Otherwise a passage that is not at its place is refused, so a mark that
-// fails is pressed again without the text changing twice.
+// - With the editor open, the change is made in the editor's own document
+//   (./editor/anchors.js, replaceWords), as a step of its own that Cmd+Z
+//   undoes, and the editor's own save carries the mark, so its next save
+//   neither conflicts with the change nor writes over it. There only words
+//   within one paragraph, all with the same formatting, are changed. A save
+//   that fails leaves the change in the editor, not saved, and the thread
+//   not accepted. The editor keeps the thread's passage on the new words,
+//   so a press after that goes by it: when the passage there reads as the
+//   suggested words, the words are not put in again, and the text is only
+//   saved with the mark, or marked (`PATCH`) when an autosave took it
+//   already. Undone or edited since, it is a first press on the text as it
+//   is.
 //
 // After a change in the Markdown the accepted thread's passage is moved to
 // the new words (deleted, for a deletion), and the threads beside the change
@@ -65,6 +63,7 @@ export const WHY = {
   format: "Formatting in this passage is in the way, so nothing was changed. Make this edit by hand.",
   changed: "The draft was saved somewhere else just now, so nothing was changed. Press Accept again.",
   unsaved: "The edit is in the editor but isn't saved yet. Press Accept again once it's saved; it won't be made twice.",
+  unknown: "The server didn't answer, so it isn't confirmed that the edit was saved. Pressing Accept again is safe: it won't make it twice.",
 };
 
 // As much context as a passage keeps either side (./place.js).
@@ -114,30 +113,27 @@ export function exactlyAt(index, q) {
 }
 
 /**
- * Whether the server has the thread's passage on the suggested words
- * already, and they are there in the text with all of its context. For a
- * deletion, whether it has the passage as deleted and the reader's words are
- * nowhere the read view would place them.
- */
-function anchoredOnWords(index, t) {
-  const words = wordsOf(t);
-  if (!words) return Boolean(t.gone) && !findWhole(index, t.quote);
-  return Boolean(t.find) && t.find !== t.quote && flat(t.find.exact) === flat(words) && Boolean(exactlyAt(index, t.find));
-}
-
-/**
  * Where a suggestion's passage is in the text an index reads: {at} to change
- * it, {applied: true} when the thread's passage is on the suggested words
- * already (anchoredOnWords), or {why}, a key of WHY. The passage at its
- * place is changed whatever else is there.
+ * it, or {why}, a key of WHY. The passage at its place is changed whatever
+ * else is there.
  */
 export function locate(index, t) {
   const place = t.find || (t.gone ? t.quote : null);
   const at = place && exactlyAt(index, place);
   if (at && flat(index.text.slice(at[0], at[1])) === flat(t.quote.exact)) return { at };
-  if (anchoredOnWords(index, t)) return { applied: true };
   return { why: findThread(index, t) ? "edited" : "missing" };
 }
+
+/** Where the passage is and what changes in it, or throws the Error to show. */
+function edit(index, t) {
+  const where = locate(index, t);
+  if (where.why) throw new Error(WHY[where.why]);
+  return { at: where.at, region: editRegion(index.text.slice(where.at[0], where.at[1]), wordsOf(t), { whole: true }) };
+}
+
+// A failure the server may or may not have acted on: nothing came back, or
+// something between gave up.
+const unknown = (err) => !err?.status || err.status >= 500;
 
 /** What `marked` renders a body to, inert, as the read view has it. */
 function render(md) {
@@ -231,27 +227,23 @@ function anchorsAfter(t, threads, before, after, at, [start, end]) {
  * `request` is ./api.js's; `threads` the published threads.
  */
 export function pageText({ slug, threads, request }) {
-  let draft = null;
   return {
-    async read() {
-      ({ draft } = (await request(`/api/drafts?slug=${encodeURIComponent(slug)}`)).data);
-      return indexText(render(draft.body));
-    },
-    // The Markdown as the server has it, just read.
-    text: () => draft?.body ?? null,
-    // The text was just read from the server, or saved by replace.
-    save: async () => true,
-    async replace(t, index, at, region, saving) {
+    async accept(t) {
+      const { draft } = (await request(`/api/drafts?slug=${encodeURIComponent(slug)}`)).data;
+      const index = indexText(render(draft.body));
+      const { at, region } = edit(index, t);
       const span = [at[0] + region.from, at[0] + region.to];
       const done = replaceInMarkdown(draft.body, index, span, region.insert);
       if (done.why) throw new Error(WHY[done.why]);
-      saving(done.body);
       let saved;
       try {
         const { title, date, summary, updated_at: base } = draft;
-        ({ draft: saved } = (await request("/api/drafts", { method: "PUT", body: { slug, title, date, summary, body: done.body, base, kind: "manual" } })).data);
+        ({ draft: saved } = (await request("/api/drafts", { method: "PUT", body: { slug, title, date, summary, body: done.body, base, kind: "manual", accept: t.id } })).data);
       } catch (err) {
+        // Accepted meanwhile, by another tab or device: nothing was written, and it is shown so.
+        if (err.status === 409 && err.field === "accept") return;
         if (err.status === 409) throw new Error(WHY.changed);
+        if (unknown(err)) throw new Error(WHY.unknown);
         throw err;
       }
       const anchors = anchorsAfter(t, threads, index, done.index, at, span);
@@ -267,72 +259,40 @@ export function pageText({ slug, threads, request }) {
 
 /**
  * Accept through the editor's own document, while it is open. `bridge` is
- * its handle (./editor/anchors.js, ./editor/DraftEditor.jsx).
+ * its handle (./editor/anchors.js, ./editor/DraftEditor.jsx); `mark(id)`
+ * marks a thread accepted on its own (`PATCH`).
  */
-export function editorText(bridge) {
+export function editorText(bridge, mark) {
   return {
-    read: async () => indexText(bridge.dom),
-    // The editor's text as Markdown, saved or not.
-    text: () => bridge.text(),
-    // Saved unless it has changes the server lacks: then saved as a version.
-    save: async () => bridge.base() != null || bridge.saveVersion(),
-    async replace(t, index, at, region, saving) {
-      if (!bridge.replaceWords(index, [at[0] + region.from, at[0] + region.to], region.insert, t.id, at)) throw new Error(WHY.format);
-      saving(bridge.text());
+    async accept(t) {
+      // The editor's passage for the thread reads as the suggested words: put
+      // in by an earlier press, or by hand, and not to be put in again.
+      const there = bridge.passage(t.id);
+      if (there == null || flat(there) !== flat(wordsOf(t))) {
+        const index = indexText(bridge.dom);
+        const { at, region } = edit(index, t);
+        if (!bridge.replaceWords(index, [at[0] + region.from, at[0] + region.to], region.insert, t.id, at)) throw new Error(WHY.format);
+      } else if (bridge.base() != null) {
+        // Saved already, by an autosave: the text the server has is the editor's.
+        await mark(t.id);
+        return;
+      }
+      const out = await bridge.saveAccepted(t.id);
+      if (out?.accepted) return;
+      if (out?.status === 409 && out.field === "accept") return;
+      if (out && unknown(out)) throw new Error(WHY.unknown);
+      if (out?.field === "accept") throw new Error(out.message);
+      throw new Error(WHY.unsaved);
     },
   };
 }
 
-// What this browser saved for each thread whose edit it made and has not
-// marked yet, by draft: {body}, the draft's Markdown as that save made it.
-const key = (slug) => `draft-accepted:${slug}`;
-
-function records(slug) {
-  try {
-    const all = JSON.parse(localStorage.getItem(key(slug)));
-    return all && typeof all === "object" && !Array.isArray(all) ? all : {};
-  } catch {
-    return {};
-  }
-}
-
-/** Keeps `body` as the text this browser's save for thread `id` makes; null forgets it. */
-function remember(slug, id, body) {
-  const all = records(slug);
-  if (typeof body === "string") all[id] = { body };
-  else delete all[id];
-  try {
-    if (Object.keys(all).length) localStorage.setItem(key(slug), JSON.stringify(all));
-    else localStorage.removeItem(key(slug));
-  } catch {
-    // Blocked storage: a retry goes by the thread's passage on the new words, or is refused.
-  }
-}
-
 /**
  * Accepts the suggestion thread `t` through `target` (pageText or
- * editorText), then marks it with `mark(id)`. Throws an Error to show; once
- * the text is saved, pressing again only marks it, while the text is still
- * as that save made it.
+ * editorText), unless `acceptedNow(id)`, the thread as the service has it
+ * now, says it is accepted already. Throws an Error to show.
  */
-export async function acceptSuggestion({ slug, t, target, mark }) {
-  const index = await target.read();
-  const mine = records(slug)[t.id];
-  if (!mine || target.text() !== mine.body) {
-    // None, or the draft changed since: a first press, on the text as it is now.
-    if (mine) remember(slug, t.id, null);
-    const where = locate(index, t);
-    if (where.why) throw new Error(WHY[where.why]);
-    if (where.at) {
-      const region = editRegion(index.text.slice(where.at[0], where.at[1]), wordsOf(t), { whole: true });
-      await target.replace(t, index, where.at, region, (body) => remember(slug, t.id, body));
-    }
-  }
-  if (!(await target.save())) throw new Error(WHY.unsaved);
-  try {
-    await mark(t.id);
-  } catch (err) {
-    throw new Error(`The draft has the edit, but the suggestion couldn't be marked accepted: ${err.message} Press Accept again to finish; the text won't change twice.`);
-  }
-  remember(slug, t.id, null);
+export async function acceptSuggestion({ t, target, acceptedNow }) {
+  if (await acceptedNow(t.id)) return;
+  await target.accept(t);
 }

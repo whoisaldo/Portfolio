@@ -239,9 +239,11 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
 
   // `kind` is the revision the save makes in the history: "manual" and
   // "restore" are kept as revisions of their own, and sent even when the
-  // text is what the server has.
+  // text is what the server has. `accept` is a suggestion thread the same
+  // save marks accepted, both or neither (../accept.js). A save sent resolves
+  // to the server's answer, or the ApiError it failed with.
   const save = useCallback(
-    async ({ keepalive = false, kind = "autosave" } = {}) => {
+    async ({ keepalive = false, kind = "autosave", accept } = {}) => {
       const st = s.current;
       clearTimeout(st.timer);
       if (!st.editor || st.conflict) return;
@@ -266,7 +268,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       st.flight = (async () => {
         setStatus({ state: "saving" });
         try {
-          const body = { slug, ...p, base: st.base, kind };
+          const body = { slug, ...p, base: st.base, kind, ...(accept ? { accept } : {}) };
           const { data } = await request("/api/drafts", { method: "PUT", body, keepalive: keepalive && JSON.stringify(body).length < KEEPALIVE });
           st.base = data.draft.updated_at;
           st.baseline = p;
@@ -278,6 +280,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
             clearUnsaved(slug);
             if ((await sendAnchors({ keepalive })) && sameDraft(payload(), p)) setStatus({ state: "saved" });
           } else st.again = true;
+          return data;
         } catch (err) {
           if (!(err instanceof ApiError)) throw err;
           if (err.status === 409 && err.data?.draft) {
@@ -288,11 +291,14 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
             setStatus({ state: "offline" });
             clearTimeout(st.retry);
             st.retry = setTimeout(() => save(), BACKOFF[Math.min(st.tries++, BACKOFF.length - 1)]);
-          } else if (err.status === 404) {
+          } else if (err.status === 404 && err.field !== "accept") {
+            // A 404 about `accept` is the suggestion's, not the draft's.
             onLost();
           } else {
-            setStatus({ state: "error", message: err.message, field: err.field });
+            // A refusal of `accept` is no field's here: the text can be tried again on its own.
+            setStatus({ state: "error", message: err.message, field: err.field === "accept" ? undefined : err.field });
           }
+          return err;
         } finally {
           st.flight = null;
           if (st.again) {
@@ -467,18 +473,15 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
         return null;
       }
     };
-    // The text as Markdown, saved or not, for an accepted suggestion's check
-    // that its edit is still in (../accept.js); null when it can't be written.
-    handle.text = () => {
-      try {
-        return serialize();
-      } catch {
-        return null;
-      }
+    // An accepted suggestion's edit, in the text (handle.replaceWords), saved
+    // as a version of its own that marks thread `id` accepted: both or
+    // neither (../accept.js). The server's answer, or the ApiError it failed
+    // with; nothing when nothing could be sent (a conflict being settled,
+    // text that can't be written).
+    handle.saveAccepted = async (id) => {
+      while (st.flight) await st.flight;
+      return st.save({ kind: "manual", accept: id });
     };
-    // An accepted suggestion, made in the text (handle.replaceWords), saved as
-    // a version of its own. True once the server has it.
-    handle.saveVersion = () => st.saveAs("manual");
     onBridge(handle);
 
     return () => {
