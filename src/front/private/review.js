@@ -7,8 +7,9 @@
 // of them or none, so whatever revises the draft from them has the whole
 // round together.
 //
-// Here rather than on the server: nobody else is to see them, so nothing
-// else should have to leave them out. Kept by the draft's slug alone, not by
+// Here rather than on the server: until he publishes, nothing but this
+// browser is to have them, so nothing else should have to leave them out.
+// Kept by the draft's slug alone, not by
 // its text: a pending passage is found again by its words and context, as a
 // published one is, and the editor keeps it where an edit moved it
 // (./DraftComments.jsx).

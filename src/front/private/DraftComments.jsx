@@ -1,5 +1,7 @@
 // src/front/private/DraftComments.jsx: comments on a private draft, the way
-// Google Docs does them, in the site's own style.
+// Google Docs does them, in the site's own style. Unlike Docs, a thread is
+// seen only by the reader who started it and by Ali, who sees every thread:
+// the stats service sends each viewer only theirs.
 //
 // On a wide screen the article keeps its column and the comments take a
 // margin to its right. Each thread's card sits level with the passage it is
@@ -107,7 +109,7 @@ function useNow(every) {
 /**
  * The draft's comments from the stats service, kept fresh, and the ways to change
  * them. A change is shown as soon as the service accepts it and then asked for
- * again, so what the page shows is always what everyone else sees.
+ * again, so what the page shows is always what the service has.
  */
 function useThreads(slug, onLost, onDraftChange) {
   const [state, setState] = useState({ status: "loading", comments: [] });
@@ -1117,7 +1119,7 @@ function ReviewBar({ count, busy, error, failed, done, fits, onPublish, onPublis
       <p className="draft-review-text" role="status">
         {count ? (
           <>
-            <b className="tabular-nums">{n(count)}</b> pending. Only you see {count === 1 ? "it" : "them"} until you publish.
+            <b className="tabular-nums">{n(count)}</b> pending, kept in this browser until you publish.
           </>
         ) : (
           `Published ${n(done)}.`
