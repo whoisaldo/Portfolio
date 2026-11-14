@@ -26,7 +26,9 @@
 // ones marked as added (./suggest.js). Ali has "Accept" on it once it is
 // open, showing the whole change (a margin card not in hand is cut to its
 // opening lines): it puts the new words in the draft, saves that as a version, and marks the thread
-// accepted and resolved with the same save (./accept.js). An accepted thread's passage is the
+// accepted and resolved with the same save (./accept.js). Only in the read
+// view: while he edits, the card says to press Done first, as the editor
+// saves its own copy of the same text. An accepted thread's passage is the
 // new words; one whose words are gone (a deletion) is listed under the text,
 // under "Accepted edits", not with the passages that changed.
 //
@@ -52,7 +54,7 @@
 // edited says what it was first on.
 //
 // While Ali edits (`bridge`, from ./editor/DraftEditor.jsx), the cards are the
-// same but the passages are the editor's decorations, which follow his edits
+// same but for Accept (above), and the passages are the editor's decorations, which follow his edits
 // as he types, and there is no "Comment" button: a selection there is for
 // formatting.
 //
@@ -190,9 +192,6 @@ function useThreads(slug, onLost, onDraftChange) {
         after(request("/api/draft-comments", { method: "PATCH", body: { id, body } })).then(({ data }) => merge(data.comment)),
       resolve: (id, resolved) =>
         after(request("/api/draft-comments", { method: "PATCH", body: { id, resolved } })).then(({ data }) => merge(data.comment)),
-      // A suggestion marked accepted (Ali's), once its words are in the text.
-      accept: (id) =>
-        after(request("/api/draft-comments", { method: "PATCH", body: { id, accepted: true } })).then(({ data }) => merge(data.comment)),
       remove: (id) =>
         after(request(`/api/draft-comments?id=${encodeURIComponent(id)}`, { method: "DELETE" })).then(() =>
           setState((s) => ({ ...s, comments: s.comments.filter((c) => c.id !== id && c.thread !== id) })),
@@ -709,8 +708,8 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   // The bar points at a card only when there is one marked.
   const marked = threads.some((t) => t.id === publishing.failed) ? publishing.failed : null;
 
-  // Ali's Accept on a suggestion: through the editor's text while it is
-  // open, else through the draft as the server has it (./accept.js).
+  // Ali's Accept on a suggestion, through the draft as the server has it
+  // (./accept.js). Not offered while he edits (`bridge`).
   const accept = useCallback(
     async (t) => {
       let mod;
@@ -719,7 +718,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       } catch {
         throw new Error("Accept couldn't load. Check your connection and try again.");
       }
-      const target = bridge ? mod.editorText(bridge, act.accept) : mod.pageText({ slug, threads: published, request });
+      const target = mod.pageText({ slug, threads: published, request });
       const acceptedNow = (id) => act.list().then((list) => list.find((c) => c.id === id)?.accepted ?? null);
       try {
         await mod.acceptSuggestion({ t, target, acceptedNow });
@@ -728,10 +727,10 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
         poll(true);
       }
     },
-    [bridge, slug, published, act, poll],
+    [slug, published, act, poll],
   );
 
-  const shared = { viewer, now, act, onLost, unsent, onAccept: viewer.owner ? accept : null, onNote: noteAccept };
+  const shared = { viewer, now, act, onLost, unsent, onAccept: viewer.owner ? accept : null, onNote: noteAccept, editing: !!bridge };
   const card = (t, extra = {}) => t.pending ? (
     <PendingThread
       key={t.id}
@@ -1009,7 +1008,7 @@ function Margin({ body, found, active, order, toolbar, children }) {
 }
 
 /** One thread: its first comment, its replies, and a box to reply. */
-function Thread({ t, viewer, now, act, unsent, onAccept, note, onNote, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed, long, failure, move }) {
+function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed, long, failure, move }) {
   const [error, setError] = useState("");
   const [accepting, setAccepting] = useState(false);
   const resolved = t.resolved;
@@ -1021,6 +1020,8 @@ function Thread({ t, viewer, now, act, unsent, onAccept, note, onNote, active, r
   // otherwise push every card below it away from its passage.
   const compact = inMargin && !active;
   const replies = t.replies.length;
+  // Accept, or word to press Done first while he edits (./suggest.js).
+  const offer = onAccept ? acceptOffered({ accepted, resolved, clamped: compact, editing }) : null;
 
   async function run(p) {
     setError("");
@@ -1054,8 +1055,9 @@ function Thread({ t, viewer, now, act, unsent, onAccept, note, onNote, active, r
           accepted={accepted}
           clamp={compact}
           busy={accepting}
+          finish={offer === "finish"}
           onAccept={
-            onAccept && acceptOffered({ accepted, resolved, clamped: compact })
+            offer === "accept"
               ? async () => {
                   setAccepting(true);
                   setError("");
@@ -1156,9 +1158,10 @@ function Thread({ t, viewer, now, act, unsent, onAccept, note, onNote, active, r
  * the words it puts in marked as added, between the passage's words that
  * stay (./suggest.js). In the margin, a thread not in hand shows its opening
  * lines. Ali's has Accept while it is open and shows the whole change
- * (`onAccept`, ./suggest.js acceptOffered).
+ * (`onAccept`, ./suggest.js acceptOffered), and in its place, while he
+ * edits, word to press Done first (`finish`).
  */
-function Suggestion({ old, text, accepted, clamp, busy, onAccept }) {
+function Suggestion({ old, text, accepted, clamp, busy, finish, onAccept }) {
   const { lead, removed, added, tail } = suggestionParts(old, text);
   return (
     <div className="draft-suggestion">
@@ -1177,6 +1180,7 @@ function Suggestion({ old, text, accepted, clamp, busy, onAccept }) {
             <Check className="size-4" aria-hidden="true" /> {busy ? "Accepting…" : "Accept"}
           </button>
         )}
+        {finish && <span>Press Done to accept it</span>}
       </p>
       <p className={`draft-suggest${clamp ? " is-clamped" : ""}`}>
         {lead}

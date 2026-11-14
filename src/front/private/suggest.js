@@ -72,12 +72,16 @@ export function suggestionParts(old, text) {
 }
 
 /**
- * Whether a suggestion's card offers Ali Accept: while it is open, and only
- * while the card shows the whole change, the words it takes out and puts in.
- * A margin card not in hand is cut to its opening lines (`clamped`), which
- * can hide them; pressing it opens it, with Accept.
+ * What a suggestion's card offers Ali: Accept ("accept") while it is open,
+ * and only while the card shows the whole change, the words it takes out and
+ * puts in. A margin card not in hand is cut to its opening lines
+ * (`clamped`), which can hide them; pressing it opens it, with Accept. Never
+ * while he edits the draft (`editing`): Accept changes the draft as saved
+ * (./accept.js), and the editor saves its own copy of the same text, so the
+ * open card says to finish editing first ("finish"). Else null, nothing.
  */
-export const acceptOffered = ({ accepted, resolved, clamped }) => !accepted && !resolved && !clamped;
+export const acceptOffered = ({ accepted, resolved, clamped, editing }) =>
+  accepted || resolved || clamped ? null : editing ? "finish" : "accept";
 
 /**
  * What Accept said on each suggestion's card, by thread: a refusal, or that

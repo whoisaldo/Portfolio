@@ -1,21 +1,18 @@
 // test/suggest.test.mjs: suggested edits. What a suggestion changes, how
-// Accept finds the passage and replaces it in a draft's Markdown or in the
-// editor's document, what it refuses, and that the text and the mark are
-// saved together, so a press after one that failed, here or anywhere else,
-// never changes the text twice. Every text is made up.
+// Accept finds the passage and replaces it in a draft's Markdown, what it
+// refuses, and that the text and the mark are saved together, so a press
+// after one that failed, here or anywhere else, never changes the text
+// twice. That a card never offers Accept while the editor is open. Every
+// text is made up.
 import { window } from "./dom.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { marked } from "marked";
-import { Editor } from "@tiptap/core";
-import { extensions } from "../src/front/private/editor/schema.js";
-import { fromMarkdown, toMarkdown } from "../src/front/private/editor/markdown.js";
-import { commentAnchors } from "../src/front/private/editor/anchors.js";
 import { indexText } from "../src/front/quotes.js";
 import { quoteAt } from "../src/front/private/place.js";
 import { acceptNote, acceptNotes, acceptOffered, editRegion, suggestionParts } from "../src/front/private/suggest.js";
 import { selectLeft } from "../src/front/private/select.js";
-import { TRIES, WHY, acceptSuggestion, editorText, locate, pageText, replaceInMarkdown } from "../src/front/private/accept.js";
+import { TRIES, WHY, acceptSuggestion, locate, pageText, replaceInMarkdown } from "../src/front/private/accept.js";
 
 // Node has a localStorage of its own, unusable without a file: happy-dom's instead,
 // to show Accept keeps nothing in it.
@@ -521,272 +518,32 @@ test("two tabs pressing Accept at once save the text once, whichever refusal the
   }
 });
 
-// ---- accepting it in the editor's document -------------------------------------------------
-
-/**
- * The editor open on the draft as `s` has it now, with what DraftEditor adds
- * to the comments' handle: its save, as far as Accept sees it. A save the
- * service refuses as stale opens a conflict, and nothing is saved until it
- * is settled ("Keep mine").
- */
-function editing(s, threads = []) {
-  const { extension, handle } = commentAnchors();
-  const element = document.createElement("div");
-  document.body.append(element);
-  const editor = new Editor({ element, extensions: [...extensions(), extension], content: fromMarkdown(s.draft.body).doc, injectCSS: false });
-  const e = { editor, handle, saved: s.draft.body, base: s.draft.updated_at, conflict: null };
-  e.text = () => toMarkdown(editor.state.doc);
-  handle.base = () => (!e.conflict && e.text() === e.saved ? e.base : null);
-  const put = async (fields) => {
-    if (e.conflict) return undefined;
-    const body = e.text();
-    const { title, date, summary } = s.draft;
-    try {
-      const { data } = await s.request("/api/drafts", { method: "PUT", body: { slug: SLUG, title, date, summary, body, base: e.base, ...fields } });
-      e.saved = body;
-      e.base = data.draft.updated_at;
-      return data;
-    } catch (err) {
-      if (err.status === 409 && err.data?.draft) e.conflict = err.data.draft;
-      return err;
-    }
-  };
-  handle.saveAccepted = (id) => put({ kind: "manual", accept: id });
-  e.autosave = () => put({ kind: "autosave" });
-  e.keepMine = () => {
-    e.base = e.conflict.updated_at;
-    e.conflict = null;
-    return put({ kind: "autosave" });
-  };
-  const mark = (id) => s.request("/api/draft-comments", { method: "PATCH", body: { id, accepted: true } });
-  e.press = (t) => acceptSuggestion({ t, target: editorText(handle, mark), acceptedNow: acceptedOn(s) });
-  handle.setItems(threads);
-  return e;
-}
-
-/** `word`, where it first is in the editor's text, typed over with `text`. */
-function type(editor, word, text) {
-  let from = -1;
-  editor.state.doc.descendants((node, pos) => {
-    if (from < 0 && node.isText && node.text.includes(word)) from = pos + node.text.indexOf(word);
-  });
-  editor.view.dispatch(editor.state.tr.insertText(text, from, from + word.length));
-}
-
-test("with the editor open, Accept changes the editor's own text and its save carries the mark", async () => {
-  const s = server(HARBOUR);
-  const t = thread(quoteOf(HARBOUR, "gulls followed it out"), "gulls chased it out");
-  const e = editing(s, [t]);
-  await e.press(t);
-  const after = HARBOUR.replace("gulls followed it out", "gulls chased it out");
-  assert.equal(s.saves.length, 1);
-  assert.equal(s.saves[0].body, after);
-  assert.equal(s.saves[0].kind, "manual");
-  assert.equal(s.saves[0].accept, ID);
-  assert.ok(s.accepted.get(ID));
-  assert.deepEqual(s.marks, []);
-  assert.equal(e.handle.quotes().get(ID).exact, "gulls chased it out");
-  assert.equal(e.handle.passage(ID), "gulls chased it out");
-  // One step of the undo history.
-  e.editor.commands.undo();
-  assert.equal(e.text(), HARBOUR);
-  e.editor.destroy();
-});
-
-test("in the editor, words across formatting or paragraphs are refused, and nothing changes", async () => {
-  const body = "The **quick** brown fox jumps.\n\nA second line.\n";
-  const s = server(body, { ids: [ID, "1c0a7b2f-5d3e-4f90-8b4c-6e7f8091a2b3", "2d1b8c30-6e4f-4a01-9c5d-7f8091a2b3c4"] });
-  const across = thread(quoteOf(body, "quick brown"), "slow green");
-  const lines = thread(quoteOf(body, "jumps.\nA second"), "jumps and a second", { id: "1c0a7b2f-5d3e-4f90-8b4c-6e7f8091a2b3" });
-  const inside = thread(quoteOf(body, "brown fox"), "brown cat", { id: "2d1b8c30-6e4f-4a01-9c5d-7f8091a2b3c4" });
-  const e = editing(s, [across, lines, inside]);
-  await assert.rejects(e.press(across), { message: WHY.format });
-  await assert.rejects(e.press(lines), { message: WHY.format });
-  assert.equal(s.saves.length, 0);
-  assert.equal(e.text(), body);
-  // Words within one formatting are changed in it.
-  await e.press(inside);
-  assert.equal(s.saves.at(-1).body, "The **quick** brown cat jumps.\n\nA second line.\n");
-  e.editor.destroy();
-});
-
-test("in the editor, a change from one paragraph, heading or list item into the next is refused, and nothing changes", async () => {
-  for (const [what, body, words, suggestion] of ACROSS) {
-    const s = server(body);
-    const t = thread(quoteOf(body, words), suggestion);
-    const e = editing(s, [t]);
-    await assert.rejects(e.press(t), { message: WHY.format }, what);
-    assert.equal(s.saves.length, 0, what);
-    assert.equal(e.text(), body, what);
-    e.editor.destroy();
-  }
-});
-
-test("in the editor, a deletion with a space on both sides takes one of them with it", async () => {
-  const body = "The nets were still drying on the quay.\n";
-  const s = server(body);
-  const t = thread(quoteOf(body, "still"), "");
-  const e = editing(s, [t]);
-  await e.press(t);
-  assert.equal(e.text(), "The nets were drying on the quay.\n");
-  assert.equal(s.saves.at(-1).body, "The nets were drying on the quay.\n");
-  e.editor.destroy();
-});
-
-for (const [what, body, words, suggestion] of TRICKY) {
-  test(`${what}, in the editor: a press that fails, then one here or in a fresh editor, saves the text once`, async () => {
-    const after = applied(body, words, suggestion);
-    for (const [how, first] of Object.entries(FIRST)) {
-      for (const again of ["here", "here, after an autosave", "in a fresh editor"]) {
-        const label = `${how}, pressed again ${again}`;
-        const s = server(body);
-        const t = thread(quoteOf(body, words), suggestion);
-        const e = editing(s, [t]);
-        first.set(s);
-        await assert.rejects(e.press(t), { message: first.why === WHY.changed ? WHY.unsaved : first.why }, label);
-        assert.equal(s.saves.length, first.landed ? 1 : 0, label);
-        // The change is in the editor either way, once.
-        assert.equal(e.text(), after, label);
-        let second = e;
-        if (again === "in a fresh editor") second = editing(s, [s.seen(t)]);
-        else if (again === "here, after an autosave") {
-          // A conflict is settled first: the editor's text kept.
-          if (e.conflict) await e.keepMine();
-          else await e.autosave();
-        }
-        if (again === "here" && e.conflict) {
-          // Nothing is saved while the conflict is open.
-          await assert.rejects(e.press(t), { message: WHY.unsaved }, label);
-          assert.equal(s.saves.length, 0, label);
-          await e.keepMine();
-        }
-        await second.press(t);
-        assert.equal(s.draft.body, after, label);
-        assert.equal(second.text(), after, `${label}: not put in twice`);
-        assert.ok(s.accepted.get(ID), label);
-        // Saved once: with the mark, or by an autosave or "Keep mine" and then marked.
-        assert.equal(s.saves.length, 1, `${label}: saved once`);
-        assert.equal(s.saves.filter((b) => b.accept).length + s.marks.length, 1, label);
-        // Once more: nothing.
-        await second.press(t);
-        assert.equal(second.text(), after, label);
-        if (second !== e) second.editor.destroy();
-        e.editor.destroy();
-      }
-    }
-  });
-}
-
-test("in the editor, a press after the change was undone puts it in once, on the text as it is, and saves it with the mark", async () => {
-  const s = server(HARBOUR);
-  const t = thread(quoteOf(HARBOUR, "kept a ledger"), "kept a diary");
-  const e = editing(s, [t]);
-  s.dropSave = true;
-  await assert.rejects(e.press(t), { message: WHY.unknown });
-  e.editor.commands.undo();
-  assert.equal(e.text(), HARBOUR);
-  assert.equal(e.handle.passage(ID), "kept a ledger");
-  await e.press(t);
-  const after = HARBOUR.replace("kept a ledger", "kept a diary");
-  assert.equal(e.text(), after);
-  assert.deepEqual(s.saves.map((b) => [b.body, b.accept]), [[after, ID]]);
-  e.editor.destroy();
-});
-
-test("in the editor, a press after the new words were edited is a first press on the text as it is: refused here", async () => {
-  const s = server(HARBOUR);
-  const t = thread(quoteOf(HARBOUR, "kept a ledger"), "kept a diary");
-  const e = editing(s, [t]);
-  s.dropSave = true;
-  await assert.rejects(e.press(t), { message: WHY.unknown });
-  // "diary" changed by hand to "journal".
-  type(e.editor, "diary", "journal");
-  assert.equal(e.handle.passage(ID), "kept a journal");
-  await assert.rejects(e.press(t), (err) => [WHY.edited, WHY.missing].includes(err.message));
-  assert.equal(s.saves.length, 0);
-  assert.equal(s.accepted.get(ID), null);
-  e.editor.destroy();
-});
-
-test("in the editor, the passage put back by hand onto the suggested words is saved with the mark, the words not put in again", async () => {
-  const s = server(HARBOUR);
-  const t = thread(quoteOf(HARBOUR, "kept a ledger"), "kept a diary");
-  const e = editing(s, [t]);
-  type(e.editor, "ledger", "diary");
-  assert.equal(e.handle.passage(ID), "kept a diary");
-  // Saved by an autosave: only the mark is missing.
-  await e.autosave();
-  await e.press(t);
-  assert.equal(e.text(), HARBOUR.replace("kept a ledger", "kept a diary"));
-  assert.equal(s.saves.length, 1);
-  assert.deepEqual(s.marks, [ID]);
-  e.editor.destroy();
-});
-
-test("the editor and a page pressing Accept at once save the text once", async () => {
-  for (const threadFirst of [false, true]) {
-    const s = server(HARBOUR);
-    s.threadFirst = threadFirst;
-    const t = thread(quoteOf(HARBOUR, "kept a ledger"), "kept a diary");
-    const e = editing(s, [t]);
-    s.together = 2;
-    await Promise.allSettled([e.press(t), press(s, s.seen(t))]);
-    const after = HARBOUR.replace("kept a ledger", "kept a diary");
-    assert.equal(s.saves.length, 1);
-    assert.equal(s.draft.body, after);
-    assert.ok(s.accepted.get(ID));
-    // The editor has the change once, saved or not; kept, it is the same text.
-    assert.equal(e.text(), after);
-    if (e.conflict) await e.keepMine();
-    await e.press(t);
-    assert.equal(s.draft.body, after);
-    assert.equal(e.text(), after);
-    e.editor.destroy();
-  }
-});
-
-test("Undo after an Accept in the editor undoes only the Accept, not the typing just before or after it", async () => {
-  const body = "A cat sits here.\n";
-  const s = server(body);
-  const t0 = thread(quoteOf(body, "cat"), "dog");
-  const e = editing(s);
-  const { editor } = e;
-  // Typed just before the passage, a moment before Accept.
-  editor.view.dispatch(editor.state.tr.insertText("!", 3));
-  const typed = e.text();
-  assert.equal(typed, "A !cat sits here.\n");
-  // The passage as the server has it once that was saved.
-  const t = { ...t0, find: quoteOf(typed, "cat") };
-  e.handle.setItems([t]);
-  await e.press(t);
-  assert.equal(e.text(), "A !dog sits here.\n");
-  assert.equal(s.saves[0].body, "A !dog sits here.\n");
-  // Typed just after the new word, a moment after.
-  editor.view.dispatch(editor.state.tr.insertText("?", 7));
-  assert.equal(e.text(), "A !dog? sits here.\n");
-  editor.commands.undo();
-  assert.equal(e.text(), "A !dog sits here.\n");
-  editor.commands.undo();
-  assert.equal(e.text(), "A !cat sits here.\n");
-  editor.commands.undo();
-  assert.equal(e.text(), body);
-  editor.destroy();
-});
-
 // ---- the card ------------------------------------------------------------------------------
 
 test("Accept is offered only on a card that shows the whole change: not on a margin card cut to its opening lines", () => {
-  assert.equal(acceptOffered({ accepted: null, resolved: null, clamped: false }), true);
-  assert.equal(acceptOffered({ accepted: null, resolved: null, clamped: true }), false);
-  assert.equal(acceptOffered({ accepted: { at: "2026-11-14T10:00:00Z" }, resolved: null, clamped: false }), false);
-  assert.equal(acceptOffered({ accepted: null, resolved: { by: "Ali" }, clamped: false }), false);
+  assert.equal(acceptOffered({ accepted: null, resolved: null, clamped: false }), "accept");
+  assert.equal(acceptOffered({ accepted: null, resolved: null, clamped: true }), null);
+  assert.equal(acceptOffered({ accepted: { at: "2026-11-14T10:00:00Z" }, resolved: null, clamped: false }), null);
+  assert.equal(acceptOffered({ accepted: null, resolved: { by: "Ali" }, clamped: false }), null);
+});
+
+test("with the editor open, Accept is never offered: an open card says to finish editing instead", () => {
+  for (const accepted of [null, { at: "2026-11-14T10:00:00Z" }]) {
+    for (const resolved of [null, { by: "Ali" }]) {
+      for (const clamped of [false, true]) {
+        const offer = acceptOffered({ accepted, resolved, clamped, editing: true });
+        assert.notEqual(offer, "accept");
+        assert.equal(offer, !accepted && !resolved && !clamped ? "finish" : null);
+      }
+    }
+  }
 });
 
 test("what Accept says on a card stays until Ali presses Accept on it again, the thread is accepted, or he dismisses or leaves it", () => {
   const t = { id: "t-one", root: { accepted: null } };
   const other = { id: "t-two", root: { accepted: null } };
   const empty = new Map();
-  for (const why of [WHY.missing, WHY.edited, WHY.format, WHY.changed, WHY.unsaved, WHY.unknown]) {
+  for (const why of [WHY.missing, WHY.edited, WHY.format, WHY.changed, WHY.unknown]) {
     const notes = acceptNotes(acceptNotes(empty, { type: "press", id: t.id }), { type: "fail", id: t.id, message: why });
     assert.equal(acceptNote(notes, t), why);
     // Kept above the cards: the card drawn afresh, after the page asked for the
