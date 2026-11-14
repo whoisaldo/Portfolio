@@ -443,7 +443,8 @@ function inlineMarkdown(node, { breaks = "\\\n", italic, tags }) {
   return escapeLineStarts(out);
 }
 
-function escapeText(s) {
+/** Text as Markdown writes it to read back as that text. Accepting a suggestion (../accept.js) writes its words with it too. */
+export function escapeText(s) {
   return s
     .replace(/[\\`*_[\]<~]/g, "\\$&")
     .replace(/&(?=#?[a-z0-9]+;)/gi, "&amp;")
