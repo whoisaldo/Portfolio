@@ -7,6 +7,25 @@
 // the words of the passage that stay; Accept (./accept.js) changes those same
 // words in the draft, and nothing else.
 
+// Characters a suggestion pasted from a word processor or a web page may
+// carry, that show nothing and mean nothing in prose: a zero-width space, a
+// word joiner, a byte order mark and a soft hyphen. Joiners that make one
+// emoji of several (U+200D) or keep letters apart (U+200C), and the
+// no-break space, mean something, and stay.
+const INVISIBLE = /[\u200B\u2060\uFEFF\u00AD]/g;
+
+/** A suggestion's words without the characters that show nothing (INVISIBLE). */
+export const visibleWords = (text) => text.replace(INVISIBLE, "");
+
+const spaced = (s) => visibleWords(s).trim().replace(/\s+/g, " ");
+
+/**
+ * Whether suggested words are the passage's own, read the same way: without
+ * INVISIBLE, and with space of any kind alike. Such a suggestion changes
+ * nothing, and is neither sent nor accepted.
+ */
+export const sameAsPassage = (words, passage) => spaced(words) === spaced(passage);
+
 /**
  * What changes between a passage (`old`) and the words suggested for it:
  * [from, to) of the passage, out to whole words, and what takes its place.
@@ -51,11 +70,12 @@ const AROUND = 80;
 /**
  * A suggestion as its card shows it: the passage's words before the change
  * (`lead`), the words it takes out (`removed`) and puts in (`added`), and the
- * words after (`tail`). A long passage's lead and tail are cut to the words
+ * words after (`tail`), the suggestion read without INVISIBLE, as Accept
+ * puts it in. A long passage's lead and tail are cut to the words
  * nearest the change, with "…" for the rest, as a long quote is shortened.
  */
 export function suggestionParts(old, text) {
-  const words = text.trim();
+  const words = visibleWords(text).trim();
   const { from, to, insert } = editRegion(old, words);
   let lead = old.slice(0, from);
   let tail = old.slice(to);

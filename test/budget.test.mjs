@@ -58,3 +58,17 @@ test("an anchors request the service could take always fits one request, and is 
     }
   }
 });
+
+test("comments as long as a comment can be, 5,000 characters, are counted whole, and as many as the budget holds still fit one request", async () => {
+  const { toBatch } = await import("../src/front/private/review.js");
+  for (const [what, c, bytes] of [["ASCII", "a", 1], ["wide", "字", 3], ["escaped", '"', 2]]) {
+    const body = c.repeat(5000);
+    assert.equal(commentBytes({ body, quote: null }), COMMENT_BYTES.each + 2 + 5000 * bytes, what);
+    // Each with a passage as long as one can be, as many as the budget holds.
+    const one = { id: thread(0), body, quote: { exact: c.repeat(5000), prefix: c.repeat(32), suffix: c.repeat(32) } };
+    const fit = Math.floor(COMMENT_BYTES.draft / commentBytes(one));
+    const list = Array.from({ length: fit }, (_, i) => ({ ...one, id: thread(i) }));
+    assert.ok(list.reduce((n, x) => n + commentBytes(x), 0) <= COMMENT_BYTES.draft, what);
+    assert.ok(jsonBytes({ draft: "a-made-up-draft", comments: toBatch(list) }) < VERCEL_MOST, `${what}: one request`);
+  }
+});

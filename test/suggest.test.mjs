@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { marked } from "marked";
 import { indexText } from "../src/front/quotes.js";
 import { quoteAt } from "../src/front/private/place.js";
-import { acceptNote, acceptNotes, acceptOffered, editRegion, suggestionParts } from "../src/front/private/suggest.js";
+import { acceptNote, acceptNotes, acceptOffered, editRegion, sameAsPassage, suggestionParts, visibleWords } from "../src/front/private/suggest.js";
 import { selectLeft } from "../src/front/private/select.js";
 import { TRIES, WHY, acceptSuggestion, locate, pageText, replaceInMarkdown } from "../src/front/private/accept.js";
 
@@ -586,4 +586,67 @@ test("the buttons by a selection stay inside the screen at 320 px and wider, whe
   assert.equal(selectLeft(600, 289, 1280), 600 - 289 / 2);
   // Wider than the screen leaves: at its left edge.
   assert.equal(selectLeft(200, 400, 320), 8);
+});
+
+// ---- invisible characters in a suggestion ------------------------------------------------
+
+const INVISIBLE = ["​", "⁠", "﻿", "­"];
+
+test("a suggestion's invisible characters are dropped at its start, middle and end; joiners and no-break spaces stay", () => {
+  for (const c of INVISIBLE) {
+    assert.equal(visibleWords(`${c}harbour steps`), "harbour steps");
+    assert.equal(visibleWords(`harbour${c} st${c}eps`), "harbour steps");
+    assert.equal(visibleWords(`harbour steps${c}`), "harbour steps");
+  }
+  assert.equal(visibleWords("​⁠﻿­"), "");
+  // A family emoji and a coder emoji, joined with U+200D, a word kept apart with U+200C, French spacing.
+  const kept = "\u{1F468}‍\u{1F469}‍\u{1F467} \u{1F469}\u{1F3FD}‍\u{1F4BB} mi‌xed «oui »";
+  assert.equal(visibleWords(kept), kept);
+  assert.equal(visibleWords(`​${kept}­`), kept);
+});
+
+test("a suggestion the same as its passage but for invisible characters is the same; a joiner is a change", () => {
+  assert.equal(sameAsPassage("brown​ fox", "brown fox"), true);
+  assert.equal(sameAsPassage("﻿bro­wn  fox⁠", "brown fox"), true);
+  // The passage is read the same way.
+  assert.equal(sameAsPassage("brown fox", "bro­wn fox"), true);
+  assert.equal(sameAsPassage("brown‍fox", "brownfox"), false);
+  assert.equal(sameAsPassage("brown fox", "brown fox"), true, "spacing of any kind is alike, as before");
+  assert.equal(sameAsPassage("brown cat", "brown fox"), false);
+  assert.equal(sameAsPassage("", "brown fox"), false);
+});
+
+test("a card's struck and added words are the suggestion without its invisible characters", () => {
+  assert.deepEqual(suggestionParts("the brown fox ran", "the bro­wn cat​ ran"), { lead: "the brown ", removed: "fox", added: "cat", tail: " ran" });
+  // The same as the passage once they are dropped: nothing struck or added.
+  const same = suggestionParts("the brown fox", "﻿the brown⁠ fox");
+  assert.equal(same.removed, "");
+  assert.equal(same.added, "");
+  const joined = "\u{1F469}‍\u{1F4BB}";
+  assert.equal(suggestionParts("the coder", `the ${joined}​`).added, joined);
+});
+
+test("Accept puts in the suggestion without its invisible characters", async () => {
+  const s = server(HARBOUR);
+  const t = thread(quoteOf(HARBOUR, "gulls followed it out"), "﻿gulls cha­sed​ it out⁠");
+  await press(s, t);
+  assert.equal(s.saves.length, 1);
+  assert.equal(s.saves[0].body, HARBOUR.replace("gulls followed it out", "gulls chased it out"));
+  assert.equal(s.anchors[0].anchors.find((a) => a.thread === ID).exact, "gulls chased it out");
+  // An emoji sequence joined with U+200D goes in whole.
+  const joined = "\u{1F469}‍\u{1F4BB}";
+  const u = server(HARBOUR);
+  await press(u, thread(quoteOf(HARBOUR, "the lighthouse keeper"), `the ${joined}​ keeper`));
+  assert.ok(u.saves[0].body.includes(`about the ${joined} keeper, who`), u.saves[0].body);
+});
+
+test("Accept on a suggestion the same as the text but for invisible characters changes nothing, and says so", async () => {
+  for (const c of INVISIBLE) {
+    const s = server(HARBOUR);
+    const t = thread(quoteOf(HARBOUR, "gulls followed it out"), `gulls ${c}followed it out${c}`);
+    await assert.rejects(press(s, t), { message: WHY.same });
+    assert.deepEqual([s.saves, s.marks, s.anchors], [[], [], []], "nothing written");
+    assert.equal(s.accepted.get(ID), null);
+  }
+  assert.equal(WHY.same, "This suggestion is the same as the text, so nothing was changed.");
 });

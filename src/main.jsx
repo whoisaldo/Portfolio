@@ -3,6 +3,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import Root from "./Root.jsx";
+import { reloadForNewBuild } from "./lib/stale-build";
 
 // Self-hosted fonts. Same-origin woff2 means one connection, immutable caching
 // via Vite's content hashes, and no third-party request at all.
@@ -34,6 +35,10 @@ import "@fontsource/barlow/latin-500.css";
 import "@fontsource/barlow/latin-600.css";
 import "@fontsource-variable/jetbrains-mono/wght.css";
 import "./index.css";
+
+// A part of the site not loaded yet whose file a deploy replaced (Vite says
+// so): the page loads again at the address it is going to, once.
+window.addEventListener("vite:preloadError", reloadForNewBuild);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

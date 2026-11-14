@@ -38,7 +38,7 @@ const isRecruiters = (pathname) => pathname === "/recruiters" || pathname.starts
 const isWorkIndex = (pathname) => pathname.replace(/\/+$/, "") === "/work";
 
 export default function Root() {
-  const { pathname, search, hash } = useLocation();
+  const { pathname, search, hash, key } = useLocation();
   const front = isFront(pathname);
 
   if (isRecruiters(pathname) || isWorkIndex(pathname)) {
@@ -49,7 +49,8 @@ export default function Root() {
   }
 
   return (
-    <ErrorBoundary>
+    // A fault here lets go when the person goes somewhere else.
+    <ErrorBoundary resetKey={key}>
       <Suspense fallback={null}>{front ? <Front /> : <App />}</Suspense>
     </ErrorBoundary>
   );

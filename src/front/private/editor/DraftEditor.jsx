@@ -17,10 +17,12 @@
 // on an older copy (409), and Ali chooses between the latest and his own. A
 // save never replaces the document in the editor, so undo reaches back past
 // it. Until a save is confirmed the draft is also kept in this browser
-// (../unsaved.js). After each save, the comment passages whose words or
-// context changed are sent to the server as their threads' anchors, so
-// readers find them where they now are; until the server has them, they are
-// kept in this browser too and tried again.
+// (../unsaved.js), with a mark of each save on its way, so that the draft
+// page can tell when one landed after this page was gone. After each
+// save, the comment passages whose words or context changed are sent to the
+// server as their threads' anchors, so readers find them where they now are;
+// until the server has them, they are kept in this browser too and tried
+// again.
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { Editor, Extension } from "@tiptap/core";
@@ -28,7 +30,7 @@ import { isHistoryTransaction } from "@tiptap/pm/history";
 import { TextSelection } from "@tiptap/pm/state";
 import { marked } from "marked";
 import { ApiError, mediaUrl, request, uploadMedia } from "../api";
-import { clearUnsaved, keepAnchors, writeUnsaved } from "../unsaved";
+import { clearUnsaved, keepAnchors, markOf, writeUnsaved } from "../unsaved";
 import { anchorsTooLarge } from "../budget";
 import { embeds } from "../../embeds";
 import { canEdit, fromMarkdown, toMarkdown } from "./markdown";
@@ -43,6 +45,8 @@ const SEARCH = 400;
 const BACKOFF = [2000, 4000, 8000, 16_000, 30_000];
 // keepalive requests are limited to 64 KB, body and all.
 const KEEPALIVE = 60_000;
+// The marks of saves not answered that the copy keeps: the last eight.
+const MARKS = 8;
 const PICTURES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif", "image/gif": "gif" };
 // How long "Offline, retrying" lasts before the bar under the toolbar says so too.
 const OFFLINE_BAR = 4000;
@@ -111,6 +115,11 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       retry: 0,
       tries: 0,
       flight: null,
+      sent: [], // the marks of the saves sent and not answered, any of which may land (../unsaved.js, markOf)
+      // Whether the copy in this browser is this editor's: written by it, or
+      // the one it was opened from. One it is not (offered, and this editor
+      // opened on the saved text) it leaves as it is.
+      own: Boolean(restore),
       again: false,
       pending: null, // {body, base, changes}: passages' places in the body saved at base, not confirmed yet
       sending: null,
@@ -147,19 +156,36 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     s.current.keep = keep;
   }, []);
 
-  const keepLocal = useCallback(() => {
-    clearTimeout(s.current.local);
-    s.current.local = setTimeout(() => {
-      let p;
+  // The copy in this browser, a moment after typing; at once when a save
+  // is sent (`p`, what it sends) and when the editor is taken down with it
+  // still to come. Each carries the marks of the saves sent that the server
+  // has not answered.
+  // The text as the server has it (saved, or the latest loaded in place of
+  // changes) leaves no copy, unless a save of other text is on its way: that
+  // one may yet land. A copy that is not this editor's is left (`own`).
+  const dropLocal = useCallback(() => s.current.own && clearUnsaved(slug), [slug]);
+  const writeLocal = useCallback(
+    (p) => {
+      const st = s.current;
+      clearTimeout(st.local);
+      st.local = 0;
       try {
-        p = payload();
+        p ??= payload();
       } catch {
         return; // the save says why
       }
-      if (s.current.baseline && sameDraft(p, s.current.baseline)) clearUnsaved(slug);
-      else writeUnsaved(slug, { ...p, base: s.current.base });
-    }, 300);
-  }, [payload, slug]);
+      if (!st.sent.length && st.baseline && sameDraft(p, st.baseline)) dropLocal();
+      else {
+        writeUnsaved(slug, { ...p, base: st.base, sent: st.sent });
+        st.own = true;
+      }
+    },
+    [payload, slug, dropLocal],
+  );
+  const keepLocal = useCallback(() => {
+    clearTimeout(s.current.local);
+    s.current.local = setTimeout(() => writeLocal(), 300);
+  }, [writeLocal]);
 
   /**
    * Sends the passages' new places in the text the server has, after that
@@ -259,26 +285,53 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
         return;
       }
       if (kind === "autosave" && sameDraft(p, st.baseline)) {
-        clearUnsaved(slug);
-        if ((await sendAnchors({ keepalive })) && sameDraft(payload(), st.baseline)) setStatus({ state: "saved" });
+        dropLocal();
+        if ((await sendAnchors({ keepalive })) && st.editor && sameDraft(payload(), st.baseline)) setStatus({ state: "saved" });
         return;
       }
       st.flight = (async () => {
         setStatus({ state: "saving" });
+        // The copy as this goes, with the mark of what it sends beside those
+        // of earlier saves not answered: if the page is gone before they
+        // answer, the draft page tells by the marks whether one landed
+        // (../unsaved.js, newerThan).
+        const mark = markOf(p);
+        st.sent = [...st.sent, mark].slice(-MARKS);
+        writeLocal(p);
         try {
           const body = { slug, ...p, base: st.base, kind };
           const { data } = await request("/api/drafts", { method: "PUT", body, keepalive: keepalive && JSON.stringify(body).length < KEEPALIVE });
+          // In: an earlier save not answered can no longer land, as it is on
+          // top of the text before this one.
+          st.sent = [];
           st.base = data.draft.updated_at;
           st.baseline = p;
           st.latest = { ...st.latest, ...data.draft, ...p };
           st.tries = 0;
+          // Taken down while this was on its way: there is no editor left to
+          // read from, and the copy in this browser, with its mark, is left
+          // for the draft page to judge.
+          if (!st.editor) return;
           // The anchors are for the text that was saved: if more was typed
-          // meanwhile, the next save sends them.
+          // meanwhile, the copy is now on top of this save, and the next save
+          // sends them.
           if (sameDraft(payload(), p)) {
-            clearUnsaved(slug);
-            if ((await sendAnchors({ keepalive })) && sameDraft(payload(), p)) setStatus({ state: "saved" });
-          } else st.again = true;
+            dropLocal();
+            if ((await sendAnchors({ keepalive })) && st.editor && sameDraft(payload(), p)) setStatus({ state: "saved" });
+          } else {
+            writeLocal();
+            st.again = true;
+          }
         } catch (err) {
+          // Refused by the server: not saved, and the copy stays on top of
+          // the save before, without this one's mark. With no answer at all
+          // (a network gone, or a reload cutting it off) it may have landed:
+          // the mark stays, and the next saves' join it.
+          if (err instanceof ApiError && err.status) {
+            const i = st.sent.lastIndexOf(mark);
+            if (i >= 0) st.sent = st.sent.filter((_, j) => j !== i);
+            if (st.editor) writeLocal();
+          }
           if (!(err instanceof ApiError)) throw err;
           if (err.status === 409 && err.data?.draft) {
             st.conflict = err.data.draft;
@@ -303,7 +356,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       })();
       return st.flight;
     },
-    [payload, slug, sendAnchors, onLost],
+    [payload, slug, sendAnchors, onLost, writeLocal, dropLocal],
   );
   s.current.save = save;
 
@@ -473,7 +526,9 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       cancelAnimationFrame(frame);
       clearTimeout(st.timer);
       clearTimeout(st.retry);
-      clearTimeout(st.local);
+      // Taken down (Done, or someone else signed in) with typing not in the
+      // copy yet: it is written now, while the document is still here.
+      if (st.local) writeLocal();
       clearTimeout(st.search);
       ed.off("transaction", onTransaction);
       ed.off("blur", onBlur);
@@ -536,7 +591,8 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     await save();
     while (s.current.flight) await s.current.flight;
     const sent = await sendAnchors();
-    return sent && !s.current.conflict && sameDraft(payload(), s.current.baseline);
+    // Taken down meanwhile: the copy in this browser is the draft page's to judge.
+    return sent && Boolean(s.current.editor) && !s.current.conflict && sameDraft(payload(), s.current.baseline);
   }, [save, sendAnchors, payload]);
 
   /**
@@ -564,13 +620,13 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       setMeta(m);
       copyFields(m);
       st.baseline = { ...m, body: serialize() };
-      clearUnsaved(slug);
+      dropLocal();
       setConflict(null);
       setStatus({ state: "saved" });
       st.anchors.reset();
       return true;
     },
-    [remember, serialize, slug, copyFields],
+    [remember, serialize, copyFields, dropLocal],
   );
 
   /**
@@ -581,7 +637,8 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     async (kind) => {
       while (s.current.flight) await s.current.flight;
       await save({ kind });
-      return !s.current.conflict && sameDraft(payload(), s.current.baseline);
+      // As in flush.
+      return Boolean(s.current.editor) && !s.current.conflict && sameDraft(payload(), s.current.baseline);
     },
     [save, payload],
   );
@@ -645,6 +702,8 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
   const done = async () => {
     setLeaving(true);
     const all = await flush().catch(() => false);
+    // Taken down meanwhile (someone else signed in): nothing is left to ask about.
+    if (!s.current.editor) return;
     setLeaving(false);
     if (!all && !window.confirm("Some changes aren't saved yet. They stay in this browser and will be offered next time you open this draft. Stop editing anyway?")) return;
     onDone({ ...s.current.latest, ...s.current.baseline });

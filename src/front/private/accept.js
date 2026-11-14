@@ -48,7 +48,7 @@ import { marked } from "marked";
 import { indexText } from "../quotes.js";
 import { findThread, findWhole, quoteAt } from "./place.js";
 import { escapeText } from "./editor/markdown.js";
-import { editRegion } from "./suggest.js";
+import { editRegion, sameAsPassage, visibleWords } from "./suggest.js";
 
 export const WHY = {
   missing: "This passage isn't in the draft exactly once as it is now, so nothing was changed. Make this edit by hand.",
@@ -56,6 +56,7 @@ export const WHY = {
   format: "Formatting in this passage is in the way, so nothing was changed. Make this edit by hand.",
   changed: "The draft was saved somewhere else just now, so nothing was changed. Press Accept again.",
   unknown: "The server didn't answer, so it isn't confirmed that the edit was saved. Pressing Accept again is safe: it won't make it twice.",
+  same: "This suggestion is the same as the text, so nothing was changed.",
 };
 
 // As much context as a passage keeps either side (./place.js).
@@ -68,8 +69,8 @@ export const TRIES = 12;
 const norm = (s) => s.replace(/\s+/g, (m) => (m.includes("\n") ? "\n" : " ")).trim();
 const flat = (s) => norm(s).replace(/\n/g, " ");
 
-/** The suggested words, without space at either end. */
-const wordsOf = (t) => t.root.suggestion.trim();
+/** The suggested words, without space at either end or characters that show nothing (./suggest.js). */
+const wordsOf = (t) => visibleWords(t.root.suggestion).trim();
 
 // As the read view matches: line breaks read as spaces, one for one.
 const spaced = (s) => s.replace(/\s/g, " ");
@@ -126,6 +127,8 @@ function edit(index, t) {
   if (where.why) throw new Error(WHY[where.why]);
   const { at } = where;
   const old = index.text.slice(at[0], at[1]);
+  // Words that show the same as the passage change nothing.
+  if (sameAsPassage(t.root.suggestion, old)) throw new Error(WHY.same);
   // A line break in the text is where a block ends (a paragraph, a heading,
   // a list item), so it is compared only with a line break: words that run
   // from one block into the next, or join two, change one, which a change

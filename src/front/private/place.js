@@ -10,8 +10,12 @@
 // ranked, so one inside another word can neither take a quote nor tie with
 // its real passage.
 
+import { quoteOfText } from "../quotes.js";
+
 // As much context as a quote stores either side of its words (quotes.js and
-// the editor store this much). Less of it means the text began or ended there.
+// the editor store this much, one unit more where it ends with a whole
+// character the cut went through). Less of it means the text began or ended
+// there.
 const CONTEXT = 32;
 // The longest passage a draft comment or anchor holds, as the stats service
 // has it (its lib/private.js, LIMITS.quote): several paragraphs. A longer
@@ -82,8 +86,9 @@ const wordBefore = (s, i, open = SHUT) => i > 0 && wordAt(s, i - charBefore(s, i
  * edge. Null for a side whose words start (end) with no word.
  */
 function rule(pre, words, suf) {
-  // A context cut through a character keeps half of it, stored as U+FFFD
-  // (the database keeps only whole characters); either is not read.
+  // A context cut through a character, before the page took it whole, kept
+  // half of it, stored as U+FFFD (the database keeps only whole characters);
+  // either is not read.
   const open = { start: pre.length >= CONTEXT, end: suf.length >= CONTEXT };
   if (open.start && /^[\udc00-\udfff\ufffd]/.test(pre)) pre = pre.slice(1);
   if (open.end && /[\ud800-\udbff\ufffd]$/.test(suf)) suf = suf.slice(0, -1);
@@ -140,12 +145,8 @@ export function findWhole(index, quote) {
   return [best.at, best.end];
 }
 
-/** The quote the words at [start, end) in the text make, with their context as quoteFromRange takes it. */
-export const quoteAt = (index, [start, end]) => ({
-  exact: index.text.slice(start, end),
-  prefix: index.text.slice(Math.max(0, start - CONTEXT), start),
-  suffix: index.text.slice(end, end + CONTEXT),
-});
+/** The quote the words at [start, end) in the text make, with their context as quoteFromRange takes it, never half a character. */
+export const quoteAt = (index, [start, end]) => quoteOfText(index.text, start, end);
 
 /**
  * Where the read view puts a thread ({find, quote, gone}, as DraftComments

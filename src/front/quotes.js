@@ -114,12 +114,27 @@ export function quoteFromRange(index, range, max) {
   if (end <= start) return null;
   const trimmed = end - start > max;
   if (trimmed) end = start + max;
-  return {
-    exact: text.slice(start, end),
-    prefix: text.slice(Math.max(0, start - CONTEXT), start),
-    suffix: text.slice(end, end + CONTEXT),
-    trimmed,
-  };
+  return { ...quoteOfText(text, start, end), trimmed };
+}
+
+/** Whether `i` is between the two halves of one character of `text` (an emoji, say). */
+const halved = (text, i) => /[\ud800-\udbff]/.test(text[i - 1] || "") && /[\udc00-\udfff]/.test(text[i] || "");
+
+/**
+ * The quote the words at [start, end) of `text` make, with the words either
+ * side, never half a character: the stats service can't store one. An end of
+ * the words between a character's halves leaves that character to the
+ * context; a context's far end between them takes the whole character, so
+ * it still matches the text, and is still as long as a context cut short.
+ */
+export function quoteOfText(text, start, end) {
+  if (halved(text, start)) start++;
+  if (halved(text, end)) end = Math.max(start, end - 1);
+  let from = Math.max(0, start - CONTEXT);
+  if (halved(text, from)) from--;
+  let to = end + CONTEXT;
+  if (halved(text, to)) to++;
+  return { exact: text.slice(start, end), prefix: text.slice(from, start), suffix: text.slice(end, to) };
 }
 
 /**
