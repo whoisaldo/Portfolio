@@ -1,8 +1,8 @@
 // src/front/private/review.js: Ali's review of a draft, the comments he has
 // written on it and not published yet, kept in this browser.
 //
-// As in a code review: he comments on as many passages as he likes, each seen
-// only by him and edited or deleted as freely, then publishes them all at
+// As in a code review: he comments on as many passages as he likes, each
+// edited or deleted freely, then publishes them all at
 // once (POST /api/draft-comments?a=batch). The stats service takes every one
 // of them or none, so whatever revises the draft from them has the whole
 // round together.
