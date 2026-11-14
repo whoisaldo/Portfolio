@@ -349,7 +349,7 @@ test("5: a send whose answer was lost, tried again, is one comment, even after a
   assert.equal(fake.comments.length, 1);
 });
 
-test("5: words changed after a failed send get a new key; a 409 about the key shows the service's words and lets it go", async () => {
+test("5: words changed after a failed send get a new key; a 409 about the key sends them once more under a new one, with no second press", async () => {
   const fake = service();
   await mount(PrivateBlog, fake);
   await selectAnd("fishing boats");
@@ -366,14 +366,34 @@ test("5: words changed after a failed send get a new key; a 409 about the key sh
   await until(() => fake.posts().length === 3, "a third try");
   const c = fake.posts()[2].body.key;
   assert.notEqual(c, a);
-  // The service has that key for something else.
+  // The service has that key for something else (another tab kept this slot and sent its own
+  // words under it). One press is still enough: they go once more under a new key.
   fake.hooks = [async (req) => (req.method === "POST" && req.body.key === c ? new Response(JSON.stringify({ error: "Made-up: that key is taken.", field: "key" }), { status: 409 }) : undefined)];
   await click(button("Comment", composer()));
+  await until(() => !composer(), "sent");
+  assert.equal(fake.posts().length, 5, "the refused send, then one more");
+  assert.equal(fake.posts()[3].body.key, c);
+  const d = fake.posts()[4].body.key;
+  assert.notEqual(d, c);
+  assert.equal(fake.posts()[4].body.body, "Changed made-up words.");
+  assert.equal(fake.comments.length, 1);
+});
+
+test("5: a key refused twice running shows the service's words, and the next press has a new one", async () => {
+  const fake = service();
+  await mount(PrivateBlog, fake);
+  await selectAnd("fishing boats");
+  await type(field("Comment on the selected passage"), "Made-up words.");
+  let refused = 0;
+  fake.hooks = [async (req) => (req.method === "POST" && refused++ < 2 ? new Response(JSON.stringify({ error: "Made-up: that key is taken.", field: "key" }), { status: 409 }) : undefined)];
+  await click(button("Comment", composer()));
   await until(() => composer()?.textContent.includes("Made-up: that key is taken."), "the service's words");
+  assert.equal(fake.posts().length, 2, "sent twice and no more");
+  assert.equal(field("Comment on the selected passage").value, "Made-up words.");
   await click(button("Comment", composer()));
   await until(() => !composer(), "sent");
-  const d = fake.posts().at(-1).body.key;
-  assert.notEqual(d, c);
+  const keys = fake.posts().map((p) => p.body.key);
+  assert.equal(new Set(keys).size, 3);
   assert.equal(fake.comments.length, 1);
 });
 

@@ -265,15 +265,23 @@ export function newId() {
 /**
  * Sends the words in `slot` as a new comment through `create`, with their
  * key (never an id: the comment's id is the service's). The service refusing
- * that key (409, field "key": it holds something else) lets the key go, so
- * the next press has a fresh one; its words are thrown on, to show.
+ * that key (409, field "key") holds other words under it: another tab kept
+ * this slot and sent its own. Nothing was stored, so the key is let go and
+ * these words go once more under a fresh one, without a second press. If
+ * that is refused too, its words are thrown on, to show.
  */
 export async function sendTyped(store, slot, fields, create) {
-  const key = store.keyFor(slot, fields);
+  const taken = (err) => err?.status === 409 && err.field === "key";
   try {
-    return await create({ ...fields, key });
+    return await create({ ...fields, key: store.keyFor(slot, fields) });
   } catch (err) {
-    if (err?.status === 409 && err.field === "key") store.forgetKey(slot);
+    if (!taken(err)) throw err;
+    store.forgetKey(slot);
+  }
+  try {
+    return await create({ ...fields, key: store.keyFor(slot, fields) });
+  } catch (err) {
+    if (taken(err)) store.forgetKey(slot);
     throw err;
   }
 }

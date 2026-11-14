@@ -181,28 +181,42 @@ test("R3: before a send the key is read from storage: two tabs with the same wor
   assert.notEqual(g.get("general").key, mine);
 });
 
-test("R3: sendTyped sends the key and no id; a 409 about the key lets it go, and is thrown on", async () => {
+test("R3: sendTyped sends the key and no id; a 409 about the key lets it go, and the words go once more under a new one", async () => {
   const s = typedStore("reader.ada", "made-up");
   s.set("general", { body: "Made up." });
   const sent = [];
-  await assert.rejects(
-    sendTyped(s, "general", { body: "Made up." }, async (f) => {
-      sent.push(f);
-      throw Object.assign(new Error("Taken, made up."), { status: 409, field: "key" });
-    }),
-    /Taken, made up/,
-  );
-  await sendTyped(s, "general", { body: "Made up." }, async (f) => sent.push(f));
+  // The key holds other words (another tab sent its own under it): one press still stores these.
+  const stored = await sendTyped(s, "general", { body: "Made up." }, async (f) => {
+    sent.push(f);
+    if (sent.length === 1) throw Object.assign(new Error("Taken, made up."), { status: 409, field: "key" });
+    return "stored";
+  });
+  assert.equal(stored, "stored");
   assert.equal(sent.length, 2);
   assert.equal(sent[0].id, undefined);
   assert.match(sent[0].key, /^[0-9a-f-]{36}$/);
+  assert.match(sent[1].key, /^[0-9a-f-]{36}$/);
   assert.notEqual(sent[0].key, sent[1].key);
+  assert.equal(sent[1].body, "Made up.");
+  assert.equal(s.get("general").key, sent[1].key);
   // Another 409, not about the key, keeps it.
   const kept = s.get("general").key;
   await assert.rejects(sendTyped(s, "general", { body: "Made up." }, async () => {
     throw Object.assign(new Error("Someone else, made up."), { status: 409, field: "as" });
   }));
   assert.equal(s.get("general").key, kept);
+  // Refused twice running: twice sent and no more, thrown on to show, and that key let go as well.
+  const again = [];
+  await assert.rejects(
+    sendTyped(s, "general", { body: "Made up." }, async (f) => {
+      again.push(f);
+      throw Object.assign(new Error("Taken, made up."), { status: 409, field: "key" });
+    }),
+    /Taken, made up/,
+  );
+  assert.equal(again.length, 2);
+  assert.notEqual(again[0].key, again[1].key);
+  assert.notEqual(s.get("general").key, again[1].key);
 });
 
 test("R2: a confirmed send clears only what it sent", () => {
