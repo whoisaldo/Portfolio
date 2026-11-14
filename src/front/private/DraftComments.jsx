@@ -160,13 +160,25 @@ function useThreads(slug, onLost, onDraftChange, as, onSomeoneElse) {
   // A 404: signed out, or the draft is no longer theirs. The page finds out
   // which (`onLost`), once, and nothing more is asked about this draft.
   const lost = useRef(false);
+  // A 401 from any request here: the session ended. The page asks who is
+  // signed in (`onSomeoneElse`), and signed out, shows the sign-in with what
+  // was typed kept (./typed.js). The failed request still throws, so what it
+  // was sending stays where it was typed.
+  const ask = useCallback(
+    (path, opts) =>
+      request(path, opts).catch((err) => {
+        if (err instanceof ApiError && err.status === 401) elsewhere.current?.();
+        throw err;
+      }),
+    [],
+  );
 
   const poll = useCallback(async (force = false) => {
     if (lost.current || (busy.current && !force)) return;
     busy.current = true;
     try {
       const v = !force && version.current ? `&v=${encodeURIComponent(version.current)}` : "";
-      const { status, data } = await request(`/api/draft-comments?draft=${encodeURIComponent(slug)}${v}`, { timeout: 10_000 });
+      const { status, data } = await ask(`/api/draft-comments?draft=${encodeURIComponent(slug)}${v}`, { timeout: 10_000 });
       if (status !== 204) {
         version.current = data.v;
         setState({ status: "ready", comments: data.comments });
@@ -183,7 +195,7 @@ function useThreads(slug, onLost, onDraftChange, as, onSomeoneElse) {
       busy.current = false;
     }
     if (saved.current) heard.current?.(saved.current);
-  }, [slug, onLost]);
+  }, [slug, onLost, ask]);
 
   useEffect(() => {
     let timer = 0;
@@ -215,7 +227,7 @@ function useThreads(slug, onLost, onDraftChange, as, onSomeoneElse) {
       // sends none). Someone else signed in on this browser since, the
       // service stores nothing and says so, and the page asks who it is now.
       create: (fields) =>
-        after(request("/api/draft-comments", { method: "POST", body: { draft: slug, ...fields, ...(as ? { as } : {}) } }))
+        after(ask("/api/draft-comments", { method: "POST", body: { draft: slug, ...fields, ...(as ? { as } : {}) } }))
           .then(({ data }) => {
             merge(data.comment);
             return data.comment;
@@ -226,29 +238,31 @@ function useThreads(slug, onLost, onDraftChange, as, onSomeoneElse) {
             throw new ApiError(SOMEONE_ELSE, 409, "as", err.data);
           }),
       edit: (id, body) =>
-        after(request("/api/draft-comments", { method: "PATCH", body: { id, body } })).then(({ data }) => merge(data.comment)),
+        after(ask("/api/draft-comments", { method: "PATCH", body: { id, body } })).then(({ data }) => merge(data.comment)),
       resolve: (id, resolved) =>
-        after(request("/api/draft-comments", { method: "PATCH", body: { id, resolved } })).then(({ data }) => merge(data.comment)),
+        after(ask("/api/draft-comments", { method: "PATCH", body: { id, resolved } })).then(({ data }) => merge(data.comment)),
       remove: (id) =>
-        after(request(`/api/draft-comments?id=${encodeURIComponent(id)}`, { method: "DELETE" })).then(() =>
+        after(ask(`/api/draft-comments?id=${encodeURIComponent(id)}`, { method: "DELETE" })).then(() =>
           setState((s) => ({ ...s, comments: s.comments.filter((c) => c.id !== id && c.thread !== id) })),
         ),
       // Where a published passage is now in the text saved at `base`. False when the server has no such
       // thread; a 409 when the draft was saved since, and nothing is written.
       anchor: (id, quote, base) =>
-        after(request("/api/draft-comments?a=anchors", { method: "PUT", body: { draft: slug, base, anchors: [{ thread: id, ...quote }] } })).then(
+        after(ask("/api/draft-comments?a=anchors", { method: "PUT", body: { draft: slug, base, anchors: [{ thread: id, ...quote }] } })).then(
           ({ data }) => !data.ignored?.includes(id),
         ),
+      // Any other request, a 401 heard as these hear it (Accept's).
+      request: ask,
       // Every comment as the server has it now, or an ApiError: never the last poll's.
-      list: () => request(`/api/draft-comments?draft=${encodeURIComponent(slug)}`, { timeout: 10_000 }).then(({ data }) => data.comments),
+      list: () => ask(`/api/draft-comments?draft=${encodeURIComponent(slug)}`, { timeout: 10_000 }).then(({ data }) => data.comments),
       // Ali's review, all of it in one request.
       publish: (list) =>
-        after(request("/api/draft-comments?a=batch", { method: "POST", body: { draft: slug, comments: toBatch(list) }, timeout: 20_000 })).then(({ data }) => {
+        after(ask("/api/draft-comments?a=batch", { method: "POST", body: { draft: slug, comments: toBatch(list) }, timeout: 20_000 })).then(({ data }) => {
           data.comments.forEach(merge);
           return data.comments;
         }),
     };
-  }, [slug, poll, as]);
+  }, [slug, poll, as, ask]);
 
   return [state, act, poll];
 }
@@ -853,7 +867,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       } catch {
         throw new Error("Accept couldn't load. Check your connection and try again.");
       }
-      const target = mod.pageText({ slug, threads: published, request });
+      const target = mod.pageText({ slug, threads: published, request: act.request });
       const acceptedNow = (id) => act.list().then((list) => list.find((c) => c.id === id)?.accepted ?? null);
       try {
         await mod.acceptSuggestion({ t, target, acceptedNow });

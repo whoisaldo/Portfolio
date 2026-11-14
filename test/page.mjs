@@ -12,8 +12,10 @@
 // with the same id, the same person, draft, thread and words, it answers 200
 // with the comment it has and writes nothing; anything else holding that id
 // is a 409 with `field: "id"`. An `as` that is not the signed-in reader is a
-// 409 with `field: "as"`, and nothing is written. `legacy: true` makes it the
-// service as live before that, which ignores both.
+// 409 with `field: "as"`, and nothing is written. A write with no session
+// is a 401 saying so; a read keeps answering 404. `legacy: true` makes it the
+// service as live before that, which ignores `id` and `as` and answers a
+// write with no session 404 too.
 import { window } from "./dom.mjs";
 import { createServer } from "vite";
 import react from "@vitejs/plugin-react";
@@ -62,6 +64,9 @@ export const BODY = [
   "",
   "A short last line about the evening fog.",
 ].join("\n");
+
+// What the service answers a write with no session.
+export const SIGNED_OUT = "You've been signed out. Sign in again to send this.";
 
 const iso = (n) => new Date(Date.UTC(2026, 0, 1, 0, 0, n)).toISOString();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -140,6 +145,7 @@ export function service({ who = "ada", legacy = false } = {}) {
       return json(200, { drafts: can() ? [{ slug: s.draft.slug, title: s.draft.title, date: s.draft.date, summary: s.draft.summary }] : [] });
     }
     if (u.pathname === "/api/draft-comments") {
+      if (!s.signedIn && method !== "GET" && !s.legacy) return json(401, { error: SIGNED_OUT });
       if (!can()) return json(404, { error: "not found" });
       if (method === "GET") return json(200, { v: String(s.comments.length), comments: seen(), draft_updated_at: s.draft.updated_at });
       if (method === "POST") return create(body);
@@ -148,6 +154,12 @@ export function service({ who = "ada", legacy = false } = {}) {
         if (!c) return json(404, { error: "not found" });
         if ("body" in body) Object.assign(c, { body: body.body, edited_at: iso(s.clock++) });
         return json(200, { comment: view(c) });
+      }
+      if (method === "DELETE") {
+        const id = u.searchParams.get("id");
+        if (!s.comments.some((x) => x.id === id)) return json(404, { error: "That comment was already deleted." });
+        s.comments = s.comments.filter((x) => x.id !== id && x.thread !== id);
+        return json(200, { ok: true });
       }
     }
     return json(400, { error: "not here" });

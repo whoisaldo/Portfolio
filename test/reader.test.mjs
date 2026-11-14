@@ -579,6 +579,101 @@ test("P3: a suggestion that differs from the passage only by invisible character
   assert.equal(button("Suggest").disabled, false);
 });
 
+// ---- round 2: signed out on a write --------------------------------------------------------
+
+/** The comments asked for after a write never answer, as on a slow network: only the write's own 401 can say the session ended. */
+const stallReads = (fake) => fake.hooks.push((req) => (req.method === "GET" && req.path === "/api/draft-comments" && !fake.signedIn ? new Promise(() => {}) : undefined));
+
+/** The sign-in view, with the note that says the words are kept. */
+async function signedOutView() {
+  await until(() => document.querySelector('form[aria-label="Sign in"]'), "the sign-in form");
+  assert.match(text(), /You've been signed out\. Anything you hadn't sent is kept in this browser for when you sign in again\./);
+}
+
+/** Ada signs in again from the sign-in form. */
+async function signInAgain(fake) {
+  fake.hooks.push(async (req) => (req.query.a === "login" ? new Response(JSON.stringify({ viewer: fake.signedIn }), { status: 200 }) : undefined));
+  fake.signedIn = { name: "Ada Reader", username: "ada", owner: false };
+  await type(document.querySelector("#private-username"), "ada");
+  await type(document.querySelector("#private-password"), "made-up");
+  await act(() => document.querySelector('form[aria-label="Sign in"]').requestSubmit());
+  await signedIn("Ada Reader");
+}
+
+test("P4: a 401 on a new comment signs the page out with its note, and the words are back on signing in", async () => {
+  const fake = service();
+  stallReads(fake);
+  await mount(PrivateBlog, fake);
+  await selectAnd("fishing boats");
+  await type(field("Comment on the selected passage"), "Sent as the session ended.");
+  fake.signedIn = null;
+  await press(field("Comment on the selected passage"), "Enter", { ctrlKey: true });
+  await signedOutView();
+  assert.equal(fake.posts().length, 1);
+  assert.equal(fake.comments.length, 0);
+  await signInAgain(fake);
+  const box = await until(() => field("Comment on the selected passage"), "the composer, back");
+  assert.equal(box.value, "Sent as the session ended.");
+  await until(() => pendingPassage() === "fishing boats", "on its passage");
+});
+
+test("P4: a 401 on a reply signs the page out, and the reply is back on signing in", async () => {
+  const fake = service();
+  seed(fake);
+  stallReads(fake);
+  await mount(PrivateBlog, fake);
+  await openThread("lighthouse keeper");
+  await type(field("Reply"), "A made-up reply sent too late.");
+  fake.signedIn = null;
+  await press(field("Reply"), "Enter", { ctrlKey: true });
+  await signedOutView();
+  await signInAgain(fake);
+  const box = await until(() => field("Reply"), "the reply box, back");
+  assert.equal(box.value, "A made-up reply sent too late.");
+  assert.equal(fake.comments.length, 1);
+});
+
+test("P4: a 401 on an edit signs the page out, and the edit is back on signing in", async () => {
+  const fake = service();
+  const mine = seed(fake, { body: "An older made-up note." });
+  stallReads(fake);
+  await mount(PrivateBlog, fake);
+  await openThread("lighthouse keeper");
+  await click(button("Edit", document.querySelector(`[data-card="${mine.id}"]`)));
+  await type(field("Edit your comment"), "A newer made-up note.");
+  fake.signedIn = null;
+  await press(field("Edit your comment"), "Enter", { ctrlKey: true });
+  await signedOutView();
+  assert.equal(mine.body, "An older made-up note.");
+  await signInAgain(fake);
+  const box = await until(() => field("Edit your comment"), "the edit, back");
+  assert.equal(box.value, "A newer made-up note.");
+});
+
+test("P4: a 401 on a delete signs the page out, deletes nothing, and the words being typed are back on signing in", async () => {
+  const fake = service();
+  const mine = seed(fake);
+  stallReads(fake);
+  await mount(PrivateBlog, fake);
+  await selectAnd("fishing boats");
+  await type(field("Comment on the selected passage"), "Typed before the delete.");
+  await openThread("lighthouse keeper");
+  fake.signedIn = null;
+  const confirm = window.confirm;
+  window.confirm = () => true;
+  try {
+    await click(button("Delete", document.querySelector(`[data-card="${mine.id}"]`)));
+  } finally {
+    window.confirm = confirm;
+  }
+  await signedOutView();
+  assert.ok(fake.requests.some((r) => r.method === "DELETE"));
+  assert.equal(fake.comments.length, 1);
+  await signInAgain(fake);
+  const box = await until(() => field("Comment on the selected passage"), "the composer, back");
+  assert.equal(box.value, "Typed before the delete.");
+});
+
 /** Runs `fn` inside React's act(). */
 async function act(fn) {
   const { act: reactAct } = await import("react");

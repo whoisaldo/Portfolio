@@ -296,7 +296,7 @@ function Index({ session }) {
       const { data } = await request("/api/drafts");
       setState({ status: "ready", drafts: data.drafts });
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) return lost();
+      if (err instanceof ApiError && (err.status === 404 || err.status === 401)) return lost();
       setState({ status: "error", drafts: [] });
     }
   }, [lost]);
@@ -423,7 +423,8 @@ function Draft({ session }) {
       .catch(async (err) => {
         if (!live) return;
         // A 404 is "no such draft" or "signed out", and only the session
-        // can tell which.
+        // can tell which. A 401 is "signed out".
+        if (err instanceof ApiError && err.status === 401) return lost();
         if (err instanceof ApiError && err.status === 404) {
           const { data } = await request("/api/reader").catch(() => ({ data: {} }));
           if (!data.viewer) return lost();
@@ -460,7 +461,7 @@ function Draft({ session }) {
     const send = () =>
       sendLeftAnchors(draft).catch((err) => {
         if (!live) return;
-        if (err instanceof ApiError && err.status === 404) return lost();
+        if (err instanceof ApiError && (err.status === 404 || err.status === 401)) return lost();
         console.warn("comments: the passages' new places were not saved", err);
         timer = setTimeout(send, RETRY[Math.min(tries++, RETRY.length - 1)]);
       });
