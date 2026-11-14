@@ -11,13 +11,15 @@
  * What changes between a passage (`old`) and the words suggested for it:
  * [from, to) of the passage, out to whole words, and what takes its place.
  * What the two start and end with alike stays, a run of whitespace of any
- * kind alike. [from, to) is empty for words only added, unless `whole`, when
- * it takes in the word after them (the one before, at the end), so there is
- * always a word of the passage to find.
+ * kind alike; with `lines`, a line break only like a line break. [from, to)
+ * is empty for words only added, unless `whole`, when it takes in the word
+ * after them (the one before, at the end), so there is always a word of the
+ * passage to find.
  */
-export function editRegion(old, text, { whole = false } = {}) {
-  const a = old.replace(/\s/g, " ");
-  const b = text.replace(/\s/g, " ");
+export function editRegion(old, text, { whole = false, lines = false } = {}) {
+  const space = lines ? /[^\S\n]/g : /\s/g;
+  const a = old.replace(space, " ");
+  const b = text.replace(space, " ");
   const most = Math.min(a.length, b.length);
   let start = 0;
   while (start < most && a[start] === b[start]) start++;
@@ -76,3 +78,25 @@ export function suggestionParts(old, text) {
  * can hide them; pressing it opens it, with Accept.
  */
 export const acceptOffered = ({ accepted, resolved, clamped }) => !accepted && !resolved && !clamped;
+
+/**
+ * What Accept said on each suggestion's card, by thread: a refusal, or that
+ * the draft changed or the save is not confirmed. Kept above the cards, as a
+ * card moved from one list to another (its passage found, or not, in the
+ * text the page fetched again) is drawn afresh, without what it held. A
+ * message stays until Ali presses Accept on that card again ("press"),
+ * dismisses it ("dismiss") or leaves it: another card, or none, taken in
+ * hand ("leave", `keep` the ids in hand now). Once the thread is accepted,
+ * acceptNote has none.
+ */
+export function acceptNotes(notes, e) {
+  if (e.type === "fail") return new Map(notes).set(e.id, e.message);
+  const gone = e.type === "leave" ? [...notes.keys()].filter((id) => !e.keep.includes(id)) : notes.has(e.id) ? [e.id] : [];
+  if (!gone.length) return notes;
+  const next = new Map(notes);
+  for (const id of gone) next.delete(id);
+  return next;
+}
+
+/** What Accept said on thread `t`'s card (acceptNotes), "" for nothing. */
+export const acceptNote = (notes, t) => (t.root.accepted ? "" : notes.get(t.id) || "");

@@ -511,6 +511,11 @@
   position: absolute;
   z-index: 40;
   display: flex;
+  /* As wide as its buttons wherever it is put, so the width measured to
+     place it is the one drawn; on a screen too narrow for both, they wrap. */
+  width: max-content;
+  max-width: calc(100% - 1rem);
+  flex-wrap: wrap;
   gap: 0.4rem;
   animation: draft-in 120ms ease-out;
 }

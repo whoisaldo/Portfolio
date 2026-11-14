@@ -67,13 +67,14 @@
 // text is, and one kept for text older than the page's is found again in the
 // text now. His replies, edits and resolves are sent as he makes them, as
 // everyone's are.
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { Check, MessageSquare, MessageSquarePlus, PencilLine, Send, X } from "lucide-react";
 import { groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
 import { ApiError, request } from "./api";
 import { QUOTE_MAX, findThread, findWhole, grewTooLong, quoteAt, tooLong } from "./place";
-import { acceptOffered, suggestionParts } from "./suggest";
+import { acceptNote, acceptNotes, acceptOffered, suggestionParts } from "./suggest";
+import { selectLeft } from "./select";
 import { addPending, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, publishedAsIs, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
 
 // As the stats service has them.
@@ -485,6 +486,13 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   // Unsent text by "new", "general" or a thread's id. A ref: a box reads it
   // only when it opens, so typing renders nothing here.
   const unsent = useRef(new Map()).current;
+  // What Accept said on each card (./suggest.js acceptNotes), here and not
+  // in the card, which is drawn afresh whenever it moves to another list.
+  // Taking another card in hand, or none, lets it go: the card in hand is
+  // `active` in the margin, the sheet's on a phone.
+  const [notes, noteAccept] = useReducer(acceptNotes, new Map());
+  const hand = (wide ? [active] : sheet?.ids || []).join(" ");
+  useEffect(() => noteAccept({ type: "leave", keep: hand.split(" ") }), [hand]);
 
   const visible = useMemo(
     () => threads.filter((t) => showResolved || !t.resolved || t.id === active || held.has(t.id)),
@@ -723,7 +731,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     [bridge, slug, published, act, poll],
   );
 
-  const shared = { viewer, now, act, onLost, unsent, onAccept: viewer.owner ? accept : null };
+  const shared = { viewer, now, act, onLost, unsent, onAccept: viewer.owner ? accept : null, onNote: noteAccept };
   const card = (t, extra = {}) => t.pending ? (
     <PendingThread
       key={t.id}
@@ -747,6 +755,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       key={t.id}
       t={t}
       {...shared}
+      note={acceptNote(notes, t)}
       active={active === t.id}
       related={(found.groups.get(active) || []).includes(t.id) || (hover || []).includes(t.id)}
       onActivate={() => focusThread(t.id)}
@@ -1000,7 +1009,7 @@ function Margin({ body, found, active, order, toolbar, children }) {
 }
 
 /** One thread: its first comment, its replies, and a box to reply. */
-function Thread({ t, viewer, now, act, unsent, onAccept, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed, long, failure, move }) {
+function Thread({ t, viewer, now, act, unsent, onAccept, note, onNote, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed, long, failure, move }) {
   const [error, setError] = useState("");
   const [accepting, setAccepting] = useState(false);
   const resolved = t.resolved;
@@ -1049,7 +1058,15 @@ function Thread({ t, viewer, now, act, unsent, onAccept, active, related, onActi
             onAccept && acceptOffered({ accepted, resolved, clamped: compact })
               ? async () => {
                   setAccepting(true);
-                  await run(onAccept(t).then(onResolved));
+                  setError("");
+                  onNote({ type: "press", id: t.id });
+                  try {
+                    await onAccept(t);
+                    onResolved();
+                  } catch (err) {
+                    // Said above the card: this one may be gone by now.
+                    onNote({ type: "fail", id: t.id, message: err.message });
+                  }
                   setAccepting(false);
                 }
               : null
@@ -1116,9 +1133,17 @@ function Thread({ t, viewer, now, act, unsent, onAccept, active, related, onActi
         </div>
       )}
       <TooLong characters={long} />
-      {(error || failure) && (
+      {(error || note || failure) && (
         <p role="alert" className="private-error">
-          {error || failure}
+          {error || note || failure}
+          {!error && note && (
+            <>
+              {" "}
+              <button type="button" className="draft-text-button" onClick={() => onNote({ type: "dismiss", id: t.id })}>
+                Dismiss
+              </button>
+            </>
+          )}
         </p>
       )}
       {!compact && <ReplyBox thread={t.id} act={act} unsent={unsent} active={active} onActivate={onActivate} />}
@@ -1763,17 +1788,20 @@ function SelectButton({ body, onComment, onSuggest, label }) {
     };
   }, [body, onComment]);
 
+  // Placed once drawn, before it is seen, by its width as drawn: the
+  // buttons' width depends on their labels and the screen.
+  useLayoutEffect(() => {
+    const el = button.current;
+    if (el && pick) el.style.left = `${selectLeft(pick.x, el.offsetWidth, document.documentElement.clientWidth, window.scrollX)}px`;
+  });
+
   if (!pick) return null;
-  const width = button.current?.offsetWidth ?? (onSuggest ? 270 : 130);
-  const min = window.scrollX + 8;
-  const max = window.scrollX + document.documentElement.clientWidth - width - 8;
-  const left = Math.max(min, Math.min(pick.x - width / 2, max));
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
   return createPortal(
     <div
       ref={button}
       className="draft-select-group"
-      style={{ top: pick.top + 10, left }}
+      style={{ top: pick.top + 10 }}
       // Keeps the selection: a mouse press would otherwise clear it.
       onPointerDown={(e) => e.pointerType === "mouse" && e.preventDefault()}
     >

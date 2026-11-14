@@ -13,7 +13,8 @@ import { fromMarkdown, toMarkdown } from "../src/front/private/editor/markdown.j
 import { commentAnchors } from "../src/front/private/editor/anchors.js";
 import { indexText } from "../src/front/quotes.js";
 import { quoteAt } from "../src/front/private/place.js";
-import { acceptOffered, editRegion, suggestionParts } from "../src/front/private/suggest.js";
+import { acceptNote, acceptNotes, acceptOffered, editRegion, suggestionParts } from "../src/front/private/suggest.js";
+import { selectLeft } from "../src/front/private/select.js";
 import { TRIES, WHY, acceptSuggestion, editorText, locate, pageText, replaceInMarkdown } from "../src/front/private/accept.js";
 
 // Node has a localStorage of its own, unusable without a file: happy-dom's instead,
@@ -307,6 +308,39 @@ test("a passage over two paragraphs keeps its paragraph break", async () => {
   assert.equal(s.draft.body, "The first paragraph ends now.\n\nThe second one starts there.\n");
 });
 
+// A change from one block into the next, made in the Markdown or in the
+// editor: neither joins the two, so each refuses it.
+const ACROSS = [
+  ["a paragraph's end joined to the next one's start", "The road looked newly swept.\n\nWe took the late tram back.\n", "swept.\nWe took", "swept, so we took"],
+  ["the break made a space, the words either side kept", "The road looked newly swept.\n\nWe took the late tram back.\n", "swept.\nWe took", "swept, so We took"],
+  ["words changed in both paragraphs", "The road looked newly swept.\n\nWe took the late tram back.\n", "newly swept.\nWe took the late", "newly washed and we took the last"],
+  ["a heading run into the paragraph under it", "## A made-up heading\n\nSome words under it.\n", "heading\nSome words", "heading: some words"],
+  ["one list item run into the next", "- one green apple\n- two ripe pears\n", "apple\ntwo ripe", "apple and two ripe"],
+];
+
+test("a change from one paragraph, heading or list item into the next is refused, and nothing changes", async () => {
+  for (const [what, body, words, suggestion] of ACROSS) {
+    const s = server(body);
+    await assert.rejects(press(s, thread(quoteOf(body, words), suggestion)), { message: WHY.format }, what);
+    assert.equal(s.saves.length, 0, what);
+    assert.equal(s.draft.body, body, what);
+  }
+});
+
+test("a deletion with a space on both sides takes one of them with it; other spacing stays as it is", async () => {
+  const cases = [
+    ["The nets were still drying on the quay.\n", "still", "The nets were drying on the quay.\n"],
+    ["Two words here, then the rest.\n", "here", "Two words , then the rest.\n"],
+    ["A plain line about a very big cat.\n", "very big", "A plain line about a cat.\n"],
+  ];
+  for (const [body, words, after] of cases) {
+    const s = server(body);
+    await press(s, thread(quoteOf(body, words), ""));
+    assert.equal(s.draft.body, after, words);
+    assert.equal(s.saves.length, 1, words);
+  }
+});
+
 test("threads beside the change are kept where they are; one the change overlaps keeps its place", async () => {
   const s = server(HARBOUR);
   const t = thread(quoteOf(HARBOUR, "gulls followed it out"), "seabirds followed it out");
@@ -399,6 +433,9 @@ const TRICKY = [
   ["capitals only", "We flew to paris in the spring.\n", "paris", "Paris"],
 ];
 
+/** `body` with `words` changed to `suggestion`: words deleted from between two spaces take one of them. */
+const applied = (body, words, suggestion) => (suggestion ? body.replace(words, suggestion) : body.replace(` ${words} `, " "));
+
 // How a first press fails: the save lands and its answer is lost, the save
 // never lands, or the draft was saved somewhere else just before it.
 const FIRST = {
@@ -409,7 +446,7 @@ const FIRST = {
 
 for (const [what, body, words, suggestion] of TRICKY) {
   test(`${what}: a press that fails, then one here or from a fresh page, saves the text once`, async () => {
-    const after = body.replace(words, suggestion);
+    const after = applied(body, words, suggestion);
     for (const [how, first] of Object.entries(FIRST)) {
       for (const again of ["here", "from a fresh page"]) {
         const label = `${how}, pressed again ${again}`;
@@ -438,7 +475,7 @@ test("a deletion saved with its answer lost, the words then put back and the tex
   const t = thread(quoteOf(body, "brown fox"), "");
   s.loseAnswer = true;
   await assert.rejects(press(s, t), { message: WHY.unknown });
-  assert.equal(s.draft.body, body.replace("brown fox", ""));
+  assert.equal(s.draft.body, body.replace("brown fox ", ""));
   // Restored and revised, here or on another device.
   const revised = "At dawn, a brown fox runs through the garden and vanishes behind the shed.\n";
   s.edit(revised);
@@ -573,9 +610,32 @@ test("in the editor, words across formatting or paragraphs are refused, and noth
   e.editor.destroy();
 });
 
+test("in the editor, a change from one paragraph, heading or list item into the next is refused, and nothing changes", async () => {
+  for (const [what, body, words, suggestion] of ACROSS) {
+    const s = server(body);
+    const t = thread(quoteOf(body, words), suggestion);
+    const e = editing(s, [t]);
+    await assert.rejects(e.press(t), { message: WHY.format }, what);
+    assert.equal(s.saves.length, 0, what);
+    assert.equal(e.text(), body, what);
+    e.editor.destroy();
+  }
+});
+
+test("in the editor, a deletion with a space on both sides takes one of them with it", async () => {
+  const body = "The nets were still drying on the quay.\n";
+  const s = server(body);
+  const t = thread(quoteOf(body, "still"), "");
+  const e = editing(s, [t]);
+  await e.press(t);
+  assert.equal(e.text(), "The nets were drying on the quay.\n");
+  assert.equal(s.saves.at(-1).body, "The nets were drying on the quay.\n");
+  e.editor.destroy();
+});
+
 for (const [what, body, words, suggestion] of TRICKY) {
   test(`${what}, in the editor: a press that fails, then one here or in a fresh editor, saves the text once`, async () => {
-    const after = body.replace(words, suggestion);
+    const after = applied(body, words, suggestion);
     for (const [how, first] of Object.entries(FIRST)) {
       for (const again of ["here", "here, after an autosave", "in a fresh editor"]) {
         const label = `${how}, pressed again ${again}`;
@@ -720,4 +780,53 @@ test("Accept is offered only on a card that shows the whole change: not on a mar
   assert.equal(acceptOffered({ accepted: null, resolved: null, clamped: true }), false);
   assert.equal(acceptOffered({ accepted: { at: "2026-11-14T10:00:00Z" }, resolved: null, clamped: false }), false);
   assert.equal(acceptOffered({ accepted: null, resolved: { by: "Ali" }, clamped: false }), false);
+});
+
+test("what Accept says on a card stays until Ali presses Accept on it again, the thread is accepted, or he dismisses or leaves it", () => {
+  const t = { id: "t-one", root: { accepted: null } };
+  const other = { id: "t-two", root: { accepted: null } };
+  const empty = new Map();
+  for (const why of [WHY.missing, WHY.edited, WHY.format, WHY.changed, WHY.unsaved, WHY.unknown]) {
+    const notes = acceptNotes(acceptNotes(empty, { type: "press", id: t.id }), { type: "fail", id: t.id, message: why });
+    assert.equal(acceptNote(notes, t), why);
+    // Kept above the cards: the card drawn afresh, after the page asked for the
+    // comments and the draft again, reads it the same.
+    assert.equal(acceptNote(notes, { ...t, root: { ...t.root } }), why);
+    // The card still in hand, or another card's own press or dismissal: kept.
+    assert.equal(acceptNote(acceptNotes(notes, { type: "leave", keep: [t.id] }), t), why);
+    assert.equal(acceptNote(acceptNotes(notes, { type: "press", id: other.id }), t), why);
+    assert.equal(acceptNote(acceptNotes(notes, { type: "dismiss", id: other.id }), t), why);
+    // Gone when he presses Accept again, dismisses it, or leaves it.
+    assert.equal(acceptNote(acceptNotes(notes, { type: "press", id: t.id }), t), "");
+    assert.equal(acceptNote(acceptNotes(notes, { type: "dismiss", id: t.id }), t), "");
+    assert.equal(acceptNote(acceptNotes(notes, { type: "leave", keep: [other.id] }), t), "");
+    assert.equal(acceptNote(acceptNotes(notes, { type: "leave", keep: [""] }), t), "");
+    // Or when the thread is accepted.
+    assert.equal(acceptNote(notes, { ...t, root: { accepted: { at: "2026-11-14T10:00:00.000001Z" } } }), "");
+  }
+  // Nothing to let go: the same state, so nothing renders again.
+  assert.equal(acceptNotes(empty, { type: "leave", keep: [t.id] }), empty);
+  assert.equal(acceptNotes(empty, { type: "press", id: t.id }), empty);
+});
+
+// ---- the buttons by a selection --------------------------------------------------------
+
+test("the buttons by a selection stay inside the screen at 320 px and wider, wherever the selection ends", () => {
+  // As wide as "Comment" and "Suggest edit" side by side on a phone, and on a computer, with the shortcut.
+  for (const width of [130, 289, 300]) {
+    for (const viewport of [320, 360, 390, 430, 768, 1280]) {
+      for (const scrollX of [0, 40]) {
+        for (let x = scrollX; x <= scrollX + viewport; x += 1) {
+          const left = selectLeft(x, width, viewport, scrollX);
+          const where = `width ${width}, at ${x} of ${viewport}, scrolled ${scrollX}`;
+          assert.ok(left >= scrollX + 8, where);
+          assert.ok(left + width <= scrollX + viewport - 8, where);
+        }
+      }
+    }
+  }
+  // Under the selection's end, where there is room.
+  assert.equal(selectLeft(600, 289, 1280), 600 - 289 / 2);
+  // Wider than the screen leaves: at its left edge.
+  assert.equal(selectLeft(200, 400, 320), 8);
 });

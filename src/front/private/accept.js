@@ -124,11 +124,27 @@ export function locate(index, t) {
   return { why: findThread(index, t) ? "edited" : "missing" };
 }
 
-/** Where the passage is and what changes in it, or throws the Error to show. */
+/**
+ * Where the passage is and what changes in it: {at, insert, spans}, `spans`
+ * the places in the text to put `insert`, to try in turn. Or throws the Error
+ * to show.
+ */
 function edit(index, t) {
   const where = locate(index, t);
   if (where.why) throw new Error(WHY[where.why]);
-  return { at: where.at, region: editRegion(index.text.slice(where.at[0], where.at[1]), wordsOf(t), { whole: true }) };
+  const { at } = where;
+  const old = index.text.slice(at[0], at[1]);
+  // A line break in the text is where a block ends (a paragraph, a heading,
+  // a list item), so it is compared only with a line break: words that run
+  // from one block into the next, or join two, change one, which neither
+  // way of changing the text does.
+  const region = editRegion(old, wordsOf(t), { whole: true, lines: true });
+  if (old.slice(region.from, region.to).includes("\n")) throw new Error(WHY.format);
+  const span = [at[0] + region.from, at[0] + region.to];
+  // Words taken out from between two spaces take one of them too, where
+  // that can be done; else the words alone.
+  const spaced = !region.insert && index.text[span[0] - 1] === " " && index.text[span[1]] === " ";
+  return { at, insert: region.insert, spans: spaced ? [[span[0], span[1] + 1], span] : [span] };
 }
 
 // A failure the server may or may not have acted on: nothing came back, or
@@ -231,9 +247,13 @@ export function pageText({ slug, threads, request }) {
     async accept(t) {
       const { draft } = (await request(`/api/drafts?slug=${encodeURIComponent(slug)}`)).data;
       const index = indexText(render(draft.body));
-      const { at, region } = edit(index, t);
-      const span = [at[0] + region.from, at[0] + region.to];
-      const done = replaceInMarkdown(draft.body, index, span, region.insert);
+      const { at, insert, spans } = edit(index, t);
+      let span;
+      let done;
+      for (span of spans) {
+        done = replaceInMarkdown(draft.body, index, span, insert);
+        if (!done.why) break;
+      }
       if (done.why) throw new Error(WHY[done.why]);
       let saved;
       try {
@@ -270,8 +290,8 @@ export function editorText(bridge, mark) {
       const there = bridge.passage(t.id);
       if (there == null || flat(there) !== flat(wordsOf(t))) {
         const index = indexText(bridge.dom);
-        const { at, region } = edit(index, t);
-        if (!bridge.replaceWords(index, [at[0] + region.from, at[0] + region.to], region.insert, t.id, at)) throw new Error(WHY.format);
+        const { at, insert, spans } = edit(index, t);
+        if (!spans.some((span) => bridge.replaceWords(index, span, insert, t.id, at))) throw new Error(WHY.format);
       } else if (bridge.base() != null) {
         // Saved already, by an autosave: the text the server has is the editor's.
         await mark(t.id);
