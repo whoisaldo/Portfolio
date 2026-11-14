@@ -87,7 +87,9 @@ export default function PrivateBlog() {
   }, [check]);
 
   // Asked again when the tab is back: someone else signed in starts the page
-  // again as them. Unanswered, it stays as it is.
+  // again as them. Only an answer that says who is signed in (a viewer, or
+  // null for no one) changes anything: no answer, a failure or one that names
+  // no viewer leaves the page as it is.
   const asking = useRef(false);
   const recheck = useCallback(async () => {
     const was = shown.current;
@@ -95,7 +97,9 @@ export default function PrivateBlog() {
     asking.current = true;
     let now;
     try {
-      now = (await request("/api/reader")).data.viewer;
+      const { data } = await request("/api/reader");
+      if (!data || typeof data !== "object" || !("viewer" in data) || typeof data.viewer !== "object") return;
+      now = data.viewer;
     } catch {
       return;
     } finally {

@@ -147,19 +147,25 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
     s.current.keep = keep;
   }, []);
 
+  // The copy in this browser, a moment after typing; at once when the
+  // editor is taken down with it still to come. The text as the server has
+  // it (saved, or the latest loaded in place of changes) leaves no copy.
+  const writeLocal = useCallback(() => {
+    clearTimeout(s.current.local);
+    s.current.local = 0;
+    let p;
+    try {
+      p = payload();
+    } catch {
+      return; // the save says why
+    }
+    if (s.current.baseline && sameDraft(p, s.current.baseline)) clearUnsaved(slug);
+    else writeUnsaved(slug, { ...p, base: s.current.base });
+  }, [payload, slug]);
   const keepLocal = useCallback(() => {
     clearTimeout(s.current.local);
-    s.current.local = setTimeout(() => {
-      let p;
-      try {
-        p = payload();
-      } catch {
-        return; // the save says why
-      }
-      if (s.current.baseline && sameDraft(p, s.current.baseline)) clearUnsaved(slug);
-      else writeUnsaved(slug, { ...p, base: s.current.base });
-    }, 300);
-  }, [payload, slug]);
+    s.current.local = setTimeout(writeLocal, 300);
+  }, [writeLocal]);
 
   /**
    * Sends the passages' new places in the text the server has, after that
@@ -473,7 +479,9 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       cancelAnimationFrame(frame);
       clearTimeout(st.timer);
       clearTimeout(st.retry);
-      clearTimeout(st.local);
+      // Taken down (Done, or someone else signed in) with typing not in the
+      // copy yet: it is written now, while the document is still here.
+      if (st.local) writeLocal();
       clearTimeout(st.search);
       ed.off("transaction", onTransaction);
       ed.off("blur", onBlur);

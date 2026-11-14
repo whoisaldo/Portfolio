@@ -6,7 +6,7 @@
 import { test, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  API, button, click, field, load, mount, press, reload, resize, selectAnd, service, settle, storage, text, type, unload, unmount, until,
+  API, READERS, button, click, field, load, mount, press, reload, resize, selectAnd, service, settle, storage, text, type, unload, unmount, until,
 } from "./page.mjs";
 
 let PrivateBlog;
@@ -336,17 +336,19 @@ test("5: a send whose answer was lost, tried again, is one comment, even after a
   await click(button("Comment", composer()));
   await until(() => composer()?.querySelector('[role="alert"]'), "the connection error");
   assert.equal(fake.comments.length, 1);
-  const first = fake.posts()[0].body.id;
+  const first = fake.posts()[0].body.key;
   assert.match(first, /^[0-9a-f-]{36}$/);
+  assert.equal(fake.posts()[0].body.id, undefined, "the key, never an id");
+  assert.notEqual(fake.comments[0].id, first, "the comment's id is the service's");
   await reload(PrivateBlog, fake);
   await until(() => field("Comment on the selected passage"), "the composer, back");
   await click(button("Comment", composer()));
   await until(() => !composer(), "sent");
-  assert.equal(fake.posts().at(-1).body.id, first);
+  assert.equal(fake.posts().at(-1).body.key, first);
   assert.equal(fake.comments.length, 1);
 });
 
-test("5: words changed after a failed send get a new id; a 409 about the id shows the service's words and lets it go", async () => {
+test("5: words changed after a failed send get a new key; a 409 about the key shows the service's words and lets it go", async () => {
   const fake = service();
   await mount(PrivateBlog, fake);
   await selectAnd("fishing boats");
@@ -356,20 +358,20 @@ test("5: words changed after a failed send get a new id; a 409 about the id show
   await until(() => composer()?.querySelector('[role="alert"]'), "the error");
   await click(button("Comment", composer()));
   await until(() => fake.posts().length === 2, "a second try");
-  const [a, b] = fake.posts().map((p) => p.body.id);
-  assert.equal(a, b, "the very same words keep their id");
+  const [a, b] = fake.posts().map((p) => p.body.key);
+  assert.equal(a, b, "the very same words keep their key");
   await type(field("Comment on the selected passage"), "Changed made-up words.");
   await click(button("Comment", composer()));
   await until(() => fake.posts().length === 3, "a third try");
-  const c = fake.posts()[2].body.id;
+  const c = fake.posts()[2].body.key;
   assert.notEqual(c, a);
-  // The service has that id for something else.
-  fake.hooks = [async (req) => (req.method === "POST" && req.body.id === c ? new Response(JSON.stringify({ error: "Made-up: that id is taken.", field: "id" }), { status: 409 }) : undefined)];
+  // The service has that key for something else.
+  fake.hooks = [async (req) => (req.method === "POST" && req.body.key === c ? new Response(JSON.stringify({ error: "Made-up: that key is taken.", field: "key" }), { status: 409 }) : undefined)];
   await click(button("Comment", composer()));
-  await until(() => composer()?.textContent.includes("Made-up: that id is taken."), "the service's words");
+  await until(() => composer()?.textContent.includes("Made-up: that key is taken."), "the service's words");
   await click(button("Comment", composer()));
   await until(() => !composer(), "sent");
-  const d = fake.posts().at(-1).body.id;
+  const d = fake.posts().at(-1).body.key;
   assert.notEqual(d, c);
   assert.equal(fake.comments.length, 1);
 });
@@ -672,6 +674,324 @@ test("P4: a 401 on a delete signs the page out, deletes nothing, and the words b
   await signInAgain(fake);
   const box = await until(() => field("Comment on the selected passage"), "the composer, back");
   assert.equal(box.value, "Typed before the delete.");
+});
+
+// ---- round 3: R1. Ali's editor keeps its latest typing when it is taken down -----------
+
+const editorText = () => document.querySelector('[aria-label="Draft text"]');
+const editorCopy = () => localStorage.getItem("draft-editor:made-up");
+
+/** Ali's page with the editor open on the made-up draft. */
+async function openEditor(fake) {
+  await mount(PrivateBlog, fake);
+  await click(await until(() => button("Edit"), "Edit"));
+  return until(() => editorText()?.editor && editorText(), "the editor", 8000);
+}
+const typeInEditor = (dom, words) =>
+  act(() => {
+    dom.editor.commands.focus("end");
+    dom.editor.commands.insertContent(words);
+  });
+
+test("R1: the editor taken down by another account signing in keeps the latest words in this browser", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  await typeInEditor(dom, " Made-up last words.");
+  // Another account signs in, and the check on focus hears it before the
+  // editor's own copy is due.
+  fake.signedIn = READERS.ada;
+  await act(() => window.dispatchEvent(new window.Event("focus")));
+  await signedIn("Ada Reader");
+  assert.equal(editorText(), null);
+  assert.match(editorCopy() ?? "", /Made-up last words\./);
+});
+
+test("R1: Done after a save leaves no copy behind", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  await typeInEditor(dom, " Saved, made up.");
+  await click(button("Done"));
+  await until(() => !editorText(), "the editor closed");
+  await settle(400);
+  assert.match(fake.draft.body, /Saved, made up\./);
+  assert.equal(editorCopy(), null);
+});
+
+test("R1: changes discarded for the latest leave no copy behind once the editor closes", async () => {
+  const fake = service({ who: "owner" });
+  const dom = await openEditor(fake);
+  await typeInEditor(dom, " Discarded, made up.");
+  // Saved somewhere else meanwhile.
+  fake.draft = { ...fake.draft, body: "Made-up text saved elsewhere.", updated_at: "2026-01-02T00:00:00.000Z" };
+  const confirm = window.confirm;
+  try {
+    window.confirm = () => false; // stay in the editor when Done finds the conflict
+    await click(button("Done"));
+    await until(() => button("Load the latest"), "the conflict");
+    window.confirm = () => true;
+    await click(button("Load the latest"));
+    await until(() => !button("Load the latest"), "the latest loaded");
+    await typeInEditor(dom, "");
+    await click(button("Done"));
+  } finally {
+    window.confirm = confirm;
+  }
+  await until(() => !editorText(), "the editor closed");
+  await settle(400);
+  assert.equal(editorCopy(), null);
+});
+
+// ---- R2. A send in flight stays in flight across the layout and the sheet ---------------
+
+/** Each kind of box: how to open it with words, its field and its send button. */
+const KINDS = {
+  comment: {
+    open: async () => {
+      await selectAnd("fishing boats");
+      await type(field("Comment on the selected passage"), "A made-up comment in flight.");
+    },
+    field: () => field("Comment on the selected passage"),
+    send: () => button(/^(Comment|Sending…)$/, composer()),
+    write: "POST",
+  },
+  suggestion: {
+    open: async () => {
+      await selectAnd("harbour wall", "Suggest edit");
+      await type(field("What the selected words should say"), "harbour steps");
+    },
+    field: () => field("What the selected words should say"),
+    send: () => button(/^(Suggest|Sending…)$/, composer()),
+    write: "POST",
+  },
+  reply: {
+    open: async (fake, wide) => {
+      await openMine(fake, wide);
+      await type(field("Reply"), "A made-up reply in flight.");
+    },
+    field: () => field("Reply"),
+    send: () => button(/^(Reply|Sending…)$/, field("Reply")?.closest("form") ?? document.createElement("form")),
+    write: "POST",
+  },
+  edit: {
+    open: async (fake, wide) => {
+      const card = await openMine(fake, wide);
+      await click(button("Edit", card));
+      await type(field("Edit your comment"), "A made-up edit in flight.");
+    },
+    field: () => field("Edit your comment"),
+    send: () => button(/^(Save|Sending…)$/, field("Edit your comment")?.closest("form") ?? document.createElement("form")),
+    write: "PATCH",
+  },
+};
+
+/** The seeded thread opened: in the margin, or in the sheet on a phone. */
+async function openMine(fake, wide) {
+  const id = fake.comments[0].id;
+  if (wide) await openThread("lighthouse keeper");
+  else await click(await until(() => [...document.querySelectorAll("[data-threads]")].find((m) => m.textContent.includes("lighthouse keeper")), "the highlight"));
+  return until(() => document.querySelector(`[data-card="${id}"]`), "its card");
+}
+
+const writes = (fake, method) => fake.requests.filter((r) => r.method === method && r.path === "/api/draft-comments").length;
+
+async function inFlight(kind, k, what) {
+  assert.equal(k.field()?.readOnly, true, `${kind}: read-only ${what}`);
+  assert.equal(k.send()?.disabled, true, `${kind}: send disabled ${what}`);
+}
+
+for (const [kind, k] of Object.entries(KINDS)) {
+  test(`R2: a ${kind} sending stays sending across the 1240 px width both ways, sent once, and nothing typed since is lost`, async () => {
+    for (const [from, to] of [[1300, 390], [390, 1300]]) {
+      localStorage.clear();
+      const fake = service();
+      seed(fake, { body: "An original made-up note." });
+      await mount(PrivateBlog, fake, { width: from });
+      await k.open(fake, from === 1300);
+      const release = hold(fake, (r) => r.method === k.write);
+      await click(k.send());
+      await until(() => writes(fake, k.write) === 1, "the send");
+      await inFlight(kind, k, `before the resize from ${from}`);
+      await resize(to);
+      await until(() => k.field(), `the ${kind} box after the resize to ${to}`);
+      await inFlight(kind, k, `after the resize to ${to}`);
+      await click(k.send());
+      await resize(from);
+      await until(() => k.field(), `the ${kind} box back at ${from}`);
+      await inFlight(kind, k, `back at ${from}`);
+      await press(k.field(), "Enter", { ctrlKey: true });
+      release();
+      await until(() => !k.field() || k.field().value === "", `the ${kind} sent`);
+      await settle(500);
+      assert.equal(writes(fake, k.write), 1, `${kind}: sent once`);
+      assert.equal(kept(fake), undefined, `${kind}: nothing left kept`);
+      await unmount();
+    }
+  });
+
+  test(`R2: closing the phone sheet while a ${kind} is sending does not discard it`, async () => {
+    const fake = service();
+    seed(fake, { body: "An original made-up note." });
+    await mount(PrivateBlog, fake, { width: 390 });
+    await k.open(fake, false);
+    const release = hold(fake, (r) => r.method === k.write);
+    await click(k.send());
+    await until(() => writes(fake, k.write) === 1, "the send");
+    await click(document.querySelector(".draft-sheet-close"));
+    if (!document.querySelector("dialog.draft-sheet[open]")) {
+      // A thread's sheet closes; its box is still sending when it is opened again.
+      await openMine(fake, false);
+    }
+    await until(() => k.field(), `the ${kind} box`);
+    await inFlight(kind, k, "after Close");
+    release();
+    await until(() => !k.field() || k.field().value === "", `the ${kind} sent`);
+    await settle(500);
+    assert.equal(writes(fake, k.write), 1, `${kind}: sent once`);
+    assert.equal(kept(fake), undefined, `${kind}: nothing left kept`);
+    if (k.write === "POST") assert.equal(fake.comments.length, 2, `${kind}: stored once`);
+    else assert.equal(fake.comments[0].body, "A made-up edit in flight.");
+  });
+}
+
+// ---- R3. One message, one key, in every tab ----------------------------------------------
+
+test("R3: emptied and typed again after a lost answer, the same words go with the same key: one comment", async () => {
+  const fake = service();
+  await mount(PrivateBlog, fake);
+  await selectAnd("fishing boats");
+  await type(field("Comment on the selected passage"), "Identical made-up words.");
+  // The service stores it, and the answer never arrives.
+  let lose = true;
+  fake.hooks.push(async (req) => {
+    if (req.method !== "POST" || !lose) return;
+    lose = false;
+    fake.hooks.shift();
+    await fake.fetch(`${API}${req.path}`, { method: "POST", body: JSON.stringify(req.body) });
+    return "network";
+  });
+  await click(button("Comment", composer()));
+  await until(() => composer()?.querySelector('[role="alert"]'), "the connection error");
+  await type(field("Comment on the selected passage"), "");
+  await type(field("Comment on the selected passage"), "Identical made-up words.");
+  await click(button("Comment", composer()));
+  await until(() => !composer(), "sent");
+  const keys = fake.posts().map((p) => p.body.key);
+  assert.match(keys[0], /^[0-9a-f-]{36}$/);
+  assert.equal(new Set(keys).size, 1, "one key");
+  assert.equal(fake.comments.length, 1, "one comment");
+  assert.ok(document.querySelector(`[data-card="${fake.comments[0].id}"]`), "its card, by the service's id");
+});
+
+// ---- R4. Words kept for something that is gone are shown, not hidden ---------------------
+
+const orphan = () => document.querySelector(".draft-orphan");
+
+test("R4: a reply kept for a thread deleted elsewhere is shown once with a Discard, and never put on another thread", async () => {
+  const fake = service();
+  const gone = seed(fake);
+  seed(fake, { quote: "fishing boats", body: "Another made-up thought." });
+  await mount(PrivateBlog, fake);
+  await openThread("lighthouse keeper");
+  await type(field("Reply"), "A stranded made-up reply.");
+  await unmount();
+  fake.comments = fake.comments.filter((c) => c.id !== gone.id);
+  await mount(PrivateBlog, fake);
+  const note = await until(orphan, "the notice");
+  assert.equal(note.querySelector("p").textContent, "A reply you hadn't sent was for a comment that has been deleted.");
+  assert.equal(note.querySelector(".draft-orphan-words").textContent, "A stranded made-up reply.");
+  assert.equal(text().split("A stranded made-up reply.").length, 2, "shown once");
+  assert.equal(field("Reply"), null);
+  await openThread("fishing boats");
+  assert.equal(field("Reply").value, "", "not on another thread");
+  await click(button("Discard", orphan()));
+  assert.equal(orphan(), null);
+  await settle(500);
+  assert.equal(kept(fake), undefined);
+});
+
+test("R4: an edit kept for a comment deleted elsewhere is shown in the phone's sheet", async () => {
+  const fake = service();
+  const mine = seed(fake, { body: "An original made-up note." });
+  await mount(PrivateBlog, fake);
+  await openThread("lighthouse keeper");
+  await click(button("Edit", document.querySelector(`[data-card="${mine.id}"]`)));
+  await type(field("Edit your comment"), "A stranded made-up edit.");
+  await unmount();
+  fake.comments = [];
+  await mount(PrivateBlog, fake, { width: 390 });
+  const sheet = await until(() => document.querySelector("dialog.draft-sheet[open]"), "the sheet");
+  const note = await until(() => sheet.querySelector(".draft-orphan"), "the notice in the sheet");
+  assert.equal(note.querySelector("p").textContent, "An edit you hadn't saved was for a comment that has been deleted.");
+  assert.equal(note.querySelector(".draft-orphan-words").textContent, "A stranded made-up edit.");
+  await click(button("Discard", note));
+  assert.equal(sheet.querySelector(".draft-orphan"), null);
+});
+
+test("R4: a thread deleted while a reply is being typed in it shows the reply in the margin", async () => {
+  const fake = service();
+  seed(fake);
+  await mount(PrivateBlog, fake);
+  await openThread("lighthouse keeper");
+  await type(field("Reply"), "Typed as it went, made up.");
+  fake.comments = [];
+  await poll();
+  const note = await until(orphan, "the notice");
+  assert.ok(note.closest(".draft-margin"), "in the margin");
+  assert.equal(note.querySelector(".draft-orphan-words").textContent, "Typed as it went, made up.");
+});
+
+// ---- R5. Bringing a reply back waits for the comments ------------------------------------
+
+test("R5: a reply comes back once the comments load, even when the first request for them failed", async () => {
+  const fake = service();
+  const c = seed(fake);
+  await mount(PrivateBlog, fake);
+  await openThread("lighthouse keeper");
+  await type(field("Reply"), "Back after the outage, made up.");
+  await unmount();
+  let fail = true;
+  fake.hooks.push(async (r) => (r.path === "/api/draft-comments" && r.method === "GET" && fail ? new Response(JSON.stringify({ error: "made-up outage" }), { status: 500 }) : undefined));
+  await mount(PrivateBlog, fake);
+  await settle(100);
+  fail = false;
+  await poll();
+  await until(() => document.querySelector(`[data-card="${c.id}"]`), "the card");
+  const box = await until(() => field("Reply"), "the reply, back");
+  assert.equal(box.value, "Back after the outage, made up.");
+});
+
+// ---- R7. Only a clear answer changes who the page shows ---------------------------------
+
+test("R7: a check on focus that fails, times out or answers unclearly changes nothing", async () => {
+  const fake = service();
+  await mount(PrivateBlog, fake);
+  await selectAnd("fishing boats");
+  await type(field("Comment on the selected passage"), "Kept through a bad answer.");
+  // Someone else really is signed in now; the page never hears so clearly.
+  fake.signedIn = READERS.bo;
+  const answers = {
+    "no connection": () => "network",
+    "a timeout": () => {
+      throw new DOMException("The operation timed out.", "TimeoutError");
+    },
+    "a 500": () => new Response(JSON.stringify({ error: "made-up failure" }), { status: 500 }),
+    "a 401": () => new Response(JSON.stringify({ error: "made-up" }), { status: 401 }),
+    "a 404": () => new Response(JSON.stringify({ error: "not found" }), { status: 404 }),
+    "a 204": () => new Response(null, { status: 204 }),
+    "a 200 naming no one": () => new Response(JSON.stringify({}), { status: 200 }),
+  };
+  for (const [what, answer] of Object.entries(answers)) {
+    fake.hooks = [async (req) => (req.path === "/api/reader" ? answer() : undefined)];
+    await act(() => window.dispatchEvent(new window.Event("focus")));
+    await settle(30);
+    assert.ok(text().includes("Signed in as Ada Reader"), `${what}: still Ada`);
+    assert.equal(field("Comment on the selected passage")?.value, "Kept through a bad answer.", `${what}: the box as it was`);
+    assert.ok(!/signed out|now signed in as/i.test(text()), `${what}: no note`);
+  }
+  // A clear answer naming someone else does change it.
+  fake.hooks = [];
+  await act(() => window.dispatchEvent(new window.Event("focus")));
+  await signedIn("Bo Reader");
 });
 
 /** Runs `fn` inside React's act(). */

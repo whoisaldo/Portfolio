@@ -291,6 +291,11 @@
 .draft-held-actions button:focus-visible { color: #fcee0a; }
 .draft-held-actions button:disabled { opacity: 0.5; cursor: default; }
 .draft-held .draft-left { text-align: left; }
+/* Words kept for a thread that is gone: plain, and selectable to copy. */
+.draft-orphans { margin-bottom: 0.75rem; }
+.draft-orphan { margin-top: 0; padding: 0.6rem 0.7rem; border: 1px solid rgb(236 234 228 / 0.14); }
+.draft-orphan + .draft-orphan { margin-top: 0.5rem; }
+.draft-orphan-words { margin-top: 0.4rem; border-left: 2px solid rgb(236 234 228 / 0.3); padding-left: 0.6rem; color: #eceae4; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
 .draft-badge {
   display: inline-block;
   margin-top: 0.2rem;

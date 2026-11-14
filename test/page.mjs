@@ -7,15 +7,17 @@
 // readers, drafts and words are all made up.
 //
 // The service keeps the contract the page is written against: a create
-// (POST /api/draft-comments) may carry `id`, a UUID the page made for the
+// (POST /api/draft-comments) may carry `key`, a UUID the page made for the
 // message, and `as`, the username the page believes is signed in. Sent again
-// with the same id, the same person, draft, thread and words, it answers 200
-// with the comment it has and writes nothing; anything else holding that id
-// is a 409 with `field: "id"`. An `as` that is not the signed-in reader is a
+// with the same key, by the same person, with the same thread and words, it
+// answers 200 with the comment it has and writes nothing; anything else that
+// person's key holds is a 409 with `field: "key"`. The comment's own id is the
+// service's, never the key. An `as` that is not the signed-in reader is a
 // 409 with `field: "as"`, and nothing is written. A write with no session
 // is a 401 saying so; a read keeps answering 404. `legacy: true` makes it the
-// service as live before that, which ignores `id` and `as` and answers a
-// write with no session 404 too.
+// service as live before that, which ignores `key` and `as` and answers a
+// write with no session 404 too. Ali's saves of the draft (PUT /api/drafts)
+// and of its passages' places are here too, as far as his editor needs them.
 import { window } from "./dom.mjs";
 import { createServer } from "vite";
 import react from "@vitejs/plugin-react";
@@ -85,28 +87,30 @@ export function service({ who = "ada", legacy = false } = {}) {
     hooks: [],
     failLogout: false,
     clock: 10,
+    // Each person's keys, by "<who>:<key>", and the comment each made.
+    keys: new Map(),
   };
   const can = () => s.signedIn && (s.signedIn.owner || s.readers.has(s.signedIn.username));
   const json = (status, data) => new Response(data == null ? null : JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
-  const view = (c) => ({ ...c, mine: !!s.signedIn && c.by === (s.signedIn.username ?? "owner") });
+  const view = ({ key: _key, ...c }) => ({ ...c, mine: !!s.signedIn && c.by === (s.signedIn.username ?? "owner") });
   const seen = () => s.comments.filter((c) => s.signedIn.owner || c.by === s.signedIn.username || (c.thread && s.comments.find((r) => r.id === c.thread)?.by === s.signedIn.username)).map(view);
 
   function create(b) {
     const by = s.signedIn.username ?? "owner";
     if (!s.legacy) {
       if (b.as !== undefined && (s.signedIn.owner || b.as !== s.signedIn.username)) return json(409, { error: "You're signed in as someone else in this browser now.", field: "as" });
-      if (b.id !== undefined && !UUID.test(b.id)) return json(400, { error: "That id isn't one.", field: "id" });
+      if (b.key !== undefined && !UUID.test(b.key)) return json(400, { error: "That key isn't one.", field: "key" });
     }
     const fields = { thread: b.thread ?? null, body: b.body ?? "", quote: b.quote ? { exact: b.quote, prefix: b.prefix ?? "", suffix: b.suffix ?? "" } : null, suggestion: b.suggestion ?? null };
-    if (!s.legacy && b.id !== undefined) {
-      const had = s.comments.find((c) => c.id === b.id);
-      if (had) {
-        const same = had.by === by && !had.deleted && JSON.stringify([had.thread, had.body, had.quote, had.suggestion]) === JSON.stringify([fields.thread, fields.body, fields.quote, fields.suggestion]);
-        return same ? json(200, { comment: view(had) }) : json(409, { error: "That message was already sent as something else. Send it again.", field: "id" });
-      }
+    const keyed = !s.legacy && b.key !== undefined ? `${by}:${b.key}` : null;
+    if (keyed && s.keys.has(keyed)) {
+      const had = s.keys.get(keyed);
+      const same = s.comments.includes(had) && JSON.stringify([had.thread, had.body, had.quote, had.suggestion]) === JSON.stringify([fields.thread, fields.body, fields.quote, fields.suggestion]);
+      return same ? json(200, { comment: view(had) }) : json(409, { error: "That message was already sent as something else. Send it again.", field: "key" });
     }
     const c = {
-      id: !s.legacy && b.id !== undefined ? b.id : crypto.randomUUID(),
+      id: crypto.randomUUID(),
+      ...(keyed ? { key: b.key } : {}),
       ...fields,
       by,
       author: { name: s.signedIn.name, owner: s.signedIn.owner },
@@ -117,6 +121,7 @@ export function service({ who = "ada", legacy = false } = {}) {
       edited_at: null,
     };
     s.comments.push(c);
+    if (keyed) s.keys.set(keyed, c);
     return json(201, { comment: view(c) });
   }
 
@@ -141,6 +146,12 @@ export function service({ who = "ada", legacy = false } = {}) {
     }
     if (u.pathname === "/api/drafts") {
       if (!s.signedIn) return json(404, { error: "not found" });
+      if (method === "PUT") {
+        if (!s.signedIn.owner) return json(404, { error: "not found" });
+        if (body.base !== s.draft.updated_at) return json(409, { error: "Saved somewhere else.", draft: s.draft });
+        s.draft = { ...s.draft, title: body.title, date: body.date, summary: body.summary, body: body.body, updated_at: iso(s.clock++) };
+        return json(200, { draft: s.draft });
+      }
       if (u.searchParams.has("slug")) return u.searchParams.get("slug") === s.draft.slug && can() ? json(200, { draft: s.draft }) : json(404, { error: "not found" });
       return json(200, { drafts: can() ? [{ slug: s.draft.slug, title: s.draft.title, date: s.draft.date, summary: s.draft.summary }] : [] });
     }
@@ -148,6 +159,7 @@ export function service({ who = "ada", legacy = false } = {}) {
       if (!s.signedIn && method !== "GET" && !s.legacy) return json(401, { error: SIGNED_OUT });
       if (!can()) return json(404, { error: "not found" });
       if (method === "GET") return json(200, { v: String(s.comments.length), comments: seen(), draft_updated_at: s.draft.updated_at });
+      if (method === "PUT" && u.searchParams.get("a") === "anchors") return json(200, { ignored: [] });
       if (method === "POST") return create(body);
       if (method === "PATCH") {
         const c = s.comments.find((x) => x.id === body.id);

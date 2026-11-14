@@ -13,10 +13,16 @@
 //   "reply:<thread id>"  a reply: {body}
 //   "edit:<comment id>"  an edit of one's own comment: {body}
 //
-// A slot also holds `at`, when it was last typed in, and, once it has been
-// sent, `id` and `idFor`: the id the service is told the message has, and
-// the words it was sent with (sendTyped, below). A slot older than 30 days
-// is dropped. Sent or cancelled, a slot goes.
+// A slot also holds `at`, when it was last typed in, and, for a new message
+// (not an edit), `key`: the UUID the service is told the message is, so a
+// message sent again after a lost answer is one message. The key is the
+// composition's: made when the slot is first kept and written with it at
+// once, so a second tab restoring it has the same key, and kept apart from
+// the words, so emptying the box and typing them again keeps it. Once a send
+// has been tried, `keyFor` holds the words it went with: other words make a
+// new key (sendTyped, below). A slot older than 30 days is dropped. Sent or
+// cancelled, a slot goes, key and all; a tab removes only the version of it
+// that it knows, never newer words another tab kept since.
 //
 // Absent and empty differ: a suggestion emptied to a deletion, or an edit
 // emptied, is kept as "" and comes back as "".
@@ -85,16 +91,31 @@ export function sweepTyped(now = Date.now()) {
   }
 }
 
+/** A slot's words, without when they were typed or their key. */
+function fieldsOf(entry) {
+  if (!entry) return null;
+  const { at: _at, key: _key, keyFor: _for, ...fields } = entry;
+  return fields;
+}
+const same = (a, b) => JSON.stringify(fieldsOf(a)) === JSON.stringify(fieldsOf(b));
+// One version of a slot, as a tab last wrote or read it.
+const version = (entry) => (entry ? JSON.stringify({ ...entry, at: 0 }) : null);
+// An edit sends no key.
+const keyed = (slot) => !slot.startsWith("edit:");
+
 /**
  * One person's unsent words on one draft: in memory, and kept in the browser
  * as they change. `person` null keeps them in memory only.
  */
-export function typedStore(person, slug, { now = Date.now, wait = WAIT } = {}) {
+export function typedStore(person, slug, { now = Date.now, wait = WAIT, make = newId } = {}) {
   const key = person && typedKey(person, slug);
   const slots = new Map(key ? Object.entries(readAll(key, now())) : []);
   // The slots changed here since they were last written. Only those are
   // written: another tab's, on the same draft, are left as it has them.
   const dirty = new Set();
+  // Each slot as this tab last wrote or read it. A slot let go here is
+  // removed from storage only while storage still holds that version.
+  const known = new Map([...slots].map(([slot, e]) => [slot, version(e)]));
   let timer = 0;
 
   function flush() {
@@ -102,62 +123,113 @@ export function typedStore(person, slug, { now = Date.now, wait = WAIT } = {}) {
     timer = 0;
     if (!key || !dirty.size) return;
     const all = readAll(key, now());
+    const wrote = new Map();
     for (const slot of dirty) {
-      if (slots.has(slot)) all[slot] = slots.get(slot);
-      else delete all[slot];
+      if (slots.has(slot)) {
+        all[slot] = slots.get(slot);
+        wrote.set(slot, version(all[slot]));
+      } else if (!all[slot] || version(all[slot]) === known.get(slot)) {
+        delete all[slot];
+        wrote.set(slot, null);
+      }
     }
-    if (writeAll(key, all)) dirty.clear();
+    if (!writeAll(key, all)) return;
+    dirty.clear();
+    for (const [slot, v] of wrote) {
+      if (v) known.set(slot, v);
+      else known.delete(slot);
+    }
   }
   function changed(slot) {
     dirty.add(slot);
     clearTimeout(timer);
     timer = setTimeout(flush, wait);
   }
+  function writeNow(slot, entry) {
+    slots.set(slot, entry);
+    dirty.add(slot);
+    flush();
+  }
+  const storedSlot = (slot) => (key ? readAll(key, now())[slot] : undefined);
+  function drop(slot) {
+    if (!slots.has(slot)) return;
+    slots.delete(slot);
+    changed(slot);
+  }
 
   return {
     has: (slot) => slots.has(slot),
     get: (slot) => slots.get(slot),
-    /** The slot's fields replaced by `fields`, keeping its id. */
+    /**
+     * The slot's words replaced by `fields`, keeping its key. Kept for the
+     * first time, it is given a key and written at once: another tab's for
+     * this slot if that tab has tried to send with it, else a new one.
+     */
     set(slot, fields) {
       const old = slots.get(slot);
-      slots.set(slot, { ...fields, ...(old?.id ? { id: old.id, idFor: old.idFor } : {}), at: now() });
+      if (old || !keyed(slot)) {
+        slots.set(slot, { ...fields, ...(old?.key ? { key: old.key, ...(old.keyFor ? { keyFor: old.keyFor } : {}) } : {}), at: now() });
+        changed(slot);
+        return;
+      }
+      // One let go here a moment ago is gone first.
+      if (dirty.has(slot)) flush();
+      const there = storedSlot(slot);
+      writeNow(slot, { ...fields, ...(there?.key && there.keyFor ? { key: there.key, keyFor: there.keyFor } : { key: make() }), at: now() });
+    },
+    /** The box back to how it opened: its words go, its key stays. */
+    clear(slot) {
+      const e = slots.get(slot);
+      if (!e?.key) return drop(slot);
+      const { key: k, keyFor } = e;
+      slots.set(slot, { key: k, ...(keyFor ? { keyFor } : {}), at: now() });
       changed(slot);
     },
-    drop(slot) {
-      if (!slots.has(slot)) return;
-      slots.delete(slot);
-      changed(slot);
+    /** Cancelled or discarded: the slot goes, key and all. */
+    drop,
+    /**
+     * Sent, and the service has it: what was sent (`snapshot`, the slot as
+     * it was when the send began) goes. Words that differ from it now stay,
+     * with a key of their own.
+     */
+    sent(slot, snapshot) {
+      const e = slots.get(slot);
+      if (!e) return;
+      if (same(e, snapshot)) return drop(slot);
+      writeNow(slot, { ...fieldsOf(e), key: make(), at: e.at });
     },
     /** [slot, entry] for every slot, the one typed in last first. */
     latest: () => [...slots].sort((a, b) => b[1].at - a[1].at),
     flush,
     /**
-     * The id to send `fields` with from `slot`: the one it was sent with
-     * before when the words are the very same, else a new one, kept with
-     * the words at once, so a reload sends it again.
+     * The key to send `fields` with from `slot`, read from storage first:
+     * another tab's for these same words is the one, unless this tab has
+     * sent with its own already. Once a send was tried with other words, a
+     * new one. What it is sent with is written at once, so a reload sends it
+     * again, unless another tab keeps other words in this slot now.
      */
-    idFor(slot, fields, make = newId) {
-      const e = slots.get(slot) || { at: now() };
+    keyFor(slot, fields) {
+      const mine = slots.get(slot) || { at: now() };
+      const there = storedSlot(slot);
+      let e = mine;
+      if (there?.key && there.key !== mine.key && !mine.keyFor && same(there, mine)) e = { ...mine, key: there.key, keyFor: there.keyFor };
       const words = sentAs(fields);
-      if (e.id && e.idFor === words) return e.id;
-      const id = make();
-      slots.set(slot, { ...e, id, idFor: words });
-      dirty.add(slot);
-      flush();
-      return id;
+      if (!e.key || (e.keyFor && e.keyFor !== words)) e = { ...e, key: make() };
+      e = { ...e, keyFor: words };
+      if (!there || same(there, e) || version(there) === known.get(slot)) writeNow(slot, e);
+      else slots.set(slot, e);
+      return e.key;
     },
-    /** The slot's id let go: the next send makes another. */
-    forgetId(slot) {
+    /** The slot's key let go (the service holds another message under it): the next send has a new one. */
+    forgetKey(slot) {
       const e = slots.get(slot);
-      if (!e?.id) return;
-      const { id: _id, idFor: _for, ...rest } = e;
-      slots.set(slot, rest);
-      changed(slot);
+      if (!e?.key) return;
+      writeNow(slot, { ...fieldsOf(e), key: make(), at: e.at });
     },
   };
 }
 
-/** What the service compares when the same id comes again. */
+/** What the service compares when the same key comes again. */
 const sentAs = (f) => JSON.stringify([f.thread ?? null, f.body ?? "", f.quote ?? null, f.prefix ?? null, f.suffix ?? null, f.suggestion ?? null]);
 
 /** A version 4 UUID; crypto.randomUUID is only there on HTTPS and localhost. */
@@ -171,17 +243,17 @@ export function newId() {
 }
 
 /**
- * Sends the words in `slot` as a new comment through `create`, with their id.
- * The service refusing that id (409, field "id": it holds something else)
- * lets the id go, so the next press makes a fresh one; its words are thrown
- * on, to show.
+ * Sends the words in `slot` as a new comment through `create`, with their
+ * key (never an id: the comment's id is the service's). The service refusing
+ * that key (409, field "key": it holds something else) lets the key go, so
+ * the next press has a fresh one; its words are thrown on, to show.
  */
 export async function sendTyped(store, slot, fields, create) {
-  const id = store.idFor(slot, fields);
+  const key = store.keyFor(slot, fields);
   try {
-    return await create({ ...fields, id });
+    return await create({ ...fields, key });
   } catch (err) {
-    if (err?.status === 409 && err.field === "id") store.forgetId(slot);
+    if (err?.status === 409 && err.field === "key") store.forgetKey(slot);
     throw err;
   }
 }
