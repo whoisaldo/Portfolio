@@ -52,3 +52,40 @@ test("the mark is kept with the copy, and a copy whose mark is not a string is n
   assert.equal(readUnsaved("made-up"), null);
   localStorage.clear();
 });
+
+test("a copy is offered when the saved text is what any of its marks describes: a retry does not forget a save still out", () => {
+  const d = draft(SAVED, "2026-02-01T10:00:05.000Z");
+  // A sent and not answered, then B (the retry, with more in it) the same.
+  const kept = { ...LATER, base: "2026-02-01T10:00:00.000Z", sent: [markOf(SAVED), markOf(LATER)], at: at("2026-02-01T10:00:02.000Z") };
+  assert.equal(newerThan(kept, d), true);
+  assert.equal(newerThan({ ...kept, sent: [markOf(LATER)] }, d), false);
+  assert.equal(newerThan({ ...kept, sent: [] }, d), false);
+});
+
+test("a mark is believed only for a save that landed within two minutes of the copy: the same text saved again later is not taken for it", () => {
+  const kept = { ...LATER, base: "2026-02-01T10:00:00.000Z", sent: [markOf(SAVED)], at: at("2026-02-01T10:00:02.000Z") };
+  assert.equal(newerThan(kept, draft(SAVED, "2026-02-01T10:02:02.000Z")), true, "two minutes after");
+  assert.equal(newerThan(kept, draft(SAVED, "2026-02-01T10:02:02.001Z")), false, "just past two minutes");
+  assert.equal(newerThan(kept, draft(SAVED, "2026-02-01T11:00:00.000Z")), false, "an hour after");
+  // Saved before the copy was kept: the time rule offers it, as before.
+  assert.equal(newerThan(kept, draft(SAVED, "2026-02-01T10:00:01.000Z")), true, "before");
+});
+
+test("the marks are kept with the copy as a list; a list with anything but marks in it is not offered", () => {
+  localStorage.clear();
+  writeUnsaved("made-up", { ...LATER, base: null, sent: [markOf(SAVED), markOf(LATER)] });
+  assert.deepEqual(readUnsaved("made-up")?.sent, [markOf(SAVED), markOf(LATER)]);
+  localStorage.setItem("draft-editor:made-up", JSON.stringify({ ...LATER, base: null, sent: [markOf(SAVED), 4], at: 1 }));
+  assert.equal(readUnsaved("made-up"), null);
+  localStorage.clear();
+});
+
+test("a copy from before the marks were a list, its one mark a string, is still read and judged by it", () => {
+  localStorage.clear();
+  localStorage.setItem("draft-editor:made-up", JSON.stringify({ ...LATER, slug: "made-up", base: "2026-02-01T10:00:00.000Z", sent: markOf(SAVED), at: at("2026-02-01T10:00:02.000Z") }));
+  const kept = readUnsaved("made-up");
+  assert.equal(kept?.sent, markOf(SAVED));
+  assert.equal(newerThan(kept, draft(SAVED, "2026-02-01T10:00:05.000Z")), true);
+  assert.equal(newerThan(kept, draft(SAVED, "2026-02-01T10:05:00.000Z")), false, "past two minutes");
+  localStorage.clear();
+});

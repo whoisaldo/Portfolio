@@ -17,8 +17,8 @@
 // on an older copy (409), and Ali chooses between the latest and his own. A
 // save never replaces the document in the editor, so undo reaches back past
 // it. Until a save is confirmed the draft is also kept in this browser
-// (../unsaved.js), with a mark of the save on its way, so that the draft
-// page can tell when that save landed after this page was gone. After each
+// (../unsaved.js), with a mark of each save on its way, so that the draft
+// page can tell when one landed after this page was gone. After each
 // save, the comment passages whose words or context changed are sent to the
 // server as their threads' anchors, so readers find them where they now are;
 // until the server has them, they are kept in this browser too and tried
@@ -45,6 +45,8 @@ const SEARCH = 400;
 const BACKOFF = [2000, 4000, 8000, 16_000, 30_000];
 // keepalive requests are limited to 64 KB, body and all.
 const KEEPALIVE = 60_000;
+// The marks of saves not answered that the copy keeps: the last eight.
+const MARKS = 8;
 const PICTURES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif", "image/gif": "gif" };
 // How long "Offline, retrying" lasts before the bar under the toolbar says so too.
 const OFFLINE_BAR = 4000;
@@ -113,7 +115,11 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       retry: 0,
       tries: 0,
       flight: null,
-      sent: null, // the mark of the last save sent and not yet answered (../unsaved.js, markOf)
+      sent: [], // the marks of the saves sent and not answered, any of which may land (../unsaved.js, markOf)
+      // Whether the copy in this browser is this editor's: written by it, or
+      // the one it was opened from. One it is not (offered, and this editor
+      // opened on the saved text) it leaves as it is.
+      own: Boolean(restore),
       again: false,
       pending: null, // {body, base, changes}: passages' places in the body saved at base, not confirmed yet
       sending: null,
@@ -152,11 +158,12 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
 
   // The copy in this browser, a moment after typing; at once when a save
   // is sent (`p`, what it sends) and when the editor is taken down with it
-  // still to come. Each carries the mark of the last save sent, while the
-  // server has not answered it.
+  // still to come. Each carries the marks of the saves sent that the server
+  // has not answered.
   // The text as the server has it (saved, or the latest loaded in place of
   // changes) leaves no copy, unless a save of other text is on its way: that
-  // one may yet land.
+  // one may yet land. A copy that is not this editor's is left (`own`).
+  const dropLocal = useCallback(() => s.current.own && clearUnsaved(slug), [slug]);
   const writeLocal = useCallback(
     (p) => {
       const st = s.current;
@@ -167,10 +174,13 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       } catch {
         return; // the save says why
       }
-      if (!st.sent && st.baseline && sameDraft(p, st.baseline)) clearUnsaved(slug);
-      else writeUnsaved(slug, { ...p, base: st.base, sent: st.sent });
+      if (!st.sent.length && st.baseline && sameDraft(p, st.baseline)) dropLocal();
+      else {
+        writeUnsaved(slug, { ...p, base: st.base, sent: st.sent });
+        st.own = true;
+      }
     },
-    [payload, slug],
+    [payload, slug, dropLocal],
   );
   const keepLocal = useCallback(() => {
     clearTimeout(s.current.local);
@@ -275,21 +285,25 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
         return;
       }
       if (kind === "autosave" && sameDraft(p, st.baseline)) {
-        clearUnsaved(slug);
+        dropLocal();
         if ((await sendAnchors({ keepalive })) && st.editor && sameDraft(payload(), st.baseline)) setStatus({ state: "saved" });
         return;
       }
       st.flight = (async () => {
         setStatus({ state: "saving" });
-        // The copy as this goes, with the mark of what it sends: if the page
-        // is gone before it answers, the draft page tells by the mark whether
-        // it landed (../unsaved.js, newerThan).
-        st.sent = markOf(p);
+        // The copy as this goes, with the mark of what it sends beside those
+        // of earlier saves not answered: if the page is gone before they
+        // answer, the draft page tells by the marks whether one landed
+        // (../unsaved.js, newerThan).
+        const mark = markOf(p);
+        st.sent = [...st.sent, mark].slice(-MARKS);
         writeLocal(p);
         try {
           const body = { slug, ...p, base: st.base, kind };
           const { data } = await request("/api/drafts", { method: "PUT", body, keepalive: keepalive && JSON.stringify(body).length < KEEPALIVE });
-          st.sent = null;
+          // In: an earlier save not answered can no longer land, as it is on
+          // top of the text before this one.
+          st.sent = [];
           st.base = data.draft.updated_at;
           st.baseline = p;
           st.latest = { ...st.latest, ...data.draft, ...p };
@@ -302,7 +316,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
           // meanwhile, the copy is now on top of this save, and the next save
           // sends them.
           if (sameDraft(payload(), p)) {
-            clearUnsaved(slug);
+            dropLocal();
             if ((await sendAnchors({ keepalive })) && st.editor && sameDraft(payload(), p)) setStatus({ state: "saved" });
           } else {
             writeLocal();
@@ -310,11 +324,12 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
           }
         } catch (err) {
           // Refused by the server: not saved, and the copy stays on top of
-          // the save before, without the mark. With no answer at all (a
-          // network gone, or a reload cutting it off) it may have landed:
-          // the mark stays until the next save is sent.
+          // the save before, without this one's mark. With no answer at all
+          // (a network gone, or a reload cutting it off) it may have landed:
+          // the mark stays, and the next saves' join it.
           if (err instanceof ApiError && err.status) {
-            st.sent = null;
+            const i = st.sent.lastIndexOf(mark);
+            if (i >= 0) st.sent = st.sent.filter((_, j) => j !== i);
             if (st.editor) writeLocal();
           }
           if (!(err instanceof ApiError)) throw err;
@@ -341,7 +356,7 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       })();
       return st.flight;
     },
-    [payload, slug, sendAnchors, onLost, writeLocal],
+    [payload, slug, sendAnchors, onLost, writeLocal, dropLocal],
   );
   s.current.save = save;
 
@@ -605,13 +620,13 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
       setMeta(m);
       copyFields(m);
       st.baseline = { ...m, body: serialize() };
-      clearUnsaved(slug);
+      dropLocal();
       setConflict(null);
       setStatus({ state: "saved" });
       st.anchors.reset();
       return true;
     },
-    [remember, serialize, slug, copyFields],
+    [remember, serialize, copyFields, dropLocal],
   );
 
   /**
