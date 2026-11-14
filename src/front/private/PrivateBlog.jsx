@@ -21,6 +21,13 @@
 //
 // His History, Publish and New draft buttons are in ./owner.jsx, a chunk
 // loaded only for him, and what they open is lazy too.
+//
+// Who is signed in is asked again whenever the tab is back in front: another
+// tab may have signed out, or in as someone else. Then the page starts again
+// as whoever it is now, and says so. What was typed and not sent is kept per
+// person (./typed.js), so nothing goes out under another name and nothing is
+// lost; a sign-out the service never confirmed leaves the reader signed in,
+// and says so.
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, LockKeyhole, PencilLine } from "lucide-react";
@@ -32,9 +39,13 @@ import { API, ApiError, mediaUrl, request } from "./api";
 import DraftComments from "./DraftComments";
 import { clearUnsaved, keepAnchors, newerThan, readAnchors, readUnsaved } from "./unsaved";
 import { anchorsTooLarge } from "./budget";
+import { who } from "./typed";
 import "./private.css";
 
 const TITLE = `Private · ${profile.name}`;
+
+const SIGNED_OUT = "You've been signed out. Anything you hadn't sent is kept in this browser for when you sign in again.";
+const switched = (name) => `You're now signed in as ${name}, from another tab. Words you hadn't sent stay in this browser for the account you wrote them in.`;
 
 const owner = () => import("./owner");
 const OwnerTools = lazy(() => owner().then((m) => ({ default: m.OwnerTools })));
@@ -43,6 +54,11 @@ const NewDraftButton = lazy(() => owner().then((m) => ({ default: m.NewDraftButt
 
 export default function PrivateBlog() {
   const [viewer, setViewer] = useState(undefined);
+  // Why the page changed under the reader: signed out, or someone else in.
+  const [notice, setNotice] = useState("");
+  const [signOutFailed, setSignOutFailed] = useState(false);
+  const shown = useRef(undefined);
+  shown.current = viewer;
 
   // Nothing here belongs in a search index, whichever way the reader came in
   // (the static page says so too: scripts/static-pages.mjs).
@@ -54,30 +70,79 @@ export default function PrivateBlog() {
     return () => meta.remove();
   }, []);
 
+  // Answers the viewer now, null when signed out (or not known).
   const check = useCallback(async () => {
+    let now = null;
     try {
-      setViewer((await request("/api/reader")).data.viewer);
+      now = (await request("/api/reader")).data.viewer;
     } catch {
-      setViewer(null);
+      // As before: not known is signed out.
     }
+    if (shown.current && !now) setNotice(SIGNED_OUT);
+    setViewer((was) => (was && now && who(was) === who(now) && was.name === now.name ? was : now));
+    return now;
   }, []);
   useEffect(() => {
     if (API) check();
   }, [check]);
 
+  // Asked again when the tab is back: someone else signed in starts the page
+  // again as them. Unanswered, it stays as it is.
+  const asking = useRef(false);
+  const recheck = useCallback(async () => {
+    const was = shown.current;
+    if (!was || asking.current) return;
+    asking.current = true;
+    let now;
+    try {
+      now = (await request("/api/reader")).data.viewer;
+    } catch {
+      return;
+    } finally {
+      asking.current = false;
+    }
+    if (who(now) === who(shown.current)) return;
+    setNotice(now ? switched(now.name) : SIGNED_OUT);
+    setSignOutFailed(false);
+    setViewer(now);
+  }, []);
+  useEffect(() => {
+    if (!API || !viewer) return;
+    const back = () => document.visibilityState === "visible" && recheck();
+    window.addEventListener("focus", recheck);
+    document.addEventListener("visibilitychange", back);
+    return () => {
+      window.removeEventListener("focus", recheck);
+      document.removeEventListener("visibilitychange", back);
+    };
+  }, [viewer, recheck]);
+
+  // Signed out only once the service says so.
   const signOut = useCallback(async () => {
-    await request("/api/reader?a=logout", { method: "POST", body: {} }).catch(() => {});
+    setSignOutFailed(false);
+    try {
+      await request("/api/reader?a=logout", { method: "POST", body: {} });
+    } catch {
+      setSignOutFailed(true);
+      return;
+    }
+    setNotice("");
     setViewer(null);
+  }, []);
+  const signIn = useCallback((v) => {
+    setNotice("");
+    setViewer(v);
   }, []);
 
   let page;
   if (!API) page = <Notice title="Not set up here">This build has no stats service address, so there are no drafts to show.</Notice>;
   else if (viewer === undefined) page = <Shell />;
-  else if (!viewer) page = <Login onIn={setViewer} />;
+  else if (!viewer) page = <Login onIn={signIn} notice={notice} />;
   else {
-    const session = { viewer, signOut, lost: check };
+    const session = { viewer, signOut, lost: check, recheck, notice, signOutFailed, dismiss: () => setNotice("") };
+    // Keyed by who it is: someone else is a page from scratch.
     page = (
-      <Routes>
+      <Routes key={who(viewer)}>
         <Route index element={<Index session={session} />} />
         <Route path=":slug" element={<Draft session={session} />} />
         <Route path="*" element={<NotFound />} />
@@ -108,12 +173,12 @@ function Notice({ title, children }) {
   );
 }
 
-function NotFound() {
+function NotFound({ title = "No draft at this address", children = "It may have been published, renamed or taken down." }) {
   useTitle(TITLE);
   return (
     <Shell>
-      <h1 className="font-display text-3xl font-semibold text-bone">No draft at this address</h1>
-      <p className="prose-dark mt-4">It may have been published, renamed or taken down.</p>
+      <h1 className="font-display text-3xl font-semibold text-bone">{title}</h1>
+      <p className="prose-dark mt-4">{children}</p>
       <Link to="/privateblog" className="private-back mt-6">
         <ArrowLeft className="size-3.5" aria-hidden="true" /> All drafts
       </Link>
@@ -138,7 +203,29 @@ function SignedIn({ session }) {
   );
 }
 
-function Login({ onIn }) {
+/** What happened to the session: a sign-out that failed, or another account from another tab. */
+function SessionNotes({ session }) {
+  const { signOutFailed, notice, dismiss } = session;
+  return (
+    <>
+      {signOutFailed && (
+        <p role="alert" className="private-error">
+          Couldn't sign out. Check your connection and try again.
+        </p>
+      )}
+      {notice && (
+        <p className="private-notice" role="status">
+          {notice}{" "}
+          <button type="button" className="private-link" onClick={dismiss}>
+            Dismiss
+          </button>
+        </p>
+      )}
+    </>
+  );
+}
+
+function Login({ onIn, notice }) {
   useTitle(TITLE);
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
@@ -172,6 +259,11 @@ function Login({ onIn }) {
       <p className="prose-dark mt-5 text-pretty">
         A private preview of my writing.
       </p>
+      {notice && (
+        <p className="private-notice" role="status">
+          {notice}
+        </p>
+      )}
       <form className="private-login" onSubmit={submit} noValidate aria-label="Sign in">
         <div className="private-field">
           <label htmlFor="private-username">Username</label>
@@ -222,6 +314,7 @@ function Index({ session }) {
           : "Select any passage to comment on it or suggest an edit; what you write is seen only by you and Ali."}
       </p>
       <SignedIn session={session} />
+      <SessionNotes session={session} />
       {session.viewer.owner && (
         <Suspense fallback={null}>
           <NewDraftButton />
@@ -453,6 +546,14 @@ function Draft({ session }) {
 
   const rewrite = useMemo(() => mediaRewriter(slug), [slug]);
 
+  // The comments answered 404: signed out, or the draft is no longer this
+  // person's to read. Still signed in as them, it is said to be gone, and
+  // nothing more is asked about it.
+  const gone = useCallback(async () => {
+    const now = await lost();
+    if (now && who(now) === who(viewer)) setState({ status: "gone", draft: null });
+  }, [lost, viewer]);
+
   // A draft just made from the list opens in the editor, the caret in its text.
   const location = useLocation();
   const navigate = useNavigate();
@@ -464,6 +565,12 @@ function Draft({ session }) {
   }, [fresh, draft, viewer.owner, navigate, location.pathname, edit]);
 
   if (state.status === "missing") return <NotFound />;
+  if (state.status === "gone")
+    return (
+      <NotFound title="This draft is no longer available to you">
+        It may have been taken down or published, or it isn't shared with you any more. Anything you hadn't sent on it is still kept in this browser.
+      </NotFound>
+    );
   if (state.status === "error") return <Notice title="The draft couldn't load">Reload the page to try again.</Notice>;
   if (state.status === "loading") return <Shell />;
 
@@ -496,6 +603,7 @@ function Draft({ session }) {
               </Suspense>
             )}
           </div>
+          <SessionNotes session={session} />
           {refused && (
             <p role="alert" className="private-notice">
               {refused}
@@ -553,7 +661,7 @@ function Draft({ session }) {
         }
       }
       inside={(body) => (
-        <DraftComments slug={draft.slug} body={body} viewer={viewer} onLost={lost} bodyKey={draft.updated_at} bridge={editing ? bridge : null} onDraftChange={onDraftChange} />
+        <DraftComments slug={draft.slug} body={body} viewer={viewer} onLost={gone} onRecheck={session.recheck} bodyKey={draft.updated_at} bridge={editing ? bridge : null} onDraftChange={onDraftChange} />
       )}
     />
   );
