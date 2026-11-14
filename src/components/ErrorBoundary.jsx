@@ -1,5 +1,6 @@
 // src/components/ErrorBoundary.jsx: surfaces render errors so they don't show as blank page
 import React from "react";
+import { isMissingPart, reloadForNewBuild } from "../lib/stale-build";
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -11,6 +12,12 @@ export default class ErrorBoundary extends React.Component {
   }
   componentDidCatch(error, info) {
     console.error("[ErrorBoundary]", error, info);
+    // A part of the site a deploy replaced: the page loads again, once.
+    if (isMissingPart(error)) reloadForNewBuild();
+  }
+  componentDidUpdate(prevProps, prevState) {
+    // Somewhere else now (Back, a link), with a fault from before: it may not happen there.
+    if (this.state.error && prevState.error && prevProps.resetKey !== this.props.resetKey) this.setState({ error: null });
   }
   render() {
     if (this.state.error) {

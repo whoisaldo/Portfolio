@@ -7,6 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { findQuote, indexText, quoteFromRange } from "../src/front/quotes.js";
 import { findWhole, quoteAt } from "../src/front/private/place.js";
+import { exactlyAt } from "../src/front/private/accept.js";
 
 /** A seeded generator of numbers in [0, 1). */
 function random(seed) {
@@ -213,9 +214,9 @@ test("on seeded texts, a passage still as it was quoted is placed there, and non
       const j = i + fq.exact.length;
       if (flat.slice(i - fq.prefix.length, i) === fq.prefix && flat.slice(j, j + fq.suffix.length) === fq.suffix) same++;
     }
-    // As quoted, and as the server stores it (a character cut in half at the
-    // end of a context becomes U+FFFD).
-    const saved = { exact: quote.exact, prefix: quote.prefix.toWellFormed(), suffix: quote.suffix.toWellFormed() };
+    // As quoted, and as the server stored one the page made before it took
+    // a character cut through whole (its half became U+FFFD).
+    const saved = { exact: quote.exact, prefix: text.slice(Math.max(0, start - 32), start).toWellFormed(), suffix: text.slice(end, end + 32).toWellFormed() };
     for (const q of [quote, saved]) {
       const found = findWhole(index, q);
       if (same > 1) assert.ok(found === null || (found[0] === start && found[1] === end), JSON.stringify({ text, q, found }));
@@ -223,7 +224,8 @@ test("on seeded texts, a passage still as it was quoted is placed there, and non
     }
     if (same > 1) counts.duplicates++;
     counts.intact++;
-    if (/^[\udc00-\udfff]/.test(quote.prefix) || /[\ud800-\udbff]$/.test(quote.suffix)) counts.cutInside++;
+    assert.ok(quote.prefix.isWellFormed() && quote.suffix.isWellFormed() && quote.exact.isWellFormed(), JSON.stringify(quote));
+    if (quote.prefix.length > 32 || quote.suffix.length > 32) counts.cutInside++;
     const last = chars[span(chars, b - 1)[1] - 1];
     if ((inside.start && start - quote.prefix.length > chars[span(chars, a)[0]].i) || (inside.end && end + quote.suffix.length < last.i + last.c.length)) counts.cutWord++;
     const side = inside.start && (!inside.end || rand() < 0.5) ? "start" : inside.end ? "end" : null;
@@ -237,14 +239,17 @@ test("on seeded texts, a passage still as it was quoted is placed there, and non
 
     // (b) One letter changed in the part of that word its context has: not
     // placed on that word.
+    // A letter whole in a quote's context (not one it kept half of).
+    const within = (q, x) => (side === "start" ? x.i >= start - q.prefix.length : x.i + x.c.length <= end + q.suffix.length);
     const stored = side === "start"
-      ? chars.slice(from, a).filter((x) => x.letter && x.i >= start - quote.prefix.length)
-      : chars.slice(b, to).filter((x) => x.letter && x.i + x.c.length <= end + quote.suffix.length);
+      ? chars.slice(from, a).filter((x) => x.letter && within(quote, x))
+      : chars.slice(b, to).filter((x) => x.letter && within(quote, x));
     if (!stored.length) continue;
     const x = pick(stored);
     const other = x.c.length === 2 ? (x.c === "\u{10400}" ? "\u{10428}" : "\u{10400}") : x.c === "q" ? "z" : "q";
     const changed = text.slice(0, x.i) + other + text.slice(x.i + x.c.length);
     for (const q of [quote, saved]) {
+      if (!within(q, x)) continue;
       const at = findWhole({ text: changed }, q);
       assert.ok(!at || at[1] <= lo || at[0] >= hi, JSON.stringify({ changed, q, at, word: [lo, hi] }));
     }
@@ -270,4 +275,101 @@ test("a passage found again makes the quote a selection of it would", () => {
   const { trimmed, ...selected } = quoteFromRange(index, range, 500);
   assert.equal(trimmed, false);
   assert.deepEqual(quoteAt(index, at), selected);
+});
+
+// ---- never half a character ----------------------------------------------------------
+
+// A character outside the basic plane: two UTF-16 units, as an emoji is.
+const WAVE = "\u{1F30A}";
+// Half of one, alone.
+const LONE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
+
+/** That a quote of `text` is well formed, sits in the text as one run, and is placed again on its own words, by the read view and by Accept. */
+function roundTrip(text, q) {
+  for (const k of ["exact", "prefix", "suffix"]) assert.ok(!LONE.test(q[k]), `${k} holds half a character: ${JSON.stringify(q)}`);
+  const at = text.indexOf(q.prefix + q.exact + q.suffix);
+  assert.ok(at >= 0, "the context is the text's own");
+  const words = [at + q.prefix.length, at + q.prefix.length + q.exact.length];
+  assert.deepEqual(findWhole({ text }, q), words, "the read view places it on the same words");
+  assert.deepEqual(exactlyAt({ text }, q), words, "Accept finds it with all of its context");
+  // The service stores it as sent.
+  assert.equal(q.prefix.toWellFormed() + q.exact.toWellFormed() + q.suffix.toWellFormed(), q.prefix + q.exact + q.suffix);
+  return words;
+}
+
+test("a context cut through an emoji takes the whole emoji, at the start of the prefix and the end of the suffix", () => {
+  const before = "made-up words before it, and so ";
+  const after = " and then more made-up words aft";
+  assert.equal(before.length, 32);
+  // Each emoji straddles the 32nd unit out from the words.
+  const text = `A line ${WAVE}${before.slice(1)}the quoted words${after.slice(0, -1)}${WAVE} to end it.`;
+  const start = text.indexOf("the quoted words");
+  const end = start + "the quoted words".length;
+  const q = quoteAt({ text }, [start, end]);
+  assert.equal(q.exact, "the quoted words");
+  assert.equal(q.prefix, WAVE + before.slice(1));
+  assert.equal(q.suffix, after.slice(0, -1) + WAVE);
+  assert.deepEqual(roundTrip(text, q), [start, end]);
+  // A selection makes the same quote.
+  document.body.innerHTML = `<p>${text}</p>`;
+  const index = indexText(document.body);
+  const range = document.createRange();
+  range.setStart(document.body.firstChild.firstChild, start);
+  range.setEnd(document.body.firstChild.firstChild, end);
+  const { trimmed, ...selected } = quoteFromRange(index, range, 500);
+  assert.equal(trimmed, false);
+  assert.deepEqual(selected, q);
+});
+
+test("a selection's end inside an emoji leaves its half out of the words, and the context has it whole", () => {
+  const text = `Some made-up text with a wave ${WAVE}in the middle of it, then the rest of the line.`;
+  const at = text.indexOf(WAVE);
+  // Starting between its two halves.
+  const a = quoteAt({ text }, [at + 1, at + 20]);
+  assert.equal(a.exact, text.slice(at + 2, at + 20));
+  assert.ok(a.prefix.endsWith(`wave ${WAVE}`));
+  assert.deepEqual(roundTrip(text, a), [at + 2, at + 20]);
+  // Ending between them.
+  const b = quoteAt({ text }, [at - 9, at + 1]);
+  assert.equal(b.exact, "with a wave ".slice(-9));
+  assert.ok(b.suffix.startsWith(`${WAVE}in the`));
+  assert.deepEqual(roundTrip(text, b), [at - 9, at]);
+  // A selection ending inside it makes the same quote.
+  document.body.innerHTML = `<p>${text}</p>`;
+  const index = indexText(document.body);
+  const range = document.createRange();
+  range.setStart(document.body.firstChild.firstChild, at + 1);
+  range.setEnd(document.body.firstChild.firstChild, at + 20);
+  const { trimmed, ...selected } = quoteFromRange(index, range, 500);
+  assert.equal(trimmed, false);
+  assert.deepEqual(selected, quoteAt(index, [at + 1, at + 20]));
+  assert.equal(selected.exact, a.exact);
+  // One cut short to the most a comment holds, there too.
+  const long = quoteFromRange(index, (() => {
+    const r = document.createRange();
+    r.setStart(document.body.firstChild.firstChild, at - 10);
+    r.setEnd(document.body.firstChild.firstChild, text.length);
+    return r;
+  })(), 11);
+  assert.equal(long.exact, text.slice(at - 10, at));
+  assert.ok(!LONE.test(long.suffix) && long.suffix.startsWith(WAVE));
+});
+
+test("on texts full of emoji, every quote is well formed and placed again on its own words", () => {
+  const rand = random(20261114);
+  const pieces = ["made", "up", WAVE, `${WAVE}${WAVE}`, "\u{1F469}‍\u{1F4BB}", "word", "é", "\u{10400}", ",", "."];
+  let cases = 0;
+  while (cases < 3000) {
+    let text = "";
+    for (let n = 20 + Math.floor(rand() * 60); n > 0; n--) text += pieces[Math.floor(rand() * pieces.length)] + (rand() < 0.6 ? " " : "");
+    const start = Math.floor(rand() * text.length);
+    const end = Math.min(text.length, start + 1 + Math.floor(rand() * 20));
+    const q = quoteAt({ text }, [start, end]);
+    if (!q.exact.trim()) continue;
+    for (const k of ["exact", "prefix", "suffix"]) assert.ok(!LONE.test(q[k]), JSON.stringify({ text, start, end, q }));
+    assert.ok(text.includes(q.prefix + q.exact + q.suffix));
+    const found = findWhole({ text }, q);
+    if (found) assert.equal(text.slice(...found), q.exact);
+    cases++;
+  }
 });

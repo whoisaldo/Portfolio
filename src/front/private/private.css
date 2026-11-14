@@ -72,6 +72,7 @@
 }
 .private-who button:hover,
 .private-link:hover { color: #eceae4; }
+.private-who button:disabled { opacity: 0.6; cursor: default; color: #fcee0a; }
 
 .private-back {
   display: inline-flex;
@@ -155,10 +156,14 @@
   background: rgb(252 238 10 / 0.14);
   color: inherit;
   box-shadow: inset 0 -1px rgb(252 238 10 / 0.7);
+  /* A passage that wraps is drawn line by line, each with its own hairline:
+     without this, Firefox runs the hairline past both ends of the words. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
   cursor: pointer;
   transition: background-color 150ms, box-shadow 150ms;
 }
-.post-body a.post-quote-link[data-threads] { color: inherit; text-decoration: none; }
+.post-body a.post-quote-link[data-threads] { color: inherit; text-decoration: none; -webkit-touch-callout: none; }
 .post-body .is-hover mark.post-quote,
 .post-body mark.post-quote.is-hover { background: rgb(252 238 10 / 0.24); }
 .post-body .is-active mark.post-quote,
@@ -287,6 +292,11 @@
 .draft-held-actions button:focus-visible { color: #fcee0a; }
 .draft-held-actions button:disabled { opacity: 0.5; cursor: default; }
 .draft-held .draft-left { text-align: left; }
+/* Words kept for a thread that is gone: plain, and selectable to copy. */
+.draft-orphans { margin-bottom: 0.75rem; }
+.draft-orphan { margin-top: 0; padding: 0.6rem 0.7rem; border: 1px solid rgb(236 234 228 / 0.14); }
+.draft-orphan + .draft-orphan { margin-top: 0.5rem; }
+.draft-orphan-words { margin-top: 0.4rem; border-left: 2px solid rgb(236 234 228 / 0.3); padding-left: 0.6rem; color: #eceae4; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
 .draft-badge {
   display: inline-block;
   margin-top: 0.2rem;
@@ -447,6 +457,7 @@
   transition: color 150ms;
 }
 .draft-text-button:hover { color: #eceae4; }
+.draft-comment-head .draft-text-button:disabled { opacity: 0.6; cursor: default; color: #fcee0a; }
 
 .draft-reply-ghost {
   display: block;
