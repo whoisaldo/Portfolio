@@ -216,7 +216,10 @@ function Index({ session }) {
     <Shell>
       <h1 className="font-display text-4xl font-semibold leading-none text-bone">Private drafts</h1>
       <p className="prose-dark mt-5 text-pretty">
-        Writing before it is published. Select any passage to comment on it; everyone reading a draft sees its comments.
+        Writing before it is published. Select any passage to comment on it;{" "}
+        {session.viewer.owner
+          ? "each reader sees only their own threads and your replies in them, and the threads you start are yours alone."
+          : "your comments are seen only by you and Ali."}
       </p>
       <SignedIn session={session} />
       {session.viewer.owner && (
