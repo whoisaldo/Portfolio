@@ -467,6 +467,15 @@ export default function DraftEditor({ draft, rewrite, hosts, restore, onBridge, 
         return null;
       }
     };
+    // The text as Markdown, saved or not, for an accepted suggestion's check
+    // that its edit is still in (../accept.js); null when it can't be written.
+    handle.text = () => {
+      try {
+        return serialize();
+      } catch {
+        return null;
+      }
+    };
     // An accepted suggestion, made in the text (handle.replaceWords), saved as
     // a version of its own. True once the server has it.
     handle.saveVersion = () => st.saveAs("manual");

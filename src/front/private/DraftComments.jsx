@@ -23,8 +23,9 @@
 // A reader can also press "Suggest edit" by a selection: its words open in a
 // box, to be changed into what they should say, with a note if they like.
 // The thread's card shows the words that change struck through and the new
-// ones marked as added (./suggest.js). Ali has "Accept" on it, which puts the
-// new words in the draft, saves that as a version, and marks the thread
+// ones marked as added (./suggest.js). Ali has "Accept" on it once it is
+// open, showing the whole change (a margin card not in hand is cut to its
+// opening lines): it puts the new words in the draft, saves that as a version, and marks the thread
 // accepted and resolved (./accept.js). An accepted thread's passage is the
 // new words; one whose words are gone (a deletion) is listed under the text,
 // under "Accepted edits", not with the passages that changed.
@@ -72,7 +73,7 @@ import { Check, MessageSquare, MessageSquarePlus, PencilLine, Send, X } from "lu
 import { groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
 import { ApiError, request } from "./api";
 import { QUOTE_MAX, findThread, findWhole, grewTooLong, quoteAt, tooLong } from "./place";
-import { suggestionParts } from "./suggest";
+import { acceptOffered, suggestionParts } from "./suggest";
 import { addPending, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, publishedAsIs, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
 
 // As the stats service has them.
@@ -1039,7 +1040,7 @@ function Thread({ t, viewer, now, act, unsent, onAccept, active, related, onActi
           clamp={compact}
           busy={accepting}
           onAccept={
-            onAccept && !accepted && !resolved
+            onAccept && acceptOffered({ accepted, resolved, clamped: compact })
               ? async () => {
                   setAccepting(true);
                   await run(onAccept(t).then(onResolved));
@@ -1123,7 +1124,8 @@ function Thread({ t, viewer, now, act, unsent, onAccept, active, related, onActi
  * A suggested edit on its card: the words it takes out struck through and
  * the words it puts in marked as added, between the passage's words that
  * stay (./suggest.js). In the margin, a thread not in hand shows its opening
- * lines. Ali's has Accept while it is open (`onAccept`).
+ * lines. Ali's has Accept while it is open and shows the whole change
+ * (`onAccept`, ./suggest.js acceptOffered).
  */
 function Suggestion({ old, text, accepted, clamp, busy, onAccept }) {
   const { lead, removed, added, tail } = suggestionParts(old, text);

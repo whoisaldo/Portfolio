@@ -6,10 +6,15 @@
 // draft's history ("Saved version"), and only once the server has the text
 // marks the thread accepted, which resolves it. It never guesses:
 //
-// - The passage is looked for as the read view places a thread (./place.js),
-//   by its words and context, in one place clearly or not at all, and its
-//   words there must still be the ones the reader quoted. If not, nothing
-//   changes, and Ali is told to make the edit by hand.
+// - The passage is looked for where the thread is (./place.js): by its
+//   anchor, or the reader's quote while it has none. It must be there with
+//   all of its context as it was taken, character for character, in one
+//   place only (exactlyAt), and its words there must still be the ones the
+//   reader quoted. The read view's placement, by most of the context, is not
+//   enough here: after an edit made inside a passage or beside it, its old
+//   words are still found that way with the edit in their context ("big
+//   cat" in "a very big cat"). If not, nothing changes, and Ali is told to
+//   make the edit by hand.
 // - Only the words that change are replaced (./suggest.js, editRegion), so
 //   formatting on the words around them stays as it is.
 // - With the editor open, the change is made in the editor's own document
@@ -28,11 +33,20 @@
 //   description or a comment changes the wrong thing or nothing, and does not
 //   count. One place counts, or nothing is changed.
 //
-// Once the server has the text, this browser remembers that the thread's
-// edit is in until the thread is marked, so a mark that fails is pressed
-// again without the text changing twice. A save whose answer never came is
-// caught too: the suggested words already where the passage was, by its
-// context, count as the edit made.
+// Text that only looks as if the edit had been made is never taken for it.
+// Accept marks a thread without changing the text only when it can show the
+// edit is in the text as saved now, by either of:
+// - this browser's record of the save it made for the thread: the draft's
+//   Markdown as that save made it, written just before the save is sent, so
+//   a save whose answer never came is covered too. It counts only while the
+//   draft as saved now (the editor's text, saved, while it is open) is still
+//   exactly that text; otherwise it is dropped and the press is a first one.
+// - the thread's passage as the server has it, which Accept and the editor
+//   move onto the new words, reading as the suggested words, there in the
+//   text with all of its context; for a deletion, the passage deleted and
+//   the reader's words nowhere the read view would place them.
+// Otherwise a passage that is not at its place is refused, so a mark that
+// fails is pressed again without the text changing twice.
 //
 // After a change in the Markdown the accepted thread's passage is moved to
 // the new words (deleted, for a deletion), and the threads beside the change
@@ -66,43 +80,63 @@ const flat = (s) => norm(s).replace(/\n/g, " ");
 /** The suggested words, without space at either end. */
 const wordsOf = (t) => t.root.suggestion.trim();
 
+// As the read view matches: line breaks read as spaces, one for one.
+const spaced = (s) => s.replace(/\s/g, " ");
+
 /**
- * Where the suggested words already are in place of the passage, by the
- * context it had when quoted or has now. For a deletion, where the words
- * either side of it now meet, when both say something. Null when not.
+ * Where a quote's words are with all of their context as it was taken: the
+ * text just before them ending with its prefix and just after them starting
+ * with its suffix, character for character, a context shorter than CONTEXT
+ * meeting the text's start or end, space aside. [start, end) when that is
+ * one place in the text, else null.
  */
-function appliedAt(index, t) {
-  const words = wordsOf(t);
-  for (const c of [t.find, t.quote]) {
-    if (!c) continue;
-    if (words) {
-      const at = findWhole(index, { exact: norm(words), prefix: c.prefix || "", suffix: c.suffix || "" });
-      if (at) return at;
-    } else if ((c.prefix || "").trim() && (c.suffix || "").trim()) {
-      // Without a word a context was cut through at its far end.
-      const prefix = c.prefix.length >= CONTEXT ? c.prefix.replace(/^\S*\s/, "") : c.prefix;
-      const suffix = c.suffix.length >= CONTEXT ? c.suffix.replace(/\s\S*$/, "") : c.suffix;
-      const at = findWhole(index, { exact: norm(prefix + suffix), prefix: "", suffix: "" });
-      if (at) return at;
-    }
+export function exactlyAt(index, q) {
+  const words = spaced(q?.exact || "");
+  if (!words.trim()) return null;
+  const hay = spaced(index.text);
+  let pre = spaced(q.prefix || "");
+  let suf = spaced(q.suffix || "");
+  const open = { start: pre.length >= CONTEXT, end: suf.length >= CONTEXT };
+  // A context cut through a character keeps half of it, stored as U+FFFD
+  // (./place.js): not read.
+  if (open.start && /^[\udc00-\udfff\ufffd]/.test(pre)) pre = pre.slice(1);
+  if (open.end && /[\ud800-\udbff\ufffd]$/.test(suf)) suf = suf.slice(0, -1);
+  const places = [];
+  for (let at = hay.indexOf(words); at !== -1; at = hay.indexOf(words, at + 1)) {
+    const end = at + words.length;
+    const from = at - pre.length;
+    const to = end + suf.length;
+    if (from < 0 || hay.slice(from, at) !== pre || hay.slice(end, to) !== suf) continue;
+    if ((!open.start && hay.slice(0, from).trim()) || (!open.end && hay.slice(to).trim())) continue;
+    places.push([at, end]);
   }
-  return null;
+  return places.length === 1 ? places[0] : null;
+}
+
+/**
+ * Whether the server has the thread's passage on the suggested words
+ * already, and they are there in the text with all of its context. For a
+ * deletion, whether it has the passage as deleted and the reader's words are
+ * nowhere the read view would place them.
+ */
+function anchoredOnWords(index, t) {
+  const words = wordsOf(t);
+  if (!words) return Boolean(t.gone) && !findWhole(index, t.quote);
+  return Boolean(t.find) && t.find !== t.quote && flat(t.find.exact) === flat(words) && Boolean(exactlyAt(index, t.find));
 }
 
 /**
  * Where a suggestion's passage is in the text an index reads: {at} to change
- * it, {applied: true} when the suggested words are there already, or {why},
- * a key of WHY. The suggested words are looked for first, so a passage the
- * new words begin with is not changed again; for a deletion, the passage
- * first, as the words either side may be found with it still between them.
+ * it, {applied: true} when the thread's passage is on the suggested words
+ * already (anchoredOnWords), or {why}, a key of WHY. The passage at its
+ * place is changed whatever else is there.
  */
 export function locate(index, t) {
-  const deleting = !wordsOf(t);
-  if (!deleting && appliedAt(index, t)) return { applied: true };
-  const at = findThread(index, t);
+  const place = t.find || (t.gone ? t.quote : null);
+  const at = place && exactlyAt(index, place);
   if (at && flat(index.text.slice(at[0], at[1])) === flat(t.quote.exact)) return { at };
-  if (deleting && appliedAt(index, t)) return { applied: true };
-  return { why: at ? "edited" : "missing" };
+  if (anchoredOnWords(index, t)) return { applied: true };
+  return { why: findThread(index, t) ? "edited" : "missing" };
 }
 
 /** What `marked` renders a body to, inert, as the read view has it. */
@@ -203,12 +237,15 @@ export function pageText({ slug, threads, request }) {
       ({ draft } = (await request(`/api/drafts?slug=${encodeURIComponent(slug)}`)).data);
       return indexText(render(draft.body));
     },
-    // The text was just read from the server.
+    // The Markdown as the server has it, just read.
+    text: () => draft?.body ?? null,
+    // The text was just read from the server, or saved by replace.
     save: async () => true,
-    async replace(t, index, at, region) {
+    async replace(t, index, at, region, saving) {
       const span = [at[0] + region.from, at[0] + region.to];
       const done = replaceInMarkdown(draft.body, index, span, region.insert);
       if (done.why) throw new Error(WHY[done.why]);
+      saving(done.body);
       let saved;
       try {
         const { title, date, summary, updated_at: base } = draft;
@@ -224,7 +261,6 @@ export function pageText({ slug, threads, request }) {
           console.warn("comments: the passages' new places were not saved", err),
         );
       }
-      return true;
     },
   };
 }
@@ -236,58 +272,67 @@ export function pageText({ slug, threads, request }) {
 export function editorText(bridge) {
   return {
     read: async () => indexText(bridge.dom),
-    // In the editor already: saved unless it has changes the server lacks.
+    // The editor's text as Markdown, saved or not.
+    text: () => bridge.text(),
+    // Saved unless it has changes the server lacks: then saved as a version.
     save: async () => bridge.base() != null || bridge.saveVersion(),
-    async replace(t, index, at, region) {
+    async replace(t, index, at, region, saving) {
       if (!bridge.replaceWords(index, [at[0] + region.from, at[0] + region.to], region.insert, t.id, at)) throw new Error(WHY.format);
-      return bridge.saveVersion();
+      saving(bridge.text());
     },
   };
 }
 
-// The threads whose edit the server has and that are not marked yet, by draft.
+// What this browser saved for each thread whose edit it made and has not
+// marked yet, by draft: {body}, the draft's Markdown as that save made it.
 const key = (slug) => `draft-accepted:${slug}`;
 
-function savedHere(slug) {
+function records(slug) {
   try {
-    const ids = JSON.parse(localStorage.getItem(key(slug)));
-    return new Set(Array.isArray(ids) ? ids : []);
+    const all = JSON.parse(localStorage.getItem(key(slug)));
+    return all && typeof all === "object" && !Array.isArray(all) ? all : {};
   } catch {
-    return new Set();
+    return {};
   }
 }
 
-function keepSaved(slug, id, on) {
-  const ids = savedHere(slug);
-  if (on) ids.add(id);
-  else ids.delete(id);
+/** Keeps `body` as the text this browser's save for thread `id` makes; null forgets it. */
+function remember(slug, id, body) {
+  const all = records(slug);
+  if (typeof body === "string") all[id] = { body };
+  else delete all[id];
   try {
-    if (ids.size) localStorage.setItem(key(slug), JSON.stringify([...ids]));
+    if (Object.keys(all).length) localStorage.setItem(key(slug), JSON.stringify(all));
     else localStorage.removeItem(key(slug));
   } catch {
-    // Blocked storage: a retry finds the edit in the text instead.
+    // Blocked storage: a retry goes by the thread's passage on the new words, or is refused.
   }
 }
 
 /**
  * Accepts the suggestion thread `t` through `target` (pageText or
  * editorText), then marks it with `mark(id)`. Throws an Error to show; once
- * the text is saved, pressing again only marks it.
+ * the text is saved, pressing again only marks it, while the text is still
+ * as that save made it.
  */
 export async function acceptSuggestion({ slug, t, target, mark }) {
-  if (!savedHere(slug).has(t.id)) {
-    const index = await target.read();
+  const index = await target.read();
+  const mine = records(slug)[t.id];
+  if (!mine || target.text() !== mine.body) {
+    // None, or the draft changed since: a first press, on the text as it is now.
+    if (mine) remember(slug, t.id, null);
     const where = locate(index, t);
     if (where.why) throw new Error(WHY[where.why]);
-    const region = where.at && editRegion(index.text.slice(where.at[0], where.at[1]), wordsOf(t), { whole: true });
-    const saved = where.applied ? await target.save() : await target.replace(t, index, where.at, region);
-    if (!saved) throw new Error(WHY.unsaved);
-    keepSaved(slug, t.id, true);
+    if (where.at) {
+      const region = editRegion(index.text.slice(where.at[0], where.at[1]), wordsOf(t), { whole: true });
+      await target.replace(t, index, where.at, region, (body) => remember(slug, t.id, body));
+    }
   }
+  if (!(await target.save())) throw new Error(WHY.unsaved);
   try {
     await mark(t.id);
   } catch (err) {
     throw new Error(`The draft has the edit, but the suggestion couldn't be marked accepted: ${err.message} Press Accept again to finish; the text won't change twice.`);
   }
-  keepSaved(slug, t.id, false);
+  remember(slug, t.id, null);
 }

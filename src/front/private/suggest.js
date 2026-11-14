@@ -68,3 +68,11 @@ export function suggestionParts(old, text) {
   }
   return { lead, removed: old.slice(from, to), added: insert, tail };
 }
+
+/**
+ * Whether a suggestion's card offers Ali Accept: while it is open, and only
+ * while the card shows the whole change, the words it takes out and puts in.
+ * A margin card not in hand is cut to its opening lines (`clamped`), which
+ * can hide them; pressing it opens it, with Accept.
+ */
+export const acceptOffered = ({ accepted, resolved, clamped }) => !accepted && !resolved && !clamped;

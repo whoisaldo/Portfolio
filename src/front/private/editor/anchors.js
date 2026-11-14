@@ -27,6 +27,7 @@
 // until it is shortened.
 import { Extension } from "@tiptap/core";
 import { Mark } from "@tiptap/pm/model";
+import { closeHistory } from "@tiptap/pm/history";
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { groupQuotes, indexText, quoteFromRange } from "../../quotes.js";
@@ -189,8 +190,9 @@ function decorations(doc, { ranges, items, emphasis }) {
  *   replaceWords(index, at, text, thread, passage)
  *                       an accepted suggestion (../accept.js): the words at
  *                       `at` of an indexText index of the editor's text
- *                       replaced by `text`, in one step of the undo history,
- *                       and the thread's passage, at `passage` before, kept
+ *                       replaced by `text`, in a step of the undo history
+ *                       of its own (typing just before or after it is not
+ *                       undone with it), and the thread's passage, at `passage` before, kept
  *                       on the words it covers after. Only words in one
  *                       paragraph, all with the same formatting, with no
  *                       line break in `text`; false, and nothing changed,
@@ -440,7 +442,7 @@ export function commentAnchors() {
       });
       if (!plain) return false;
       const whole = toRange(view, index, passage);
-      const tr = view.state.tr;
+      const tr = closeHistory(view.state.tr);
       if (text) tr.insertText(text, r.from, r.to);
       else tr.delete(r.from, r.to);
       if (whole) {
@@ -449,6 +451,8 @@ export function commentAnchors() {
         if (from < to) tr.setMeta(key, { add: [[thread, { from, to }]] });
       }
       view.dispatch(tr);
+      // What is typed next starts a step of its own.
+      view.dispatch(closeHistory(view.state.tr));
       return true;
     },
     get dom() {
