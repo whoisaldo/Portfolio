@@ -6,9 +6,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 import { runnerImport } from "vite";
 import { Window } from "happy-dom";
-import { absoluteUrls, atomFeed, fontFiles, robots, sitemap, withStaticCopy } from "../scripts/site-files.mjs";
+import { RELOAD_PLACE, absoluteUrls, atomFeed, fontFiles, robots, sitemap, withStaticCopy } from "../scripts/site-files.mjs";
 import { parsePost } from "../src/front/frontmatter.js";
 
 const SITE = "https://example.test";
@@ -44,7 +45,7 @@ const xml = (source) => {
 
 test("a page's copy goes ahead of #root, styled and with the front site's body", () => {
   const html = withStaticCopy(TEMPLATE, "<main><h1>Lighthouses</h1></main>", { css: ["/assets/Front-b.css"], fonts: ["/assets/face-c.woff2"] });
-  assert.match(html, /<div id="static-copy" style="position:absolute;top:0;left:0;right:0"><main><h1>Lighthouses<\/h1><\/main><\/div>\s*<div id="root"><\/div>/);
+  assert.match(html, /<div id="static-copy" style="position:absolute;top:0;left:0;right:0"><main><h1>Lighthouses<\/h1><\/main><\/div>\s*<script>[^<]+<\/script>\s*<div id="root"><\/div>/);
   assert.match(html, /<link rel="preload" as="font" type="font\/woff2" crossorigin href="\/assets\/face-c.woff2">\s*<link rel="stylesheet" crossorigin href="\/assets\/Front-b.css">\s*<\/head>/);
   assert.equal(html.match(/index-a\.css/g).length, 1);
   assert.match(html, /<body class="front bg-ink text-bone paper-grain">/);
@@ -52,6 +53,43 @@ test("a page's copy goes ahead of #root, styled and with the front site's body",
   // Markup with $ in it goes in as it is.
   assert.match(withStaticCopy(TEMPLATE, "<p>$& costs $1</p>"), /<p>\$& costs \$1<\/p>/);
   assert.throws(() => withStaticCopy("<html></html>", "<p></p>"), /index\.html/);
+});
+
+test("on a reload the copy is put where the reader was, from the place Front.jsx keeps", () => {
+  // The same store, by name: the page's script and Front.jsx must agree on it.
+  const front = readFileSync(fileURLToPath(new URL("../src/front/Front.jsx", import.meta.url)), "utf8");
+  assert.match(front, /const SAVED = "front:places";/);
+  assert.ok(RELOAD_PLACE.includes('"front:places"'));
+
+  const run = ({ type, key, saved }) => {
+    const scrolled = [];
+    vm.runInNewContext(RELOAD_PLACE, {
+      performance: { getEntriesByType: () => [{ type }] },
+      history: { state: key ? { key } : null },
+      sessionStorage: { getItem: () => saved },
+      window: { scrollTo: (x, y) => scrolled.push([x, y]) },
+      JSON,
+    });
+    return scrolled;
+  };
+  const saved = JSON.stringify([["default", 40], ["k7", 1800], ["k9", 300]]);
+  assert.deepEqual(run({ type: "reload", key: "k7", saved }), [[0, 1800]]);
+  // The tab's first entry has no key of its own.
+  assert.deepEqual(run({ type: "reload", key: null, saved }), [[0, 40]]);
+  // Not a reload, a place never kept, nothing stored, or a store that cannot be read.
+  assert.deepEqual(run({ type: "navigate", key: "k7", saved }), []);
+  assert.deepEqual(run({ type: "reload", key: "other", saved }), []);
+  assert.deepEqual(run({ type: "reload", key: "k7", saved: null }), []);
+  assert.deepEqual(run({ type: "reload", key: "k7", saved: "{not json" }), []);
+});
+
+test("a srcset that is one data: address is left as it is in the feed", () => {
+  const data = "data:image/png;base64,iVBORw0KGgo=";
+  assert.equal(absoluteUrls(`<img srcset="${data}">`, `${SITE}/blog/older/`), `<img srcset="${data}">`);
+  assert.equal(
+    absoluteUrls('<img srcset="small.png 1x, /big.png 2x">', `${SITE}/blog/older/`),
+    `<img srcset="${SITE}/blog/older/small.png 1x, ${SITE}/big.png 2x">`,
+  );
 });
 
 test("a face's file is found by its family and weight", () => {

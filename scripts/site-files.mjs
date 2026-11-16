@@ -60,8 +60,23 @@ export function withStaticCopy(html, markup, { css = [], fonts = [] } = {}) {
     .replace(/<\/head>/, () => `${head}  </head>`)
     // Front.jsx sets this as it mounts: the playground's scanlines off.
     .replace(/<body class="/, '<body class="front ')
-    .replace(/<div id="root"><\/div>/, () => `<div id="static-copy" style="position:absolute;top:0;left:0;right:0">${copy}</div>\n    <div id="root"></div>`);
+    .replace(
+      /<div id="root"><\/div>/,
+      () => `<div id="static-copy" style="position:absolute;top:0;left:0;right:0">${copy}</div>\n    <script>${RELOAD_PLACE}</script>\n    <div id="root"></div>`,
+    );
 }
+
+// On a reload the reader was somewhere down the page, and src/front/Front.jsx
+// puts them back there once it runs (its SAVED places, kept in the tab's
+// sessionStorage by history entry). Until then the copy would show from the
+// top and then jump. This puts the copy at that place as soon as it is laid
+// out, from the same store, so Front finds the reader already there.
+export const RELOAD_PLACE =
+  `(function(){try{` +
+  `if(performance.getEntriesByType("navigation")[0].type!=="reload")return;` +
+  `var k=(history.state&&history.state.key)||"default",p=JSON.parse(sessionStorage.getItem("front:places"))||[];` +
+  `for(var i=p.length-1;i>=0;i--)if(p[i][0]===k){window.scrollTo(0,p[i][1]);return}` +
+  `}catch(e){}})();`;
 
 /**
  * The woff2 file of each [family, weight] in a stylesheet's @font-face rules,
@@ -133,10 +148,13 @@ export function absoluteUrls(html, base) {
       if (!URL_ATTRS.has(key)) return attr;
       const value = unescapeAttr(dq ?? sq ?? bare);
       const out =
-        key === "srcset"
-          ? // Candidates are "address [descriptor]", split by commas.
-            value.replace(/(^|,)(\s*)([^\s,]+)/g, (m, comma, ws, url) => comma + ws + absolute(url, base))
-          : absolute(value, base);
+        key !== "srcset"
+          ? absolute(value, base)
+          : /^\s*data:/i.test(value)
+            ? // A data: address holds commas of its own; there is nothing to resolve in it.
+              value
+            : // Candidates are "address [descriptor]", split by commas.
+              value.replace(/(^|,)(\s*)([^\s,]+)/g, (m, comma, ws, url) => comma + ws + absolute(url, base));
       return `${space}${name}${eq}"${escapeAttr(out)}"`;
     }),
   );
