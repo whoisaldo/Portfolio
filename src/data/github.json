@@ -5,7 +5,7 @@
     {
       "repo": "pingdotgg/t3code",
       "url": "https://github.com/pingdotgg/t3code",
-      "stars": 62688,
+      "stars": 62702,
       "merged": 7,
       "pulls": [
         {
@@ -75,20 +75,6 @@
           "title": "CW-10: add assignment provider and GitHub guards (1/2)",
           "url": "https://github.com/pawtograder/platform/pull/1128",
           "merged": "2026-11-06"
-        }
-      ]
-    },
-    {
-      "repo": "emmabostian/developer-portfolios",
-      "url": "https://github.com/emmabostian/developer-portfolios",
-      "stars": 27730,
-      "merged": 1,
-      "pulls": [
-        {
-          "number": 4148,
-          "title": "Add site Ali Younes",
-          "url": "https://github.com/emmabostian/developer-portfolios/pull/4148",
-          "merged": "2026-08-29"
         }
       ]
     },

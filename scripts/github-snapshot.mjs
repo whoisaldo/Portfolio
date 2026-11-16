@@ -14,10 +14,12 @@
 // Only public repositories go in. The search asks for `is:public`, and every
 // repository it names is looked up again and dropped unless the API says it
 // is public. The file, this script's output and its warnings never name a
-// repository that did not pass that check.
+// repository that did not pass that check: a warning prints only a message
+// written in this file, never an error's own text, which can quote an answer
+// that has not been checked.
 //
 //   GH_TOKEN=... node scripts/github-snapshot.mjs
-import { writeFileSync } from "node:fs";
+import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const AUTHOR = "whoisaldo";
@@ -27,9 +29,15 @@ export const OWN_USER = "whoisaldo";
 export const OWN_ORG = "sidebandstudio";
 export const OWN_OWNERS = [OWN_USER, OWN_ORG];
 export const MONITOR_REPO = "sidebandstudio/EternalMonitor";
+// Merged pull requests that are not contributions of code. This one adds his
+// own site to a list of portfolios.
+export const SKIP_REPOS = ["emmabostian/developer-portfolios"];
 
 const OUT = fileURLToPath(new URL("../src/data/github.json", import.meta.url));
 const API = "https://api.github.com";
+
+/** An error whose message was written in this file, so it is safe to print. */
+export class SnapshotError extends Error {}
 
 const day = (iso) => (typeof iso === "string" ? iso.slice(0, 10) : null);
 const ownerOf = (fullName) => fullName.split("/")[0].toLowerCase();
@@ -46,14 +54,16 @@ export function isPublic(repo) {
  * `items` are /search/issues results; `repos` maps "owner/name" to the
  * /repos/{owner}/{name} response, or null when the lookup failed. Grouped by
  * repository, most merged first, then most stars; each group's pull
- * requests newest first.
+ * requests newest first. Repositories named in `skip` are left out.
  */
-export function summarize(items, repos) {
+export function summarize(items, repos, skip = SKIP_REPOS) {
+  const skipped = new Set(skip.map((s) => s.toLowerCase()));
   const groups = new Map();
   for (const item of items) {
     if (!item?.pull_request?.merged_at || !item.repository_url) continue;
     const name = repoFromUrl(item.repository_url);
     if (OWN_OWNERS.includes(ownerOf(name))) continue;
+    if (skipped.has(name.toLowerCase())) continue;
     if (item.user && item.user.login?.toLowerCase() !== AUTHOR) continue;
     const repo = repos[name];
     if (!isPublic(repo)) continue;
@@ -103,39 +113,99 @@ export function validate(snapshot) {
   const n = (v) => Number.isInteger(v) && v >= 0;
   const m = snapshot.eternalMonitor;
   if (!m || ![m.stars, m.forks, m.releases, m.downloads].every(n) || !m.latest?.tag || !m.latest?.date) {
-    throw new Error("incomplete Eternal Monitor numbers");
+    throw new SnapshotError("incomplete Eternal Monitor numbers");
   }
   for (const g of snapshot.contributions) {
-    if (!g.repo || !g.url || !n(g.stars) || g.merged !== g.pulls.length) throw new Error("incomplete contribution group");
-    for (const p of g.pulls) if (!n(p.number) || !p.title || !p.url || !p.merged) throw new Error("incomplete pull request");
+    if (!g.repo || !g.url || !n(g.stars) || g.merged !== g.pulls.length) throw new SnapshotError("incomplete contribution group");
+    for (const p of g.pulls) if (!n(p.number) || !p.title || !p.url || !p.merged) throw new SnapshotError("incomplete pull request");
   }
   return snapshot;
 }
 
+/**
+ * Every result of a search, or an error. `page(n)` answers page n of
+ * /search/issues at 100 a page. A page that comes back empty before the
+ * reported total is reached, or a total past the 1,000 results the API pages
+ * through, is not a full answer and must not replace a good file.
+ */
+export async function searchAll(page) {
+  const items = [];
+  for (let n = 1; n <= 10; n++) {
+    const res = await page(n);
+    if (!res || res.incomplete_results || !Array.isArray(res.items) || !Number.isInteger(res.total_count)) {
+      throw new SnapshotError("pull request search: incomplete results");
+    }
+    if (res.total_count > 1000) throw new SnapshotError("pull request search: more results than the API returns");
+    items.push(...res.items);
+    if (items.length >= res.total_count) return items;
+    if (res.items.length === 0) break;
+  }
+  throw new SnapshotError("pull request search: fewer results than it reported");
+}
+
+/** Refuses a snapshot that lists no contributions when the file it would
+ *  replace lists some. Merged pull requests do not all disappear at once; a
+ *  search that answered nothing does. */
+export function refuseEmptied(snapshot, previous) {
+  if (snapshot.contributions.length === 0 && previous?.contributions?.length > 0) {
+    throw new SnapshotError("pull request search: came back empty");
+  }
+  return snapshot;
+}
+
+/** Writes the file whole or not at all: to a neighbour first, then renamed
+ *  over the old one, so a write that fails partway leaves the old file. */
+export function writeSnapshot(file, snapshot) {
+  const tmp = `${file}.tmp`;
+  try {
+    writeFileSync(tmp, `${JSON.stringify(snapshot, null, 2)}\n`);
+    renameSync(tmp, file);
+  } catch {
+    try {
+      rmSync(tmp, { force: true });
+    } catch {
+      // Nothing of ours to clear away.
+    }
+    throw new SnapshotError("could not write the snapshot");
+  }
+}
+
+function readPrevious(file) {
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+// `label` never carries a contributed repository's name, and neither a
+// network error's text nor a parser's is passed on; see the top.
 async function get(path, token, label) {
-  const res = await fetch(`${API}${path}`, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "portfolio-github-snapshot",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    signal: AbortSignal.timeout(20000),
-  });
-  // `label` never carries a contributed repository's name; see the top.
-  if (!res.ok) throw Object.assign(new Error(`${label}: HTTP ${res.status}`), { status: res.status });
-  return res.json();
+  let res;
+  try {
+    res = await fetch(`${API}${path}`, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "portfolio-github-snapshot",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      signal: AbortSignal.timeout(20000),
+    });
+  } catch {
+    throw new SnapshotError(`${label}: no answer`);
+  }
+  if (!res.ok) throw Object.assign(new SnapshotError(`${label}: HTTP ${res.status}`), { status: res.status });
+  try {
+    return await res.json();
+  } catch {
+    throw new SnapshotError(`${label}: unreadable answer`);
+  }
 }
 
 async function fetchSnapshot(token) {
   const q = encodeURIComponent(`author:${AUTHOR} type:pr is:merged is:public -user:${OWN_USER} -org:${OWN_ORG}`);
-  const items = [];
-  for (let page = 1; page <= 10; page++) {
-    const res = await get(`/search/issues?q=${q}&per_page=100&page=${page}`, token, "pull request search");
-    if (res.incomplete_results) throw new Error("pull request search: incomplete results");
-    items.push(...res.items);
-    if (res.items.length < 100 || items.length >= res.total_count) break;
-  }
+  const items = await searchAll((page) => get(`/search/issues?q=${q}&per_page=100&page=${page}`, token, "pull request search"));
 
   const repos = {};
   for (const name of new Set(items.map((i) => repoFromUrl(i.repository_url)))) {
@@ -167,11 +237,11 @@ async function fetchSnapshot(token) {
   });
 }
 
-async function main() {
+export async function main(file = OUT) {
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "";
   try {
-    const snapshot = await fetchSnapshot(token);
-    writeFileSync(OUT, `${JSON.stringify(snapshot, null, 2)}\n`);
+    const snapshot = refuseEmptied(await fetchSnapshot(token), readPrevious(file));
+    writeSnapshot(file, snapshot);
     const prs = snapshot.contributions.reduce((s, g) => s + g.merged, 0);
     const m = snapshot.eternalMonitor;
     console.log(
@@ -179,7 +249,8 @@ async function main() {
         `Eternal Monitor ${m.stars} stars, ${m.releases} releases, ${m.downloads} downloads`,
     );
   } catch (err) {
-    console.warn(`github-snapshot: warning: ${err.message}; kept the last snapshot in src/data/github.json`);
+    const why = err instanceof SnapshotError ? err.message : "unexpected error";
+    console.warn(`github-snapshot: warning: ${why}; kept the last snapshot in src/data/github.json`);
   }
 }
 
