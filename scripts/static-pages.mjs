@@ -60,17 +60,18 @@ function cssOf(key, seen = new Set()) {
 const frontCss = cssOf(chunkKey("src/front/Front.jsx", "Front"));
 const postCss = [...new Set([...frontCss, ...cssOf(chunkKey("src/front/BlogPost.jsx", "BlogPost"))])];
 
-// The faces at the top of a blog page: Chakra Petch for the name and the
-// titles, and Barlow for the text, at 500 the links and at 600 the Follow
-// button and each post's Read. The code's mono comes further down, so it is
-// left to load as it always has.
+// The faces that set most of the top of a blog page: Chakra Petch 600 for
+// the name and the titles, and Barlow 400 for the text. Without them the
+// text is drawn first in a system face and wraps again when they come, on
+// any connection; each preload more delays the first paint on a slow one,
+// as it shares the line with the stylesheets. Barlow 500 and 600, the links
+// and the Follow button, are short runs that keep their lines, and load as
+// they did before the blog had a copy, as does the code's mono further down.
 const entryCss = manifest["index.html"]?.css?.[0];
 if (!entryCss) throw new Error("static-pages: the build's manifest names no stylesheet for index.html");
 const fonts = fontFiles(readFileSync(join(dist, entryCss), "utf8"), [
   ["Chakra Petch", 600],
   ["Barlow", 400],
-  ["Barlow", 500],
-  ["Barlow", 600],
 ]);
 
 // Every page with a file of its own and an address to be found at, for the
