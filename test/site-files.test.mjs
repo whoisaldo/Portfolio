@@ -8,7 +8,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { runnerImport } from "vite";
 import { Window } from "happy-dom";
-import { atomFeed, fontFiles, robots, sitemap, withStaticCopy } from "../scripts/site-files.mjs";
+import { absoluteUrls, atomFeed, fontFiles, robots, sitemap, withStaticCopy } from "../scripts/site-files.mjs";
 import { parsePost } from "../src/front/frontmatter.js";
 
 const SITE = "https://example.test";
@@ -113,6 +113,61 @@ test("the feed is Atom with every post in full, newest first, at absolute addres
   assert.doesNotMatch(html, /data-embed/);
   assert.match(html, /<a href="https:\/\/example.test\/blog\/older\/">An interactive demo is here in the post\.<\/a>/);
   assert.doesNotMatch(out, /privateblog/);
+});
+
+test("every address in a feed entry is read against the post's own, as a browser on it would", () => {
+  const body = [
+    "Back to [the part](#part), the [diagram](./diagram.svg) and [up one](../older-still/).",
+    "",
+    "![A figure](images/figure.png)",
+    "",
+    "From [elsewhere](//example.test/file), the [map](/work/harbour?at=dock&tide=low), " +
+      "[a letter](mailto:keeper@example.test) and [another site](https://other.test/x?a=1&b=2).",
+    "",
+    "<img src='single.png' srcset=\"small.png 1x, /big.png 2x, https://cdn.test/huge.png 3x\" alt='Gulls'> " +
+      "<a href=bare.html title=\"not href=gone.html\">bare</a> <video poster=\"poster.jpg\" src=\"clip.mp4\"></video>",
+    "",
+    "In code, `<a href=\"/x\">` stays as it is written.",
+    "",
+  ].join("\n");
+  const out = atomFeed({ site: SITE, name: "A. Writer", title: "Writing", subtitle: "Notes", posts: [{ ...POSTS[0], body }] });
+  const content = xml(out).getElementsByTagName("content")[0].textContent;
+  const doc = new new Window().DOMParser().parseFromString(content, "text/html");
+  const at = (selector, attr) => doc.querySelector(selector).getAttribute(attr);
+  const post = `${SITE}/blog/older/`;
+
+  assert.equal(at('a[href$="#part"]', "href"), `${post}#part`, "a fragment");
+  assert.equal(at('a[href$="diagram.svg"]', "href"), `${post}diagram.svg`, "./ relative");
+  assert.equal(at('a[href$="older-still/"]', "href"), `${SITE}/blog/older-still/`, "../ relative");
+  assert.equal(at('img[alt="A figure"]', "src"), `${post}images/figure.png`, "a bare relative image");
+  assert.equal(at('a[href$="/file"]', "href"), "https://example.test/file", "protocol-relative");
+  assert.equal(at('a[href*="harbour"]', "href"), `${SITE}/work/harbour?at=dock&tide=low`, "root-relative, its query intact");
+  assert.equal(at('a[href^="mailto:"]', "href"), "mailto:keeper@example.test", "mailto: as it is");
+  assert.equal(at('a[href*="other.test"]', "href"), "https://other.test/x?a=1&b=2", "absolute as it is");
+
+  assert.equal(at('img[alt="Gulls"]', "src"), `${post}single.png`, "single-quoted");
+  assert.equal(at('img[alt="Gulls"]', "srcset"), `${post}small.png 1x, ${SITE}/big.png 2x, https://cdn.test/huge.png 3x`, "each of a srcset");
+  assert.equal(at('a[title]', "href"), `${post}bare.html`, "unquoted");
+  assert.equal(at('a[title]', "title"), "not href=gone.html", "another attribute's text is not an address");
+  assert.equal(at("video", "poster"), `${post}poster.jpg`);
+  assert.equal(at("video", "src"), `${post}clip.mp4`);
+  assert.equal(doc.querySelector("p:last-child code").textContent, '<a href="/x">', "code is text");
+  // Nothing relative is left in any tag.
+  for (const el of doc.querySelectorAll("[href], [src], [poster]")) {
+    for (const name of ["href", "src", "poster"]) {
+      const v = el.getAttribute(name);
+      if (v !== null) assert.match(v, /^(https:|mailto:)/, `${el.tagName} ${name}="${v}"`);
+    }
+  }
+});
+
+test("absoluteUrls leaves what has no address, and an address it cannot read, as they are", () => {
+  const base = `${SITE}/blog/older/`;
+  assert.equal(absoluteUrls("<p>a < b and c > d</p>", base), "<p>a < b and c > d</p>");
+  assert.equal(absoluteUrls('<div data-src="x.png" class="y"></div>', base), '<div data-src="x.png" class="y"></div>');
+  assert.equal(absoluteUrls('<a href="https://other.test/A%20b">x</a>', base), '<a href="https://other.test/A%20b">x</a>');
+  assert.equal(absoluteUrls('<a href="//[broken">x</a>', base), '<a href="//[broken">x</a>', "no host to read");
+  assert.equal(absoluteUrls('<a HREF="tel:+1555">x</a>', base), '<a HREF="tel:+1555">x</a>');
 });
 
 // The published posts, as the build draws them: the page's text, without
