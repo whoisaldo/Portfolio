@@ -71,8 +71,14 @@ export default function Front() {
     }
     // The page the tab opened on, never seen before. A blog page may already
     // have been read, and scrolled, as its static copy (lib.js), so the
-    // reader stays where they are. Any other page is still at its top.
-    if (key === "default" && !places.has(key)) return undefined;
+    // reader stays where they are. Any other page is still at its top. Either
+    // way that is this entry's place from now on: unkept, a page never
+    // scrolled would have none, and Back to it would stay wherever the page
+    // after it had been.
+    if (key === "default" && !places.has(key)) {
+      places.set(key, window.scrollY);
+      return undefined;
+    }
     const y = places.get(key) ?? 0;
     land(y);
     pending = y;
