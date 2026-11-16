@@ -15,15 +15,16 @@ import React, { createContext, useContext, useEffect, useRef, useState } from "r
 import { Link } from "react-router-dom";
 import { ArrowRight, ArrowUpRight, ChevronDown, FileText, Mail } from "lucide-react";
 import { profile, links } from "../data/profile";
-import { featuredProjects } from "../data/projects";
+import { featuredProjects, frontProjects } from "../data/projects";
 import { built, intro, photos, playgroundCard, timeline } from "../data/home";
 import { PLAYGROUND } from "../data/site";
 import portrait from "../assets/Photos/portrait-seattle-640.webp";
 import neon from "../assets/front/playground-neon-1120.webp";
-import { posts } from "./posts";
+import github from "../data/github.json";
+import { formatDate, posts } from "./posts";
 import { COLUMN, useTitle } from "./lib";
 import { BrandIcon } from "./icons";
-import { FollowOnX, FrontFooter, FrontHeader, PostList, SectionLabel } from "./parts";
+import { FollowOnX, FrontFooter, FrontHeader, PostList, SectionLabel, StudioLine } from "./parts";
 import Lightbox from "./Lightbox";
 import { Sticker } from "./Stickers";
 
@@ -31,7 +32,7 @@ const LATEST = 5;
 const resume = `${import.meta.env.BASE_URL}resume.pdf`;
 
 const projects = built
-  .map((b) => ({ ...featuredProjects.find((p) => p.slug === b.slug), line: b.line }))
+  .map((b) => ({ ...[...featuredProjects, ...frontProjects].find((p) => p.slug === b.slug), line: b.line }))
   .filter((p) => p.title);
 
 /** The work history, one entry a company, laid out the way hadisalman.com
@@ -233,6 +234,59 @@ function Scatter({ items, className = "" }) {
 const textLink =
   "inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors duration-150 hover:text-volt";
 
+const stars = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+/** Pull requests merged into other people's projects, one row a repository,
+ *  from src/data/github.json (scripts/github-snapshot.mjs refreshes it on
+ *  each deploy). Closed, a row is the repository, how many and its stars; open, it
+ *  lists each pull request. The same <details> rows as the projects above. */
+function OpenSource({ groups }) {
+  return (
+    <ul className="mt-2">
+      {groups.map((group) => (
+        <li key={group.repo} className="border-b border-ink-line last:border-b-0">
+          <details className="group">
+            <summary className="group/row flex cursor-pointer list-none items-center justify-between gap-4 py-4 [&::-webkit-details-marker]:hidden">
+              <div className="min-w-0">
+                <h3 className="break-words font-display text-lg font-semibold text-bone transition-colors duration-150 group-hover/row:text-volt">
+                  {group.repo}
+                </h3>
+                <p className="mt-0.5 tabular-nums text-dim">
+                  {plural(group.merged, "merged pull request", "merged pull requests")} · {stars.format(group.stars)} {group.stars === 1 ? "star" : "stars"}
+                </p>
+              </div>
+              <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-dim group-open:text-bone">
+                <span className="group-open:hidden">More</span>
+                <span className="hidden group-open:inline">Less</span>
+                <ChevronDown className="size-4 group-open:rotate-180" aria-hidden="true" />
+              </span>
+            </summary>
+            <div className="pb-5 sm:pr-16">
+              <ul className="space-y-3">
+                {group.pulls.map((pull) => (
+                  <li key={pull.number} className="relative pl-4">
+                    <span className="absolute left-0 top-2.5 size-1 rounded-full bg-volt" aria-hidden="true" />
+                    <a href={pull.url} target="_blank" rel="noreferrer" className="text-pretty text-muted transition-colors duration-150 hover:text-volt">
+                      {pull.title}
+                    </a>
+                    <p className="text-sm tabular-nums text-dim">
+                      #{pull.number} · merged <time dateTime={pull.merged}>{formatDate(pull.merged)}</time>
+                    </p>
+                  </li>
+                ))}
+              </ul>
+              <a href={group.url} target="_blank" rel="noreferrer" className={`${textLink} mt-4`}>
+                <BrandIcon name="github" className="size-3.5" /> Repository
+              </a>
+            </div>
+          </details>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function FrontHome() {
   useTitle(`${profile.name} · Software Engineer`);
   const [shown, setShown] = useState(null);
@@ -368,6 +422,7 @@ export default function FrontHome() {
                   </summary>
                   <div className="pb-5 sm:pr-16">
                     <p className="text-pretty text-muted">{project.description}</p>
+                    {project.sideband && <StudioLine className="mt-2" />}
                     <p className="mt-2 text-sm text-dim">{project.tech.slice(0, 5).join(" · ")}</p>
                     <div className="mt-3 flex flex-wrap gap-x-6 gap-y-3">
                       <Link to={`/work/${project.slug}`} className={textLink}>
@@ -392,6 +447,25 @@ export default function FrontHome() {
 
           <Scatter items={SCATTER.built} className="mt-12" />
         </section>
+
+        {github.contributions.length > 0 && (
+          <section aria-labelledby="open-source" className="relative mt-16 xl:mt-20">
+            <SectionLabel
+              id="open-source"
+              action={
+                <a href={links.github} target="_blank" rel="noreferrer" className={textLink}>
+                  GitHub <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                </a>
+              }
+            >
+              Open source
+            </SectionLabel>
+            <p className="mt-5 text-pretty text-dim">
+              Pull requests of mine merged into other people’s projects. The list refreshes from GitHub each time the site deploys.
+            </p>
+            <OpenSource groups={github.contributions} />
+          </section>
+        )}
 
         <section aria-labelledby="playground" className="relative mt-16 xl:mt-20">
           <Scatter items={SCATTER.playground} className="mb-12" />

@@ -209,7 +209,7 @@ export const CLUES = [
   {
     id: "eternal-monitor",
     layer: "visual",
-    kicker: "Gig · In development",
+    kicker: "Gig · Live",
     title: "Eternal Monitor",
     body: "I refused to pay $40 for an iPad second-screen app that lagged, so I wrote my own. Rust on Windows, Swift on the iPad, hardware H.264 at both ends and my own UDP protocol in between.",
     links: [{ label: "eternalmonitor.dev", href: "https://eternalmonitor.dev" }, writeUp("eternal-monitor")],

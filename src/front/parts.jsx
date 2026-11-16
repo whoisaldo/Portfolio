@@ -76,6 +76,20 @@ export function SectionLabel({ id, children, action }) {
   );
 }
 
+/** Under a project that ships under Sideband (`sideband: true` in
+ *  projects.js), the same words everywhere: it is his, and it is the
+ *  studio's. */
+export function StudioLine({ className = "" }) {
+  return (
+    <p className={`text-pretty text-sm text-dim ${className}`}>
+      Built by me, shipped under{" "}
+      <Link to="/work/sideband" className="font-medium text-muted transition-colors duration-150 hover:text-volt">
+        Sideband
+      </Link>, the studio I co-founded.
+    </p>
+  );
+}
+
 /** The way to X. Filled, because it is the one thing on the page to press. */
 export function FollowOnX({ label = "Follow" }) {
   return (

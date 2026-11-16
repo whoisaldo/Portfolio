@@ -22,11 +22,16 @@
 // interface read as leftovers from the previous design.
 //
 // It carries information now instead. Volt means the thing is running today;
-// fuchsia means it is still being built. Six of the eight are live, so the
-// grid reads mostly yellow with two magenta exceptions, and the exception is
+// fuchsia means it is still being built. Seven of the eight are live, so the
+// grid reads mostly yellow with one magenta exception, and the exception is
 // the point: a reader can see which projects are shipped without reading a
 // single status flag. Derived from `status` directly below each one, so the
 // two can never disagree.
+
+// `sideband: true` marks a project that ships under Sideband, the studio Ali
+// co-founded, and that he built: he is the main contributor in each one's
+// repository. The front site prints one line for it (StudioLine in
+// src/front/parts.jsx); the playground ignores it.
 
 // Every `images[]` entry below is an encoded variant set rather than a bare
 // URL: `{ src, width, height, avif, webp, thumb, lqip, lqipKey }`. The source
@@ -35,9 +40,17 @@
 // and src/data/images.js for the generated map. Render them through
 // <Picture> / <ProjectImage>, not a bare <img src>.
 import { img } from "./images";
+// Eternal Monitor's stars, forks, releases and downloads, refreshed daily by
+// scripts/github-snapshot.mjs.
+import github from "./github.json";
 
 const LIVE = "#fcee0a";
 const BUILDING = "#ff2e88";
+
+const count = (n) => n.toLocaleString("en-US");
+const shortDate = (iso) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+const monitor = github.eternalMonitor;
 
 // Key art: generated device-mockup plates, 3:2 (1536x1024). Each is a
 // photorealistic shot of the real product running on real hardware; the
@@ -112,13 +125,12 @@ export const featuredProjects = [
     accent: LIVE,
     status: "live",
     description:
-      "An independent software studio I co-founded in Boston, four founders now. Ships its own products instead of doing client work. Six of them, four already live.",
+      "An independent software studio I co-founded in Boston, four founders now. Ships its own products instead of doing client work.",
     longDescription:
-      "What it is: an independent studio founded in Boston in 2025 as Eternal Reverse and renamed Sideband in 2026. It started as two of us and is four founders now. Six products span systems engineering (Rust + Swift display streaming), native iOS (SwiftUI + HealthKit), video pipelines (DaVinci Resolve + OpenCV), and modern web (Next.js + a Chrome MV3 extension). Four are live: EternalRichPresence, Signature Cuts 413, Eternal2x and Eternal Summary. EternalMonitor and Exerly Fitness are still in development. Products shipped before the rename kept their names.\n\n" +
+      "What it is: an independent studio founded in Boston in 2025 as Eternal Reverse and renamed Sideband in 2026. It started as two of us and is four founders now. Its products span systems engineering (Rust + Swift display streaming), native iOS (SwiftUI + HealthKit), video pipelines (DaVinci Resolve + OpenCV), and modern web (Next.js + a Chrome MV3 extension). The live ones include EternalMonitor, EternalRichPresence, Signature Cuts 413, Eternal2x and Eternal Summary. Exerly Fitness is still in development. Products shipped before the rename kept their names.\n\n" +
       "What I do here: co-founder and lead engineer. Wrote the Rust host + Swift client behind EternalMonitor (DXGI capture, hardware H.264, Metal render); the SwiftUI iOS app + Node API behind Exerly Fitness; and most of the studio site itself, which is Next.js 14 with a page per product, an engineer dossier per founder, and an interactive terminal on the hero.",
     tech: ["Next.js 14", "TypeScript", "React", "Tailwind CSS", "Framer Motion", "Rust", "SwiftUI", "Node.js"],
     features: [
-      "6 products: 4 live, 2 in development",
       "Studio site: Next.js 14, a page per product",
       "An engineer dossier for each of the four founders",
       "Interactive terminal on the hero",
@@ -139,6 +151,7 @@ export const featuredProjects = [
       "Every commercial fitness app is paywalled. I wanted a free, open-source one that actually coaches.",
     accent: LIVE,
     status: "live",
+    sideband: true,
     description:
       "React 19 on the web, a Node/Express API, an AI coach, and a native SwiftUI iOS client built and waiting on App Store review.",
     longDescription:
@@ -169,6 +182,7 @@ export const featuredProjects = [
       "ProjectE is the canonical equivalent-exchange mod and it is Forge-only. Fabric had nothing comparable, so I built the spin-off, plus a solver that walks Minecraft's whole recipe graph at world load and prices every item in the game.",
     accent: BUILDING,
     status: "pre-release",
+    sideband: true,
     description:
       "A 39K-line Minecraft alchemy mod for Fabric 1.21.1. A spin-off of ProjectE with a recipe-graph solver that prices every item in the game at world load.",
     longDescription:
@@ -225,33 +239,42 @@ export const featuredProjects = [
   {
     slug: "eternal-monitor",
     title: "Eternal Monitor",
-    tagline: "Windows → iPad over UDP · eternalmonitor.dev",
+    tagline: "Windows → iPad over Wi-Fi or USB · eternalmonitor.dev",
     why:
       "I refused to pay $40 for an iPad-as-second-display app that lagged. So I wrote my own.",
-    accent: BUILDING,
-    status: "in-dev",
+    accent: LIVE,
+    status: "live",
+    sideband: true,
     description:
-      "Rust host + SwiftUI iPad client that turns an iPad into a wireless second display for Windows, with hardware H.264 encode and decode end to end.",
+      "A Rust host and a native Swift iPad app that turn an iPad into a second display for Windows. Extend or mirror, over Wi-Fi or USB, with touch, Apple Pencil and PC audio.",
     longDescription:
       "Wireless second-monitor apps either cost a subscription, need a dongle, or buckle the moment the network gets busy.\n\n" +
-      "A Rust host captures the Windows desktop through DXGI Desktop Duplication, encodes H.264 via NVENC → AMF → QSV with a libx264 software fallback (the chain auto-probes and reorders by GPU vendor), fragments each frame behind a custom 16-byte UDP header, and streams to an iPad client that decodes on VideoToolbox and presents through a Metal-backed MTKView. UDP over TCP was deliberate. A dropped frame should be a dropped frame, not head-of-line blocking.\n\n" +
-      "Design details I'd defend: H.264 Baseline specifically because that's what the iPad's hardware decoder is happiest with; fragment counters widened u8 → u16 once frames started exceeding 255 fragments; packets carry a FlatBuffers FramePacket; discovery is mDNS with manual IP entry as the reliable path.\n\n" +
-      "Honest status: v0.1.2-mirror, in active development. It mirrors the primary display. No extended desktop and no input relay yet, and I have not instrumented true glass-to-glass latency, so I don't quote a number for it. 5,900 lines of Rust and 3,700 of Swift, MIT.",
-    tech: ["Rust", "SwiftUI", "DXGI", "H.264", "VideoToolbox", "Metal", "FlatBuffers", "tokio", "mDNS"],
+      "A Rust host captures the Windows desktop through DXGI and encodes it through FFmpeg on NVIDIA NVENC, AMD AMF or Intel Quick Sync, chosen by the graphics cards it finds, with libx264 as the software fallback. H.264 by default, HEVC if you ask for it. Each frame goes out as numbered UDP fragments to a SwiftUI iPad app that decodes on VideoToolbox and draws through Metal. Over USB the same messages go through the tunnel Apple's device service provides. UDP over TCP was deliberate. A late packet should not hold up everything behind it.\n\n" +
+      "Design details I'd defend: H.264 Baseline specifically because that's what the iPad's hardware decoder is happiest with; fragment counters widened u8 → u16 once frames started exceeding 255 fragments; on Wi-Fi the iPad asks again for a missing fragment as soon as a later one shows the gap, and gives the repair an 8 to 25 ms window, counted only while traffic is flowing; the bitrate follows the iPad's own reports between 4 and 50 Mbps; discovery is mDNS, with manual IP and a QR code as the reliable paths.\n\n" +
+      "Honest status: the Windows installer is on GitHub Releases and the iPad app is on TestFlight, not the App Store yet. The installer is not code-signed yet either, so Windows SmartScreen asks before it runs. It extends or mirrors, and every tap, keystroke and Pencil stroke goes back to the PC. I have not instrumented true glass-to-glass latency, so I don't quote a number for it. MIT, and the repository lives under Sideband now.",
+    tech: ["Rust", "SwiftUI", "DXGI", "FFmpeg", "H.264 / HEVC", "VideoToolbox", "Metal", "Opus", "tokio", "mDNS"],
     features: [
-      "DXGI Desktop Duplication capture on the Windows host",
-      "NVENC / AMF / QSV / libx264 encoder auto-selection",
-      "Custom 16-byte UDP header w/ u16 fragment counters",
-      "H.264 Baseline for VideoToolbox compatibility",
-      "Metal-backed MTKView rendering on iPad",
-      "FlatBuffers FramePacket over the wire",
-      "mDNS discovery w/ manual-IP fallback",
+      "Extend the desktop onto the iPad, or mirror any screen",
+      "Wi-Fi or USB, and plugging in a cable takes over a Wi-Fi session",
+      "Apple Pencil as a Windows Ink pen, with pressure and tilt",
+      "Touch, keyboard, trackpad and mouse input back to the PC",
+      "NVENC / AMF / QSV encode with a libx264 fallback",
+      "Fragment repair on Wi-Fi, bitrate between 4 and 50 Mbps",
+      "PC audio to the iPad as Opus",
+      "mDNS discovery, with manual IP and QR pairing",
     ],
-    github: "https://github.com/whoisaldo/EternalMonitor",
+    github: monitor.url,
     live: "https://eternalmonitor.dev",
     images: [kaEternalMonitor, emWeb, emWebFeatures, emPC, emIpad],
     imageLabels: ["Frame Transport", "eternalmonitor.dev", "Features", "Windows Host", "iPad Client"],
-    stats: { platform: "Rust · Swift", transport: "UDP / H.264", status: "v0.1.2 · in dev" },
+    // From the GitHub snapshot, so they are as new as the last deploy.
+    metrics: [
+      { label: "GitHub stars", value: count(monitor.stars) },
+      { label: "Release downloads", value: count(monitor.downloads) },
+      { label: "Forks", value: count(monitor.forks) },
+      { label: `Latest of ${count(monitor.releases)} releases, ${shortDate(monitor.latest.date)}`, value: monitor.latest.tag },
+    ],
+    stats: { platform: "Rust · Swift", transport: "Wi-Fi or USB · H.264 / HEVC", status: `${monitor.latest.tag} · live` },
   },
   {
     slug: "eternal-rich-presence",
@@ -261,6 +284,7 @@ export const featuredProjects = [
       "Apple Music does not talk to Discord. So I made it talk, over Discord's raw IPC named pipes.",
     accent: LIVE,
     status: "live",
+    sideband: true,
     description:
       "Windows system-tray bridge putting Apple Music and Spotify on your Discord profile, with a Listen Along built on raw named pipes.",
     longDescription:
@@ -320,6 +344,7 @@ export const featuredProjects = [
       "A barbershop in Chicopee with nothing online, taking every booking by phone. The booking flow compiles into a WhatsApp deeplink, so there is no backend to keep alive.",
     accent: LIVE,
     status: "live",
+    sideband: true,
     description:
       "Production marketing + lead-gen site for a Chicopee barbershop. Next.js 14 SSG, static export, WhatsApp-driven booking flow.",
     longDescription:
@@ -339,6 +364,70 @@ export const featuredProjects = [
     images: [kaSignatureCuts, sigCutsWeb, sigCutsPhone],
     imageLabels: ["Booking Flow", "Desktop", "Mobile"],
     stats: { stack: "Next 14", deploy: "GH Pages SSG", booking: "WhatsApp" },
+  },
+];
+
+// Projects with a page on the front site and nowhere else. The playground
+// builds its boards, Work deck, braindance places and cinema from
+// featuredProjects, one each, so these stay out of it: an entry there is a
+// new board in the city. src/data/work.js gives them their /work/ pages. No
+// key art, so their pages start at the words.
+export const frontProjects = [
+  {
+    slug: "agent-workflow",
+    title: "Agentic workflow",
+    tagline: "skills and recipes for Claude Code and Codex · open source",
+    accent: LIVE,
+    status: "live",
+    description:
+      "The skills and setup recipes I use to run Claude Code and Codex like a small dev team, published so anyone can take the parts that fit their own setup.",
+    longDescription:
+      "Three public repositories. aldos-agentic-workflow is the bank. A coordinator agent hands builds and reviews across Claude and Codex, and the repo collects the skills, tools and setup recipes around that, T3 Code, Tailscale and Cloudflare preview tunnels among them. Every recipe says when it helps, when to skip it and how to check that it works.\n\n" +
+      "You don't install the bank. A small Python selector lists it, plans a selection from a preset such as minimal, personal-code or student, and copies only those files into a new folder, with a manifest, checking each file's hash. It installs nothing, signs in to nothing and opens no ports. Credentials and sessions stay out of Git, and CI runs Gitleaks over the whole history.\n\n" +
+      "claude-codex-skills is three skills that let Claude Code hand off the jobs it is bad at. codex-image gets a real PNG out of the Codex CLI's image generator. codex-3d has Codex model a three.js module, a Blender GLB or an animatable SVG, renders it headlessly and lets Codex fix what it sees in its own render. codex-computer-use drives a running page in headless Chrome, screenshots every state and answers pass or fail with the evidence. Claude writes the code, Codex draws, models or inspects, and Claude looks at what came back before wiring it in.\n\n" +
+      "codex-image-skill is where it started, the image skill on its own. It runs Codex read-only and takes only the images from its own thread, so parallel runs never mix. It uses the ChatGPT login Codex already has, with no API key.",
+    tech: ["Python", "Claude Code", "Codex CLI", "Agent Skills", "headless Chrome", "Blender MCP", "three.js", "Gitleaks"],
+    features: [
+      "A selector that lists, plans and pulls a kit from presets",
+      "Every recipe says when it helps and when to skip it",
+      "Exports only inventoried files and checks their hashes",
+      "Gitleaks over the whole history on every push",
+      "codex-image: real raster images through Codex's image_gen",
+      "codex-3d: geometry rendered headlessly, then fixed from its own render",
+      "codex-computer-use: headless Chrome checks with screenshots as evidence",
+      "Wrappers in plain Python, standard library only",
+    ],
+    github: "https://github.com/whoisaldo/aldos-agentic-workflow",
+    moreSource: [
+      { label: "claude-codex-skills", href: "https://github.com/whoisaldo/claude-codex-skills" },
+      { label: "codex-image-skill", href: "https://github.com/whoisaldo/codex-image-skill" },
+    ],
+    live: null,
+  },
+  {
+    slug: "github-reskin",
+    title: "GitHub Reskin",
+    tagline: "browser extension and userscript · themes for github.com",
+    accent: LIVE,
+    status: "live",
+    sideband: true,
+    description:
+      "A browser extension and userscript that restyle github.com and gist.github.com in your own browser, with 25 themes, a theme builder, and a GitHub Action that draws your contribution graph in your colours.",
+    longDescription:
+      "Thirteen anime themes and twelve classic editor themes. A theme sets more than colours: the header, panels, fonts, code highlighting, diffs and the contribution graph. Full draws each theme's backgrounds and effects, and Calm keeps only the colours.\n\n" +
+      "The builder starts from three colours and goes as far as fonts, patterns and your own images. It imports a theme from a file, pasted JSON or a share code, and it can give you a prompt to paste into a chatbot. GitHub Reskin itself never contacts an AI service. It asks for one permission, storage, plus the two GitHub sites, and it makes no network requests.\n\n" +
+      "It isn't in the Chrome Web Store or on Firefox Add-ons yet, so you build it from source, or install the userscript, which is how it runs in Safari. I built it with Ali Tleis. MIT.",
+    tech: ["JavaScript", "WebExtensions", "Userscript", "GitHub Actions", "GraphQL", "Astro"],
+    features: [
+      "13 anime themes and 12 classic editor themes",
+      "Theme builder with import and export by file, JSON or share code",
+      "Full or Calm, and reduced motion is respected",
+      "Userscript for Safari and other browsers",
+      "GitHub Action that draws your contribution graph as an SVG",
+      "One permission, no network requests, no analytics",
+    ],
+    github: "https://github.com/sidebandstudio/GitHub-Reskin",
+    live: "https://sidebandstudio.github.io/GitHub-Reskin/",
   },
 ];
 
