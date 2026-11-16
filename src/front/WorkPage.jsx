@@ -22,7 +22,7 @@ import Picture from "../components/Picture";
 import ProjectImage from "../components/projects/ProjectImage";
 import { COLUMN, useTitle } from "./lib";
 import { BrandIcon } from "./icons";
-import { FrontFooter, FrontHeader, SectionLabel } from "./parts";
+import { FrontFooter, FrontHeader, SectionLabel, StudioLine } from "./parts";
 import Lightbox from "./Lightbox";
 
 const backLink = "inline-flex items-center gap-1.5 text-sm font-medium text-dim transition-colors duration-150 hover:text-volt";
@@ -132,6 +132,7 @@ function ProjectHead({ entry }) {
         {entry.title}
       </h1>
       <p className="mt-4 text-pretty text-sm text-dim">{entry.tagline}</p>
+      {entry.sideband && <StudioLine className="mt-1.5" />}
       {(entry.live || entry.github) && (
         <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-4">
           {entry.live && (

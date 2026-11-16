@@ -28,6 +28,11 @@
 // single status flag. Derived from `status` directly below each one, so the
 // two can never disagree.
 
+// `sideband: true` marks a project that ships under Sideband, the studio Ali
+// co-founded, and that he built: he is the main contributor in each one's
+// repository. The front site prints one line for it (StudioLine in
+// src/front/parts.jsx); the playground ignores it.
+
 // Every `images[]` entry below is an encoded variant set rather than a bare
 // URL: `{ src, width, height, avif, webp, thumb, lqip, lqipKey }`. The source
 // PNGs were replaced by AVIF/WebP (plus a mozjpeg fallback for key art) by
@@ -147,6 +152,7 @@ export const featuredProjects = [
       "Every commercial fitness app is paywalled. I wanted a free, open-source one that actually coaches.",
     accent: LIVE,
     status: "live",
+    sideband: true,
     description:
       "React 19 on the web, a Node/Express API, an AI coach, and a native SwiftUI iOS client built and waiting on App Store review.",
     longDescription:
@@ -177,6 +183,7 @@ export const featuredProjects = [
       "ProjectE is the canonical equivalent-exchange mod and it is Forge-only. Fabric had nothing comparable, so I built the spin-off, plus a solver that walks Minecraft's whole recipe graph at world load and prices every item in the game.",
     accent: BUILDING,
     status: "pre-release",
+    sideband: true,
     description:
       "A 39K-line Minecraft alchemy mod for Fabric 1.21.1. A spin-off of ProjectE with a recipe-graph solver that prices every item in the game at world load.",
     longDescription:
@@ -238,6 +245,7 @@ export const featuredProjects = [
       "I refused to pay $40 for an iPad-as-second-display app that lagged. So I wrote my own.",
     accent: LIVE,
     status: "live",
+    sideband: true,
     description:
       "A Rust host and a native Swift iPad app that turn an iPad into a second display for Windows. Extend or mirror, over Wi-Fi or USB, with touch, Apple Pencil and PC audio.",
     longDescription:
@@ -277,6 +285,7 @@ export const featuredProjects = [
       "Apple Music does not talk to Discord. So I made it talk, over Discord's raw IPC named pipes.",
     accent: LIVE,
     status: "live",
+    sideband: true,
     description:
       "Windows system-tray bridge putting Apple Music and Spotify on your Discord profile, with a Listen Along built on raw named pipes.",
     longDescription:
@@ -336,6 +345,7 @@ export const featuredProjects = [
       "A barbershop in Chicopee with nothing online, taking every booking by phone. The booking flow compiles into a WhatsApp deeplink, so there is no backend to keep alive.",
     accent: LIVE,
     status: "live",
+    sideband: true,
     description:
       "Production marketing + lead-gen site for a Chicopee barbershop. Next.js 14 SSG, static export, WhatsApp-driven booking flow.",
     longDescription:

@@ -23,7 +23,7 @@ import neon from "../assets/front/playground-neon-1120.webp";
 import { posts } from "./posts";
 import { COLUMN, useTitle } from "./lib";
 import { BrandIcon } from "./icons";
-import { FollowOnX, FrontFooter, FrontHeader, PostList, SectionLabel } from "./parts";
+import { FollowOnX, FrontFooter, FrontHeader, PostList, SectionLabel, StudioLine } from "./parts";
 import Lightbox from "./Lightbox";
 import { Sticker } from "./Stickers";
 
@@ -368,6 +368,7 @@ export default function FrontHome() {
                   </summary>
                   <div className="pb-5 sm:pr-16">
                     <p className="text-pretty text-muted">{project.description}</p>
+                    {project.sideband && <StudioLine className="mt-2" />}
                     <p className="mt-2 text-sm text-dim">{project.tech.slice(0, 5).join(" · ")}</p>
                     <div className="mt-3 flex flex-wrap gap-x-6 gap-y-3">
                       <Link to={`/work/${project.slug}`} className={textLink}>
