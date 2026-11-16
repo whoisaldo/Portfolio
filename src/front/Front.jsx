@@ -69,6 +69,10 @@ export default function Front() {
       window.scrollTo(0, 0);
       return undefined;
     }
+    // The page the tab opened on, never seen before. A blog page may already
+    // have been read, and scrolled, as its static copy (lib.js), so the
+    // reader stays where they are. Any other page is still at its top.
+    if (key === "default" && !places.has(key)) return undefined;
     const y = places.get(key) ?? 0;
     land(y);
     pending = y;

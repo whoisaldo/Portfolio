@@ -1,6 +1,6 @@
 // src/front/lib.js: what the homepage and the blog share that is not a
 // component (src/front/parts.jsx has those).
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { links } from "../data/profile";
 
 export const handle = "@" + links.x.split("/").pop();
@@ -14,4 +14,15 @@ export function useTitle(title) {
   useEffect(() => {
     document.title = title;
   }, [title]);
+}
+
+// The blog's pages are served with a copy of themselves ahead of #root,
+// drawn by these same components at build time (scripts/static-pages.mjs),
+// so they read without JavaScript. The copy goes in the commit that puts the
+// page itself in, before the browser paints either, so a reader never sees
+// both, or neither.
+export function useStaticCopyGone() {
+  useLayoutEffect(() => {
+    document.getElementById("static-copy")?.remove();
+  }, []);
 }

@@ -13,6 +13,9 @@ export default defineConfig({
     allowedHosts: ['devbox1', '.ts.net'],
   },
   build: {
+    // Which stylesheets each chunk brings, for scripts/static-pages.mjs to
+    // link in the blog's pages. It reads the file and removes it.
+    manifest: true,
     // The 320px modal thumbnails land just under Vite's 4 KB inline limit, so
     // by default all 29 of them were base64'd into the entry chunk, about 107 KB
     // of images every visitor downloads before first paint, for a rail that

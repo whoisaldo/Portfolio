@@ -9,17 +9,66 @@
 // image stays the site's own (index.html). The app itself is unchanged; the
 // copy only differs in what a crawler reads before it runs.
 //
+// The blog's pages carry their text as well, drawn at build time by the same
+// components the site runs (prerender-blog.jsx), so a reader, a crawler or a
+// link tool without JavaScript gets the post. The other pages do not.
+//
 // Run after `vite build`:  node scripts/static-pages.mjs dist
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runnerImport } from "vite";
 import { parsePost } from "../src/front/frontmatter.js";
+import { fontFiles, withStaticCopy } from "./site-files.mjs";
 
 const dist = process.argv[2] ?? "dist";
 const SITE = "https://aliyounes.dev";
 const NAME = "Ali Younes";
 const template = readFileSync(join(dist, "index.html"), "utf8");
+
+// Which stylesheets a chunk brings, from the manifest the build writes
+// (vite.config.js). Its own and those of the chunks it imports, which is
+// what Vite links when it loads it. The manifest is for this script only, so
+// it does not ship.
+const manifestFile = join(dist, ".vite", "manifest.json");
+let manifest;
+try {
+  manifest = JSON.parse(readFileSync(manifestFile, "utf8"));
+} catch {
+  throw new Error(`static-pages: no ${manifestFile}; run vite build first`);
+}
+rmSync(join(dist, ".vite"), { recursive: true });
+// A lazy chunk whose module something also imports directly (the private
+// blog imports BlogPost's PostPage) is listed by its chunk's name, not its
+// source, so it is found by either.
+function chunkKey(source, name) {
+  if (manifest[source]) return source;
+  const named = Object.keys(manifest).filter((k) => manifest[k].isDynamicEntry && manifest[k].name === name);
+  if (named.length !== 1) throw new Error(`static-pages: no one chunk for ${source} in the build's manifest`);
+  return named[0];
+}
+// The entry's own stylesheet is in index.html already.
+function cssOf(key, seen = new Set()) {
+  if (seen.has(key) || manifest[key].isEntry) return [];
+  seen.add(key);
+  const chunk = manifest[key];
+  return [...(chunk.imports ?? []).flatMap((k) => cssOf(k, seen)), ...(chunk.css ?? []).map((f) => `/${f}`)];
+}
+const frontCss = cssOf(chunkKey("src/front/Front.jsx", "Front"));
+const postCss = [...new Set([...frontCss, ...cssOf(chunkKey("src/front/BlogPost.jsx", "BlogPost"))])];
+
+// The faces at the top of a blog page: Chakra Petch for the name and the
+// titles, and Barlow for the text, at 500 the links and at 600 the Follow
+// button and each post's Read. The code's mono comes further down, so it is
+// left to load as it always has.
+const entryCss = manifest["index.html"]?.css?.[0];
+if (!entryCss) throw new Error("static-pages: the build's manifest names no stylesheet for index.html");
+const fonts = fontFiles(readFileSync(join(dist, entryCss), "utf8"), [
+  ["Chakra Petch", 600],
+  ["Barlow", 400],
+  ["Barlow", 500],
+  ["Barlow", 600],
+]);
 
 const escape = (s) =>
   s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -34,7 +83,7 @@ function swap(html, pattern, replacement, what) {
 
 const meta = (attr, key) => new RegExp(`(<meta\\s+${attr}="${key}"\\s+content=")[^"]*(")`);
 
-function writePage(route, { title, description, type = "website", noindex = false }) {
+function writePage(route, { title, description, type = "website", noindex = false, body, head }) {
   // GitHub Pages redirects /route to /route/, so that is the address.
   const url = `${SITE}${route}/`;
   const t = escape(title);
@@ -55,10 +104,28 @@ function writePage(route, { title, description, type = "website", noindex = fals
     html = html.replace(/<meta\s+name="robots"[^>]*>\s*/g, "");
     html = swap(html, /<\/head>/, `  <meta name="robots" content="noindex,nofollow" />\n  </head>`, "</head>");
   }
+  if (body) html = withStaticCopy(html, body, head);
   mkdirSync(join(dist, route), { recursive: true });
   writeFileSync(join(dist, route, "index.html"), html);
-  console.log(`static-pages: ${route}/`);
+  console.log(`static-pages: ${route}/${body ? " (with its text)" : ""}`);
 }
+
+// The posts, newest first, as the blog lists them.
+const postsDir = new URL("../src/blog/", import.meta.url);
+const posts = readdirSync(postsDir)
+  .filter((f) => f.endsWith(".md"))
+  .map((file) => {
+    const { meta: post } = parsePost(readFileSync(new URL(file, postsDir), "utf8"));
+    if (!post.title || !post.summary) throw new Error(`static-pages: ${file} needs a title and a summary`);
+    return { slug: file.replace(/\.md$/, ""), title: post.title, summary: post.summary, date: post.date ?? "" };
+  })
+  .sort((a, b) => b.date.localeCompare(a.date));
+
+// The blog's components, through Vite, as the work pages' data is below.
+const { module: prerender } = await runnerImport(fileURLToPath(new URL("./prerender-blog.jsx", import.meta.url)), {
+  configFile: false,
+  logLevel: "silent",
+});
 
 // The playground keeps the portfolio's own description; only the name and
 // the address are its own.
@@ -67,6 +134,8 @@ writePage("/playground", { title: `${NAME} · Playground` });
 writePage("/blog", {
   title: `Writing · ${NAME}`,
   description: "Long write-ups of things I built, mostly the parts that went wrong first.",
+  body: prerender.renderIndex(),
+  head: { css: frontCss, fonts },
 });
 
 // The private blog: drafts shown to a few people before they are published.
@@ -102,14 +171,13 @@ writeFileSync(
 );
 console.log("static-pages: /recruiters/ -> /");
 
-const posts = new URL("../src/blog/", import.meta.url);
-for (const file of readdirSync(posts).filter((f) => f.endsWith(".md"))) {
-  const { meta: post } = parsePost(readFileSync(new URL(file, posts), "utf8"));
-  if (!post.title || !post.summary) throw new Error(`static-pages: ${file} needs a title and a summary`);
-  writePage(`/blog/${file.replace(/\.md$/, "")}`, {
+for (const post of posts) {
+  writePage(`/blog/${post.slug}`, {
     title: `${post.title} · ${NAME}`,
     description: post.summary,
     type: "article",
+    body: prerender.renderPost(post.slug),
+    head: { css: postCss, fonts },
   });
 }
 

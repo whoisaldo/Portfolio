@@ -2,11 +2,12 @@
 import React from "react";
 import { profile } from "../data/profile";
 import { posts } from "./posts";
-import { COLUMN, useTitle } from "./lib";
+import { COLUMN, useStaticCopyGone, useTitle } from "./lib";
 import { FollowOnX, FrontFooter, FrontHeader, PostList } from "./parts";
 
 export default function BlogIndex() {
   useTitle(`Writing · ${profile.name}`);
+  useStaticCopyGone();
 
   return (
     <>
