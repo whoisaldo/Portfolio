@@ -1,0 +1,123 @@
+{
+  "updated": "2026-11-16",
+  "author": "whoisaldo",
+  "contributions": [
+    {
+      "repo": "pingdotgg/t3code",
+      "url": "https://github.com/pingdotgg/t3code",
+      "stars": 62688,
+      "merged": 7,
+      "pulls": [
+        {
+          "number": 33903,
+          "title": "fix(web): Select All then Copy in a read-only file preview copies the whole file",
+          "url": "https://github.com/pingdotgg/t3code/pull/33903",
+          "merged": "2026-11-12"
+        },
+        {
+          "number": 19553,
+          "title": "fix(web): Changes row matches the diff comparison",
+          "url": "https://github.com/pingdotgg/t3code/pull/19553",
+          "merged": "2026-11-11"
+        },
+        {
+          "number": 25632,
+          "title": "fix(mobile): opening a new thread before it is created no longer marks it unavailable",
+          "url": "https://github.com/pingdotgg/t3code/pull/25632",
+          "merged": "2026-10-27"
+        },
+        {
+          "number": 19771,
+          "title": "fix(provider-cursor): say when Cursor rejects a free-plan account",
+          "url": "https://github.com/pingdotgg/t3code/pull/19771",
+          "merged": "2026-10-20"
+        },
+        {
+          "number": 19550,
+          "title": "fix(web): reopening the Changes panel refreshes its diff",
+          "url": "https://github.com/pingdotgg/t3code/pull/19550",
+          "merged": "2026-10-20"
+        },
+        {
+          "number": 18238,
+          "title": "fix(desktop): Option-click on a chat link opens the system browser",
+          "url": "https://github.com/pingdotgg/t3code/pull/18238",
+          "merged": "2026-10-12"
+        },
+        {
+          "number": 16480,
+          "title": "fix(mobile): image-only messages ask the agent to respond, like desktop",
+          "url": "https://github.com/pingdotgg/t3code/pull/16480",
+          "merged": "2026-10-11"
+        }
+      ]
+    },
+    {
+      "repo": "pawtograder/platform",
+      "url": "https://github.com/pawtograder/platform",
+      "stars": 22,
+      "merged": 3,
+      "pulls": [
+        {
+          "number": 1229,
+          "title": "CW-17b: Coder workspace template that clones the student's repository",
+          "url": "https://github.com/pawtograder/platform/pull/1229",
+          "merged": "2026-11-16"
+        },
+        {
+          "number": 1228,
+          "title": "CW-14: accept push webhooks from Forgejo",
+          "url": "https://github.com/pawtograder/platform/pull/1228",
+          "merged": "2026-11-13"
+        },
+        {
+          "number": 1128,
+          "title": "CW-10: add assignment provider and GitHub guards (1/2)",
+          "url": "https://github.com/pawtograder/platform/pull/1128",
+          "merged": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "repo": "emmabostian/developer-portfolios",
+      "url": "https://github.com/emmabostian/developer-portfolios",
+      "stars": 27730,
+      "merged": 1,
+      "pulls": [
+        {
+          "number": 4148,
+          "title": "Add site Ali Younes",
+          "url": "https://github.com/emmabostian/developer-portfolios/pull/4148",
+          "merged": "2026-08-29"
+        }
+      ]
+    },
+    {
+      "repo": "Alitleis123/neu-academic-calendar-ics",
+      "url": "https://github.com/Alitleis123/neu-academic-calendar-ics",
+      "stars": 0,
+      "merged": 1,
+      "pulls": [
+        {
+          "number": 1,
+          "title": "Fix calendar data loss and harden validation, logging, and publishing",
+          "url": "https://github.com/Alitleis123/neu-academic-calendar-ics/pull/1",
+          "merged": "2026-09-14"
+        }
+      ]
+    }
+  ],
+  "eternalMonitor": {
+    "repo": "sidebandstudio/EternalMonitor",
+    "url": "https://github.com/sidebandstudio/EternalMonitor",
+    "stars": 180,
+    "forks": 13,
+    "releases": 19,
+    "downloads": 3544,
+    "latest": {
+      "tag": "v0.3.4",
+      "date": "2026-11-03",
+      "url": "https://github.com/sidebandstudio/EternalMonitor/releases/tag/v0.3.4"
+    }
+  }
+}

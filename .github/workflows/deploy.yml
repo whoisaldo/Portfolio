@@ -4,6 +4,10 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+  # Once a day, so the open-source block and Eternal Monitor's numbers
+  # (scripts/github-snapshot.mjs) refresh without a push.
+  schedule:
+    - cron: "23 7 * * *"
 
 permissions:
   contents: read
@@ -24,6 +28,11 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # Refreshes src/data/github.json. It never fails the build: on any
+      # error the committed snapshot is used as it is.
+      - run: node scripts/github-snapshot.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
       - run: npm run build
         env:
           # The analytics beacon. Unset, src/lib/beacon.js registers nothing and
