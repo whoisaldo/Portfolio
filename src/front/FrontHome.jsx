@@ -15,7 +15,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from "r
 import { Link } from "react-router-dom";
 import { ArrowRight, ArrowUpRight, ChevronDown, FileText, Mail } from "lucide-react";
 import { profile, links } from "../data/profile";
-import { featuredProjects } from "../data/projects";
+import { featuredProjects, frontProjects } from "../data/projects";
 import { built, intro, photos, playgroundCard, timeline } from "../data/home";
 import { PLAYGROUND } from "../data/site";
 import portrait from "../assets/Photos/portrait-seattle-640.webp";
@@ -32,7 +32,7 @@ const LATEST = 5;
 const resume = `${import.meta.env.BASE_URL}resume.pdf`;
 
 const projects = built
-  .map((b) => ({ ...featuredProjects.find((p) => p.slug === b.slug), line: b.line }))
+  .map((b) => ({ ...[...featuredProjects, ...frontProjects].find((p) => p.slug === b.slug), line: b.line }))
   .filter((p) => p.title);
 
 /** The work history, one entry a company, laid out the way hadisalman.com

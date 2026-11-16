@@ -133,7 +133,7 @@ function ProjectHead({ entry }) {
       </h1>
       <p className="mt-4 text-pretty text-sm text-dim">{entry.tagline}</p>
       {entry.sideband && <StudioLine className="mt-1.5" />}
-      {(entry.live || entry.github) && (
+      {(entry.live || entry.github || entry.moreSource) && (
         <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-4">
           {entry.live && (
             <a
@@ -150,6 +150,11 @@ function ProjectHead({ entry }) {
               <BrandIcon name="github" /> Source
             </a>
           )}
+          {entry.moreSource?.map((s) => (
+            <a key={s.href} href={s.href} target="_blank" rel="noreferrer" className={textLink}>
+              <BrandIcon name="github" /> {s.label}
+            </a>
+          ))}
         </div>
       )}
     </>

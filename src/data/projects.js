@@ -368,6 +368,70 @@ export const featuredProjects = [
   },
 ];
 
+// Projects with a page on the front site and nowhere else. The playground
+// builds its boards, Work deck, braindance places and cinema from
+// featuredProjects, one each, so these stay out of it: an entry there is a
+// new board in the city. src/data/work.js gives them their /work/ pages. No
+// key art, so their pages start at the words.
+export const frontProjects = [
+  {
+    slug: "agent-workflow",
+    title: "Agentic workflow",
+    tagline: "skills and recipes for Claude Code and Codex · open source",
+    accent: LIVE,
+    status: "live",
+    description:
+      "The skills and setup recipes I use to run Claude Code and Codex like a small dev team, published so anyone can take the parts that fit their own setup.",
+    longDescription:
+      "Three public repositories. aldos-agentic-workflow is the bank. A coordinator agent hands builds and reviews across Claude and Codex, and the repo collects the skills, tools and setup recipes around that, T3 Code, Tailscale and Cloudflare preview tunnels among them. Every recipe says when it helps, when to skip it and how to check that it works.\n\n" +
+      "You don't install the bank. A small Python selector lists it, plans a selection from a preset such as minimal, personal-code or student, and copies only those files into a new folder, with a manifest, checking each file's hash. It installs nothing, signs in to nothing and opens no ports. Credentials and sessions stay out of Git, and CI runs Gitleaks over the whole history.\n\n" +
+      "claude-codex-skills is three skills that let Claude Code hand off the jobs it is bad at. codex-image gets a real PNG out of the Codex CLI's image generator. codex-3d has Codex model a three.js module, a Blender GLB or an animatable SVG, renders it headlessly and lets Codex fix what it sees in its own render. codex-computer-use drives a running page in headless Chrome, screenshots every state and answers pass or fail with the evidence. Claude writes the code, Codex draws, models or inspects, and Claude looks at what came back before wiring it in.\n\n" +
+      "codex-image-skill is where it started, the image skill on its own. It runs Codex read-only and takes only the images from its own thread, so parallel runs never mix. It uses the ChatGPT login Codex already has, with no API key.",
+    tech: ["Python", "Claude Code", "Codex CLI", "Agent Skills", "headless Chrome", "Blender MCP", "three.js", "Gitleaks"],
+    features: [
+      "A selector that lists, plans and pulls a kit from presets",
+      "Every recipe says when it helps and when to skip it",
+      "Exports only inventoried files and checks their hashes",
+      "Gitleaks over the whole history on every push",
+      "codex-image: real raster images through Codex's image_gen",
+      "codex-3d: geometry rendered headlessly, then fixed from its own render",
+      "codex-computer-use: headless Chrome checks with screenshots as evidence",
+      "Wrappers in plain Python, standard library only",
+    ],
+    github: "https://github.com/whoisaldo/aldos-agentic-workflow",
+    moreSource: [
+      { label: "claude-codex-skills", href: "https://github.com/whoisaldo/claude-codex-skills" },
+      { label: "codex-image-skill", href: "https://github.com/whoisaldo/codex-image-skill" },
+    ],
+    live: null,
+  },
+  {
+    slug: "github-reskin",
+    title: "GitHub Reskin",
+    tagline: "browser extension and userscript · themes for github.com",
+    accent: LIVE,
+    status: "live",
+    sideband: true,
+    description:
+      "A browser extension and userscript that restyle github.com and gist.github.com in your own browser, with 25 themes, a theme builder, and a GitHub Action that draws your contribution graph in your colours.",
+    longDescription:
+      "Thirteen anime themes and twelve classic editor themes. A theme sets more than colours: the header, panels, fonts, code highlighting, diffs and the contribution graph. Full draws each theme's backgrounds and effects, and Calm keeps only the colours.\n\n" +
+      "The builder starts from three colours and goes as far as fonts, patterns and your own images. It imports a theme from a file, pasted JSON or a share code, and it can give you a prompt to paste into a chatbot. GitHub Reskin itself never contacts an AI service. It asks for one permission, storage, plus the two GitHub sites, and it makes no network requests.\n\n" +
+      "It isn't in the Chrome Web Store or on Firefox Add-ons yet, so you build it from source, or install the userscript, which is how it runs in Safari. I built it with Ali Tleis. MIT.",
+    tech: ["JavaScript", "WebExtensions", "Userscript", "GitHub Actions", "GraphQL", "Astro"],
+    features: [
+      "13 anime themes and 12 classic editor themes",
+      "Theme builder with import and export by file, JSON or share code",
+      "Full or Calm, and reduced motion is respected",
+      "Userscript for Safari and other browsers",
+      "GitHub Action that draws your contribution graph as an SVG",
+      "One permission, no network requests, no analytics",
+    ],
+    github: "https://github.com/sidebandstudio/GitHub-Reskin",
+    live: "https://sidebandstudio.github.io/GitHub-Reskin/",
+  },
+];
+
 export const otherProjects = [
   { title: "CS3520 · C++", description: "Course work: nested containers, Makefiles, GDB, CLI formatting.", tech: ["C++", "GDB", "Makefile"], github: "https://github.com/whoisaldo/CS3520-Summer-2025" },
   { title: "Password Generator", description: "Configurable password generator across Java and Swift.", tech: ["Java", "Swift"], github: "https://github.com/whoisaldo/Password-Generator" },
