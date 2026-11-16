@@ -2,6 +2,7 @@
 // component (src/front/parts.jsx has those).
 import { useEffect, useLayoutEffect } from "react";
 import { links } from "../data/profile";
+import { removeStaticCopy } from "../lib/static-copy";
 
 export const handle = "@" + links.x.split("/").pop();
 
@@ -22,7 +23,5 @@ export function useTitle(title) {
 // page itself in, before the browser paints either, so a reader never sees
 // both, or neither.
 export function useStaticCopyGone() {
-  useLayoutEffect(() => {
-    document.getElementById("static-copy")?.remove();
-  }, []);
+  useLayoutEffect(removeStaticCopy, []);
 }
