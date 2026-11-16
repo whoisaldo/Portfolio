@@ -13,13 +13,16 @@
 // components the site runs (prerender-blog.jsx), so a reader, a crawler or a
 // link tool without JavaScript gets the post. The other pages do not.
 //
+// From the same pages it writes /sitemap.xml and /robots.txt
+// (site-files.mjs), so a new post is in them by being a file.
+//
 // Run after `vite build`:  node scripts/static-pages.mjs dist
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runnerImport } from "vite";
 import { parsePost } from "../src/front/frontmatter.js";
-import { fontFiles, withStaticCopy } from "./site-files.mjs";
+import { fontFiles, robots, sitemap, withStaticCopy } from "./site-files.mjs";
 
 const dist = process.argv[2] ?? "dist";
 const SITE = "https://aliyounes.dev";
@@ -70,6 +73,12 @@ const fonts = fontFiles(readFileSync(join(dist, entryCss), "utf8"), [
   ["Barlow", 600],
 ]);
 
+// Every page with a file of its own and an address to be found at, for the
+// sitemap. The homepage is index.html itself, at its own canonical.
+const homepage = template.match(/<link\s+rel="canonical"\s+href="([^"]*)"/)?.[1];
+if (!homepage) throw new Error(`static-pages: no canonical link in ${dist}/index.html`);
+const listed = [{ url: homepage }];
+
 const escape = (s) =>
   s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -83,7 +92,7 @@ function swap(html, pattern, replacement, what) {
 
 const meta = (attr, key) => new RegExp(`(<meta\\s+${attr}="${key}"\\s+content=")[^"]*(")`);
 
-function writePage(route, { title, description, type = "website", noindex = false, body, head }) {
+function writePage(route, { title, description, type = "website", noindex = false, lastmod, body, head }) {
   // GitHub Pages redirects /route to /route/, so that is the address.
   const url = `${SITE}${route}/`;
   const t = escape(title);
@@ -107,6 +116,7 @@ function writePage(route, { title, description, type = "website", noindex = fals
   if (body) html = withStaticCopy(html, body, head);
   mkdirSync(join(dist, route), { recursive: true });
   writeFileSync(join(dist, route, "index.html"), html);
+  if (!noindex) listed.push({ url, lastmod });
   console.log(`static-pages: ${route}/${body ? " (with its text)" : ""}`);
 }
 
@@ -117,7 +127,8 @@ const posts = readdirSync(postsDir)
   .map((file) => {
     const { meta: post } = parsePost(readFileSync(new URL(file, postsDir), "utf8"));
     if (!post.title || !post.summary) throw new Error(`static-pages: ${file} needs a title and a summary`);
-    return { slug: file.replace(/\.md$/, ""), title: post.title, summary: post.summary, date: post.date ?? "" };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(post.date ?? "")) throw new Error(`static-pages: ${file} needs a date, as 2026-10-17`);
+    return { slug: file.replace(/\.md$/, ""), title: post.title, date: post.date, summary: post.summary };
   })
   .sort((a, b) => b.date.localeCompare(a.date));
 
@@ -134,6 +145,7 @@ writePage("/playground", { title: `${NAME} · Playground` });
 writePage("/blog", {
   title: `Writing · ${NAME}`,
   description: "Long write-ups of things I built, mostly the parts that went wrong first.",
+  lastmod: posts[0]?.date,
   body: prerender.renderIndex(),
   head: { css: frontCss, fonts },
 });
@@ -176,6 +188,7 @@ for (const post of posts) {
     title: `${post.title} · ${NAME}`,
     description: post.summary,
     type: "article",
+    lastmod: post.date,
     body: prerender.renderPost(post.slug),
     head: { css: postCss, fonts },
   });
@@ -199,3 +212,9 @@ for (const slug of work.workSlugs) {
     description: kind === "project" ? entry.description : firstSentence(entry.description),
   });
 }
+
+// /privateblog asks not to be indexed (above), so it is not in the sitemap,
+// and its drafts, fetched after sign-in, are in nothing this writes.
+writeFileSync(join(dist, "sitemap.xml"), sitemap(listed));
+writeFileSync(join(dist, "robots.txt"), robots(SITE));
+console.log(`static-pages: /sitemap.xml (${listed.length} pages), /robots.txt`);

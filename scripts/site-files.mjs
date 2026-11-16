@@ -4,6 +4,8 @@
 //
 //   withStaticCopy  a blog page's text in its HTML, for a reader without
 //                   JavaScript (scripts/prerender-blog.jsx draws it)
+//   sitemap         /sitemap.xml, every page with a file and a canonical
+//   robots          /robots.txt
 
 export const escapeXml = (s) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -66,4 +68,17 @@ export function fontFiles(css, faces) {
     if (!url) throw new Error(`static-pages: no ${family} ${weight} woff2 in the stylesheet`);
     return url;
   });
+}
+
+/** pages: [{url, lastmod?}], each url absolute and the page's canonical. */
+export function sitemap(pages) {
+  const urls = pages.map(
+    ({ url, lastmod }) =>
+      `  <url>\n    <loc>${escapeXml(url)}</loc>\n${lastmod ? `    <lastmod>${lastmod}</lastmod>\n` : ""}  </url>\n`,
+  );
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("")}</urlset>\n`;
+}
+
+export function robots(site) {
+  return `User-agent: *\nDisallow: /privateblog\n\nSitemap: ${site}/sitemap.xml\n`;
 }

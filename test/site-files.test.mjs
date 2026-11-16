@@ -1,5 +1,5 @@
 // test/site-files.test.mjs: what scripts/static-pages.mjs writes besides the
-// heads: the blog's text in its pages.
+// heads: the blog's text in its pages, the sitemap and robots.txt.
 // The made-up posts here are made up; the published ones are read from
 // src/blog/ the way the build reads them. Nothing leaves the process.
 import { test } from "node:test";
@@ -8,7 +8,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { runnerImport } from "vite";
 import { Window } from "happy-dom";
-import { fontFiles, withStaticCopy } from "../scripts/site-files.mjs";
+import { fontFiles, robots, sitemap, withStaticCopy } from "../scripts/site-files.mjs";
 import { parsePost } from "../src/front/frontmatter.js";
 
 const SITE = "https://example.test";
@@ -35,6 +35,12 @@ const POSTS = [
   },
   { slug: "newer", title: "Lighthouses", date: "2026-05-09", summary: "A ledger of ships.", body: "Every ship that passed." },
 ];
+
+const xml = (source) => {
+  const doc = new new Window().DOMParser().parseFromString(source, "application/xml");
+  assert.equal(doc.querySelector("parsererror"), null, "parses as XML");
+  return doc;
+};
 
 test("a page's copy goes ahead of #root, styled and with the front site's body", () => {
   const html = withStaticCopy(TEMPLATE, "<main><h1>Lighthouses</h1></main>", { css: ["/assets/Front-b.css"], fonts: ["/assets/face-c.woff2"] });
@@ -65,6 +71,19 @@ test("an embed keeps its empty box for the page about to run, and a line without
   const html = withStaticCopy(TEMPLATE, '<div class="post-body"><p>a</p><div data-embed="tide-chart"></div><p>b</p></div>');
   assert.match(html, /<div data-embed="tide-chart"><\/div><noscript><p><em>An interactive demo goes here\. It needs JavaScript\.<\/em><\/p><\/noscript><p>b<\/p>/);
   assert.match(html, /<noscript><style>\.post-body \[data-embed\] \{ display: none; \}<\/style><\/noscript>\s*<\/head>/);
+});
+
+test("the sitemap lists each page at its address, with a date only where there is one", () => {
+  const out = sitemap([{ url: `${SITE}/` }, { url: `${SITE}/blog/a&b/`, lastmod: "2026-05-09" }]);
+  const doc = xml(out);
+  const urls = [...doc.getElementsByTagName("url")];
+  assert.deepEqual(urls.map((u) => u.getElementsByTagName("loc")[0].textContent), [`${SITE}/`, `${SITE}/blog/a&b/`]);
+  assert.deepEqual(urls.map((u) => u.getElementsByTagName("lastmod")[0]?.textContent ?? null), [null, "2026-05-09"]);
+  assert.match(out, /^<\?xml version="1.0" encoding="UTF-8"\?>\n<urlset xmlns="http:\/\/www.sitemaps.org\/schemas\/sitemap\/0.9">/);
+});
+
+test("robots.txt keeps crawlers out of the private blog and points at the sitemap", () => {
+  assert.equal(robots(SITE), `User-agent: *\nDisallow: /privateblog\n\nSitemap: ${SITE}/sitemap.xml\n`);
 });
 
 // The published posts, as the build draws them: the page's text, without
