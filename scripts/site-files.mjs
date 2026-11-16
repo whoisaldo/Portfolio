@@ -6,6 +6,8 @@
 //                   JavaScript (scripts/prerender-blog.jsx draws it)
 //   sitemap         /sitemap.xml, every page with a file and a canonical
 //   robots          /robots.txt
+//   atomFeed        /feed.xml, every post in full
+import { marked } from "marked";
 
 export const escapeXml = (s) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -81,4 +83,55 @@ export function sitemap(pages) {
 
 export function robots(site) {
   return `User-agent: *\nDisallow: /privateblog\n\nSitemap: ${site}/sitemap.xml\n`;
+}
+
+// A post has a date and no time. Noon UTC, so no reader's timezone shows the
+// day before, as src/front/posts.js does for the page.
+const timestamp = (date) => `${date}T12:00:00Z`;
+
+/**
+ * An Atom 1.0 feed of every post, newest first, each in full.
+ *
+ *   site   "https://aliyounes.dev"
+ *   posts  [{slug, title, date, summary, body}], body the Markdown
+ *
+ * An entry's id is the post's own address, which is its canonical too, so
+ * it stays the same for as long as the post does. Its text is the one the
+ * page renders (marked, with its defaults, as in BlogPost.jsx), with
+ * addresses made absolute because a reader shows it away from the site, and
+ * an embed turned into a link to the post, where it runs.
+ */
+export function atomFeed({ site, name, title, subtitle, posts }) {
+  const sorted = [...posts].sort((a, b) => b.date.localeCompare(a.date));
+  const entries = sorted.map((post) => {
+    const url = `${site}/blog/${post.slug}/`;
+    const html = marked
+      .parse(post.body)
+      .replace(EMBED, () => `<p><em><a href="${url}">An interactive demo is here in the post.</a></em></p>`)
+      .replace(/(\s(?:href|src|poster)=")\/(?!\/)/g, `$1${site}/`);
+    return `  <entry>
+    <title>${escapeXml(post.title)}</title>
+    <link rel="alternate" type="text/html" href="${escapeXml(url)}"/>
+    <id>${escapeXml(url)}</id>
+    <published>${timestamp(post.date)}</published>
+    <updated>${timestamp(post.date)}</updated>
+    <summary>${escapeXml(post.summary)}</summary>
+    <content type="html">${escapeXml(html)}</content>
+  </entry>
+`;
+  });
+  return `<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>${escapeXml(title)}</title>
+  <subtitle>${escapeXml(subtitle)}</subtitle>
+  <link rel="self" type="application/atom+xml" href="${site}/feed.xml"/>
+  <link rel="alternate" type="text/html" href="${site}/blog/"/>
+  <id>${site}/blog/</id>
+  <updated>${sorted.length ? timestamp(sorted[0].date) : "1970-01-01T00:00:00Z"}</updated>
+  <author>
+    <name>${escapeXml(name)}</name>
+    <uri>${site}/</uri>
+  </author>
+${entries.join("")}</feed>
+`;
 }

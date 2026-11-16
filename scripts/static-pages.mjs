@@ -13,8 +13,8 @@
 // components the site runs (prerender-blog.jsx), so a reader, a crawler or a
 // link tool without JavaScript gets the post. The other pages do not.
 //
-// From the same pages it writes /sitemap.xml and /robots.txt
-// (site-files.mjs), so a new post is in them by being a file.
+// From the same pages and posts it writes /sitemap.xml, /robots.txt and
+// /feed.xml (site-files.mjs), so a new post is in all of them by being a file.
 //
 // Run after `vite build`:  node scripts/static-pages.mjs dist
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -22,7 +22,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runnerImport } from "vite";
 import { parsePost } from "../src/front/frontmatter.js";
-import { fontFiles, robots, sitemap, withStaticCopy } from "./site-files.mjs";
+import { atomFeed, fontFiles, robots, sitemap, withStaticCopy } from "./site-files.mjs";
 
 const dist = process.argv[2] ?? "dist";
 const SITE = "https://aliyounes.dev";
@@ -125,10 +125,10 @@ const postsDir = new URL("../src/blog/", import.meta.url);
 const posts = readdirSync(postsDir)
   .filter((f) => f.endsWith(".md"))
   .map((file) => {
-    const { meta: post } = parsePost(readFileSync(new URL(file, postsDir), "utf8"));
+    const { meta: post, body } = parsePost(readFileSync(new URL(file, postsDir), "utf8"));
     if (!post.title || !post.summary) throw new Error(`static-pages: ${file} needs a title and a summary`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(post.date ?? "")) throw new Error(`static-pages: ${file} needs a date, as 2026-10-17`);
-    return { slug: file.replace(/\.md$/, ""), title: post.title, date: post.date, summary: post.summary };
+    return { slug: file.replace(/\.md$/, ""), title: post.title, date: post.date, summary: post.summary, body };
   })
   .sort((a, b) => b.date.localeCompare(a.date));
 
@@ -142,9 +142,10 @@ const { module: prerender } = await runnerImport(fileURLToPath(new URL("./preren
 // the address are its own.
 writePage("/playground", { title: `${NAME} · Playground` });
 
+const BLOG = "Long write-ups of things I built, mostly the parts that went wrong first.";
 writePage("/blog", {
   title: `Writing · ${NAME}`,
-  description: "Long write-ups of things I built, mostly the parts that went wrong first.",
+  description: BLOG,
   lastmod: posts[0]?.date,
   body: prerender.renderIndex(),
   head: { css: frontCss, fonts },
@@ -213,8 +214,12 @@ for (const slug of work.workSlugs) {
   });
 }
 
-// /privateblog asks not to be indexed (above), so it is not in the sitemap,
+// /privateblog asks not to be indexed (above), so it is in neither of these,
 // and its drafts, fetched after sign-in, are in nothing this writes.
 writeFileSync(join(dist, "sitemap.xml"), sitemap(listed));
 writeFileSync(join(dist, "robots.txt"), robots(SITE));
-console.log(`static-pages: /sitemap.xml (${listed.length} pages), /robots.txt`);
+writeFileSync(
+  join(dist, "feed.xml"),
+  atomFeed({ site: SITE, name: NAME, title: `Writing · ${NAME}`, subtitle: BLOG, posts }),
+);
+console.log(`static-pages: /sitemap.xml (${listed.length} pages), /robots.txt, /feed.xml (${posts.length} posts)`);

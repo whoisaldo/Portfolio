@@ -1,5 +1,5 @@
 // test/site-files.test.mjs: what scripts/static-pages.mjs writes besides the
-// heads: the blog's text in its pages, the sitemap and robots.txt.
+// heads: the blog's text in its pages, the sitemap, robots.txt and the feed.
 // The made-up posts here are made up; the published ones are read from
 // src/blog/ the way the build reads them. Nothing leaves the process.
 import { test } from "node:test";
@@ -8,7 +8,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { runnerImport } from "vite";
 import { Window } from "happy-dom";
-import { fontFiles, robots, sitemap, withStaticCopy } from "../scripts/site-files.mjs";
+import { atomFeed, fontFiles, robots, sitemap, withStaticCopy } from "../scripts/site-files.mjs";
 import { parsePost } from "../src/front/frontmatter.js";
 
 const SITE = "https://example.test";
@@ -84,6 +84,35 @@ test("the sitemap lists each page at its address, with a date only where there i
 
 test("robots.txt keeps crawlers out of the private blog and points at the sitemap", () => {
   assert.equal(robots(SITE), `User-agent: *\nDisallow: /privateblog\n\nSitemap: ${SITE}/sitemap.xml\n`);
+});
+
+test("the feed is Atom with every post in full, newest first, at absolute addresses", () => {
+  const out = atomFeed({ site: SITE, name: "A. Writer", title: "Writing", subtitle: "Notes & more", posts: POSTS });
+  const doc = xml(out);
+  const feed = doc.documentElement;
+  assert.equal(feed.namespaceURI ?? feed.getAttribute("xmlns"), "http://www.w3.org/2005/Atom");
+  assert.equal(feed.querySelector("link[rel=self]").getAttribute("href"), `${SITE}/feed.xml`);
+  assert.equal(feed.getElementsByTagName("updated")[0].textContent, "2026-05-09T12:00:00Z", "the newest post's date");
+  assert.equal(feed.getElementsByTagName("subtitle")[0].textContent, "Notes & more");
+
+  const entries = [...doc.getElementsByTagName("entry")];
+  const field = (e, name) => e.getElementsByTagName(name)[0].textContent;
+  assert.deepEqual(entries.map((e) => field(e, "title")), ["Lighthouses", "Tides & <harbours>"]);
+  const older = entries[1];
+  assert.equal(field(older, "id"), `${SITE}/blog/older/`, "the id is the post's own address");
+  assert.equal(older.getElementsByTagName("link")[0].getAttribute("href"), `${SITE}/blog/older/`);
+  assert.equal(field(older, "published"), "2026-03-01T12:00:00Z");
+  assert.equal(field(older, "updated"), "2026-03-01T12:00:00Z");
+  assert.equal(field(older, "summary"), 'The ferry, "early".');
+  assert.equal(older.getElementsByTagName("content")[0].getAttribute("type"), "html");
+
+  const html = field(older, "content");
+  assert.match(html, /<h2>Gulls<\/h2>/);
+  assert.match(html, /<a href="https:\/\/example.test\/work\/harbour">the map<\/a>/, "a site address made absolute");
+  assert.match(html, /<code>knots<\/code>/);
+  assert.doesNotMatch(html, /data-embed/);
+  assert.match(html, /<a href="https:\/\/example.test\/blog\/older\/">An interactive demo is here in the post\.<\/a>/);
+  assert.doesNotMatch(out, /privateblog/);
 });
 
 // The published posts, as the build draws them: the page's text, without
