@@ -125,13 +125,12 @@ export const featuredProjects = [
     accent: LIVE,
     status: "live",
     description:
-      "An independent software studio I co-founded in Boston, four founders now. Ships its own products instead of doing client work. Six of them, five already live.",
+      "An independent software studio I co-founded in Boston, four founders now. Ships its own products instead of doing client work.",
     longDescription:
-      "What it is: an independent studio founded in Boston in 2025 as Eternal Reverse and renamed Sideband in 2026. It started as two of us and is four founders now. Six products span systems engineering (Rust + Swift display streaming), native iOS (SwiftUI + HealthKit), video pipelines (DaVinci Resolve + OpenCV), and modern web (Next.js + a Chrome MV3 extension). Five are live: EternalMonitor, EternalRichPresence, Signature Cuts 413, Eternal2x and Eternal Summary. Exerly Fitness is still in development. Products shipped before the rename kept their names.\n\n" +
+      "What it is: an independent studio founded in Boston in 2025 as Eternal Reverse and renamed Sideband in 2026. It started as two of us and is four founders now. Its products span systems engineering (Rust + Swift display streaming), native iOS (SwiftUI + HealthKit), video pipelines (DaVinci Resolve + OpenCV), and modern web (Next.js + a Chrome MV3 extension). The live ones include EternalMonitor, EternalRichPresence, Signature Cuts 413, Eternal2x and Eternal Summary. Exerly Fitness is still in development. Products shipped before the rename kept their names.\n\n" +
       "What I do here: co-founder and lead engineer. Wrote the Rust host + Swift client behind EternalMonitor (DXGI capture, hardware H.264, Metal render); the SwiftUI iOS app + Node API behind Exerly Fitness; and most of the studio site itself, which is Next.js 14 with a page per product, an engineer dossier per founder, and an interactive terminal on the hero.",
     tech: ["Next.js 14", "TypeScript", "React", "Tailwind CSS", "Framer Motion", "Rust", "SwiftUI", "Node.js"],
     features: [
-      "6 products: 5 live, 1 in development",
       "Studio site: Next.js 14, a page per product",
       "An engineer dossier for each of the four founders",
       "Interactive terminal on the hero",
@@ -251,7 +250,7 @@ export const featuredProjects = [
     longDescription:
       "Wireless second-monitor apps either cost a subscription, need a dongle, or buckle the moment the network gets busy.\n\n" +
       "A Rust host captures the Windows desktop through DXGI and encodes it through FFmpeg on NVIDIA NVENC, AMD AMF or Intel Quick Sync, chosen by the graphics cards it finds, with libx264 as the software fallback. H.264 by default, HEVC if you ask for it. Each frame goes out as numbered UDP fragments to a SwiftUI iPad app that decodes on VideoToolbox and draws through Metal. Over USB the same messages go through the tunnel Apple's device service provides. UDP over TCP was deliberate. A late packet should not hold up everything behind it.\n\n" +
-      "Design details I'd defend: H.264 Baseline specifically because that's what the iPad's hardware decoder is happiest with; fragment counters widened u8 → u16 once frames started exceeding 255 fragments; on Wi-Fi the iPad asks again for a missing fragment as soon as a later one shows the gap, and stops waiting after 8 to 25 ms; the bitrate follows the iPad's own reports between 4 and 50 Mbps; discovery is mDNS, with manual IP and a QR code as the reliable paths.\n\n" +
+      "Design details I'd defend: H.264 Baseline specifically because that's what the iPad's hardware decoder is happiest with; fragment counters widened u8 → u16 once frames started exceeding 255 fragments; on Wi-Fi the iPad asks again for a missing fragment as soon as a later one shows the gap, and gives the repair an 8 to 25 ms window, counted only while traffic is flowing; the bitrate follows the iPad's own reports between 4 and 50 Mbps; discovery is mDNS, with manual IP and a QR code as the reliable paths.\n\n" +
       "Honest status: the Windows installer is on GitHub Releases and the iPad app is on TestFlight, not the App Store yet. The installer is not code-signed yet either, so Windows SmartScreen asks before it runs. It extends or mirrors, and every tap, keystroke and Pencil stroke goes back to the PC. I have not instrumented true glass-to-glass latency, so I don't quote a number for it. MIT, and the repository lives under Sideband now.",
     tech: ["Rust", "SwiftUI", "DXGI", "FFmpeg", "H.264 / HEVC", "VideoToolbox", "Metal", "Opus", "tokio", "mDNS"],
     features: [
