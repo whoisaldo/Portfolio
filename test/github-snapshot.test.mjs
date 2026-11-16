@@ -149,6 +149,14 @@ test("a search is taken only when every reported result arrived", async () => {
   await assert.rejects(searchAll(pages([{ total_count: 1001, items: full(100) }])), SnapshotError);
   await assert.rejects(searchAll(pages([{ total_count: 5, items: full(5), incomplete_results: true }])), SnapshotError);
   await assert.rejects(searchAll(pages([{ message: "not a search answer" }])), SnapshotError);
+
+  // A result repeated on the next page counts once, so the one it pushed out
+  // is still owed.
+  const at = (n) => ({ html_url: `https://github.com/example-org/open-widget/pull/${n}` });
+  const repeated = [{ total_count: 3, items: [at(1), at(2)] }, { total_count: 3, items: [at(2)] }];
+  await assert.rejects(searchAll(pages([...repeated, { total_count: 3, items: [] }])), SnapshotError);
+  const whole = await searchAll(pages([...repeated, { total_count: 3, items: [at(3)] }]));
+  assert.deepEqual(whole.map((i) => i.html_url), [at(1), at(2), at(3)].map((i) => i.html_url));
 });
 
 test("a snapshot with no contributions does not replace one that has some", () => {

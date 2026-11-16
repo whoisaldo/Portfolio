@@ -238,8 +238,8 @@ const stars = new Intl.NumberFormat("en-US", { notation: "compact", maximumFract
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 /** Pull requests merged into other people's projects, one row a repository,
- *  from src/data/github.json (scripts/github-snapshot.mjs refreshes it every
- *  day). Closed, a row is the repository, how many and its stars; open, it
+ *  from src/data/github.json (scripts/github-snapshot.mjs refreshes it on
+ *  each deploy). Closed, a row is the repository, how many and its stars; open, it
  *  lists each pull request. The same <details> rows as the projects above. */
 function OpenSource({ groups }) {
   return (
@@ -253,7 +253,7 @@ function OpenSource({ groups }) {
                   {group.repo}
                 </h3>
                 <p className="mt-0.5 tabular-nums text-dim">
-                  {plural(group.merged, "merged pull request", "merged pull requests")} · {plural(stars.format(group.stars), "star", "stars")}
+                  {plural(group.merged, "merged pull request", "merged pull requests")} · {stars.format(group.stars)} {group.stars === 1 ? "star" : "stars"}
                 </p>
               </div>
               <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-dim group-open:text-bone">
@@ -461,7 +461,7 @@ export default function FrontHome() {
               Open source
             </SectionLabel>
             <p className="mt-5 text-pretty text-dim">
-              Pull requests of mine merged into other people’s projects. The list updates itself from GitHub every day.
+              Pull requests of mine merged into other people’s projects. The list refreshes from GitHub each time the site deploys.
             </p>
             <OpenSource groups={github.contributions} />
           </section>

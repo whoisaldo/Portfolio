@@ -129,15 +129,17 @@ export function validate(snapshot) {
  * through, is not a full answer and must not replace a good file.
  */
 export async function searchAll(page) {
-  const items = [];
+  // Keyed by address: results that shift between pages can repeat one, and a
+  // repeat must not stand in for the one it pushed out.
+  const items = new Map();
   for (let n = 1; n <= 10; n++) {
     const res = await page(n);
     if (!res || res.incomplete_results || !Array.isArray(res.items) || !Number.isInteger(res.total_count)) {
       throw new SnapshotError("pull request search: incomplete results");
     }
     if (res.total_count > 1000) throw new SnapshotError("pull request search: more results than the API returns");
-    items.push(...res.items);
-    if (items.length >= res.total_count) return items;
+    for (const item of res.items) items.set(item?.html_url ?? item, item);
+    if (items.size >= res.total_count) return [...items.values()];
     if (res.items.length === 0) break;
   }
   throw new SnapshotError("pull request search: fewer results than it reported");
