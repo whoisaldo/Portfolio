@@ -25,7 +25,7 @@ const STAGES = [
   { id: "capture", label: "DXGI capture", side: "host", body: "DXGI hands the host each new frame of the chosen desktop, cursor included. A slow encoder skips stale frames instead of queueing them. NVIDIA's encoders take BGRA and convert it on the graphics card; the others take YUV420, converted on the CPU." },
   { id: "encode", label: "H.264 encode", side: "host", body: "FFmpeg on a hardware encoder if there is one: NVENC, AMF or QSV, probed and reordered by GPU vendor, with libx264 as the software fallback. HEVC is an option. H.264 uses the Baseline profile specifically, because that is what the iPad's hardware decoder is happiest with." },
   { id: "fragment", label: "Fragment", side: "host", body: "Each encoded frame is cut into UDP-sized pieces. Every piece carries an eight-byte prefix and a 32-byte video header with the session, the frame and fragment numbers, a keyframe flag and the capture time. Fragment index and count are u16. They were u8 until frames started exceeding 255 fragments." },
-  { id: "udp", label: "UDP", side: "wire", body: "Datagrams, not a stream. With TCP every frame behind a lost packet would wait for the retransmit, which is head-of-line blocking, and the one thing a live display cannot have. Here the iPad asks for a missing fragment straight away and waits 25 ms at most. Over USB the same datagrams go through Apple's device tunnel." },
+  { id: "udp", label: "UDP", side: "wire", body: "Datagrams, not a stream. With TCP every frame behind a lost packet would wait for the retransmit, which is head-of-line blocking, and the one thing a live display cannot have. Here the iPad asks for a missing fragment straight away and gives the repair a short, bounded window before it moves on. Over USB the same datagrams go through Apple's device tunnel." },
   { id: "reassemble", label: "Reassemble", side: "ipad", body: "The iPad collects fragments by frame until one is complete, holding up to eight frames behind it while a repair can still arrive. If it does not, that frame is dropped and the iPad asks for a keyframe. Rust and Swift share golden test vectors for every packet." },
   { id: "decode", label: "VideoToolbox", side: "ipad", body: "Hardware H.264 or HEVC decode on the iPad through VideoToolbox, straight into a pixel buffer." },
   { id: "present", label: "Metal present", side: "ipad", body: "A Metal-backed MTKView draws the decoded frame. Discovery of the host is mDNS, with manual IP entry or a QR code as the paths that always work." },
@@ -115,7 +115,7 @@ export default function EternalMonitorDemo({ toolbar }) {
           </div>
           {dropped > 0 && (
             <p className="mt-3 prose-dark text-[0.9375rem]">
-              The iPad asks for that piece again. If it is late, that frame is gone and the next one shows. Nothing behind it waited. That is the whole argument for UDP over TCP here.
+              The iPad asks for that piece again, and the frames behind it wait briefly for the repair. If it is late, that frame is gone and the next one shows. With TCP they would have waited for as long as the retransmit took. That is the whole argument for UDP over TCP here.
             </p>
           )}
         </div>
