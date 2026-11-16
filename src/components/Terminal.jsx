@@ -80,7 +80,7 @@ TypeScript · JavaScript · C++ · Python · Java · C# · Rust · Swift · Go
         type: "dir",
         children: {
           "eternal-monitor": { type: "dir", children: {
-            "README.md": { type: "file", content: `# Eternal Monitor\nLow-latency remote desktop: Rust host + SwiftUI iPad client\n\nTech: Rust, SwiftUI, DXGI, H.264, VideoToolbox, UDP\nLive: eternalmonitor.dev\nRepo: github.com/whoisaldo/EternalMonitor` }
+            "README.md": { type: "file", content: `# Eternal Monitor\niPad as a second display for Windows, over Wi-Fi or USB: Rust host + SwiftUI iPad client\n\nTech: Rust, SwiftUI, DXGI, H.264/HEVC, VideoToolbox, UDP\nLive: eternalmonitor.dev\nRepo: github.com/sidebandstudio/EternalMonitor` }
           }},
           "exerly-fitness": { type: "dir", children: {
             "README.md": { type: "file", content: `# Exerly Fitness\nWeb (React 19) + Node/Express API + AI coach, with a native SwiftUI iOS client built and awaiting the App Store\n\nTech: SwiftUI, React 19, Node.js, Express 5, MongoDB/SQLite, gemini-2.0-flash-lite, JWT\n51 REST endpoints · AI capped at 5/hr · 20/day\nLive: exerlyfitness.com\nRepo: github.com/whoisaldo/Exerly-Fitness` }
@@ -688,9 +688,9 @@ AUTHOR
   ═══════════════════════════════════════════════════
 
   01  ETERNAL MONITOR
-      iPad as a wireless second display. Rust host + SwiftUI client
-      Rust · SwiftUI · DXGI · H.264 · VideoToolbox · Metal · UDP
-      → eternalmonitor.dev  ·  github.com/whoisaldo/EternalMonitor
+      iPad as a second display, over Wi-Fi or USB. Rust host + SwiftUI client
+      Rust · SwiftUI · DXGI · H.264/HEVC · VideoToolbox · Metal · UDP
+      → eternalmonitor.dev  ·  github.com/sidebandstudio/EternalMonitor
 
   02  EXERLY FITNESS
       Web live · native SwiftUI iOS built, awaiting the App Store

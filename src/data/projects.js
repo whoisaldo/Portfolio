@@ -22,8 +22,8 @@
 // interface read as leftovers from the previous design.
 //
 // It carries information now instead. Volt means the thing is running today;
-// fuchsia means it is still being built. Six of the eight are live, so the
-// grid reads mostly yellow with two magenta exceptions, and the exception is
+// fuchsia means it is still being built. Seven of the eight are live, so the
+// grid reads mostly yellow with one magenta exception, and the exception is
 // the point: a reader can see which projects are shipped without reading a
 // single status flag. Derived from `status` directly below each one, so the
 // two can never disagree.
@@ -35,9 +35,17 @@
 // and src/data/images.js for the generated map. Render them through
 // <Picture> / <ProjectImage>, not a bare <img src>.
 import { img } from "./images";
+// Eternal Monitor's stars, forks, releases and downloads, refreshed daily by
+// scripts/github-snapshot.mjs.
+import github from "./github.json";
 
 const LIVE = "#fcee0a";
 const BUILDING = "#ff2e88";
+
+const count = (n) => n.toLocaleString("en-US");
+const shortDate = (iso) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+const monitor = github.eternalMonitor;
 
 // Key art: generated device-mockup plates, 3:2 (1536x1024). Each is a
 // photorealistic shot of the real product running on real hardware; the
@@ -112,13 +120,13 @@ export const featuredProjects = [
     accent: LIVE,
     status: "live",
     description:
-      "An independent software studio I co-founded in Boston, four founders now. Ships its own products instead of doing client work. Six of them, four already live.",
+      "An independent software studio I co-founded in Boston, four founders now. Ships its own products instead of doing client work. Six of them, five already live.",
     longDescription:
-      "What it is: an independent studio founded in Boston in 2025 as Eternal Reverse and renamed Sideband in 2026. It started as two of us and is four founders now. Six products span systems engineering (Rust + Swift display streaming), native iOS (SwiftUI + HealthKit), video pipelines (DaVinci Resolve + OpenCV), and modern web (Next.js + a Chrome MV3 extension). Four are live: EternalRichPresence, Signature Cuts 413, Eternal2x and Eternal Summary. EternalMonitor and Exerly Fitness are still in development. Products shipped before the rename kept their names.\n\n" +
+      "What it is: an independent studio founded in Boston in 2025 as Eternal Reverse and renamed Sideband in 2026. It started as two of us and is four founders now. Six products span systems engineering (Rust + Swift display streaming), native iOS (SwiftUI + HealthKit), video pipelines (DaVinci Resolve + OpenCV), and modern web (Next.js + a Chrome MV3 extension). Five are live: EternalMonitor, EternalRichPresence, Signature Cuts 413, Eternal2x and Eternal Summary. Exerly Fitness is still in development. Products shipped before the rename kept their names.\n\n" +
       "What I do here: co-founder and lead engineer. Wrote the Rust host + Swift client behind EternalMonitor (DXGI capture, hardware H.264, Metal render); the SwiftUI iOS app + Node API behind Exerly Fitness; and most of the studio site itself, which is Next.js 14 with a page per product, an engineer dossier per founder, and an interactive terminal on the hero.",
     tech: ["Next.js 14", "TypeScript", "React", "Tailwind CSS", "Framer Motion", "Rust", "SwiftUI", "Node.js"],
     features: [
-      "6 products: 4 live, 2 in development",
+      "6 products: 5 live, 1 in development",
       "Studio site: Next.js 14, a page per product",
       "An engineer dossier for each of the four founders",
       "Interactive terminal on the hero",
@@ -225,33 +233,41 @@ export const featuredProjects = [
   {
     slug: "eternal-monitor",
     title: "Eternal Monitor",
-    tagline: "Windows → iPad over UDP · eternalmonitor.dev",
+    tagline: "Windows → iPad over Wi-Fi or USB · eternalmonitor.dev",
     why:
       "I refused to pay $40 for an iPad-as-second-display app that lagged. So I wrote my own.",
-    accent: BUILDING,
-    status: "in-dev",
+    accent: LIVE,
+    status: "live",
     description:
-      "Rust host + SwiftUI iPad client that turns an iPad into a wireless second display for Windows, with hardware H.264 encode and decode end to end.",
+      "A Rust host and a native Swift iPad app that turn an iPad into a second display for Windows. Extend or mirror, over Wi-Fi or USB, with touch, Apple Pencil and PC audio.",
     longDescription:
       "Wireless second-monitor apps either cost a subscription, need a dongle, or buckle the moment the network gets busy.\n\n" +
-      "A Rust host captures the Windows desktop through DXGI Desktop Duplication, encodes H.264 via NVENC → AMF → QSV with a libx264 software fallback (the chain auto-probes and reorders by GPU vendor), fragments each frame behind a custom 16-byte UDP header, and streams to an iPad client that decodes on VideoToolbox and presents through a Metal-backed MTKView. UDP over TCP was deliberate. A dropped frame should be a dropped frame, not head-of-line blocking.\n\n" +
-      "Design details I'd defend: H.264 Baseline specifically because that's what the iPad's hardware decoder is happiest with; fragment counters widened u8 → u16 once frames started exceeding 255 fragments; packets carry a FlatBuffers FramePacket; discovery is mDNS with manual IP entry as the reliable path.\n\n" +
-      "Honest status: v0.1.2-mirror, in active development. It mirrors the primary display. No extended desktop and no input relay yet, and I have not instrumented true glass-to-glass latency, so I don't quote a number for it. 5,900 lines of Rust and 3,700 of Swift, MIT.",
-    tech: ["Rust", "SwiftUI", "DXGI", "H.264", "VideoToolbox", "Metal", "FlatBuffers", "tokio", "mDNS"],
+      "A Rust host captures the Windows desktop through DXGI and encodes it through FFmpeg on NVIDIA NVENC, AMD AMF or Intel Quick Sync, chosen by the graphics cards it finds, with libx264 as the software fallback. H.264 by default, HEVC if you ask for it. Each frame goes out as numbered UDP fragments to a SwiftUI iPad app that decodes on VideoToolbox and draws through Metal. Over USB the same messages go through the tunnel Apple's device service provides. UDP over TCP was deliberate. A late packet should not hold up everything behind it.\n\n" +
+      "Design details I'd defend: H.264 Baseline specifically because that's what the iPad's hardware decoder is happiest with; fragment counters widened u8 → u16 once frames started exceeding 255 fragments; on Wi-Fi the iPad asks again for a missing fragment as soon as a later one shows the gap, and stops waiting after 8 to 25 ms; the bitrate follows the iPad's own reports between 4 and 50 Mbps; discovery is mDNS, with manual IP and a QR code as the reliable paths.\n\n" +
+      "Honest status: the Windows installer is on GitHub Releases and the iPad app is on TestFlight, not the App Store yet. The installer is not code-signed yet either, so Windows SmartScreen asks before it runs. It extends or mirrors, and every tap, keystroke and Pencil stroke goes back to the PC. I have not instrumented true glass-to-glass latency, so I don't quote a number for it. MIT, and the repository lives under Sideband now.",
+    tech: ["Rust", "SwiftUI", "DXGI", "FFmpeg", "H.264 / HEVC", "VideoToolbox", "Metal", "Opus", "tokio", "mDNS"],
     features: [
-      "DXGI Desktop Duplication capture on the Windows host",
-      "NVENC / AMF / QSV / libx264 encoder auto-selection",
-      "Custom 16-byte UDP header w/ u16 fragment counters",
-      "H.264 Baseline for VideoToolbox compatibility",
-      "Metal-backed MTKView rendering on iPad",
-      "FlatBuffers FramePacket over the wire",
-      "mDNS discovery w/ manual-IP fallback",
+      "Extend the desktop onto the iPad, or mirror any screen",
+      "Wi-Fi or USB, and plugging in a cable takes over a Wi-Fi session",
+      "Apple Pencil as a Windows Ink pen, with pressure and tilt",
+      "Touch, keyboard, trackpad and mouse input back to the PC",
+      "NVENC / AMF / QSV encode with a libx264 fallback",
+      "Fragment repair on Wi-Fi, bitrate between 4 and 50 Mbps",
+      "PC audio to the iPad as Opus",
+      "mDNS discovery, with manual IP and QR pairing",
     ],
-    github: "https://github.com/whoisaldo/EternalMonitor",
+    github: monitor.url,
     live: "https://eternalmonitor.dev",
     images: [kaEternalMonitor, emWeb, emWebFeatures, emPC, emIpad],
     imageLabels: ["Frame Transport", "eternalmonitor.dev", "Features", "Windows Host", "iPad Client"],
-    stats: { platform: "Rust · Swift", transport: "UDP / H.264", status: "v0.1.2 · in dev" },
+    // From the GitHub snapshot, so they are as new as the last deploy.
+    metrics: [
+      { label: "GitHub stars", value: count(monitor.stars) },
+      { label: "Release downloads", value: count(monitor.downloads) },
+      { label: "Forks", value: count(monitor.forks) },
+      { label: `Latest of ${count(monitor.releases)} releases, ${shortDate(monitor.latest.date)}`, value: monitor.latest.tag },
+    ],
+    stats: { platform: "Rust · Swift", transport: "Wi-Fi or USB · H.264 / HEVC", status: `${monitor.latest.tag} · live` },
   },
   {
     slug: "eternal-rich-presence",
