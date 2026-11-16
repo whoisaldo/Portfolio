@@ -44,7 +44,7 @@ const xml = (source) => {
 
 test("a page's copy goes ahead of #root, styled and with the front site's body", () => {
   const html = withStaticCopy(TEMPLATE, "<main><h1>Lighthouses</h1></main>", { css: ["/assets/Front-b.css"], fonts: ["/assets/face-c.woff2"] });
-  assert.match(html, /<div id="static-copy"><main><h1>Lighthouses<\/h1><\/main><\/div>\s*<div id="root"><\/div>/);
+  assert.match(html, /<div id="static-copy" style="position:absolute;top:0;left:0;right:0"><main><h1>Lighthouses<\/h1><\/main><\/div>\s*<div id="root"><\/div>/);
   assert.match(html, /<link rel="preload" as="font" type="font\/woff2" crossorigin href="\/assets\/face-c.woff2">\s*<link rel="stylesheet" crossorigin href="\/assets\/Front-b.css">\s*<\/head>/);
   assert.equal(html.match(/index-a\.css/g).length, 1);
   assert.match(html, /<body class="front bg-ink text-bone paper-grain">/);

@@ -32,6 +32,13 @@ export const hasEmbed = (html) => new RegExp(EMBED.source).test(html);
  * it in a system face until they came, then reflow it. Asked for at once,
  * they come with the stylesheets, and the first paint is in them.
  *
+ * The copy lies over #root rather than above it in the flow, out of the
+ * flow at the top of the page, where React's page will be. #root is there
+ * from the start, empty, and does not move when the copy goes. Above it in
+ * the flow, the copy would push #root a page's height down, and its going
+ * would move #root to the top: no different to see, but a layout shift of
+ * the whole viewport to the browser, which Chrome reports as one (CLS).
+ *
  * An embed's placeholder stays as it is, holding its box for the reader whose
  * page is about to run; the line after it only shows without JavaScript, and
  * so does the rule that lets the empty box go.
@@ -53,7 +60,7 @@ export function withStaticCopy(html, markup, { css = [], fonts = [] } = {}) {
     .replace(/<\/head>/, () => `${head}  </head>`)
     // Front.jsx sets this as it mounts: the playground's scanlines off.
     .replace(/<body class="/, '<body class="front ')
-    .replace(/<div id="root"><\/div>/, () => `<div id="static-copy">${copy}</div>\n    <div id="root"></div>`);
+    .replace(/<div id="root"><\/div>/, () => `<div id="static-copy" style="position:absolute;top:0;left:0;right:0">${copy}</div>\n    <div id="root"></div>`);
 }
 
 /**
