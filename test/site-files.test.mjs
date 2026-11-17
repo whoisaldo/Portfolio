@@ -160,7 +160,7 @@ test("every address in a feed entry is read against the post's own, as a browser
     "![A figure](images/figure.png)",
     "",
     "From [elsewhere](//example.test/file), the [map](/work/harbour?at=dock&tide=low), " +
-      "[a letter](mailto:keeper@example.test) and [another site](https://other.test/x?a=1&b=2).",
+      "[a letter](mailto:hello@sideband.studio) and [another site](https://other.test/x?a=1&b=2).",
     "",
     "<img src='single.png' srcset=\"small.png 1x, /big.png 2x, https://cdn.test/huge.png 3x\" alt='Gulls'> " +
       "<a href=bare.html title=\"not href=gone.html\">bare</a> <video poster=\"poster.jpg\" src=\"clip.mp4\"></video>",
@@ -180,7 +180,7 @@ test("every address in a feed entry is read against the post's own, as a browser
   assert.equal(at('img[alt="A figure"]', "src"), `${post}images/figure.png`, "a bare relative image");
   assert.equal(at('a[href$="/file"]', "href"), "https://example.test/file", "protocol-relative");
   assert.equal(at('a[href*="harbour"]', "href"), `${SITE}/work/harbour?at=dock&tide=low`, "root-relative, its query intact");
-  assert.equal(at('a[href^="mailto:"]', "href"), "mailto:keeper@example.test", "mailto: as it is");
+  assert.equal(at('a[href^="mailto:"]', "href"), "mailto:hello@sideband.studio", "mailto: as it is");
   assert.equal(at('a[href*="other.test"]', "href"), "https://other.test/x?a=1&b=2", "absolute as it is");
 
   assert.equal(at('img[alt="Gulls"]', "src"), `${post}single.png`, "single-quoted");
@@ -205,7 +205,7 @@ test("absoluteUrls leaves what has no address, and an address it cannot read, as
   assert.equal(absoluteUrls('<div data-src="x.png" class="y"></div>', base), '<div data-src="x.png" class="y"></div>');
   assert.equal(absoluteUrls('<a href="https://other.test/A%20b">x</a>', base), '<a href="https://other.test/A%20b">x</a>');
   assert.equal(absoluteUrls('<a href="//[broken">x</a>', base), '<a href="//[broken">x</a>', "no host to read");
-  assert.equal(absoluteUrls('<a HREF="tel:+1555">x</a>', base), '<a HREF="tel:+1555">x</a>');
+  assert.equal(absoluteUrls('<a HREF="ftp://files.example.test/x">x</a>', base), '<a HREF="ftp://files.example.test/x">x</a>');
 });
 
 // The published posts, as the build draws them: the page's text, without
