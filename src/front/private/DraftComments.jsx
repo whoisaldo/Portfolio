@@ -1325,23 +1325,23 @@ function Margin({ body, found, active, order, toolbar, children }) {
       .sort((a, b) => a.y - b.y || a.i - b.i);
     const top = new Array(cards.length);
     const at = cards.findIndex((c) => c.id === active);
-    if (at === -1) {
-      let bottom = floor - GAP;
-      cards.forEach((c, i) => {
-        top[i] = Math.max(c.y, bottom + GAP);
-        bottom = top[i] + c.h;
-      });
-    } else {
+    let bottom = floor - GAP;
+    cards.forEach((c, i) => {
+      top[i] = Math.max(c.y, bottom + GAP);
+      bottom = top[i] + c.h;
+    });
+    if (at !== -1) {
       // Docs: the active card is exactly at its passage; the rest give way.
+      // Cards above it leave where they rest only as far as it needs.
       top[at] = Math.max(cards[at].y, floor);
-      for (let i = at - 1; i >= 0; i--) top[i] = Math.min(cards[i].y, top[i + 1] - GAP - cards[i].h);
+      for (let i = at - 1; i >= 0; i--) top[i] = Math.min(top[i], top[i + 1] - GAP - cards[i].h);
       for (let i = at + 1; i < cards.length; i++) top[i] = Math.max(cards[i].y, top[i - 1] + cards[i - 1].h + GAP);
     }
     // Cards above the active one that do not fit under the toolbar lift it
     // with them, off the top if need be: the active card stays at its passage.
     const lift = Math.max(0, floor - top[0]) || 0;
     if (bar.current) bar.current.style.marginTop = `${-lift}px`;
-    let bottom = (bar.current?.offsetHeight || 0) - lift;
+    bottom = (bar.current?.offsetHeight || 0) - lift;
     cards.forEach((c, i) => {
       c.el.style.order = i;
       c.el.style.marginTop = `${Math.max(GAP, top[i] - bottom)}px`;
