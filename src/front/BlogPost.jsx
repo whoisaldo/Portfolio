@@ -21,7 +21,7 @@ import { ArrowLeft } from "lucide-react";
 import { marked } from "marked";
 import { profile, links } from "../data/profile";
 import { findPost, formatDate } from "./posts";
-import { COLUMN, useTitle } from "./lib";
+import { COLUMN, useStaticCopyGone, useTitle } from "./lib";
 import { FollowOnX, FrontFooter, FrontHeader } from "./parts";
 import { embeds } from "./embeds";
 
@@ -33,6 +33,7 @@ export default function BlogPost() {
   const { slug } = useParams();
   const post = findPost(slug);
   useTitle(post ? `${post.title} · ${profile.name}` : `Writing · ${profile.name}`);
+  useStaticCopyGone();
 
   if (!post) {
     return (

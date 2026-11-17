@@ -1,6 +1,7 @@
 // src/components/ErrorBoundary.jsx: surfaces render errors so they don't show as blank page
 import React from "react";
 import { isMissingPart, reloadForNewBuild } from "../lib/stale-build";
+import { removeStaticCopy } from "../lib/static-copy";
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -15,7 +16,14 @@ export default class ErrorBoundary extends React.Component {
     // A part of the site a deploy replaced: the page loads again, once.
     if (isMissingPart(error)) reloadForNewBuild();
   }
+  // A blog page's static copy (src/lib/static-copy.js) goes as the error page
+  // comes in, so the error page shows alone. Not while the page is only
+  // loading: nothing has taken the copy's place yet.
+  componentDidMount() {
+    if (this.state.error) removeStaticCopy();
+  }
   componentDidUpdate(prevProps, prevState) {
+    if (this.state.error) removeStaticCopy();
     // Somewhere else now (Back, a link), with a fault from before: it may not happen there.
     if (this.state.error && prevState.error && prevProps.resetKey !== this.props.resetKey) this.setState({ error: null });
   }
