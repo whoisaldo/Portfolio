@@ -1336,10 +1336,12 @@ function Margin({ body, found, active, order, toolbar, children }) {
       top[at] = Math.max(cards[at].y, floor);
       for (let i = at - 1; i >= 0; i--) top[i] = Math.min(cards[i].y, top[i + 1] - GAP - cards[i].h);
       for (let i = at + 1; i < cards.length; i++) top[i] = Math.max(cards[i].y, top[i - 1] + cards[i - 1].h + GAP);
-      // Anything pushed above the toolbar comes back down below it.
-      for (let i = 0; i < cards.length; i++) top[i] = Math.max(top[i], i ? top[i - 1] + cards[i - 1].h + GAP : floor);
     }
-    let bottom = bar.current?.offsetHeight || 0;
+    // Cards above the active one that do not fit under the toolbar lift it
+    // with them, off the top if need be: the active card stays at its passage.
+    const lift = Math.max(0, floor - top[0]) || 0;
+    if (bar.current) bar.current.style.marginTop = `${-lift}px`;
+    let bottom = (bar.current?.offsetHeight || 0) - lift;
     cards.forEach((c, i) => {
       c.el.style.order = i;
       c.el.style.marginTop = `${Math.max(GAP, top[i] - bottom)}px`;
