@@ -7,7 +7,8 @@
 // margin to its right. Each thread's card sits level with the passage it is
 // about. Cards stack without overlapping, and the active one is placed
 // exactly at its passage, nudged toward the text, with the others moving
-// out of its way above and below, which is Docs' layout. Hovering a passage
+// out of its way above and below. Cards stay in normal flow so growing a
+// suggestion or reply immediately makes room below it. Hovering a passage
 // lifts its card; clicking one, or the card, makes it the active thread and
 // brings the two together.
 //
@@ -1338,13 +1339,15 @@ function Margin({ body, found, active, order, toolbar, children }) {
       // Anything pushed above the toolbar comes back down below it.
       for (let i = 0; i < cards.length; i++) top[i] = Math.max(top[i], i ? top[i - 1] + cards[i - 1].h + GAP : floor);
     }
-    let end = 0;
+    let bottom = bar.current?.offsetHeight || 0;
     cards.forEach((c, i) => {
-      c.el.style.transform = `translate(${c.id === active ? -14 : 0}px, ${top[i]}px)`;
-      end = Math.max(end, top[i] + c.h);
+      c.el.style.order = i;
+      c.el.style.marginTop = `${Math.max(GAP, top[i] - bottom)}px`;
+      c.el.style.transform = `translateX(${c.id === active ? -14 : 0}px)`;
+      bottom = top[i] + c.h;
     });
-    m.style.height = `${end}px`;
-    // Placed once without motion; after that, cards glide to new places.
+    // Vertical spacing belongs to normal flow. An expanding card pushes its
+    // neighbours down immediately, including before ResizeObserver runs.
     requestAnimationFrame(() => m.classList.add("is-placed"));
   };
 
