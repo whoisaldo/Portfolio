@@ -868,26 +868,29 @@ test("a suggestion that only adds words shows them where they go, with nothing s
   e.editor.destroy();
 });
 
-test("of suggestions on the same words, the change shown is the one in hand, else the one under the mouse, else the first open one", () => {
+test("of suggestions on the same words, the change shown is the one in hand, else the first open one, whatever the mouse is over", () => {
   const threads = (resolved = []) => [
     { id: "s1", on: "gulls followed it out", words: "gulls trailed it out", resolved: resolved.includes("s1") },
     { id: "s2", on: "followed it out past", words: "followed it out beyond", resolved: resolved.includes("s2") },
   ];
   const e = threadsEditor(threads());
   assert.equal(shown(e.editor).del, "followed");
+  // The mouse over the other changes nothing: new words coming and going would move the text under it.
   e.handle.emphasize(null, ["s2", "s1"]);
-  assert.deepEqual(shown(e.editor), { del: "past", ins: "beyond", at: posOf(e.editor, "past") + 4, afterDel: true });
+  assert.equal(shown(e.editor).del, "followed");
   e.handle.emphasize(["s1"], ["s2", "s1"]);
   assert.equal(shown(e.editor).del, "followed");
   e.handle.emphasize(["s2"], null);
-  assert.equal(shown(e.editor).del, "past");
+  assert.deepEqual(shown(e.editor), { del: "past", ins: "beyond", at: posOf(e.editor, "past") + 4, afterDel: true });
   // Only one change at a time: two would cross.
   assert.equal(e.editor.view.dom.querySelectorAll(".draft-ins").length, 1);
   e.handle.emphasize(null, null);
-  // A resolved one is shown only while it is lit.
+  // A resolved one is shown only while it is in hand.
   e.handle.setItems(threads(["s1"]).map((t, i) => ({ ...e.items[i], resolved: t.resolved })));
   assert.equal(shown(e.editor).del, "past");
   e.handle.emphasize(null, ["s1"]);
+  assert.equal(shown(e.editor).del, "past");
+  e.handle.emphasize(["s1"], null);
   assert.equal(shown(e.editor).del, "followed");
   e.handle.emphasize(null, null);
   e.handle.setItems(e.items.map((t) => ({ ...t, resolved: true })));

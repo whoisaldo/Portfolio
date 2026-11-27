@@ -204,12 +204,14 @@ function decorations(doc, { ranges, items, emphasis }) {
  * document positions: {id, del: [from, to] or null, at, first, insert},
  * `first` when the new words go before all of the passage's. At most one
  * per group, as the changes of several would cross: the one in hand, else
- * the one under the mouse, else the first still open, each only when it has
- * a change to show. A resolved one shows its change only while lit.
+ * the first still open, each only when it has a change to show. Never the
+ * one under the mouse in place of another: new words coming and going move
+ * the text under the mouse, which then is over something else. A resolved
+ * one shows its change only while it is in hand.
  */
 function shownChange(doc, ids, byId, own, emphasis) {
   const open = ids.filter((id) => !byId.get(id).resolved);
-  for (const id of new Set([emphasis.active[0], emphasis.hover[0], ...open])) {
+  for (const id of new Set([emphasis.active[0], ...open])) {
     if (!ids.includes(id)) continue;
     const c = changeAt(doc, own.get(id), byId.get(id));
     if (c) return { id, ...c };
