@@ -1479,14 +1479,14 @@ function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, 
         ) : (
           <button
             type="button"
-            className={resolving ? "draft-text-button" : "draft-icon-button"}
+            className={`${resolving ? "draft-text-button" : "draft-icon-button"} draft-resolve`}
             title="Resolve"
             aria-label={resolving ? undefined : "Resolve this thread"}
             disabled={resolving}
             // One resolved by someone else stays while it is in hand.
             onClick={() => resolveAs(true)}
           >
-            {resolving ? "Resolving…" : <Check className="size-4" aria-hidden="true" />}
+            {resolving ? "Resolving…" : <X className="size-4" aria-hidden="true" />}
           </button>
         )}
       </Comment>
@@ -1563,7 +1563,7 @@ function Suggestion({ old, text, accepted, clamp, busy, finish, onAccept }) {
           )}
         </span>
         {onAccept && (
-          <button type="button" className="draft-text-button" onClick={onAccept} disabled={busy}>
+          <button type="button" className="draft-text-button draft-accept" onClick={onAccept} disabled={busy}>
             <Check className="size-4" aria-hidden="true" /> {busy ? "Accepting…" : "Accept"}
           </button>
         )}

@@ -460,6 +460,13 @@
 .draft-text-button:hover { color: #eceae4; }
 .draft-comment-head .draft-text-button:disabled { opacity: 0.6; cursor: default; color: #fcee0a; }
 
+/* Resolve is a red X and Accept a green check, so one is not pressed for the other. */
+.draft-resolve,
+.draft-comment-head .draft-resolve:disabled { color: #ff4d6d; }
+.draft-resolve:not(:disabled):hover { color: #ff4d6d; background: rgb(255 77 109 / 0.14); }
+.draft-accept { padding: 0.2rem 0.45rem; margin: -0.2rem -0.45rem; color: #4fbf7a; transition: color 150ms, background-color 150ms; }
+.draft-accept:not(:disabled):hover { color: #4fbf7a; background: rgb(79 191 122 / 0.14); }
+
 .draft-reply-ghost {
   display: block;
   width: 100%;
