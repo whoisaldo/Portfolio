@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { marked } from "marked";
 import { indexText } from "../src/front/quotes.js";
 import { QUOTE_MAX, findThread, quoteAt } from "../src/front/private/place.js";
-import { acceptNote, acceptNotes, acceptOffered, editRegion, sameAsPassage, suggestionParts, visibleWords } from "../src/front/private/suggest.js";
+import { acceptNote, acceptNotes, acceptOffered, changeIn, editRegion, sameAsPassage, suggestionParts, visibleWords } from "../src/front/private/suggest.js";
 import { selectLeft } from "../src/front/private/select.js";
 import { TRIES, WHY, acceptSuggestion, locate, pageText, replaceInMarkdown } from "../src/front/private/accept.js";
 
@@ -193,6 +193,99 @@ test("a card shows the change between the words that stay, a long passage cut sh
   assert.ok(q.tail.endsWith("more…") && q.tail.length <= 82, q.tail);
   // A deletion has nothing added; the suggested words' own edges don't count.
   assert.equal(suggestionParts("a very big cat", "  a big cat\n").added, "");
+});
+
+// ---- what a suggestion shows in the text ----------------------------------------------------
+
+/** The words of `passage` a change takes out. */
+const struck = (passage, c) => passage.slice(c.from, c.to);
+
+test("in the text, a replacement strikes the words it changes and puts the new ones after them", () => {
+  const c = changeIn("the colour of the wall", "the colour of the wall", "the color of the wall");
+  assert.deepEqual(c, { from: 4, to: 10, insert: "color" });
+  assert.equal(struck("the colour of the wall", c), "colour");
+});
+
+test("in the text, words only added strike nothing, at the passage's start, middle and end", () => {
+  assert.deepEqual(changeIn("cat sat", "cat sat", "black cat sat"), { from: 0, to: 0, insert: "black " });
+  assert.deepEqual(changeIn("the cat sat", "the cat sat", "the black cat sat"), { from: 4, to: 4, insert: "black " });
+  assert.deepEqual(changeIn("the cat sat", "the cat sat", "the cat sat down"), { from: 11, to: 11, insert: " down" });
+});
+
+test("in the text, a deletion strikes the words it takes out and puts nothing in", () => {
+  const c = changeIn("a very big cat", "a very big cat", "a big cat");
+  assert.equal(struck("a very big cat", c), "very ");
+  assert.equal(c.insert, "");
+  // The whole passage deleted: every word of it struck.
+  assert.deepEqual(changeIn("harbour wall", "harbour wall", ""), { from: 0, to: 12, insert: "" });
+});
+
+test("in the text, a suggestion that differs from its passage only in spacing shows nothing", () => {
+  assert.equal(changeIn("the cat sat", "the cat sat", "  the cat\n sat "), null);
+  assert.equal(changeIn("the cat sat", "the cat sat", "the cat sat"), null);
+});
+
+test("in the text, a passage that is no longer the words the suggestion was made on shows nothing", () => {
+  // Edited since: the suggestion would change other words than it was made on.
+  assert.equal(changeIn("the dog sat", "the cat sat", "the cow sat"), null);
+  assert.equal(changeIn("the cat sat down", "the cat sat", "the cat stood"), null);
+});
+
+test("in the text, a line break in the passage reads as a space, one for one, either side", () => {
+  const passage = "end of one.\nStart of two";
+  const c = changeIn(passage, "end of one. Start of two", "end of one. Start of the second");
+  assert.deepEqual(c, { from: 21, to: 24, insert: "the second" });
+  assert.equal(struck(passage, c), "two");
+  // The reader's quote with the line break, the text now without it.
+  assert.deepEqual(changeIn("end of one. Start of two", passage, "end of one. Start of the second"), c);
+  // A line break does not stand for several spaces.
+  assert.equal(changeIn("end of one.\nStart of two", "end of one.  Start of two", "end of one. Start"), null);
+});
+
+test("in the text, a suggestion's invisible characters are not put in, and one the same but for them shows nothing", () => {
+  assert.deepEqual(changeIn("the brown fox ran", "the brown fox ran", "the bro­wn cat​ ran"), { from: 10, to: 13, insert: "cat" });
+  assert.equal(changeIn("the brown fox", "the brown fox", "﻿the brown⁠ fox"), null);
+});
+
+// A long passage, a long run of its words replaced by two.
+const LONG = {
+  lead: "The keeper climbed the stairs of the lighthouse twice before the gulls rose, and then",
+  removed: "he looked out over the harbour wall at the fishing boats waiting for the tide to turn",
+  tail: "and the evening fog came in slowly over the water before anyone had noticed it at all",
+};
+const LONG_OLD = `${LONG.lead} ${LONG.removed} ${LONG.tail}`;
+const LONG_NEW = `${LONG.lead} he slept ${LONG.tail}`;
+
+test("a brief card shortens a long run of removed words to its start and its end, at whole words", () => {
+  const { removed } = suggestionParts(LONG_OLD, LONG_NEW, { brief: true });
+  assert.equal(removed, "looked out over the harbour wall at … the tide to turn");
+  const [start, end] = removed.split(" … ");
+  const full = "looked out over the harbour wall at the fishing boats waiting for the tide to turn";
+  // Each half is whole words of the run, from its start and to its end.
+  assert.ok(full.startsWith(`${start} `), start);
+  assert.ok(full.endsWith(` ${end}`), end);
+  // A short run is left whole.
+  assert.equal(suggestionParts("the cat sat on the mat", "the dog sat on the mat", { brief: true }).removed, "cat");
+});
+
+test("a brief card keeps fewer words either side of the change, and the added words whole", () => {
+  const brief = suggestionParts(LONG_OLD, LONG_NEW, { brief: true });
+  const full = suggestionParts(LONG_OLD, LONG_NEW);
+  assert.equal(brief.lead, "…rose, and then he ");
+  assert.equal(brief.tail, " and the evening fog…");
+  assert.ok(brief.lead.length < full.lead.length && brief.tail.length < full.tail.length);
+  assert.equal(brief.added, "slept");
+  assert.equal(brief.added, full.added);
+});
+
+test("without brief, a card's parts are as they were before brief cards: the removed words whole", () => {
+  assert.deepEqual(suggestionParts(LONG_OLD, LONG_NEW), {
+    lead: "…climbed the stairs of the lighthouse twice before the gulls rose, and then he ",
+    removed: "looked out over the harbour wall at the fishing boats waiting for the tide to turn",
+    added: "slept",
+    tail: " and the evening fog came in slowly over the water before anyone had noticed it…",
+  });
+  assert.deepEqual(suggestionParts(LONG_OLD, LONG_NEW, { brief: false }), suggestionParts(LONG_OLD, LONG_NEW));
 });
 
 // ---- accepting it in the draft's Markdown ------------------------------------------------
