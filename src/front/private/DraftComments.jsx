@@ -661,7 +661,7 @@ function useEditorAnchors(bridge, threads, visible) {
   const [found, setFound] = useState(NOTHING);
   useEffect(() => (bridge ? bridge.subscribe(setFound) : setFound(NOTHING)), [bridge]);
   const shown = new Set(visible.map((t) => t.id));
-  const items = threads.map((t) => ({ id: t.id, find: t.pending ? null : t.find, quote: t.quote, gone: t.gone, resolved: Boolean(t.resolved), pending: Boolean(t.pending), suggest: wordsOf(t) != null, hidden: !shown.has(t.id) }));
+  const items = threads.map((t) => ({ id: t.id, find: t.pending ? null : t.find, quote: t.quote, gone: t.gone, resolved: Boolean(t.resolved), pending: Boolean(t.pending), suggest: wordsOf(t) != null, words: wordsOf(t), hidden: !shown.has(t.id) }));
   const key = JSON.stringify(items);
   const latest = useRef(items);
   latest.current = items;
@@ -1039,10 +1039,9 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
 
   // The active and hovered passages, emphasised. In the editor, by its
   // decorations: ProseMirror redraws its own elements.
-  const activeIds = active ? found.groups.get(active) : null;
   useEffect(() => {
-    if (bridge) bridge.emphasize(activeIds, hover);
-  }, [bridge, activeIds, hover]);
+    if (bridge) bridge.emphasize(active ? [active] : null, hover);
+  }, [bridge, active, hover]);
   // On a phone the thread in hand is the sheet's, or the one being written in it.
   const handId = wide ? active : (sheet?.ids?.[0] ?? (sheet?.compose === "new" ? "new" : null));
   useEffect(() => {
@@ -1066,10 +1065,11 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     // after them. So Accept on a card is pressed with the change in view,
     // and nothing moves under the mouse. Suggestions on overlapping words
     // would run into each other, so of those one is shown: the one in hand,
-    // else the one under the mouse, else the first still open.
+    // else the first still open. Never the one under the mouse in place of
+    // another: new words coming and going would move the text under it.
     for (const ids of new Set(found.groups.values())) {
       const can = ids.filter((id) => found.edits.has(id));
-      const id = can.includes(handId) ? handId : (hover?.find((h) => can.includes(h)) ?? can.find((c) => found.edits.get(c).open));
+      const id = can.includes(handId) ? handId : can.find((c) => found.edits.get(c).open);
       const e = id && found.edits.get(id);
       if (!e) continue;
       for (const el of e.del) cls(el, "is-del");
