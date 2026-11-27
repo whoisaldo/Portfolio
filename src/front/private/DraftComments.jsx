@@ -1089,6 +1089,20 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     return () => undo.forEach((fn) => fn());
   }, [handId, hover, found, bridge]);
 
+  // Of suggestions on overlapping words, those not the one shown in the
+  // text (above): Accept is offered on the one whose change is in view, and
+  // on another once it is taken in hand, which shows it.
+  const covered = useMemo(() => {
+    const out = new Set();
+    if (bridge) return out;
+    for (const ids of new Set(found.groups.values())) {
+      const open = ids.filter((id) => found.edits.get(id)?.open);
+      const shown = open.includes(handId) ? handId : open[0];
+      for (const id of open) if (id !== shown) out.add(id);
+    }
+    return out;
+  }, [found, handId, bridge]);
+
   // On a phone a sheet covers most of the screen: the passage it is about is
   // brought into what is left above it, once, as the sheet opens.
   const sheetOn = wide ? null : (sheet?.ids?.[0] ?? (sheet?.compose === "new" ? "new" : null));
@@ -1233,7 +1247,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       long={found.long?.get(t.id)}
       active={active === t.id}
       related={(hover || []).includes(t.id)}
-      onActivate={() => focusThread(t.id)}
+      onActivate={() => focusThread(t.id, { scroll: !extra.inMargin })}
       onHover={(on) => setHover(on ? [t.id] : null)}
       {...extra}
     />
@@ -1245,9 +1259,14 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       note={acceptNote(notes, t)}
       doing={working.get(t.id)}
       work={work}
+      covered={covered.has(t.id)}
+      // In a sheet holding several, the one to show goes first: the sheet's first is in hand.
+      onShow={() => (wide ? focusThread(t.id, { scroll: false }) : setSheet((sh) => (sh?.ids ? { ids: [t.id, ...sh.ids.filter((id) => id !== t.id)] } : sh)))}
       active={active === t.id}
       related={(hover || []).includes(t.id)}
-      onActivate={() => focusThread(t.id)}
+      // A card pressed in the margin stays where it is, and the page brings
+      // its passage to it (Margin): nothing to scroll here.
+      onActivate={() => focusThread(t.id, { scroll: !extra.inMargin })}
       onHover={(on) => setHover(on ? [t.id] : null)}
       // Resolved or accepted, it is let go: its card, and a sheet holding only it.
       onResolved={() => {
@@ -1525,6 +1544,11 @@ function Margin({ body, found, active, order, toolbar, children }) {
     // Cards above the active one that do not fit under the toolbar lift it
     // with them, off the top if need be: the active card stays at its passage.
     const lift = Math.max(0, floor - top[0]) || 0;
+    // A card taken in hand by a press on it stays under the pointer: the
+    // page moves by as much as the card would have, which brings its passage
+    // level with it instead.
+    const was = last.current.tops.get(active);
+    const by = at !== -1 && inside.current && active !== last.current.active && was != null ? top[at] - was : 0;
     last.current = { tops: new Map(cards.map((c, i) => [c.id, top[i]])), active };
     if (bar.current) bar.current.style.marginTop = `${-lift}px`;
     bottom = (bar.current?.offsetHeight || 0) - lift;
@@ -1534,6 +1558,7 @@ function Margin({ body, found, active, order, toolbar, children }) {
       c.el.style.transform = `translateX(${c.id === active ? -14 : 0}px)`;
       bottom = top[i] + c.h;
     });
+    if (by) window.scrollBy(0, by);
     // Vertical spacing belongs to normal flow. An expanding card pushes its
     // neighbours down immediately, including before ResizeObserver runs.
     requestAnimationFrame(() => m.classList.add("is-placed"));
@@ -1549,6 +1574,11 @@ function Margin({ body, found, active, order, toolbar, children }) {
     };
     const ro = new ResizeObserver(soon);
     if (body.current) ro.observe(body.current);
+    // What is above the text can grow without the text changing size (Ali's
+    // tools arrive after the page), moving every passage: the article's
+    // size says so.
+    const article = body.current?.closest("article");
+    if (article) ro.observe(article);
     if (margin.current) for (const el of margin.current.querySelectorAll("[data-card]")) ro.observe(el);
     window.addEventListener("resize", soon);
     document.fonts?.ready.then(soon);
@@ -1581,7 +1611,7 @@ function Margin({ body, found, active, order, toolbar, children }) {
 }
 
 /** One thread: its first comment, its replies, and a box to reply. */
-function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, doing, work, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed, long, failure, move }) {
+function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, doing, work, covered, onShow, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed, long, failure, move }) {
   const [error, setError] = useState("");
   // On its way, here or on a card drawn before this one (`work`, above the cards).
   const accepting = doing === "accept";
@@ -1595,8 +1625,13 @@ function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, 
   // otherwise push every card below it away from its passage.
   const compact = inMargin && !active;
   const replies = t.replies.length;
-  // Accept, or word to press Done first while he edits (./suggest.js).
-  const offer = onAccept && suggestion != null ? acceptOffered({ accepted, resolved, editing }) : null;
+  // Its passage was edited since it was suggested: Accept would refuse it
+  // (./accept.js), so it is not offered, and the card says why.
+  const stale = suggestion != null && !accepted && !resolved && Boolean(t.find) && t.find !== t.quote && !sameAsPassage(t.find.exact, t.quote.exact);
+  // Accept, or word to press Done first while he edits (./suggest.js). Not
+  // while another suggestion's change is the one shown on these words
+  // (`covered`): what Accept takes is what the text shows.
+  const offer = onAccept && suggestion != null && !stale ? acceptOffered({ accepted, resolved, editing }) : null;
 
   async function run(p) {
     setError("");
@@ -1635,7 +1670,7 @@ function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, 
         </button>
       ) : (
         <>
-          {offer === "accept" && !resolving && (
+          {offer === "accept" && !covered && !resolving && (
             <button
               type="button"
               className={`${accepting ? "draft-text-button" : "draft-icon-button"} draft-accept`}
@@ -1682,7 +1717,27 @@ function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, 
       )}
       {/* A suggestion shows its passage as the words it changes, wherever it is listed. */}
       {suggestion != null ? (
-        <Suggestion old={t.quote.exact} text={suggestion} accepted={accepted} clamp={compact} finish={offer === "finish" && !compact} actions={actions} />
+        <Suggestion
+          old={t.quote.exact}
+          text={suggestion}
+          accepted={accepted}
+          clamp={compact}
+          actions={actions}
+          word={
+            stale ? (
+              "The passage was edited after this was suggested, so it can't be accepted as it is."
+            ) : offer === "finish" && !compact ? (
+              "Press Done to accept it."
+            ) : offer === "accept" && covered ? (
+              <>
+                Another suggestion on these words is the one shown in the text.{" "}
+                <button type="button" className="draft-text-button" onClick={onShow}>
+                  Show this one
+                </button>
+              </>
+            ) : null
+          }
+        />
       ) : (
         showQuote && t.quote && <blockquote className="draft-quote">{placed && t.find ? t.find.exact : t.quote.exact}</blockquote>
       )}
@@ -1752,10 +1807,11 @@ function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, 
  * stay (./suggest.js). In the margin, a thread not in hand shows its opening
  * lines, a long change's words cut short to fit both what goes and what
  * comes (the text shows it whole). `actions` is Accept and Resolve
- * (Thread); while Ali edits, an open card has word to press Done first
- * instead of Accept (`finish`).
+ * (Thread); `word` is said under the change when Accept is not offered:
+ * to press Done first while Ali edits, that the passage was edited since,
+ * or that another suggestion on the same words is the one shown.
  */
-function Suggestion({ old, text, accepted, clamp, finish, actions }) {
+function Suggestion({ old, text, accepted, clamp, actions, word }) {
   return (
     <div className="draft-suggestion">
       <p className="draft-suggest-head">
@@ -1773,7 +1829,7 @@ function Suggestion({ old, text, accepted, clamp, finish, actions }) {
         {actions}
       </p>
       <Change old={old} text={text} clamp={clamp} />
-      {finish && <p className="draft-finish">Press Done to accept it.</p>}
+      {word && <p className="draft-finish">{word}</p>}
     </div>
   );
 }

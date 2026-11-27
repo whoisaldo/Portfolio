@@ -223,15 +223,15 @@
 
 /* A suggested edit shown where it would be made (DraftComments.jsx), as
    Docs shows one: the words it takes out struck through in red, the words
-   it puts in after them in green, and both filled in while its thread is
-   under the mouse or in hand. The new words are drawn by the stylesheet, so
+   it puts in after them in green. Quiet at rest, a thin line and plain
+   green words, so a draft with many is still read; filled in while its
+   thread is under the mouse or in hand. The new words are drawn by the stylesheet, so
    they are no part of the draft's text: not selected, quoted or searched. */
 .post-body .draft-piece.is-del {
-  background-color: rgb(255 77 109 / 0.1);
-  color: rgb(236 234 228 / 0.6);
+  color: rgb(236 234 228 / 0.5);
   text-decoration: line-through;
-  text-decoration-color: rgb(255 77 109 / 0.85);
-  text-decoration-thickness: 2px;
+  text-decoration-color: rgb(255 77 109 / 0.75);
+  text-decoration-thickness: 1px;
 }
 /* A border, not the passages' inset shadow: on words that wrap it is drawn
    under each line, and the gap before them is at their start only. */
@@ -239,11 +239,11 @@
   content: attr(data-ins);
   white-space: pre-wrap;
   color: #7fe0a3;
-  background: rgb(79 191 122 / 0.12);
-  border-bottom: 1px solid #4fbf7a;
+  border-bottom: 1px solid rgb(79 191 122 / 0.8);
 }
 .post-body .draft-ins.after-del[data-ins]::after { margin-left: 0.25em; }
-.post-body :is(.is-hover, .is-active, .is-pending) .draft-piece.is-del { background-color: #4a1a26; color: rgb(236 234 228 / 0.78); text-decoration-color: #ff4d6d; }
+.ProseMirror .draft-ins { cursor: pointer; }
+.post-body :is(.is-hover, .is-active, .is-pending) .draft-piece.is-del { background-color: #4a1a26; color: rgb(236 234 228 / 0.78); text-decoration-color: #ff4d6d; text-decoration-thickness: 2px; }
 .post-body :is(.is-hover, .is-active, .is-pending) .draft-ins[data-ins]::after { color: #06150c; background: #4fbf7a; border-bottom-color: #4fbf7a; }
 
 /* Words selected inside a passage: the site's volt selection cannot be told

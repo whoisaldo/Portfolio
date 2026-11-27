@@ -263,9 +263,12 @@ function insertion({ id, del, at, first, insert }) {
     // else the mouse moving onto them, as they push the words after them
     // along, would let the suggestion go, and with it the words, and back.
     el.dataset.threads = id;
+    // Not the draft's words, so not somewhere to put the caret: a press on
+    // them leaves it where it is, and the click still opens their card.
+    el.addEventListener("mousedown", (e) => e.preventDefault());
     return el;
   };
-  return Decoration.widget(at, toDOM, { key: `${cls} ${id} ${insert}`, side: first ? 1 : -1, ignoreSelection: true });
+  return Decoration.widget(at, toDOM, { key: `${cls} ${id} ${insert}`, side: first ? 1 : -1, ignoreSelection: true, stopEvent: (e) => e.type === "mousedown" });
 }
 
 /**
