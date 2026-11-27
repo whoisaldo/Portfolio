@@ -81,28 +81,43 @@ export function changeIn(passage, quoted, text) {
 // The words kept either side of a change, on a card, at most about this long.
 const AROUND = 80;
 
+// On a card cut to a few lines: the words kept either side, and of a long
+// run of words taken out, its start and its end.
+const BRIEF = { around: 24, removed: 64, start: 36, end: 20 };
+
+/** The end of `s`, about `most` long, from a whole word, after "…". */
+const endOf = (s, most) => {
+  const cut = s.slice(-most);
+  return `…${cut.slice(cut.search(/\s/) + 1)}`;
+};
+/** The start of `s`, about `most` long, to a whole word, before "…". */
+const startOf = (s, most) => {
+  const cut = s.slice(0, most);
+  const space = cut.search(/\s\S*$/);
+  return `${space > 0 ? cut.slice(0, space) : cut}…`;
+};
+
 /**
  * A suggestion as its card shows it: the passage's words before the change
  * (`lead`), the words it takes out (`removed`) and puts in (`added`), and the
  * words after (`tail`), the suggestion read without INVISIBLE, as Accept
  * puts it in. A long passage's lead and tail are cut to the words
  * nearest the change, with "…" for the rest, as a long quote is shortened.
+ * `brief`, for a card cut to a few lines: less of both, and a long run of
+ * words taken out is its start and its end, so the words put in are not
+ * pushed out of sight by the words they replace.
  */
-export function suggestionParts(old, text) {
+export function suggestionParts(old, text, { brief = false } = {}) {
   const words = visibleWords(text).trim();
   const { from, to, insert } = editRegion(old, words);
+  const around = brief ? BRIEF.around : AROUND;
   let lead = old.slice(0, from);
   let tail = old.slice(to);
-  if (lead.length > AROUND) {
-    const cut = lead.slice(-AROUND);
-    lead = `…${cut.slice(cut.search(/\s/) + 1)}`;
-  }
-  if (tail.length > AROUND) {
-    const cut = tail.slice(0, AROUND);
-    const space = cut.search(/\s\S*$/);
-    tail = `${space > 0 ? cut.slice(0, space) : cut}…`;
-  }
-  return { lead, removed: old.slice(from, to), added: insert, tail };
+  let removed = old.slice(from, to);
+  if (lead.length > around) lead = endOf(lead, around);
+  if (tail.length > around) tail = startOf(tail, around);
+  if (brief && removed.length > BRIEF.removed) removed = `${startOf(removed, BRIEF.start).slice(0, -1)} … ${endOf(removed, BRIEF.end).slice(1)}`;
+  return { lead, removed, added: insert, tail };
 }
 
 /**

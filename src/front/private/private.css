@@ -155,7 +155,8 @@
    lit, and every other passage steps back, so which words a card is about is
    never in doubt. */
 .post-body [data-threads] { --tint: 252 238 10; }
-.post-body [data-threads].is-suggest { --tint: 79 191 122; }
+.post-body [data-threads].is-suggest,
+.post-body [data-threads].as-suggest { --tint: 79 191 122; }
 .post-body [data-threads].is-resolved { --tint: 236 234 228; }
 .post-body mark.post-quote[data-threads],
 .post-body [data-threads] mark.post-quote {
@@ -211,30 +212,30 @@
   background-repeat: repeat-x;
 }
 
-/* A suggested edit shown where it would be made (DraftComments.jsx): the
-   words it takes out struck through, under the mouse and in hand; in hand,
-   the words it puts in after them. Those are drawn by the stylesheet, so
-   they are no part of the draft's text: not selected, quoted or searched. */
-.post-body .draft-piece { transition: background-color 120ms, color 120ms; }
+/* A suggested edit shown where it would be made (DraftComments.jsx), as
+   Docs shows one: the words it takes out struck through, the words it puts
+   in after them, brighter while its thread is under the mouse or in hand.
+   The new words are drawn by the stylesheet, so they are no part of the
+   draft's text: not selected, quoted or searched. */
 .post-body .draft-piece.is-del {
-  background-color: #3a1620;
-  color: rgb(236 234 228 / 0.66);
+  background-color: #2b1419;
+  color: rgb(236 234 228 / 0.6);
   text-decoration: line-through;
-  text-decoration-color: #ff4d6d;
+  text-decoration-color: rgb(255 77 109 / 0.85);
   text-decoration-thickness: 2px;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
 }
+/* A border, not the passages' inset shadow: on words that wrap it is drawn
+   under each line, and the gap before them is at their start only. */
 .post-body .draft-ins[data-ins]::after {
   content: attr(data-ins);
   white-space: pre-wrap;
-  color: #fff;
-  background: #1d5a3a;
-  box-shadow: inset 0 -2px #4fbf7a;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
+  color: #eceae4;
+  background: #17432c;
+  border-bottom: 1px solid #4fbf7a;
 }
 .post-body .draft-ins.after-del[data-ins]::after { margin-left: 0.25em; }
+.post-body :is(.is-hover, .is-active, .is-pending) .draft-piece.is-del { background-color: #3d1721; color: rgb(236 234 228 / 0.72); text-decoration-color: #ff4d6d; }
+.post-body :is(.is-hover, .is-active, .is-pending) .draft-ins[data-ins]::after { color: #fff; background: #1f6040; border-bottom-width: 2px; }
 @media (prefers-reduced-motion: reduce) {
   .post-body:not(.ProseMirror) .is-active mark.post-quote { animation: none; }
 }
@@ -524,16 +525,23 @@
 .draft-text-button:hover { color: #eceae4; }
 .draft-comment-head .draft-text-button:disabled { opacity: 0.6; cursor: default; color: #fcee0a; }
 
-/* Resolve is a red X and Accept a green check beside it, so one is not
-   pressed for the other: each a square of its own colour, a gap between. */
+/* What can be done with a thread, in its card's top corner. Resolve is a
+   red X and Accept a green check beside it, so one is not pressed for the
+   other: each a square of its own colour, a gap between. */
+/* As tall as its buttons whatever it says ("Accepting…"), and at the top
+   of its row, so the card keeps its height and they their place. */
+.draft-card-actions { flex: none; align-self: flex-start; display: inline-flex; align-items: center; gap: 0.4rem; min-height: 1.9rem; }
 .draft-resolve,
-.draft-comment-head .draft-resolve:disabled { color: #ff4d6d; }
-.draft-resolve:not(:disabled):hover { color: #ff4d6d; background: rgb(255 77 109 / 0.16); }
+.draft-card-actions .draft-resolve:disabled { color: #ff4d6d; }
+.draft-resolve:not(:disabled):hover { color: #ff4d6d; background: rgb(255 77 109 / 0.22); }
 .draft-accept,
-.draft-comment-head .draft-accept:disabled { color: #4fbf7a; }
-.draft-accept:not(:disabled):hover { color: #4fbf7a; background: rgb(79 191 122 / 0.16); }
+.draft-card-actions .draft-accept:disabled { color: #4fbf7a; }
+.draft-accept:not(:disabled):hover { color: #4fbf7a; background: rgb(79 191 122 / 0.24); }
 .draft-icon-button.draft-accept { background: rgb(79 191 122 / 0.1); }
 .draft-icon-button.draft-resolve { background: rgb(255 77 109 / 0.08); }
+.draft-card-actions .draft-text-button:disabled { opacity: 0.6; cursor: default; }
+/* While Ali edits, in place of Accept on an open suggestion. */
+.draft-finish { margin: -0.25rem 0 0.6rem; font-size: 0.75rem; color: rgb(236 234 228 / 0.56); }
 
 .draft-reply-ghost {
   display: block;
