@@ -22,7 +22,7 @@ import Picture from "../components/Picture";
 import ProjectImage from "../components/projects/ProjectImage";
 import { COLUMN, useTitle } from "./lib";
 import { BrandIcon } from "./icons";
-import { FrontFooter, FrontHeader, SectionLabel } from "./parts";
+import { FrontFooter, FrontHeader, SectionLabel, StudioLine } from "./parts";
 import Lightbox from "./Lightbox";
 
 const backLink = "inline-flex items-center gap-1.5 text-sm font-medium text-dim transition-colors duration-150 hover:text-volt";
@@ -132,7 +132,8 @@ function ProjectHead({ entry }) {
         {entry.title}
       </h1>
       <p className="mt-4 text-pretty text-sm text-dim">{entry.tagline}</p>
-      {(entry.live || entry.github) && (
+      {entry.sideband && <StudioLine className="mt-1.5" />}
+      {(entry.live || entry.github || entry.moreSource) && (
         <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-4">
           {entry.live && (
             <a
@@ -149,6 +150,11 @@ function ProjectHead({ entry }) {
               <BrandIcon name="github" /> Source
             </a>
           )}
+          {entry.moreSource?.map((s) => (
+            <a key={s.href} href={s.href} target="_blank" rel="noreferrer" className={textLink}>
+              <BrandIcon name="github" /> {s.label}
+            </a>
+          ))}
         </div>
       )}
     </>

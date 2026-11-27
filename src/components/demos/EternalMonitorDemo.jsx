@@ -10,8 +10,9 @@
 // Two interactions carry the two design points worth making. The encoder
 // select shows the auto-probe chain: whichever GPU the reader picks, the
 // chain reorders and libx264 stays at the end. "Drop a packet" shows why UDP:
-// the frame it belonged to is skipped and the next one shows, rather than
-// every frame behind it waiting for a retransmit.
+// the iPad asks for the missing piece again, and if it is late that frame is
+// skipped, rather than every frame behind it waiting for a retransmit.
+// Checked against the repository's ARCHITECTURE.md in November 2026.
 //
 // There is no latency figure anywhere here, on purpose. The project has never
 // instrumented glass-to-glass latency, so the diagram says so instead of
@@ -21,13 +22,13 @@ import DemoFrame, { Field, selectClass, buttonClass } from "./DemoFrame";
 import { usePrefersReducedMotion } from "../../hooks";
 
 const STAGES = [
-  { id: "capture", label: "DXGI capture", side: "host", body: "Desktop Duplication hands the host each new frame of the primary display as a GPU texture. The host maps it and copies it out on the CPU, then converts BGRA to YUV420P in software. The repo's own notes are candid that this is not a never-touch-CPU path." },
-  { id: "encode", label: "H.264 encode", side: "host", body: "A hardware encoder if there is one: NVENC, AMF or QSV, probed and reordered by GPU vendor, with libx264 as the software fallback. Baseline profile specifically, because that is what the iPad's hardware decoder is happiest with." },
-  { id: "fragment", label: "Fragment", side: "host", body: "Each encoded frame is cut into UDP-sized pieces behind a custom 16-byte header: a u32 sequence number and u16 fragment index and count. The counters were u8 until frames started exceeding 255 fragments." },
-  { id: "udp", label: "UDP", side: "wire", body: "Datagrams, not a stream. A lost fragment loses its frame and nothing else; with TCP every frame behind it would wait for the retransmit, which is head-of-line blocking, and the one thing a live display cannot have." },
-  { id: "reassemble", label: "Reassemble", side: "ipad", body: "The client collects fragments by sequence number until a frame is complete, or gives up on it when the next one starts arriving. The packet is a FlatBuffers FramePacket on the Rust side; the Swift side parses the vtable by hand." },
-  { id: "decode", label: "VideoToolbox", side: "ipad", body: "Hardware H.264 decode on the iPad through VideoToolbox, straight into a pixel buffer." },
-  { id: "present", label: "Metal present", side: "ipad", body: "A Metal-backed MTKView draws the decoded frame. Discovery of the host is mDNS, with manual IP entry as the path that always works." },
+  { id: "capture", label: "DXGI capture", side: "host", body: "DXGI hands the host each new frame of the chosen desktop, cursor included. A slow encoder skips stale frames instead of queueing them. NVIDIA's encoders take BGRA and convert it on the graphics card; the others take YUV420, converted on the CPU." },
+  { id: "encode", label: "H.264 encode", side: "host", body: "FFmpeg on a hardware encoder if there is one: NVENC, AMF or QSV, probed and reordered by GPU vendor, with libx264 as the software fallback. HEVC is an option. H.264 uses the Baseline profile specifically, because that is what the iPad's hardware decoder is happiest with." },
+  { id: "fragment", label: "Fragment", side: "host", body: "Each encoded frame is cut into UDP-sized pieces. Every piece carries an eight-byte prefix and a 32-byte video header with the session, the frame and fragment numbers, a keyframe flag and the capture time. Fragment index and count are u16. They were u8 until frames started exceeding 255 fragments." },
+  { id: "udp", label: "UDP", side: "wire", body: "Datagrams, not a stream. With TCP every frame behind a lost packet would wait for the retransmit, which is head-of-line blocking, and the one thing a live display cannot have. Here the iPad asks for a missing fragment straight away and gives the repair a short, bounded window before it moves on. Over USB the same datagrams go through Apple's device tunnel." },
+  { id: "reassemble", label: "Reassemble", side: "ipad", body: "The iPad collects fragments by frame until one is complete, holding the frames behind it while a repair can still arrive. If it does not, that frame is dropped and the iPad asks for a keyframe. Rust and Swift share golden test vectors for every packet." },
+  { id: "decode", label: "VideoToolbox", side: "ipad", body: "Hardware H.264 or HEVC decode on the iPad through VideoToolbox, straight into a pixel buffer." },
+  { id: "present", label: "Metal present", side: "ipad", body: "A Metal-backed MTKView draws the decoded frame. Discovery of the host is mDNS, with manual IP entry or a QR code as the paths that always work." },
 ];
 
 const ENCODERS = ["NVENC (NVIDIA)", "AMF (AMD)", "QSV (Intel)", "libx264 (software)"];
@@ -85,7 +86,7 @@ export default function EternalMonitorDemo({ toolbar }) {
           </ol>
           <div className="mt-2 flex flex-wrap justify-between gap-x-6 gap-y-1 mono-micro text-dim">
             <span>Windows host</span>
-            <span>16-byte header · u32 seq · u16 fragments</span>
+            <span>8-byte prefix · 32-byte header · u16 fragments</span>
             <span>iPad client</span>
           </div>
 
@@ -114,7 +115,7 @@ export default function EternalMonitorDemo({ toolbar }) {
           </div>
           {dropped > 0 && (
             <p className="mt-3 prose-dark text-[0.9375rem]">
-              That frame is gone and the next one shows. Nothing behind it waited. That is the whole argument for UDP over TCP here.
+              The iPad asks for that piece again, and the frames behind it wait briefly for the repair. If it is late, that frame is gone and the next one shows. With TCP they would have waited for as long as the retransmit took. That is the whole argument for UDP over TCP here.
             </p>
           )}
         </div>

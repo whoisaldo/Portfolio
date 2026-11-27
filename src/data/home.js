@@ -147,15 +147,18 @@ export const timeline = [
   },
 ];
 
-// Four, chosen to cover the range: systems, a mod, a desktop tool, a product.
+// Chosen to cover the range: systems, a mod, a desktop tool, a product, the
+// agent tooling and a browser extension.
 // `line` is the one sentence a row shows closed; opening it shows the
 // project's own description, stack and links from projects.js, and the way
 // to its page.
 export const built = [
-  { slug: "eternal-monitor", line: "Turns an iPad into a wireless second display for Windows." },
+  { slug: "eternal-monitor", line: "Turns an iPad into a second display for Windows, over Wi-Fi or USB." },
   { slug: "eternal-exchange", line: "Equivalent-exchange alchemy for Minecraft, on Fabric." },
   { slug: "eternal-rich-presence", line: "Puts Apple Music on your Discord profile." },
   { slug: "exerly-fitness", line: "A fitness platform with an AI coach. Live on the web, iOS in review." },
+  { slug: "agent-workflow", line: "Skills and recipes that run Claude Code and Codex like a small team." },
+  { slug: "github-reskin", line: "Themes for GitHub, and a builder for your own." },
 ];
 
 export const playgroundCard = {

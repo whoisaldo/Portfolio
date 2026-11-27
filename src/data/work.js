@@ -9,7 +9,7 @@
 // So this module does exactly two jobs: give every entry a stable slug, and
 // resolve a slug back to its record and kind. It owns no content. Editing copy
 // still means editing projects.js or experience.js.
-import { featuredProjects } from "./projects";
+import { featuredProjects, frontProjects } from "./projects";
 import { experiences } from "./experience";
 
 /** Roles with a page of their own, which is now all of them. */
@@ -47,9 +47,12 @@ export const RENAMED_SLUGS = {
   "eternal-reverse": "sideband",
 };
 
+/** Every project with a page: the playground's, then the front site's own. */
+const projects = [...featuredProjects, ...frontProjects];
+
 /** slug -> { kind: "project" | "role", entry } */
 const index = new Map();
-for (const p of featuredProjects) index.set(p.slug, { kind: "project", entry: p });
+for (const p of projects) index.set(p.slug, { kind: "project", entry: p });
 for (const r of workRoles) index.set(r.slug, { kind: "role", entry: r });
 
 export function findWork(slug) {
@@ -70,7 +73,7 @@ export const workSlugs = [...index.keys()];
 export function neighbours(slug) {
   const hit = index.get(slug);
   if (!hit) return { prev: null, next: null };
-  const list = hit.kind === "project" ? featuredProjects : workRoles;
+  const list = hit.kind === "project" ? projects : workRoles;
   const i = list.findIndex((x) => x.slug === slug);
   if (i < 0) return { prev: null, next: null };
   return {
