@@ -9,8 +9,12 @@
 // exactly at its passage, nudged toward the text, with the others moving
 // out of its way above and below. Cards stay in normal flow so growing a
 // suggestion or reply immediately makes room below it. Hovering a passage
-// lifts its card; clicking one, or the card, makes it the active thread and
-// brings the two together.
+// or its card fills the passage in and lights the card, and every other
+// passage steps back, so which words a card is about is never in doubt;
+// clicking one, or the card, makes it the active thread and brings the two
+// together. When a card goes (resolved, accepted) with the pointer in the
+// margin, the rest hold still until it leaves: the next press lands on what
+// was under it.
 //
 // On a phone there is no margin. The passages stay highlighted; tapping one
 // opens its thread in a sheet from the bottom, and a button in the corner
@@ -24,9 +28,11 @@
 // A reader can also press "Suggest edit" by a selection: its words open in a
 // box, to be changed into what they should say, with a note if they like.
 // The thread's card shows the words that change struck through and the new
-// ones marked as added (./suggest.js). Ali has "Accept" on it once it is
-// open, showing the whole change (a margin card not in hand is cut to its
-// opening lines): it puts the new words in the draft, saves that as a version, and marks the thread
+// ones marked as added (./suggest.js), and so does the text itself, as Docs
+// shows a suggestion: a passage with one is green, where a comment's is
+// volt. Ali has Accept on every open one, a green check beside Resolve's
+// red X in the card's top corner, where both are on every card: it puts the
+// new words in the draft, saves that as a version, and marks the thread
 // accepted and resolved with the same save (./accept.js). Only in the read
 // view: while he edits, the card says to press Done first, as the editor
 // saves its own copy of the same text. An accepted thread's passage is the
@@ -35,7 +41,8 @@
 //
 // Passages are found again by their words and context (../quotes.js, shared
 // with the public comments), so a draft can be edited under its comments.
-// Overlapping passages are one highlight that leads to every thread on it.
+// Overlapping passages are drawn in pieces, each leading to the threads
+// whose words it is, the one about the fewest words first.
 //
 // The threads are polled every few seconds while the page is in front, and
 // every half minute when it is not; an unchanged draft answers with no body.
@@ -46,7 +53,9 @@
 // Nor is it lost by closing what it was typed in. A comment, a suggestion, a
 // comment on the whole draft, a reply or an edit that was not sent is kept,
 // and is back in its box when the box opens again. Only sending it or
-// pressing Cancel lets it go. It is kept in the browser too, for this person
+// pressing Cancel lets it go. A new thread's box with words in it is never
+// out of sight: Escape only puts it down, and on a phone, where its sheet
+// can be closed, its passage stays marked and a tap on it opens it again. It is kept in the browser too, for this person
 // on this draft (./typed.js): after a reload, a session that ran out or the
 // list and back, the box last typed in is open again with its words. Words
 // typed for a passage go only with that passage: another passage picked
