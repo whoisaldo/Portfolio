@@ -64,6 +64,20 @@ export function editRegion(old, text, { whole = false, lines = false } = {}) {
   return { from, to, insert: text.slice(from, text.length - (a.length - to)) };
 }
 
+/**
+ * What a suggestion changes in its passage as the text has it now
+ * (`passage`), to show there: {from, to, insert}, [from, to) of the passage
+ * struck through and `insert` put after it, as its card shows them
+ * (suggestionParts). Null when the passage is no longer the words the
+ * suggestion was made on (`quoted`), space of any kind alike, or the
+ * suggestion changes nothing: then nothing is shown in the text.
+ */
+export function changeIn(passage, quoted, text) {
+  const flat = (s) => s.replace(/\s/g, " ");
+  if (flat(passage) !== flat(quoted) || sameAsPassage(text, passage)) return null;
+  return editRegion(passage, visibleWords(text).trim());
+}
+
 // The words kept either side of a change, on a card, at most about this long.
 const AROUND = 80;
 
@@ -93,15 +107,13 @@ export function suggestionParts(old, text) {
 
 /**
  * What a suggestion's card offers Ali: Accept ("accept") while it is open,
- * and only while the card shows the whole change, the words it takes out and
- * puts in. A margin card not in hand is cut to its opening lines
- * (`clamped`), which can hide them; pressing it opens it, with Accept. Never
- * while he edits the draft (`editing`): Accept changes the draft as saved
+ * on a margin card not in hand too, beside Resolve, so one press takes the
+ * edit; what it changes is shown in the text under the mouse. Never while he
+ * edits the draft (`editing`): Accept changes the draft as saved
  * (./accept.js), and the editor saves its own copy of the same text, so the
- * open card says to finish editing first ("finish"). Else null, nothing.
+ * card says to finish editing first ("finish"). Else null, nothing.
  */
-export const acceptOffered = ({ accepted, resolved, clamped, editing }) =>
-  accepted || resolved || clamped ? null : editing ? "finish" : "accept";
+export const acceptOffered = ({ accepted, resolved, editing }) => (accepted || resolved ? null : editing ? "finish" : "accept");
 
 /**
  * What Accept said on each suggestion's card, by thread: a refusal, or that

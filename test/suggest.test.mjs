@@ -520,21 +520,18 @@ test("two tabs pressing Accept at once save the text once, whichever refusal the
 
 // ---- the card ------------------------------------------------------------------------------
 
-test("Accept is offered only on a card that shows the whole change: not on a margin card cut to its opening lines", () => {
-  assert.equal(acceptOffered({ accepted: null, resolved: null, clamped: false }), "accept");
-  assert.equal(acceptOffered({ accepted: null, resolved: null, clamped: true }), null);
-  assert.equal(acceptOffered({ accepted: { at: "2026-11-14T10:00:00Z" }, resolved: null, clamped: false }), null);
-  assert.equal(acceptOffered({ accepted: null, resolved: { by: "Ali" }, clamped: false }), null);
+test("Accept is offered on every open suggestion's card, the margin's short ones too: not once it is accepted or resolved", () => {
+  assert.equal(acceptOffered({ accepted: null, resolved: null }), "accept");
+  assert.equal(acceptOffered({ accepted: { at: "2026-11-14T10:00:00Z" }, resolved: null }), null);
+  assert.equal(acceptOffered({ accepted: null, resolved: { by: "Ali" } }), null);
 });
 
-test("with the editor open, Accept is never offered: an open card says to finish editing instead", () => {
+test("with the editor open, Accept is never offered: the card says to finish editing instead", () => {
   for (const accepted of [null, { at: "2026-11-14T10:00:00Z" }]) {
     for (const resolved of [null, { by: "Ali" }]) {
-      for (const clamped of [false, true]) {
-        const offer = acceptOffered({ accepted, resolved, clamped, editing: true });
-        assert.notEqual(offer, "accept");
-        assert.equal(offer, !accepted && !resolved && !clamped ? "finish" : null);
-      }
+      const offer = acceptOffered({ accepted, resolved, editing: true });
+      assert.notEqual(offer, "accept");
+      assert.equal(offer, !accepted && !resolved ? "finish" : null);
     }
   }
 });

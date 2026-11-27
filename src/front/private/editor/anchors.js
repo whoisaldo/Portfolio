@@ -142,6 +142,7 @@ function decorations(doc, { ranges, items, emphasis }) {
   const placed = items.filter((t) => !t.hidden && ranges.get(t.id)?.from < ranges.get(t.id)?.to).map((t) => ({ id: t.id, at: [ranges.get(t.id).from, ranges.get(t.id).to] }));
   const resolved = new Set(items.filter((t) => t.resolved).map((t) => t.id));
   const review = new Set(items.filter((t) => t.pending).map((t) => t.id));
+  const suggest = new Set(items.filter((t) => t.suggest).map((t) => t.id));
   const out = [];
   for (const { at, ids } of groupQuotes(placed)) {
     const cls = ["post-quote"];
@@ -149,6 +150,7 @@ function decorations(doc, { ranges, items, emphasis }) {
     if (ids.some((id) => emphasis.hover.includes(id))) cls.push("is-hover");
     if (ids.every((id) => resolved.has(id))) cls.push("is-resolved");
     if (ids.some((id) => review.has(id))) cls.push("is-review");
+    if (ids.every((id) => suggest.has(id))) cls.push("is-suggest");
     const attrs = { class: cls.join(" "), "data-threads": ids.join(" ") };
     out.push(Decoration.inline(at[0], at[1], { nodeName: "mark", ...attrs }));
     // A passage in a raw block (a video's caption) has no text of the
@@ -164,12 +166,13 @@ function decorations(doc, { ranges, items, emphasis }) {
  * The TipTap extension that keeps the passages, and the comments' handle on
  * it once the editor is up (`attach(editor)`):
  *
- *   setItems(items)     the threads, [{id, find, quote, gone, resolved, pending, hidden}]:
+ *   setItems(items)     the threads, [{id, find, quote, gone, resolved, pending, suggest, hidden}]:
  *                       `find` is {exact, prefix, suffix} to look for (the
  *                       anchor, or the reader's `quote` while there is none),
  *                       null for none; `gone` when the server has the
  *                       passage as deleted; `pending` for one of Ali's not
- *                       published yet (../review.js)
+ *                       published yet (../review.js); `suggest` for a
+ *                       suggested edit, drawn in its own colour
  *   emphasize(a, h)     the thread ids in hand and hovered
  *   subscribe(fn)       fn(found) after every change, found as the comments
  *                       margin reads it: {placed, groups, marks, settled,
