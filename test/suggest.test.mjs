@@ -1,6 +1,7 @@
 // test/suggest.test.mjs: suggested edits. What a suggestion changes, how
 // Accept finds the passage and replaces it in a draft's Markdown, what it
-// refuses, and that the text and the mark are saved together, so a press
+// refuses, where the other threads' passages are after it, and that the
+// text and the mark are saved together, so a press
 // after one that failed, here or anywhere else, never changes the text
 // twice. That a card never offers Accept while the editor is open. Every
 // text is made up.
@@ -9,7 +10,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { marked } from "marked";
 import { indexText } from "../src/front/quotes.js";
-import { quoteAt } from "../src/front/private/place.js";
+import { QUOTE_MAX, findThread, quoteAt } from "../src/front/private/place.js";
 import { acceptNote, acceptNotes, acceptOffered, editRegion, sameAsPassage, suggestionParts, visibleWords } from "../src/front/private/suggest.js";
 import { selectLeft } from "../src/front/private/select.js";
 import { TRIES, WHY, acceptSuggestion, locate, pageText, replaceInMarkdown } from "../src/front/private/accept.js";
@@ -338,7 +339,7 @@ test("a deletion with a space on both sides takes one of them with it; other spa
   }
 });
 
-test("threads beside the change are kept where they are; one the change overlaps keeps its place", async () => {
+test("threads beside the change are kept where they are, and one holding it on its passage with the change made", async () => {
   const s = server(HARBOUR);
   const t = thread(quoteOf(HARBOUR, "gulls followed it out"), "seabirds followed it out");
   const near = thread(quoteOf(HARBOUR, "ferry left at dawn and the"), "x", { id: "t-near" });
@@ -348,8 +349,137 @@ test("threads beside the change are kept where they are; one the change overlaps
   const sent = new Map(s.anchors[0].anchors.map((a) => [a.thread, a]));
   assert.equal(sent.get("t-near").exact, "ferry left at dawn and the");
   assert.ok(sent.get("t-near").suffix.startsWith(" seabirds followed"), sent.get("t-near").suffix);
-  assert.equal(sent.has("t-over"), false);
+  assert.equal(sent.get("t-over").exact, "the seabirds");
   assert.equal(sent.has("t-far"), false, "its context did not change");
+});
+
+// ---- threads whose passage holds the change ------------------------------------------------
+
+const PAGED = `## The night shift
+
+The alerts stayed quiet all week. Nothing paged me because nothing was wrong, as far as the service could tell. The disk had filled anyway.
+`;
+const SENTENCE = "Nothing paged me because nothing was wrong, as far as the service could tell.";
+
+/** A comment thread, no suggestion on it. */
+const comment = (quote, id) => ({ ...thread(quote, undefined, { id }), root: { id, accepted: null } });
+
+/** The anchors the press sent, by thread. */
+const sentBy = (s) => new Map(s.anchors.at(-1).anchors.map((a) => [a.thread, a]));
+
+/** Where a page opened now puts a thread: the words it highlights, or null for one listed with the changed passages. */
+const placed = (s, t) => {
+  const index = indexOf(s.draft.body);
+  const at = findThread(index, s.seen(t));
+  return at && index.text.slice(at[0], at[1]);
+};
+
+test("a comment on a sentence stays on it when a suggestion inside it is accepted, its anchor the new words with their context", async () => {
+  const s = server(PAGED);
+  const t = thread(quoteOf(PAGED, "as far as the service could tell"), "as far as it could tell");
+  const c = comment(quoteOf(PAGED, SENTENCE), "t-sentence");
+  await press(s, t, [t, c]);
+  const now = SENTENCE.replace("the service", "it");
+  const index = indexOf(s.draft.body);
+  const at = index.text.indexOf(now);
+  assert.deepEqual(sentBy(s).get("t-sentence"), { thread: "t-sentence", ...quoteAt(index, [at, at + now.length]) });
+  assert.equal(placed(s, c), now);
+});
+
+test("three small edits accepted in a row inside a commented sentence keep the comment on it", async () => {
+  const s = server(PAGED);
+  const edits = [
+    thread(quoteOf(PAGED, "Nothing paged me"), "Nothing woke me", { id: "1b9f6a1e-4c2d-4e8f-9a3b-5d6e7f809a1b" }),
+    thread(quoteOf(PAGED, "nothing was wrong"), "nothing looked wrong", { id: "2b9f6a1e-4c2d-4e8f-9a3b-5d6e7f809a1b" }),
+    thread(quoteOf(PAGED, "as far as the service could tell"), "as far as it could tell", { id: "3b9f6a1e-4c2d-4e8f-9a3b-5d6e7f809a1b" }),
+  ];
+  for (const e of edits) s.accepted.set(e.id, null);
+  const c = comment(quoteOf(PAGED, SENTENCE), "t-sentence");
+  const all = [...edits, c];
+  for (const e of edits) await press(s, s.seen(e), all.map(s.seen));
+  assert.equal(s.saves.length, 3);
+  assert.equal(placed(s, c), "Nothing woke me because nothing looked wrong, as far as it could tell.");
+});
+
+test("a change running into a passage from outside, at its start or its end, leaves the thread where it was", async () => {
+  const s = server(PAGED);
+  // The change is "was wrong, as far as the service" to "seemed wrong, as far as it".
+  const t = thread(quoteOf(PAGED, "nothing was wrong, as far as the service could tell"), "nothing seemed wrong, as far as it could tell");
+  const start = comment(quoteOf(PAGED, "the service could tell."), "t-start");
+  const end = comment(quoteOf(PAGED, "Nothing paged me because nothing was"), "t-end");
+  await press(s, t, [t, start, end]);
+  const sent = sentBy(s);
+  assert.equal(sent.has("t-start"), false);
+  assert.equal(sent.has("t-end"), false);
+  assert.equal(placed(s, start), null, "listed with the changed passages");
+  assert.equal(placed(s, end), null, "listed with the changed passages");
+});
+
+test("a deletion inside a longer passage shortens it", async () => {
+  const body = "The nets were still drying on the quay when the boats came in.\n";
+  const s = server(body);
+  const t = thread(quoteOf(body, "were still drying"), "were drying");
+  const c = comment(quoteOf(body, "The nets were still drying on the quay"), "t-long");
+  await press(s, t, [t, c]);
+  assert.equal(s.draft.body, "The nets were drying on the quay when the boats came in.\n");
+  assert.equal(sentBy(s).get("t-long").exact, "The nets were drying on the quay");
+  assert.equal(placed(s, c), "The nets were drying on the quay");
+});
+
+test("a comment whose whole passage a suggestion on longer words deletes keeps its old place", async () => {
+  const body = "Here a very big cat rests by the fire.\n";
+  const s = server(body);
+  const t = thread(quoteOf(body, "a very big cat"), "a cat");
+  const c = comment(quoteOf(body, "very big"), "t-inside");
+  await press(s, t, [t, c]);
+  assert.equal(s.draft.body, "Here a cat rests by the fire.\n");
+  assert.equal(sentBy(s).has("t-inside"), false);
+  assert.equal(placed(s, c), null, "listed with the changed passages");
+});
+
+test("nested comments around the change both stay on their passages", async () => {
+  const s = server(PAGED);
+  const t = thread(quoteOf(PAGED, "as far as the service could tell"), "as far as it could tell");
+  const outer = comment(quoteOf(PAGED, SENTENCE), "t-outer");
+  const inner = comment(quoteOf(PAGED, "the service could"), "t-inner");
+  await press(s, t, [t, outer, inner]);
+  const sent = sentBy(s);
+  assert.equal(sent.get("t-outer").exact, SENTENCE.replace("the service", "it"));
+  assert.equal(sent.get("t-inner").exact, "it could");
+  assert.equal(placed(s, outer), SENTENCE.replace("the service", "it"));
+  assert.equal(placed(s, inner), "it could");
+});
+
+test("a suggestion whose passage holds the change moves with it, and is then on other words than it was made on", async () => {
+  const s = server(PAGED, { ids: [ID, "t-whole"] });
+  const t = thread(quoteOf(PAGED, "as far as the service could tell"), "as far as it could tell");
+  const whole = thread(quoteOf(PAGED, SENTENCE), "Nothing paged me, as nothing was wrong.", { id: "t-whole" });
+  await press(s, t, [t, whole]);
+  const now = SENTENCE.replace("the service", "it");
+  assert.equal(sentBy(s).get("t-whole").exact, now);
+  assert.equal(placed(s, whole), now);
+  assert.equal(s.seen(whole).quote.exact, SENTENCE, "the reader's words are kept");
+  // Its passage is edited since it was made: Accept on it changes nothing.
+  const saves = s.saves.length;
+  await assert.rejects(press(s, s.seen(whole), [s.seen(whole)]), { message: WHY.edited });
+  assert.equal(s.saves.length, saves);
+});
+
+test("a passage the change would take past what a comment holds keeps its old place", async () => {
+  const words = Array.from({ length: 900 }, (_, i) => `w${i}`).join(" ");
+  const body = `${words}\n`;
+  const c = comment(quoteOf(body, words), "t-big");
+  // A word and a space put in: the passage `to` characters long.
+  const growTo = (to) => thread(quoteOf(body, "w450 w451"), `w450 ${"x".repeat(to - words.length - 1)} w451`);
+  const fits = server(body);
+  const t1 = growTo(QUOTE_MAX);
+  await press(fits, t1, [t1, c]);
+  assert.equal(sentBy(fits).get("t-big").exact.length, QUOTE_MAX);
+  const over = server(body);
+  const t2 = growTo(QUOTE_MAX + 1);
+  await press(over, t2, [t2, c]);
+  assert.equal(over.saves.length, 1);
+  assert.equal(sentBy(over).has("t-big"), false);
 });
 
 test("Accept refuses, changing nothing, when the passage is not there exactly once or its words changed", async () => {
