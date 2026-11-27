@@ -212,13 +212,22 @@
   background-repeat: repeat-x;
 }
 
+/* A suggestion's passage, lit, is a lighter wash than a comment's: the
+   words it changes are marked inside it, and must stand out from the words
+   it keeps. */
+.post-body :is(.is-suggest, .as-suggest):is(.is-hover, .is-active, .is-pending) mark.post-quote,
+.post-body mark.post-quote:is(.is-suggest, .as-suggest):is(.is-hover, .is-active, .is-pending) {
+  background-color: rgb(var(--tint) / 0.2);
+  color: #eceae4;
+}
+
 /* A suggested edit shown where it would be made (DraftComments.jsx), as
-   Docs shows one: the words it takes out struck through, the words it puts
-   in after them, brighter while its thread is under the mouse or in hand.
-   The new words are drawn by the stylesheet, so they are no part of the
-   draft's text: not selected, quoted or searched. */
+   Docs shows one: the words it takes out struck through in red, the words
+   it puts in after them in green, and both filled in while its thread is
+   under the mouse or in hand. The new words are drawn by the stylesheet, so
+   they are no part of the draft's text: not selected, quoted or searched. */
 .post-body .draft-piece.is-del {
-  background-color: #2b1419;
+  background-color: rgb(255 77 109 / 0.1);
   color: rgb(236 234 228 / 0.6);
   text-decoration: line-through;
   text-decoration-color: rgb(255 77 109 / 0.85);
@@ -229,13 +238,18 @@
 .post-body .draft-ins[data-ins]::after {
   content: attr(data-ins);
   white-space: pre-wrap;
-  color: #eceae4;
-  background: #17432c;
+  color: #7fe0a3;
+  background: rgb(79 191 122 / 0.12);
   border-bottom: 1px solid #4fbf7a;
 }
 .post-body .draft-ins.after-del[data-ins]::after { margin-left: 0.25em; }
-.post-body :is(.is-hover, .is-active, .is-pending) .draft-piece.is-del { background-color: #3d1721; color: rgb(236 234 228 / 0.72); text-decoration-color: #ff4d6d; }
-.post-body :is(.is-hover, .is-active, .is-pending) .draft-ins[data-ins]::after { color: #fff; background: #1f6040; border-bottom-width: 2px; }
+.post-body :is(.is-hover, .is-active, .is-pending) .draft-piece.is-del { background-color: #4a1a26; color: rgb(236 234 228 / 0.78); text-decoration-color: #ff4d6d; }
+.post-body :is(.is-hover, .is-active, .is-pending) .draft-ins[data-ins]::after { color: #06150c; background: #4fbf7a; border-bottom-color: #4fbf7a; }
+
+/* Words selected inside a passage: the site's volt selection cannot be told
+   from a lit one, so the editor's blue. */
+.post-body [data-threads]::selection,
+.post-body [data-threads] ::selection { background: rgb(91 156 240 / 0.5); color: #fff; }
 @media (prefers-reduced-motion: reduce) {
   .post-body:not(.ProseMirror) .is-active mark.post-quote { animation: none; }
 }
@@ -530,7 +544,7 @@
    other: each a square of its own colour, a gap between. */
 /* As tall as its buttons whatever it says ("Accepting…"), and at the top
    of its row, so the card keeps its height and they their place. */
-.draft-card-actions { flex: none; align-self: flex-start; display: inline-flex; align-items: center; gap: 0.4rem; min-height: 1.9rem; }
+.draft-card .draft-card-actions { flex: none; align-self: flex-start; display: inline-flex; align-items: center; gap: 0.4rem; min-height: 1.9rem; }
 .draft-resolve,
 .draft-card-actions .draft-resolve:disabled { color: #ff4d6d; }
 .draft-resolve:not(:disabled):hover { color: #ff4d6d; background: rgb(255 77 109 / 0.22); }
@@ -540,6 +554,11 @@
 .draft-icon-button.draft-accept { background: rgb(79 191 122 / 0.1); }
 .draft-icon-button.draft-resolve { background: rgb(255 77 109 / 0.08); }
 .draft-card-actions .draft-text-button:disabled { opacity: 0.6; cursor: default; }
+/* A finger needs more to press than a mouse, and more between the two. */
+@media (pointer: coarse) {
+  .draft-card .draft-card-actions { gap: 0.75rem; min-height: 2.75rem; }
+  .draft-card-actions .draft-icon-button { width: 2.75rem; height: 2.75rem; }
+}
 /* While Ali edits, in place of Accept on an open suggestion. */
 .draft-finish { margin: -0.25rem 0 0.6rem; font-size: 0.75rem; color: rgb(236 234 228 / 0.56); }
 
@@ -578,6 +597,11 @@
 .draft-box textarea:focus-visible { border-color: #fcee0a; box-shadow: none; }
 .draft-box textarea::placeholder { color: rgb(236 234 228 / 0.4); }
 .draft-left { margin-top: 0.25rem; font-size: 0.75rem; color: rgb(236 234 228 / 0.56); text-align: right; }
+/* Word on the box itself, to be read before going on (another passage was picked). */
+.draft-note { margin-top: 0.5rem; padding: 0.35rem 0.6rem; border-left: 2px solid #fcee0a; background: #0a0a0c; font-size: 0.8125rem; color: #eceae4; }
+/* A suggestion's card is green throughout: its passage's bar, and the box in hand. */
+.draft-card.is-suggestion .draft-quote { border-left-color: #4fbf7a; }
+.draft-card.is-suggestion .draft-box textarea:focus-visible { border-color: #4fbf7a; }
 .draft-box-buttons { display: flex; align-items: center; gap: 1rem; }
 .draft-box-buttons .private-primary { margin-top: 0.6rem; padding: 0.4rem 0.8rem; font-size: 0.8125rem; }
 .draft-box-buttons .draft-text-button { margin-top: 0.6rem; color: rgb(236 234 228 / 0.72); }
@@ -722,7 +746,9 @@ html.draft-sheet-open { overflow: hidden; }
   margin: 0;
   padding: 0;
   border: 0;
-  overflow: hidden;
+  /* Clipped, not hidden: a hidden box can still be scrolled by the browser
+     to what it focuses, which lifts the panel off the foot of the screen. */
+  overflow: clip;
   background: transparent;
   color: inherit;
 }
@@ -731,7 +757,8 @@ html.draft-sheet-open { overflow: hidden; }
   position: absolute;
   inset: 0;
   width: 100%;
-  background: rgb(5 5 6 / 0.6);
+  /* Light enough for the passage the sheet is about to read through it. */
+  background: rgb(5 5 6 / 0.4);
   animation: draft-fade 160ms ease-out;
 }
 .draft-sheet-panel {

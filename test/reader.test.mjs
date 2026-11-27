@@ -2054,7 +2054,7 @@ test("S2: a failed reply's error goes once its card is closed with Escape, or an
   }
 });
 
-test("S2: a failed comment's error goes once it is closed with Escape; on a phone, once its sheet is closed", async () => {
+test("S2: a failed comment stays open through Escape with its words and its error; on a phone, the error goes once its sheet is closed", async () => {
   for (const width of [1300, 390]) {
     localStorage.clear();
     const fake = service();
@@ -2065,15 +2065,42 @@ test("S2: a failed comment's error goes once it is closed with Escape; on a phon
     await click(button("Comment", composer()));
     await until(() => errorOn("Comment on the selected passage"), "the error");
     mend();
-    if (width > 1240) await press(field("Comment on the selected passage"), "Escape");
-    else await click(document.querySelector(".draft-sheet-close"));
+    if (width > 1240) {
+      // Words unsent are never put out of sight: Escape only puts the box down.
+      await press(field("Comment on the selected passage"), "Escape");
+      assert.equal(field("Comment on the selected passage").value, "A comment that fails, made up.", "still open, with its words");
+      assert.ok(errorOn("Comment on the selected passage"), "and its error, while it is open");
+      await unmount();
+      continue;
+    }
+    await click(document.querySelector(".draft-sheet-close"));
     await until(() => !field("Comment on the selected passage"), "the composer closed");
-    await selectAnd("fishing boats");
+    // Its passage stays marked, and a tap on it opens the words again.
+    assert.equal(pendingPassage(), "fishing boats", "the passage is still marked");
+    await click(document.querySelector(".is-pending"));
     const box = await until(() => field("Comment on the selected passage"), "the composer again");
     assert.equal(box.value, "A comment that fails, made up.", `${width}: the words are kept`);
     assert.equal(errorOn("Comment on the selected passage"), null, `${width}: the old error is gone`);
     await unmount();
   }
+});
+
+test("an empty comment box closes with Escape, and one with words stays until it is sent or cancelled", async () => {
+  const fake = service();
+  await mount(PrivateBlog, fake);
+  await selectAnd("fishing boats");
+  await press(field("Comment on the selected passage"), "Escape");
+  assert.equal(field("Comment on the selected passage"), null, "empty: closed");
+  await selectAnd("fishing boats", "Suggest edit");
+  await press(field("What the selected words should say"), "Escape");
+  assert.equal(field("What the selected words should say"), null, "a suggestion as it opened: closed");
+  await selectAnd("fishing boats", "Suggest edit");
+  await type(field("What the selected words should say"), "rowing boats");
+  await press(field("What the selected words should say"), "Escape");
+  assert.equal(field("What the selected words should say").value, "rowing boats", "changed: still open");
+  await click(button("Cancel", composer()));
+  assert.equal(composer(), null);
+  assert.equal(pendingPassage(), undefined, "its passage is let go");
 });
 
 test("S2: a failed send's error stays on its box across the layout both ways while it is open", async () => {

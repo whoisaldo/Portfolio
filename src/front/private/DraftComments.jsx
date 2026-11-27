@@ -988,6 +988,14 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       const mark = e.target.closest?.("[data-threads]");
       const byKey = e.detail === 0 || (mark && mark === entered);
       entered = null;
+      // The passage of a thread being written: back to its box.
+      if (mark && !ids.length && !bridge) {
+        e.preventDefault();
+        setActive("new");
+        if (!wide) setSheet({ compose: "new" });
+        else document.querySelector('[data-card="new"] textarea')?.focus();
+        return;
+      }
       if (!ids?.length) return;
       // Editing on a phone, a tap is for the caret; the corner button has the threads.
       if (bridge && !wide) return;
@@ -1071,6 +1079,27 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     }
     return () => undo.forEach((fn) => fn());
   }, [handId, hover, found, bridge]);
+
+  // On a phone a sheet covers most of the screen: the passage it is about is
+  // brought into what is left above it, once, as the sheet opens.
+  const sheetOn = wide ? null : (sheet?.ids?.[0] ?? (sheet?.compose === "new" ? "new" : null));
+  const marksNow = useRef(found.marks);
+  marksNow.current = found.marks;
+  useEffect(() => {
+    if (!sheetOn) return;
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        const el = marksNow.current.get(sheetOn)?.[0];
+        const panel = document.querySelector(".draft-sheet-panel");
+        if (!el || !panel) return;
+        const free = window.innerHeight - panel.offsetHeight;
+        const r = el.getBoundingClientRect();
+        if (r.top >= 56 && r.bottom <= free - 12) return;
+        window.scrollBy({ top: r.top - Math.max(56, (free - r.height) / 2), behavior: smoothly() });
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [sheetOn]);
 
   // A click anywhere else lets an existing thread go; a comment being
   // written stays until it is sent or cancelled. Escape does the same.
@@ -1337,7 +1366,10 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
           // A new thread's sheet stays while its words are going: closing it would let them go.
           onClose={() => {
             if (sheet.compose && sends.busy(sheet.compose === "new" ? pending?.slot : "general")) return;
-            if (sheet.compose) cancelNew();
+            // A new thread with words is only put down: its passage stays
+            // marked, and a tap on it opens them again.
+            if (sheet.compose === "new" && pending && hasWords(pending.slot, unsent.get(pending.slot))) setSheet(null);
+            else if (sheet.compose) cancelNew();
             else setSheet(null);
           }}
         >
@@ -1960,7 +1992,9 @@ const kept = (unsent, slot, { fields = {}, fallback = "" } = {}) => {
 /**
  * A textarea that grows with what is typed, sends on Ctrl/Cmd+Enter.
  * `onText` hears every change, and `onForget` once it is sent or cancelled;
- * Escape closes without cancelling. While `held` (why, to show) it is not
+ * Escape closes without cancelling, or with `keep`, while it has words,
+ * only puts it down: a new thread's words are never out of sight unsent.
+ * While `held` (why, to show) it is not
  * sent and its text is left as it is; while `refused` (why, to show) it is
  * not sent, and its text can still be written. `optional`: it can be sent
  * empty. While its slot is sending (useSends), here or in a box drawn before
@@ -1968,7 +2002,7 @@ const kept = (unsent, slot, { fields = {}, fallback = "" } = {}) => {
  * again: what is sent is what it shows. Once it went in, the box shows what
  * is kept now (`reread`) and `onSent` hears of it.
  */
-function Box({ slot, initial = "", reread, placeholder, label, submit, onCancel, onText, onForget, onSent, autoFocus, sendLabel = "Comment", held, refused, optional, note }) {
+function Box({ slot, initial = "", reread, placeholder, label, submit, onCancel, onText, onForget, onSent, autoFocus, sendLabel = "Comment", held, refused, optional, note, keep }) {
   const sends = useContext(Sends);
   const { busy: sending, error, done } = sends.of(slot);
   const [text, setText] = useState(initial);
@@ -2019,11 +2053,14 @@ function Box({ slot, initial = "", reread, placeholder, label, submit, onCancel,
         onChange={(e) => change(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(e);
-          if (e.key === "Escape" && !sending) onCancel?.();
+          if (e.key === "Escape" && !sending) {
+            if (keep && text.trim()) e.currentTarget.blur();
+            else onCancel?.();
+          }
         }}
       />
       {note && (
-        <p className="draft-left" role="status">
+        <p className="draft-note" role="status">
           {note}
         </p>
       )}
@@ -2113,6 +2150,7 @@ function Composer({ id, slot, quote, suggest, blocked, showQuote, act, review, b
       <Box
         {...kept(unsent, slot, { fields: quote ? { kind: "comment", quote } : {} })}
         note={blocked ? BLOCKED : ""}
+        keep
         autoFocus
         placeholder={quote ? "Comment on this passage" : "Comment on the whole draft"}
         label={quote ? "Comment on the selected passage" : "Comment on the whole draft"}
@@ -2190,7 +2228,10 @@ function SuggestComposer({ id, slot, quote, blocked, showQuote, act, unsent, onW
   }
   const keys = (e) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(e);
-    if (e.key === "Escape" && !sending) onCancel?.();
+    if (e.key !== "Escape" || sending) return;
+    // With anything written it is only put down, never out of sight unsent.
+    if (!same || note) e.currentTarget.blur();
+    else onCancel?.();
   };
 
   return (
@@ -2241,7 +2282,7 @@ function SuggestComposer({ id, slot, quote, blocked, showQuote, act, unsent, onW
           </p>
         )}
         {blocked && (
-          <p className="draft-left" role="status">
+          <p className="draft-note" role="status">
             {BLOCKED}
           </p>
         )}
@@ -2292,6 +2333,8 @@ function Sheet({ title, onClose, children }) {
     const el = dialog.current;
     const back = document.activeElement;
     el.showModal();
+    // A browser may scroll the dialog itself to what it focuses.
+    el.scrollTop = 0;
     el.querySelector(".draft-sheet-close")?.focus({ preventScroll: true });
     document.documentElement.classList.add("draft-sheet-open");
     setOpen(true);
