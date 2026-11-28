@@ -9,12 +9,11 @@
 // under that name in ./embeds is portalled into it once the HTML is in. The
 // components are lazy, so a post without one never fetches them.
 //
-// Under every post are its comments (./Comments.jsx), a lazy chunk of their
-// own like the embeds. They are given the post's body too, to highlight the
-// passages quote comments are about.
+// Posts take no comments. The public comment section was taken out so no
+// one can post under them; comments on a draft live in the private blog.
 //
 // The page itself is PostPage, which the private blog shares.
-import React, { lazy, Suspense, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -24,8 +23,6 @@ import { findPost, formatDate } from "./posts";
 import { COLUMN, useTitle } from "./lib";
 import { FollowOnX, FrontFooter, FrontHeader } from "./parts";
 import { embeds } from "./embeds";
-
-const Comments = lazy(() => import("./Comments"));
 
 const backLink = "inline-flex items-center gap-1.5 text-sm font-medium text-dim transition-colors duration-150 hover:text-volt";
 
@@ -60,11 +57,6 @@ export default function BlogPost() {
       post={post}
       back={{ to: "/blog", label: "Writing" }}
       share={share}
-      below={(body) => (
-        <Suspense fallback={null}>
-          <Comments key={post.slug} slug={post.slug} body={body} />
-        </Suspense>
-      )}
     />
   );
 }
@@ -78,14 +70,13 @@ export default function BlogPost() {
  *   marker  shown above the title
  *   rewrite (html) => html, applied to the rendered Markdown once
  *   inside  (body) => what else goes in the <article>, after the text
- *   below   (body) => what goes under the <article>
  *   editing {head, title, body}, only while the private blog's editor is
  *           open: what goes under the marker, what takes the place of the
  *           title and date, and what takes the place of the text
  *
  * `body` is a ref to the element holding the post's text.
  */
-export function PostPage({ post, back, share, marker, rewrite, inside, below, editing }) {
+export function PostPage({ post, back, share, marker, rewrite, inside, editing }) {
   // One object for the life of the post: React re-sets innerHTML whenever
   // this prop is a new object, which would throw away the embeds' slots.
   const html = useMemo(() => {
@@ -139,7 +130,6 @@ export function PostPage({ post, back, share, marker, rewrite, inside, below, ed
           {inside?.(body)}
         </article>
 
-        {below?.(body)}
 
         <aside className="mt-16 border-t border-ink-line pt-8">
           <p className="text-pretty text-muted">

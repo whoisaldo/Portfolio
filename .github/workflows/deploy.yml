@@ -30,8 +30,9 @@ jobs:
           # sends nothing — which is the correct behaviour for a fork, and for
           # any build without the stats service.
           VITE_STATS_ENDPOINT: https://stats.aliyounes.dev/api/collect
-          # Where the blog's comments are kept. Unset, posts have no comments
-          # section. See src/front/Comments.jsx.
+          # The stats service the private blog reads its drafts and their
+          # comments from. Unset, the private blog says it isn't set up here.
+          # See src/front/private/api.js.
           VITE_COMMENTS_API: https://stats.aliyounes.dev
       - run: cp dist/index.html dist/404.html     # SPA refresh fix
       # The braindance gets a real page, so a link to it is not a 404.
