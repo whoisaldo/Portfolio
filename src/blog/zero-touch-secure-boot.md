@@ -1,34 +1,30 @@
 ---
 title: Zero-touch Windows deployment with Secure Boot still on
 date: 2026-10-17
-summary: How a thousand-machine imaging job went from a USB stick per PC to power on and walk away, without Secure Boot ever turning off.
+summary: How a thousand-PC imaging job went from a USB stick per machine to zero-touch network boot without Secure Boot ever turning off.
 ---
 
-At Philips I spent most of my co-op on one problem. A fleet of about a thousand industrial PCs had to be reimaged every refresh cycle, and every one of them needed a technician. Somebody brought the machine up, plugged in a USB stick, and ran scripts off a network share. A thousand machines meant a thousand visits.
+I spent most of my co-op at Philips on one problem. Every refresh cycle, about a thousand industrial PCs had to be reimaged by hand: a technician brought each machine up, plugged in a USB stick, and ran scripts off a network share.
 
-Plenty of engineers had wanted this automated. Nobody had shipped it, and the reason was one requirement. These machines run software that is part of an FDA-regulated medical device platform, and that software needs UEFI Secure Boot on. Not on at the end. On the whole time.
+Plenty of engineers had wanted to automate it, and nobody had shipped it because of one requirement. These machines run software that is part of an FDA-regulated medical device platform, and that software needs UEFI Secure Boot on the whole time, not just flipped back on at the end.
 
-That one line rules out most of the usual ways to image a fleet. This is how I got around it, including the version I threw away.
+## Why Secure Boot breaks network boot
 
-## Why Secure Boot makes this hard
+Network booting is simple on paper: a machine powers on, asks DHCP where to boot from, pulls a small program over TFTP, and runs it to fetch the next stage. With Secure Boot on, the firmware refuses to run that first program unless it's signed by a key the firmware already trusts, which out of the box means Microsoft's keys and the hardware maker's. Most open-source network boot tooling is unsigned or signed with your own key. Normally you'd just turn Secure Boot off for imaging and back on afterward, which wasn't allowed here.
 
-Network booting is old and well understood. The machine powers on, asks DHCP where to boot from, pulls a small program over TFTP, and runs it. That program then fetches whatever comes next.
+## Attempt one: bring our own signature
 
-With Secure Boot on, the firmware only runs that first program if it is signed by a key the firmware already trusts. Out of the box that means Microsoft's keys and the hardware maker's. Most open-source network boot tooling is unsigned or signed with somebody's own key, so the firmware refuses it. The usual fix is to turn Secure Boot off for imaging and back on afterwards. Here that wasn't allowed.
+My first design used the chain a lot of Linux distributions rely on. The firmware loads shim, which Microsoft signs. Shim loads a second-stage bootloader signed with our own key, iPXE here, which pulled a boot menu over HTTP, then wimboot, then Windows PE.
 
-## Attempt one: bring my own signature
+It did boot a Secure Boot machine into Windows PE over the network, after some weird debugging. One bug was a web server routing issue that quietly corrupted the payloads it served. Another was a path that differed by letter case: the server answered the EFI binary request with a redirect to a login page, the bootloader downloaded the page, and the machine tried to boot HTML. A login page is a valid HTTP response, and nothing on screen tells you the machine is trying to boot a web page.
 
-The first design used a chain a lot of Linux distributions rely on. The firmware loads shim, which Microsoft signs. Shim loads a second-stage bootloader signed with our own key, iPXE in this case, which pulled a boot menu over HTTP, then wimboot, then Windows PE.
-
-It worked. A machine with Secure Boot on came up into Windows PE over the network, which proved the idea. Getting there took some of the strangest debugging I've done. One problem was a web server routing issue that quietly corrupted the payloads it served. Another was a path that differed by letter case. The server answered the request for the EFI binary with a redirect to a login page, the bootloader downloaded the login page, and the machine tried to boot HTML. Nothing on screen tells you it is booting a web page. It just fails.
-
-The design died on something more basic. Shim only trusts our key once it is enrolled as a Machine Owner Key, and enrolling it takes a person at the console pressing keys on first boot. Once per machine. A thousand keypresses is a thousand visits again, just shorter ones. That isn't zero touch, so I archived the whole chain with a runbook to restore it and started over.
+What killed the design was key enrollment. Shim only trusts a custom key once it's enrolled as a Machine Owner Key, which takes a person at the console pressing keys on first boot on every machine. A thousand keypresses is still a thousand visits, just shorter ones, so it wasn't zero-touch. I archived the whole chain with a runbook to restore it, in case whatever replaced it ever needed a fast rollback, and started over.
 
 ## Attempt two: let Windows boot Windows
 
-The question that unlocked it was simple. What network boot program is the firmware already guaranteed to trust? Windows Boot Manager. `bootmgfw.efi` is signed by a Microsoft certificate authority that every Secure Boot firmware shipped since 2012 trusts by default.
+Instead of adding our own key to the chain, I looked at what network boot program the firmware is already guaranteed to trust: Windows Boot Manager. `bootmgfw.efi` is signed by a Microsoft certificate authority that every Secure Boot firmware shipped since 2012 trusts by default.
 
-Windows Boot Manager can also boot from a RAM disk. Given a BCD store with the right entry, it pulls `boot.sdi` and a `boot.wim` over TFTP and starts Windows PE from memory. So the chain became:
+Windows Boot Manager can also boot from a RAM disk. Give it a BCD store with the right entry and it pulls `boot.sdi` and `boot.wim` over TFTP, then starts Windows PE from memory:
 
 ```text
 power on, Secure Boot on
@@ -43,36 +39,26 @@ power on, Secure Boot on
   -> reboot into Windows, first-boot setup
 ```
 
-Nothing gets enrolled and nobody touches the machine. The firmware checks a signature it already trusts and carries on.
+Nothing gets enrolled and nobody touches the keyboard. The firmware checks a signature it already trusts and moves on.
 
-A few pieces around that chain matter as much as the chain itself.
+Three supporting pieces sit around that chain.
 
-**proxyDHCP, not DHCP.** The corporate network already had DHCP servers, and I had no business touching IP allocation. dnsmasq in proxyDHCP mode only answers the PXE part of the conversation: which server, which file. Addresses still come from the real DHCP servers.
+**proxyDHCP, not DHCP.** The corporate network already had DHCP servers, and I had no business touching IP allocation. Running dnsmasq in proxyDHCP mode answers only the PXE side of the handshake (which server and which file) while IP addresses still come from the real DHCP servers.
 
-**A thin bootstrap and a fat orchestrator.** The script baked into `boot.wim` does as little as it can. It brings up the network, maps a share, downloads the current orchestrator script, and runs it. Rebuilding a WIM is slow. Editing a script on a share takes a minute. So nearly all the logic lives where it is easy to change.
+**A thin bootstrap and a fat orchestrator.** Rebuilding a WIM is slow; editing a script on a share takes a minute. The bootstrap baked into `boot.wim` only brings up the network, maps a share, downloads the current orchestrator script, and runs it, so nearly all the logic lives where it's easy to change.
 
-**A small API for identity.** The orchestrator asks a FastAPI service who it is, keyed by MAC address. The service hands back that machine's configuration and records deployment status as each machine moves through the steps, so you can watch a batch go instead of walking the floor.
+**A small API for identity.** The orchestrator asks a FastAPI service who it is, keyed by MAC address. The service returns that machine's configuration and records deployment status through each step, so you can watch a batch run instead of walking the floor.
 
-## The installer that broke
+## Working around a locked installer
 
-The vendor's installer was locked. I couldn't change it, and it assumed things about the environment it ran in. One of them was that a call through `wpeutil`, a Windows PE utility, would tell it whether the machine had booted UEFI or legacy BIOS. Under the new boot chain that call failed, and the installer stopped.
+The vendor's installer was locked, so I couldn't change it, and it relied on `wpeutil` (a Windows PE utility) to check whether the machine had booted UEFI or legacy BIOS. Under the new boot chain that call failed, and the installer stopped.
 
-So I wrote a small self-contained .NET program and put it inside the boot image under the utility's name, with the real one renamed beside it. When the installer makes the call that fails, the stub returns success without doing anything. Every other call goes through to the real utility untouched. A registry value written before the installer starts gives it the firmware answer it was looking for.
+I wrote a small self-contained .NET program, dropped it into the boot image under `wpeutil`'s name, and renamed the real binary beside it. When the installer makes the failing call, the stub returns success without doing anything; every other call goes straight through to the real utility untouched. A registry value written before the installer starts gives it the firmware answer it was looking for.
 
-The installer never changed. The broken call just stopped being in its way.
+## Keeping paths from drifting
 
-## The boring parts that keep it working
+Different hardware revisions ask the server for boot files at different paths. Rather than hoping each one asks the right way, identical copies of the BCD store sit at every path firmware might request, and the boot image is hardlinked across all of them. Editing the image updates every path at once, which beats spending an afternoon chasing down two copies that drifted apart.
 
-Different hardware revisions ask the server for boot files at different paths. Instead of hoping each one asks the right way, identical copies of the BCD store sit at every path firmware might request, and the boot image is hardlinked across all of them. Edit it once and every path sees the edit. Two copies of a boot image drifting apart is the kind of bug that eats an afternoon, so I made it impossible rather than relying on being careful.
+## The result
 
-The first chain is still archived with a documented way back to it, in case the new one ever has to be rolled back in a hurry.
-
-## What I'd tell someone trying this
-
-Look for what is already trusted before you add trust of your own. I put real time into making a custom signature work, and the answer was a file every Windows machine already has.
-
-When a boot fails and the screen says nothing useful, check what was actually downloaded. A login page is a perfectly valid HTTP response.
-
-Keep the part you can't change small, and move everything else somewhere you can edit in a minute.
-
-In the end, roughly a thousand technician visits per refresh became machines that image themselves from power on. I presented the design and a live run to more than fifty engineers and stakeholders, and after the co-op I went back to the same team part-time.
+Roughly a thousand technician visits per refresh became machines that image themselves from power on, with Secure Boot staying on the whole time. I presented the design and a live run to more than fifty engineers and stakeholders, and went back to the same team part-time after the co-op.
