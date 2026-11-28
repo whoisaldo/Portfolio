@@ -758,3 +758,235 @@ test("a quote inside a word longer than its context is placed on first load, and
   assert.equal(findWhole({ text: "Before the itaaab" }, { exact: "it", prefix: "Before the ", suffix: "aaa" }), null);
   assert.deepEqual(findWhole({ text: "Before the itaaa" }, { exact: "it", prefix: "Before the ", suffix: "aaa" }), [11, 13]);
 });
+
+/**
+ * An editor on BODY with threads on `on` words, each a comment, or a
+ * suggestion of `words` ("" to delete them).
+ */
+function threadsEditor(threads) {
+  const { extension, handle } = commentAnchors();
+  const element = document.createElement("div");
+  document.body.append(element);
+  const editor = new Editor({ element, extensions: [...extensions(), extension], content: fromMarkdown(BODY).doc, injectCSS: false });
+  const items = threads.map(({ id, on, words = null, resolved = false }) => {
+    const quote = readerQuote(on);
+    return { id, find: quote, quote, resolved, suggest: words != null, words };
+  });
+  handle.setItems(items);
+  let found;
+  handle.subscribe((f) => (found = f));
+  return { editor, handle, items, found: () => found };
+}
+
+/** Each passage <mark> in the editor, as [its words, its threads, the classes it is lit with]. */
+const pieceList = (editor) =>
+  [...editor.view.dom.querySelectorAll("mark[data-threads]")].map((m) => [m.textContent, m.dataset.threads, ["is-active", "is-hover", "as-suggest"].filter((c) => m.classList.contains(c)).join(" ")]);
+
+/** The suggestion's change shown in the text: the words struck through, and the new words and where they are. */
+function shown(editor) {
+  const dom = editor.view.dom;
+  const del = [...dom.querySelectorAll(".draft-piece.is-del")];
+  const ins = dom.querySelector(".draft-ins");
+  return {
+    del: del.map((d) => d.textContent).join(""),
+    ins: ins ? ins.dataset.ins : null,
+    at: ins ? editor.view.posAtDOM(ins, 0) : null,
+    afterDel: ins ? ins.classList.contains("after-del") : null,
+  };
+}
+
+test("overlapping passages are drawn piece by piece, each listing its threads, the closest first, and lit by the thread in hand or under the mouse alone", async () => {
+  const e = threadsEditor([
+    { id: "a", on: "gulls followed it out past the breakwater" },
+    { id: "b", on: "followed it out", words: "followed it all the way out" },
+    { id: "c", on: "out past the" },
+    { id: "k", on: "lighthouse keeper" },
+  ]);
+  assert.deepEqual(pieceList(e.editor), [
+    ["gulls ", "a", ""],
+    ["followed it ", "b a", ""],
+    ["out", "c b a", ""],
+    [" past the", "c a", ""],
+    [" breakwater", "a", ""],
+    ["lighthouse keeper", "k", ""],
+  ]);
+  e.handle.emphasize(["b"], ["c", "a", "b"]);
+  assert.deepEqual(pieceList(e.editor), [
+    ["gulls ", "a", ""],
+    ["followed it ", "b a", "is-active as-suggest"],
+    ["out", "c b a", "is-active is-hover as-suggest"],
+    [" past the", "c a", "is-hover"],
+    [" breakwater", "a", ""],
+    ["lighthouse keeper", "k", ""],
+  ]);
+  // Lit by a comment under the mouse, a piece keeps the comment's colour.
+  e.handle.emphasize(null, ["a", "b", "c"]);
+  assert.deepEqual(
+    pieceList(e.editor).filter((p) => p[2]).map((p) => p[2]),
+    ["is-hover", "is-hover", "is-hover", "is-hover", "is-hover"],
+  );
+  // What the margin reads: the whole group for each, and each thread's own pieces.
+  await new Promise((done) => requestAnimationFrame(done));
+  const found = e.found();
+  assert.deepEqual(found.groups.get("b"), ["a", "b", "c"]);
+  assert.deepEqual(found.groups.get("k"), ["k"]);
+  assert.equal(found.marks.get("b").map((m) => m.textContent).join(""), "followed it out");
+  assert.equal(found.marks.get("c").map((m) => m.textContent).join(""), "out past the");
+  assert.equal(found.marks.get("k").length, 1);
+  e.editor.destroy();
+});
+
+test("a suggestion's change is shown in the text: the words it takes out struck through inside the passage's mark, and its new words after them", () => {
+  const e = threadsEditor([{ id: "s", on: "gulls followed it out", words: "gulls trailed it out" }]);
+  const at = posOf(e.editor, "followed");
+  assert.deepEqual(shown(e.editor), { del: "followed", ins: "trailed", at: at + "followed".length, afterDel: true });
+  // As the read view nests them, so the struck-through span's colours show.
+  const del = e.editor.view.dom.querySelector(".draft-piece.is-del");
+  assert.equal(del.tagName, "SPAN");
+  assert.equal(del.parentElement.tagName, "MARK");
+  assert.equal(del.parentElement.dataset.threads, "s");
+  assert.equal(del.querySelector("mark"), null);
+  // The widget takes no part in editing.
+  const ins = e.editor.view.dom.querySelector(".draft-ins");
+  assert.equal(ins.textContent, "");
+  assert.equal(ins.contentEditable, "false");
+  // Under the mouse it is the suggestion's, but it is not its passage.
+  assert.equal(ins.dataset.threads, "s");
+  assert.equal(e.found().marks.get("s").map((m) => m.textContent).join(""), "gulls followed it out");
+  e.editor.destroy();
+});
+
+test("a suggestion to delete a passage strikes it all through and adds nothing", () => {
+  const e = threadsEditor([{ id: "s", on: "lighthouse keeper", words: "" }]);
+  assert.deepEqual(shown(e.editor), { del: "lighthouse keeper", ins: null, at: null, afterDel: null });
+  e.editor.destroy();
+});
+
+test("a suggestion that only adds words shows them where they go, with nothing struck through", () => {
+  const e = threadsEditor([{ id: "s", on: "followed it out", words: "followed it all the way out" }]);
+  assert.deepEqual(shown(e.editor), { del: "", ins: "all the way ", at: posOf(e.editor, "out past"), afterDel: false });
+  e.editor.destroy();
+});
+
+test("of suggestions on the same words, the change shown is the one in hand, else the first open one, whatever the mouse is over", () => {
+  const threads = (resolved = []) => [
+    { id: "s1", on: "gulls followed it out", words: "gulls trailed it out", resolved: resolved.includes("s1") },
+    { id: "s2", on: "followed it out past", words: "followed it out beyond", resolved: resolved.includes("s2") },
+  ];
+  const e = threadsEditor(threads());
+  assert.equal(shown(e.editor).del, "followed");
+  // The mouse over the other changes nothing: new words coming and going would move the text under it.
+  e.handle.emphasize(null, ["s2", "s1"]);
+  assert.equal(shown(e.editor).del, "followed");
+  e.handle.emphasize(["s1"], ["s2", "s1"]);
+  assert.equal(shown(e.editor).del, "followed");
+  e.handle.emphasize(["s2"], null);
+  assert.deepEqual(shown(e.editor), { del: "past", ins: "beyond", at: posOf(e.editor, "past") + 4, afterDel: true });
+  // Only one change at a time: two would cross.
+  assert.equal(e.editor.view.dom.querySelectorAll(".draft-ins").length, 1);
+  e.handle.emphasize(null, null);
+  // A resolved one is shown only while it is in hand.
+  e.handle.setItems(threads(["s1"]).map((t, i) => ({ ...e.items[i], resolved: t.resolved })));
+  assert.equal(shown(e.editor).del, "past");
+  e.handle.emphasize(null, ["s1"]);
+  assert.equal(shown(e.editor).del, "past");
+  e.handle.emphasize(["s1"], null);
+  assert.equal(shown(e.editor).del, "followed");
+  e.handle.emphasize(null, null);
+  e.handle.setItems(e.items.map((t) => ({ ...t, resolved: true })));
+  assert.deepEqual(shown(e.editor), { del: "", ins: null, at: null, afterDel: null });
+  e.handle.emphasize(["s2"], null);
+  assert.equal(shown(e.editor).del, "past");
+  e.editor.destroy();
+});
+
+test("a suggestion's change goes once its passage's words are edited, and comes back with undo", () => {
+  const e = threadsEditor([{ id: "s", on: "gulls followed it out", words: "gulls trailed it out" }]);
+  e.editor.commands.insertContentAt(posOf(e.editor, "followed") + "followed".length, " and circled");
+  assert.deepEqual(shown(e.editor), { del: "", ins: null, at: null, afterDel: null });
+  // Its passage is still drawn, on the words as they are now.
+  assert.equal(e.found().marks.get("s").map((m) => m.textContent).join(""), "gulls followed and circled it out");
+  e.editor.commands.undo();
+  assert.equal(shown(e.editor).del, "followed");
+  e.editor.destroy();
+});
+
+test("a suggestion's change goes once its passage spans two paragraphs, even with the same words", () => {
+  const e = threadsEditor([{ id: "s", on: "gulls followed it out", words: "gulls trailed it out" }]);
+  e.editor.chain().setTextSelection(posOf(e.editor, "it out")).splitBlock().run();
+  // The same characters, read without the break.
+  const r = range(e.handle, e.editor, "s");
+  assert.equal(e.editor.state.doc.textBetween(r[0], r[1]), "gulls followed it out");
+  assert.deepEqual(shown(e.editor), { del: "", ins: null, at: null, afterDel: null });
+  e.editor.destroy();
+});
+
+test("the new words shown are no part of the passages' words read back", () => {
+  const threads = [
+    { id: "end", on: "calling all the way.", words: "calling all the way. Then silence." },
+    { id: "mid", on: "followed it out", words: "followed it all the way out" },
+    { id: "k", on: "lighthouse keeper" },
+  ];
+  const plain = threadsEditor(threads.map((t) => ({ ...t, words: undefined })));
+  const want = plain.handle.quotes();
+  plain.editor.destroy();
+  const e = threadsEditor(threads);
+  assert.equal(e.editor.view.dom.querySelectorAll(".draft-ins").length, 2);
+  assert.deepEqual(e.handle.quotes(), want);
+  assert.deepEqual(e.handle.changes(e.handle.quotes()), []);
+  e.editor.destroy();
+});
+
+/** Where the page draws the caret against the shown new words: "before" them or "after". */
+function caretSide(editor) {
+  const sel = document.getSelection();
+  const r = document.createRange();
+  r.setStart(sel.anchorNode, sel.anchorOffset);
+  return r.comparePoint(editor.view.dom.querySelector(".draft-ins"), 0) < 0 ? "after" : "before";
+}
+
+test("words typed right where new words are shown go on the passage's far side of them, the caret drawn with them, and the widget is not drawn again", () => {
+  // At the passage's end: typed after the passage, so after its new words.
+  const end = threadsEditor([{ id: "s", on: "calling all the way", words: "calling all the way home" }]);
+  const at = posOf(end.editor, "calling all the way") + "calling all the way".length;
+  const ins = end.editor.view.dom.querySelector(".draft-ins");
+  assert.equal(shown(end.editor).at, at);
+  end.editor.view.focus();
+  end.editor.commands.setTextSelection(at);
+  assert.equal(caretSide(end.editor), "after");
+  end.editor.commands.insertContent("X");
+  assert.deepEqual(shown(end.editor), { del: "", ins: " home", at, afterDel: false });
+  assert.equal(end.editor.view.dom.querySelector(".draft-ins"), ins);
+  assert.ok(ins.nextSibling.textContent.startsWith("X."));
+  assert.equal(end.editor.state.selection.from, at + 1);
+  assert.equal(caretSide(end.editor), "after");
+  // Typing elsewhere keeps it too.
+  end.editor.commands.insertContentAt(posOf(end.editor, "lighthouse"), "old ");
+  assert.equal(end.editor.view.dom.querySelector(".draft-ins"), ins);
+  end.editor.destroy();
+
+  // At the passage's start: typed before the passage, so before its new words.
+  const start = threadsEditor([{ id: "s", on: "gulls followed it out", words: "white gulls followed it out" }]);
+  const from = posOf(start.editor, "gulls");
+  assert.equal(shown(start.editor).at, from);
+  start.editor.view.focus();
+  start.editor.commands.setTextSelection(from);
+  assert.equal(caretSide(start.editor), "before");
+  start.editor.commands.insertContent("X");
+  assert.deepEqual(shown(start.editor), { del: "", ins: "white ", at: from + 1, afterDel: false });
+  assert.ok(start.editor.view.dom.querySelector(".draft-ins").previousSibling.textContent.endsWith("X"));
+  assert.equal(caretSide(start.editor), "before");
+  // The passage is still its own words, without the X.
+  assert.equal(start.handle.quotes().get("s").exact, "gulls followed it out");
+  start.editor.destroy();
+
+  // Inside the passage, before or after where they go: its words change, so the change goes.
+  for (const shift of [-1, 0]) {
+    const mid = threadsEditor([{ id: "s", on: "followed it out", words: "followed it all the way out" }]);
+    mid.editor.commands.insertContentAt(posOf(mid.editor, "out past") + shift, "X");
+    assert.equal(shown(mid.editor).ins, null);
+    mid.editor.commands.undo();
+    assert.equal(shown(mid.editor).ins, "all the way ");
+    mid.editor.destroy();
+  }
+});

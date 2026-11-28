@@ -42,11 +42,19 @@
 // After a change in the Markdown the accepted thread's passage is moved to
 // the new words (deleted, for a deletion), and the threads beside the change
 // to where they are in the new text, as the editor does after a save. A
-// thread whose passage the change overlapped keeps its place, and is listed
-// with the passages that changed.
+// thread whose passage holds the whole change stays on that passage, grown
+// or shrunk by it, as the editor keeps one Ali types inside: a comment on a
+// sentence is still on the sentence with one of its words changed. A
+// suggestion moved so is on other words than the ones it would change, and
+// Accept on it says its passage was edited. A thread whose passage the change
+// runs into from outside, or takes out whole, keeps its old place, and is
+// listed with the passages that changed. Ali's pending threads are not moved
+// here: the page finds each again by its own words and context in the text
+// saved (./DraftComments.jsx), so one whose words the change was inside is
+// listed with the changed ones too.
 import { marked } from "marked";
 import { indexText } from "../quotes.js";
-import { findThread, findWhole, quoteAt } from "./place.js";
+import { QUOTE_MAX, findThread, findWhole, quoteAt } from "./place.js";
 import { escapeText } from "./editor/markdown.js";
 import { editRegion, sameAsPassage, visibleWords } from "./suggest.js";
 
@@ -207,8 +215,10 @@ export function replaceInMarkdown(body, index, [start, end], insert) {
 /**
  * The anchors after a change in the Markdown at [start, end) of the text,
  * in the passage at `at`: the accepted thread's on the new words, or deleted;
- * each other thread clear of the change where its words are now, when its
- * context changed. Ali's pending threads follow by themselves (./review.js).
+ * each other thread clear of the change where its words are now, and each
+ * whose passage holds the change on that passage as it is now, when its
+ * words or context changed. Ali's pending threads are found again by the
+ * page (./DraftComments.jsx), not here.
  */
 function anchorsAfter(t, threads, before, after, at, [start, end]) {
   const out = [];
@@ -221,10 +231,20 @@ function anchorsAfter(t, threads, before, after, at, [start, end]) {
   const shift = after.text.length - before.text.length;
   const head = after.text.startsWith(before.text.slice(0, start));
   const tail = after.text.endsWith(before.text.slice(end));
+  // A passage holding the whole change is the same passage with it made, as
+  // in the editor, so long as the text either side of it is as it was and
+  // some of its words are left.
+  const holds = (was) => {
+    if (was[0] > start || end > was[1]) return null;
+    const now = [was[0], was[1] + shift];
+    if (!after.text.startsWith(before.text.slice(0, was[0])) || !after.text.endsWith(before.text.slice(was[1]))) return null;
+    if (!after.text.slice(now[0], now[1]).trim() || now[1] - now[0] > QUOTE_MAX) return null;
+    return now;
+  };
   for (const o of threads) {
     if (o.id === t.id || o.pending || !o.find) continue;
     const was = findThread(before, o);
-    const moved = !was ? null : was[1] <= start && head ? was : was[0] >= end && tail ? [was[0] + shift, was[1] + shift] : null;
+    const moved = !was ? null : was[1] <= start && head ? was : was[0] >= end && tail ? [was[0] + shift, was[1] + shift] : holds(was);
     if (!moved) continue;
     const q = quoteAt(after, moved);
     if (q.exact === o.find.exact && q.prefix === (o.find.prefix || "") && q.suffix === (o.find.suffix || "")) continue;

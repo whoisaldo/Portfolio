@@ -9,8 +9,12 @@
 // exactly at its passage, nudged toward the text, with the others moving
 // out of its way above and below. Cards stay in normal flow so growing a
 // suggestion or reply immediately makes room below it. Hovering a passage
-// lifts its card; clicking one, or the card, makes it the active thread and
-// brings the two together.
+// or its card fills the passage in and lights the card, and every other
+// passage steps back, so which words a card is about is never in doubt;
+// clicking one, or the card, makes it the active thread and brings the two
+// together. When a card goes (resolved, accepted) with the pointer in the
+// margin, the rest hold still until it leaves: the next press lands on what
+// was under it.
 //
 // On a phone there is no margin. The passages stay highlighted; tapping one
 // opens its thread in a sheet from the bottom, and a button in the corner
@@ -24,9 +28,11 @@
 // A reader can also press "Suggest edit" by a selection: its words open in a
 // box, to be changed into what they should say, with a note if they like.
 // The thread's card shows the words that change struck through and the new
-// ones marked as added (./suggest.js). Ali has "Accept" on it once it is
-// open, showing the whole change (a margin card not in hand is cut to its
-// opening lines): it puts the new words in the draft, saves that as a version, and marks the thread
+// ones marked as added (./suggest.js), and so does the text itself, as Docs
+// shows a suggestion: a passage with one is green, where a comment's is
+// volt. Ali has Accept on every open one, a green check beside Resolve's
+// red X in the card's top corner, where both are on every card: it puts the
+// new words in the draft, saves that as a version, and marks the thread
 // accepted and resolved with the same save (./accept.js). Only in the read
 // view: while he edits, the card says to press Done first, as the editor
 // saves its own copy of the same text. An accepted thread's passage is the
@@ -35,7 +41,8 @@
 //
 // Passages are found again by their words and context (../quotes.js, shared
 // with the public comments), so a draft can be edited under its comments.
-// Overlapping passages are one highlight that leads to every thread on it.
+// Overlapping passages are drawn in pieces, each leading to the threads
+// whose words it is, the one about the fewest words first.
 //
 // The threads are polled every few seconds while the page is in front, and
 // every half minute when it is not; an unchanged draft answers with no body.
@@ -46,7 +53,9 @@
 // Nor is it lost by closing what it was typed in. A comment, a suggestion, a
 // comment on the whole draft, a reply or an edit that was not sent is kept,
 // and is back in its box when the box opens again. Only sending it or
-// pressing Cancel lets it go. It is kept in the browser too, for this person
+// pressing Cancel lets it go. A new thread's box with words in it is never
+// out of sight: Escape only puts it down, and on a phone, where its sheet
+// can be closed, its passage stays marked and a tap on it opens it again. It is kept in the browser too, for this person
 // on this draft (./typed.js): after a reload, a session that ran out or the
 // list and back, the box last typed in is open again with its words. Words
 // typed for a passage go only with that passage: another passage picked
@@ -88,7 +97,7 @@ import { Check, MessageSquare, MessageSquarePlus, PencilLine, Send, X } from "lu
 import { groupQuotes, indexText, markQuote, quotable, quoteFromRange, unmark } from "../quotes";
 import { ApiError, request } from "./api";
 import { QUOTE_MAX, findThread, findWhole, grewTooLong, quoteAt, tooLong } from "./place";
-import { acceptNote, acceptNotes, acceptOffered, sameAsPassage, suggestionParts } from "./suggest";
+import { acceptNote, acceptNotes, acceptOffered, changeIn, sameAsPassage, suggestionParts } from "./suggest";
 import { selectLeft } from "./select";
 import { hasWords, isPassageSlot, passageSlot, sendTyped, startPassage, sweepTyped, toReopen, typedStore, who } from "./typed";
 import { addPending, dropSent, editPending, followPending, isReviewKey, keepPublishedPlace, locked, movedHere, publishedAsIs, publishReview, publishingNow, publishingUntil, readReview, removePending, toBatch } from "./review";
@@ -482,21 +491,36 @@ function toThreads(comments) {
   return [...threads.values()];
 }
 
+/** A thread's suggested words, or those being written for a new one (`words`); null for a comment. */
+const wordsOf = (t) => t.words ?? (t.quote ? t.root?.suggestion : null) ?? null;
+
 /**
  * Highlights each thread's passage, and a passage being commented on now.
- * Returns which threads were placed, the ids sharing each one's highlight,
- * and the highlight's elements. Redrawn only when the passages change, and
- * never while the reader has words in the draft selected: redrawing splits
- * and rejoins text nodes, which would drop the selection.
+ * Returns which threads were placed, the ids on each one's passage and any
+ * overlapping it (`groups`), and each thread's own elements (`marks`).
+ * Redrawn only when the passages change, and never while the reader has
+ * words in the draft selected: redrawing splits and rejoins text nodes,
+ * which would drop the selection.
+ *
+ * Passages that overlap are drawn in pieces, cut where each starts and
+ * ends. A piece leads to every thread whose words it is, the one with the
+ * fewest words first, so a press on a few words inside a commented sentence
+ * opens the thread about those words, and each thread lights only its own.
+ *
+ * Inside a suggestion's highlight, the words it takes out are in spans of
+ * their own and an empty one is where its new words go, so the change can
+ * be shown in the text (`edits`, by thread: {del, at, insert, open}). Only
+ * while the passage is still the words the suggestion was made on
+ * (./suggest.js changeIn). `suggests` is the suggestions' ids.
  */
 function useAnchors(body, items, bodyKey) {
   // `bodyKey` is the text's: new text (or the text back after editing) is
   // marked afresh.
-  const key = JSON.stringify([bodyKey, ...items.map((i) => [i.id, Boolean(i.resolved), Boolean(i.gone), Boolean(i.pending), i.find?.exact, i.find?.prefix, i.find?.suffix])]);
+  const key = JSON.stringify([bodyKey, ...items.map((i) => [i.id, Boolean(i.resolved), Boolean(i.gone), Boolean(i.pending), i.find?.exact, i.find?.prefix, i.find?.suffix, wordsOf(i)])]);
   const latest = useRef(items);
   latest.current = items;
   const [drawn, setDrawn] = useState(null);
-  const [found, setFound] = useState(() => ({ key: null, placed: new Set(), groups: new Map(), marks: new Map() }));
+  const [found, setFound] = useState(() => ({ key: null, placed: new Set(), groups: new Map(), marks: new Map(), edits: new Map(), suggests: new Set() }));
 
   useEffect(() => {
     if (key === drawn) return;
@@ -518,8 +542,10 @@ function useAnchors(body, items, bodyKey) {
     if (drawn === null || !root) return;
     const list = latest.current;
     const placedAt = [];
+    let text = "";
     try {
       const index = indexText(root);
+      text = index.text;
       for (const t of list) {
         // A passage deleted and then brought back (a version restored) is
         // where its reader's words are (./place.js).
@@ -531,28 +557,47 @@ function useAnchors(body, items, bodyKey) {
     }
     const resolved = new Set(list.filter((t) => t.resolved).map((t) => t.id));
     const review = new Set(list.filter((t) => t.pending).map((t) => t.id));
+    const byId = new Map(list.map((t) => [t.id, t]));
+    const own = new Map(placedAt.map((p) => [p.id, p.at]));
     const added = [];
-    const next = { key: drawn, placed: new Set(), groups: new Map(), marks: new Map() };
-    for (const { at, ids } of groupQuotes(placedAt)) {
+    const next = { key: drawn, placed: new Set(), groups: new Map(), marks: new Map(), edits: new Map(), suggests: new Set(list.filter((t) => wordsOf(t) != null).map((t) => t.id)) };
+    const words = (id) => own.get(id)[1] - own.get(id)[0];
+    for (const { ids } of groupQuotes(placedAt)) {
       try {
-        const label = ids.length > 1 ? `${ids.length} threads on this passage` : "Show the comment";
-        const els = markQuote(indexText(root), at, ids[0], label);
-        if (!els.length) continue;
-        for (const el of els) {
-          el.dataset.threads = ids.join(" ");
-          // A drag that starts on a highlight selects words, as anywhere
-          // else in the text, rather than dragging the link away (and see
-          // `down` below).
-          el.setAttribute("draggable", "false");
-          el.classList.toggle("is-pending", ids.includes("new"));
-          el.classList.toggle("is-review", ids.some((id) => review.has(id)));
-          el.classList.toggle("is-resolved", ids.every((id) => resolved.has(id)));
+        const cuts = [...new Set(ids.flatMap((id) => own.get(id)))].sort((a, b) => a - b);
+        const mine = new Map(ids.map((id) => [id, []]));
+        for (let i = 0; i + 1 < cuts.length; i++) {
+          const on = ids.filter((id) => own.get(id)[0] <= cuts[i] && cuts[i + 1] <= own.get(id)[1]).sort((a, b) => words(a) - words(b));
+          if (!on.length) continue;
+          const label = on.length > 1 ? `${on.length} threads on this passage` : "Show the comment";
+          // A passage's id (Escape gives focus back to it) is where it starts.
+          const first = on.find((id) => own.get(id)[0] === cuts[i]);
+          const els = markQuote(indexText(root), [cuts[i], cuts[i + 1]], first ?? on[0], label);
+          if (!first) els[0]?.removeAttribute("id");
+          for (const el of els) {
+            el.dataset.threads = on.join(" ");
+            // A drag that starts on a highlight selects words, as anywhere
+            // else in the text, rather than dragging the link away (and see
+            // `down` below).
+            el.setAttribute("draggable", "false");
+            el.classList.toggle("is-pending", on.includes("new"));
+            el.classList.toggle("is-review", on.some((id) => review.has(id)));
+            el.classList.toggle("is-resolved", on.every((id) => resolved.has(id)));
+            el.classList.toggle("is-suggest", on.every((id) => next.suggests.has(id)));
+          }
+          added.push(...els);
+          for (const id of on) mine.get(id).push(...els);
         }
-        added.push(...els);
         for (const id of ids) {
+          if (!mine.get(id).length) continue;
           next.placed.add(id);
           next.groups.set(id, ids);
-          next.marks.set(id, els);
+          next.marks.set(id, mine.get(id));
+          // What a suggestion would change, as places in the text.
+          const t = byId.get(id);
+          const [from, to] = own.get(id);
+          const c = next.suggests.has(id) && t.quote ? changeIn(text.slice(from, to), t.quote.exact, wordsOf(t)) : null;
+          if (c) next.edits.set(id, { ...pieces(root, { from: from + c.from, to: from + c.to }), insert: c.insert, open: !resolved.has(id) });
         }
       } catch (err) {
         console.warn("comments: could not highlight a passage", err);
@@ -567,8 +612,52 @@ function useAnchors(body, items, bodyKey) {
   return { ...found, settled: found.key === key };
 }
 
+/**
+ * Inside the highlights drawn, the words at [from, to) of the text in spans
+ * of their own (`del`), and an empty span where they end (`at`), for a
+ * suggestion's change to be shown on. They hold no words of their own, and
+ * go when the highlight does (unmark).
+ */
+function pieces(root, { from, to }) {
+  const index = indexText(root);
+  const runs = [];
+  for (let i = from; i < to; i++) {
+    const node = index.nodes[i];
+    if (!node) continue;
+    const run = runs[runs.length - 1];
+    if (run && run.node === node) run.to = index.offsets[i] + 1;
+    else runs.push({ node, from: index.offsets[i], to: index.offsets[i] + 1 });
+  }
+  const del = [];
+  for (const run of runs) {
+    if (!run.node.parentElement.closest("mark.post-quote")) continue;
+    const middle = run.from > 0 ? run.node.splitText(run.from) : run.node;
+    if (run.to - run.from < middle.nodeValue.length) middle.splitText(run.to - run.from);
+    const span = document.createElement("span");
+    span.className = "draft-piece";
+    middle.replaceWith(span);
+    span.append(middle);
+    del.push(span);
+  }
+  const at = document.createElement("span");
+  at.className = `draft-ins${del.length ? " after-del" : ""}`;
+  if (del.length) del[del.length - 1].after(at);
+  else {
+    // Words only added: where the next word of the passage starts, or after its last.
+    const now = indexText(root);
+    let i = to;
+    while (i < now.nodes.length && !now.nodes[i]) i++;
+    const next = now.nodes[i];
+    const last = now.nodes[to - 1];
+    if (next?.parentElement.closest("mark.post-quote")) (now.offsets[i] > 0 ? next.splitText(now.offsets[i]) : next).before(at);
+    else if (last?.parentElement.closest("mark.post-quote")) last.parentElement.closest("mark.post-quote").append(at);
+    else return { del, at: null };
+  }
+  return { del, at };
+}
+
 const NOWHERE = { current: null };
-const NOTHING = { key: null, placed: new Set(), groups: new Map(), marks: new Map(), settled: false };
+const NOTHING = { key: null, placed: new Set(), groups: new Map(), marks: new Map(), edits: new Map(), suggests: new Set(), settled: false };
 
 /**
  * The passages as the editor has them, in the shape useAnchors gives. Every
@@ -581,7 +670,7 @@ function useEditorAnchors(bridge, threads, visible) {
   const [found, setFound] = useState(NOTHING);
   useEffect(() => (bridge ? bridge.subscribe(setFound) : setFound(NOTHING)), [bridge]);
   const shown = new Set(visible.map((t) => t.id));
-  const items = threads.map((t) => ({ id: t.id, find: t.pending ? null : t.find, quote: t.quote, gone: t.gone, resolved: Boolean(t.resolved), pending: Boolean(t.pending), hidden: !shown.has(t.id) }));
+  const items = threads.map((t) => ({ id: t.id, find: t.pending ? null : t.find, quote: t.quote, gone: t.gone, resolved: Boolean(t.resolved), pending: Boolean(t.pending), suggest: wordsOf(t) != null, words: wordsOf(t), hidden: !shown.has(t.id) }));
   const key = JSON.stringify(items);
   const latest = useRef(items);
   latest.current = items;
@@ -645,6 +734,9 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   // is its words' (./typed.js), by the passage and the kind; `blocked` when
   // another passage was picked while this one held words.
   const [pending, setPending] = useState(null);
+  // The words being written for it, a suggestion's, a moment after each
+  // change: shown in the text as the change they would make.
+  const [words, setWords] = useState(null); // {slot, text}
   const [sheet, setSheet] = useState(null); // {ids} | {all: true} | {compose: "new" | "general"}
   const [placing, setPlacing] = useState(null); // a held thread whose passage is being chosen again
   // Unsent words by slot (./typed.js), this person's on this draft, kept in
@@ -659,6 +751,23 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   // Taking another card in hand, or none, lets it go: the card in hand is
   // `active` in the margin, the sheet's on a phone.
   const [notes, noteAccept] = useReducer(acceptNotes, new Map());
+  // The thread being accepted or resolved, by id, held here and not in its
+  // card: a card is drawn afresh when it moves between the margin and a
+  // sheet, or its sheet is closed and opened, and must not offer either
+  // again while one is on its way.
+  const [working, setWorking] = useState(() => new Map());
+  const workingNow = useRef(new Map());
+  const work = useCallback(async (id, what, fn) => {
+    if (workingNow.current.has(id)) return;
+    workingNow.current.set(id, what);
+    setWorking(new Map(workingNow.current));
+    try {
+      await fn();
+    } finally {
+      workingNow.current.delete(id);
+      setWorking(new Map(workingNow.current));
+    }
+  }, []);
   const hand = (wide ? [active] : sheet?.ids || []).join(" ");
   useEffect(() => noteAccept({ type: "leave", keep: hand.split(" ") }), [hand]);
 
@@ -666,10 +775,11 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     () => threads.filter((t) => showResolved || !t.resolved || t.id === active || held.has(t.id)),
     [threads, showResolved, active, held],
   );
-  const items = useMemo(
-    () => (pending ? [...visible, { id: "new", quote: pending.quote, find: pending.quote, resolved: null }] : visible),
-    [visible, pending],
-  );
+  const items = useMemo(() => {
+    if (!pending) return visible;
+    const typed = pending.suggest ? (words?.slot === pending.slot ? words.text : (unsent.get(pending.slot)?.words ?? pending.quote.exact)) : null;
+    return [...visible, { id: "new", quote: pending.quote, find: pending.quote, resolved: null, words: typed }];
+  }, [visible, pending, words, unsent]);
   const read = useAnchors(bridge ? NOWHERE : readBody, bridge ? [] : items, bridge ? "editing" : bodyKey);
   const live = useEditorAnchors(bridge, threads, visible);
   const found = bridge ? live : read;
@@ -735,6 +845,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   const suggestNew = useCallback((quote) => startNew(quote, true), [startNew]);
   const cancelNew = useCallback(() => {
     setPending(null);
+    setWords(null);
     setActive((a) => (a === "new" || a === "general" ? null : a));
     setSheet((s) => (s?.compose ? null : s));
   }, []);
@@ -833,6 +944,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     const { wide: w, pending: p } = shown.current;
     if (p?.slot !== slot) return;
     setPending(null);
+    setWords(null);
     setActive(w ? c.id : null);
     setSheet(w ? null : { ids: [c.id] });
   }, []);
@@ -873,7 +985,13 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   useEffect(() => {
     const root = body.current;
     if (!root) return;
-    const idsOf = (target) => target.closest?.("[data-threads]")?.dataset.threads.split(" ").filter((id) => id !== "new");
+    // The threads a spot leads to. Words a shown change strikes or adds are
+    // that suggestion's first, whatever other thread's words they are among.
+    const idsOf = (target) => {
+      const ids = target.closest?.("[data-threads]")?.dataset.threads.split(" ").filter((id) => id !== "new");
+      const of = target.closest?.("[data-of]")?.dataset.of;
+      return ids && of && of !== "new" ? [of, ...ids.filter((id) => id !== of)] : ids;
+    };
     // The highlight Enter was pressed on: the click that follows is the
     // keyboard's (Firefox gives it a `detail` of 1, as a mouse's).
     let entered = null;
@@ -885,6 +1003,15 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       const mark = e.target.closest?.("[data-threads]");
       const byKey = e.detail === 0 || (mark && mark === entered);
       entered = null;
+      // The passage of a thread being written: back to its box, on words
+      // another thread has too.
+      if (mark && mark.dataset.threads.split(" ").includes("new") && !bridge) {
+        e.preventDefault();
+        setActive("new");
+        if (!wide) setSheet({ compose: "new" });
+        else document.querySelector('[data-card="new"] textarea')?.focus();
+        return;
+      }
       if (!ids?.length) return;
       // Editing on a phone, a tap is for the caret; the corner button has the threads.
       if (bridge && !wide) return;
@@ -928,23 +1055,88 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
 
   // The active and hovered passages, emphasised. In the editor, by its
   // decorations: ProseMirror redraws its own elements.
-  const activeIds = active ? found.groups.get(active) : null;
   useEffect(() => {
-    if (bridge) bridge.emphasize(activeIds, hover);
-  }, [bridge, activeIds, hover]);
+    if (bridge) bridge.emphasize(active ? [active] : null, hover);
+  }, [bridge, active, hover]);
+  // On a phone the thread in hand is the sheet's, or the one being written in it.
+  const handId = wide ? active : (sheet?.ids?.[0] ?? (sheet?.compose === "new" ? "new" : null));
+  // The suggestions whose change the text shows. Every open one's, as in
+  // Docs, so Accept on a card is pressed with the change in view and
+  // nothing moves under the mouse. Suggestions on overlapping words would
+  // run into each other, so of those one is shown: the one in hand, else
+  // the first still open. Never the one under the mouse in place of
+  // another: new words coming and going would move the text under it.
+  const showing = useMemo(() => {
+    const out = new Set();
+    if (bridge) return out;
+    for (const ids of new Set(found.groups.values())) {
+      const can = ids.filter((id) => found.edits.has(id));
+      const id = can.includes(handId) ? handId : can.find((c) => found.edits.get(c).open);
+      if (id) out.add(id);
+    }
+    return out;
+  }, [found, handId, bridge]);
+  // The open suggestions it does not show (`covered`): Accept is offered on
+  // one whose change is in view, and on another once it is the one shown.
+  const covered = useMemo(() => new Set(bridge ? [] : [...found.edits].filter(([id, e]) => e.open && !showing.has(id)).map(([id]) => id)), [found, showing, bridge]);
   useEffect(() => {
     if (bridge) return;
-    const on = [];
-    const mark = (ids, cls) => {
-      for (const el of ids ? found.marks.get(ids[0]) || [] : []) {
-        el.classList.add(cls);
-        on.push([el, cls]);
+    const undo = [];
+    const cls = (el, name) => {
+      el.classList.add(name);
+      undo.push(() => el.classList.remove(name));
+    };
+    // Each thread lights its own words, in its own colour.
+    const light = (id, name) => {
+      for (const el of (id && found.marks.get(id)) || []) {
+        cls(el, name);
+        if (found.suggests.has(id)) cls(el, "as-suggest");
       }
     };
-    mark(active && found.groups.get(active), "is-active");
-    mark(hover, "is-hover");
-    return () => on.forEach(([el, cls]) => el.classList.remove(cls));
-  }, [active, hover, found, bridge]);
+    light(handId, "is-active");
+    light(hover?.[0], "is-hover");
+    // Each change shown (`showing`, above) where it would be made: the words
+    // it takes out struck through, the words it puts in after them. They are
+    // marked as that suggestion's, so a press on them opens it, whatever
+    // other thread's words they are among.
+    for (const id of showing) {
+      const e = found.edits.get(id);
+      for (const el of e.del) {
+        cls(el, "is-del");
+        el.dataset.of = id;
+        undo.push(() => delete el.dataset.of);
+      }
+      if (!e.insert || !e.at) continue;
+      e.at.dataset.ins = e.insert;
+      e.at.dataset.of = id;
+      undo.push(() => {
+        delete e.at.dataset.ins;
+        delete e.at.dataset.of;
+      });
+    }
+    return () => undo.forEach((fn) => fn());
+  }, [handId, hover, found, showing, bridge]);
+
+  // On a phone a sheet covers most of the screen: the passage it is about is
+  // brought into what is left above it, once, as the sheet opens.
+  const sheetOn = wide ? null : (sheet?.ids?.[0] ?? (sheet?.compose === "new" ? "new" : null));
+  const marksNow = useRef(found.marks);
+  marksNow.current = found.marks;
+  useEffect(() => {
+    if (!sheetOn) return;
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        const el = marksNow.current.get(sheetOn)?.[0];
+        const panel = document.querySelector(".draft-sheet-panel");
+        if (!el || !panel) return;
+        const free = window.innerHeight - panel.offsetHeight;
+        const r = el.getBoundingClientRect();
+        if (r.top >= 56 && r.bottom <= free - 12) return;
+        window.scrollBy({ top: r.top - Math.max(56, (free - r.height) / 2), behavior: smoothly() });
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [sheetOn]);
 
   // A click anywhere else lets an existing thread go; a comment being
   // written stays until it is sent or cancelled. Escape does the same.
@@ -1044,8 +1236,9 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       try {
         await mod.acceptSuggestion({ t, target, acceptedNow });
       } finally {
-        // The thread as the service has it now, accepted or not, and the draft saved with it.
-        poll(true);
+        // The thread as the service has it now, accepted or not, and the
+        // draft saved with it: in before the card offers anything again.
+        await poll(true);
       }
     },
     [slug, published, act, poll],
@@ -1067,9 +1260,9 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       onFixed={fixed}
       long={found.long?.get(t.id)}
       active={active === t.id}
-      related={(found.groups.get(active) || []).includes(t.id) || (hover || []).includes(t.id)}
-      onActivate={() => focusThread(t.id)}
-      onHover={(on) => setHover(on ? found.groups.get(t.id) || [t.id] : null)}
+      related={(hover || []).includes(t.id)}
+      onActivate={() => focusThread(t.id, { scroll: !extra.inMargin })}
+      onHover={(on) => setHover(on ? [t.id] : null)}
       {...extra}
     />
   ) : (
@@ -1078,11 +1271,22 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       t={t}
       {...shared}
       note={acceptNote(notes, t)}
+      doing={working.get(t.id)}
+      work={work}
+      covered={covered.has(t.id)}
+      // In a sheet holding several, the one to show goes first: the sheet's first is in hand.
+      onShow={() => (wide ? focusThread(t.id, { scroll: false }) : setSheet((sh) => ({ ids: [t.id, ...(sh?.ids || []).filter((id) => id !== t.id)] })))}
       active={active === t.id}
-      related={(found.groups.get(active) || []).includes(t.id) || (hover || []).includes(t.id)}
-      onActivate={() => focusThread(t.id)}
-      onHover={(on) => setHover(on ? found.groups.get(t.id) || [t.id] : null)}
-      onResolved={() => setActive((a) => (a === t.id ? null : a))}
+      related={(hover || []).includes(t.id)}
+      // A card pressed in the margin stays where it is, and the page brings
+      // its passage to it (Margin): nothing to scroll here.
+      onActivate={() => focusThread(t.id, { scroll: !extra.inMargin })}
+      onHover={(on) => setHover(on ? [t.id] : null)}
+      // Resolved or accepted, it is let go: its card, and a sheet holding only it.
+      onResolved={() => {
+        setActive((a) => (a === t.id ? null : a));
+        setSheet((sh) => (sh?.ids?.length === 1 && sh.ids[0] === t.id ? null : sh));
+      }}
       placed={found.placed.has(t.id)}
       long={found.long?.get(t.id)}
       failure={publishing.failed === t.id ? publishing.error : ""}
@@ -1130,7 +1334,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
           {showNew && (
             // Keyed by its passage: words never stay in a box that moves to another.
             // A passage no longer in the text is quoted in it.
-            <Composer key={pending.slot} id="new" slot={pending.slot} quote={pending.quote} suggest={pending.suggest} blocked={pending.blocked} showQuote={!found.placed.has("new")} act={act} review={viewer.owner ? review : null} base={bridge ? null : bodyKey} unsent={unsent} onDone={(c) => doneNew(pending.slot, c)} onCancel={cancelNew} />
+            <Composer key={pending.slot} id="new" slot={pending.slot} quote={pending.quote} suggest={pending.suggest} blocked={pending.blocked} showQuote={!found.placed.has("new")} act={act} review={viewer.owner ? review : null} base={bridge ? null : bodyKey} unsent={unsent} onWords={(text) => setWords({ slot: pending.slot, text })} onDone={(c) => doneNew(pending.slot, c)} onCancel={cancelNew} />
           )}
         </Margin>
       )}
@@ -1204,13 +1408,16 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
           // A new thread's sheet stays while its words are going: closing it would let them go.
           onClose={() => {
             if (sheet.compose && sends.busy(sheet.compose === "new" ? pending?.slot : "general")) return;
-            if (sheet.compose) cancelNew();
+            // A new thread with words is only put down: its passage stays
+            // marked, and a tap on it opens them again.
+            if (sheet.compose === "new" && pending && hasWords(pending.slot, unsent.get(pending.slot))) setSheet(null);
+            else if (sheet.compose) cancelNew();
             else setSheet(null);
           }}
         >
           {orphans}
           {sheet.compose === "new" && pending && (
-            <Composer key={pending.slot} id="new" slot={pending.slot} quote={pending.quote} suggest={pending.suggest} blocked={pending.blocked} showQuote act={act} review={viewer.owner ? review : null} base={bridge ? null : bodyKey} unsent={unsent} onDone={(c) => doneNew(pending.slot, c)} onCancel={cancelNew} />
+            <Composer key={pending.slot} id="new" slot={pending.slot} quote={pending.quote} suggest={pending.suggest} blocked={pending.blocked} showQuote act={act} review={viewer.owner ? review : null} base={bridge ? null : bodyKey} unsent={unsent} onWords={(text) => setWords({ slot: pending.slot, text })} onDone={(c) => doneNew(pending.slot, c)} onCancel={cancelNew} />
           )}
           {sheet.compose === "general" && (
             <Composer id="general" slot="general" act={act} review={viewer.owner ? review : null} unsent={unsent} onDone={doneGeneral} onCancel={cancelNew} />
@@ -1309,6 +1516,13 @@ function Margin({ body, found, active, order, toolbar, children }) {
   const margin = useRef(null);
   const bar = useRef(null);
   const place = useRef(() => {});
+  // Where each card was last put. When one goes (accepted, resolved) with
+  // the pointer in the margin, the rest are held where they were until it
+  // leaves or another card is taken in hand: the next press lands on what
+  // was under it, not on a card that moved up into its place.
+  const last = useRef({ tops: new Map(), active: null });
+  const held = useRef(null);
+  const inside = useRef(false);
 
   place.current = () => {
     const m = margin.current;
@@ -1323,31 +1537,56 @@ function Margin({ body, found, active, order, toolbar, children }) {
       })
       .filter(Boolean)
       .sort((a, b) => a.y - b.y || a.i - b.i);
-    const top = new Array(cards.length);
-    const at = cards.findIndex((c) => c.id === active);
-    let bottom = floor - GAP;
-    cards.forEach((c, i) => {
-      top[i] = Math.max(c.y, bottom + GAP);
-      bottom = top[i] + c.h;
-    });
-    if (at !== -1) {
-      // Docs: the active card is exactly at its passage; the rest give way.
-      // Cards above it leave where they rest only as far as it needs.
-      top[at] = Math.max(cards[at].y, floor);
-      for (let i = at - 1; i >= 0; i--) top[i] = Math.min(top[i], top[i + 1] - GAP - cards[i].h);
-      for (let i = at + 1; i < cards.length; i++) top[i] = Math.max(cards[i].y, top[i - 1] + cards[i - 1].h + GAP);
+    const here = new Set(cards.map((c) => c.id));
+    if (active && active !== last.current.active) held.current = null;
+    else if (!held.current && inside.current && [...last.current.tops.keys()].some((id) => !here.has(id))) held.current = last.current.tops;
+    const layout = (hold) => {
+      const top = new Array(cards.length);
+      const at = hold ? -1 : cards.findIndex((c) => c.id === active);
+      let bottom = floor - GAP;
+      cards.forEach((c, i) => {
+        top[i] = Math.max(hold?.get(c.id) ?? c.y, bottom + GAP);
+        bottom = top[i] + c.h;
+      });
+      if (at !== -1) {
+        // Docs: the active card is exactly at its passage; the rest give way.
+        // Cards above it leave where they rest only as far as it needs.
+        top[at] = Math.max(cards[at].y, floor);
+        for (let i = at - 1; i >= 0; i--) top[i] = Math.min(top[i], top[i + 1] - GAP - cards[i].h);
+        for (let i = at + 1; i < cards.length; i++) top[i] = Math.max(cards[i].y, top[i - 1] + cards[i - 1].h + GAP);
+      }
+      return { top, at };
+    };
+    let { top, at } = layout(held.current);
+    // A card taken in hand by a press on it stays under the pointer: the
+    // page moves by as much as the card would have, which brings its passage
+    // level with it instead. Where the page cannot move that far (its top,
+    // its foot), the card moves only as far as the page can make up for, and
+    // waits there with the rest until the pointer leaves.
+    const was = last.current.tops.get(active);
+    let by = at !== -1 && inside.current && active !== last.current.active && was != null ? top[at] - was : 0;
+    if (by) {
+      const room = by < 0 ? -window.scrollY : Math.max(0, document.documentElement.scrollHeight - window.innerHeight - window.scrollY);
+      const can = by < 0 ? Math.max(by, room) : Math.min(by, room);
+      if (can !== by) {
+        held.current = new Map(last.current.tops).set(active, was + can);
+        ({ top } = layout(held.current));
+        by = can;
+      }
     }
     // Cards above the active one that do not fit under the toolbar lift it
     // with them, off the top if need be: the active card stays at its passage.
     const lift = Math.max(0, floor - top[0]) || 0;
+    last.current = { tops: new Map(cards.map((c, i) => [c.id, top[i]])), active };
     if (bar.current) bar.current.style.marginTop = `${-lift}px`;
-    bottom = (bar.current?.offsetHeight || 0) - lift;
+    let bottom = (bar.current?.offsetHeight || 0) - lift;
     cards.forEach((c, i) => {
       c.el.style.order = i;
       c.el.style.marginTop = `${Math.max(GAP, top[i] - bottom)}px`;
       c.el.style.transform = `translateX(${c.id === active ? -14 : 0}px)`;
       bottom = top[i] + c.h;
     });
+    if (by) window.scrollBy(0, by);
     // Vertical spacing belongs to normal flow. An expanding card pushes its
     // neighbours down immediately, including before ResizeObserver runs.
     requestAnimationFrame(() => m.classList.add("is-placed"));
@@ -1363,6 +1602,11 @@ function Margin({ body, found, active, order, toolbar, children }) {
     };
     const ro = new ResizeObserver(soon);
     if (body.current) ro.observe(body.current);
+    // What is above the text can grow without the text changing size (Ali's
+    // tools arrive after the page), moving every passage: the article's
+    // size says so.
+    const article = body.current?.closest("article");
+    if (article) ro.observe(article);
     if (margin.current) for (const el of margin.current.querySelectorAll("[data-card]")) ro.observe(el);
     window.addEventListener("resize", soon);
     document.fonts?.ready.then(soon);
@@ -1374,7 +1618,20 @@ function Margin({ body, found, active, order, toolbar, children }) {
   });
 
   return (
-    <aside ref={margin} className="draft-margin" aria-label="Comments">
+    <aside
+      ref={margin}
+      className="draft-margin"
+      aria-label="Comments"
+      onPointerEnter={() => {
+        inside.current = true;
+      }}
+      onPointerLeave={() => {
+        inside.current = false;
+        if (!held.current) return;
+        held.current = null;
+        place.current();
+      }}
+    >
       <div ref={bar}>{toolbar}</div>
       {children}
     </aside>
@@ -1382,9 +1639,11 @@ function Margin({ body, found, active, order, toolbar, children }) {
 }
 
 /** One thread: its first comment, its replies, and a box to reply. */
-function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed, long, failure, move }) {
+function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, doing, work, covered, onShow, active, related, onActivate, onHover, onResolved, showQuote, inMargin, placed, long, failure, move }) {
   const [error, setError] = useState("");
-  const [accepting, setAccepting] = useState(false);
+  // On its way, here or on a card drawn before this one (`work`, above the cards).
+  const accepting = doing === "accept";
+  const resolving = doing === "resolve";
   const resolved = t.resolved;
   // A suggested edit's new words, "" to delete the passage; null for a comment.
   const suggestion = t.quote ? (t.root.suggestion ?? null) : null;
@@ -1394,11 +1653,13 @@ function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, 
   // otherwise push every card below it away from its passage.
   const compact = inMargin && !active;
   const replies = t.replies.length;
-  // Accept, or word to press Done first while he edits (./suggest.js).
-  const offer = onAccept ? acceptOffered({ accepted, resolved, clamped: compact, editing }) : null;
-  // A resolve or reopen on its way: its button says so and takes no second press.
-  const [resolving, setResolving] = useState(false);
-  const resolvingNow = useRef(false);
+  // Its passage was edited since it was suggested: Accept would refuse it
+  // (./accept.js), so it is not offered, and the card says why.
+  const stale = suggestion != null && !accepted && !resolved && Boolean(t.find) && t.find !== t.quote && !sameAsPassage(t.find.exact, t.quote.exact);
+  // Accept, or word to press Done first while he edits (./suggest.js). Not
+  // while another suggestion's change is the one shown on these words
+  // (`covered`): what Accept takes is what the text shows.
+  const offer = onAccept && suggestion != null && !stale ? acceptOffered({ accepted, resolved, editing }) : null;
 
   async function run(p) {
     setError("");
@@ -1409,21 +1670,69 @@ function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, 
     }
   }
 
-  async function resolveAs(value) {
-    if (resolvingNow.current) return;
-    resolvingNow.current = true;
-    setResolving(true);
-    // Resolving lets the thread go, so it hides at once, as in Docs.
-    await run(value ? act.resolve(t.id, true).then(onResolved) : act.resolve(t.id, false));
-    resolvingNow.current = false;
-    setResolving(false);
-  }
+  const acceptNow = () =>
+    work(t.id, "accept", async () => {
+      setError("");
+      onNote({ type: "press", id: t.id });
+      try {
+        await onAccept(t);
+        onResolved();
+      } catch (err) {
+        // Said above the card: this one may be gone by now.
+        onNote({ type: "fail", id: t.id, message: err.message });
+      }
+    });
+
+  // Resolving lets the thread go, so it hides at once, as in Docs.
+  const resolveAs = (value) => work(t.id, "resolve", () => run(value ? act.resolve(t.id, true).then(onResolved) : act.resolve(t.id, false)));
+
+  // What can be done with the thread, in its card's top corner whatever the
+  // card holds, so they are in the same place on every card and nothing
+  // above them can grow and move them: Accept, a green check, beside
+  // Resolve, a red X, on the card as it rests in the margin too.
+  const actions = (
+    <span className="draft-card-actions">
+      {resolved ? (
+        <button type="button" className="draft-text-button" disabled={resolving} onClick={() => resolveAs(false)}>
+          {resolving ? "Reopening…" : "Reopen"}
+        </button>
+      ) : (
+        <>
+          {offer === "accept" && !covered && !resolving && (
+            <button
+              type="button"
+              className={`${accepting ? "draft-text-button" : "draft-icon-button"} draft-accept`}
+              title="Accept this edit"
+              aria-label={accepting ? undefined : "Accept this suggestion"}
+              disabled={accepting}
+              onClick={acceptNow}
+            >
+              {accepting ? "Accepting…" : <Check className="size-4" aria-hidden="true" />}
+            </button>
+          )}
+          {!accepting && (
+            <button
+              type="button"
+              className={`${resolving ? "draft-text-button" : "draft-icon-button"} draft-resolve`}
+              title={suggestion != null ? "Resolve without accepting" : "Resolve"}
+              aria-label={resolving ? undefined : "Resolve this thread"}
+              disabled={resolving}
+              // One resolved by someone else stays while it is in hand.
+              onClick={() => resolveAs(true)}
+            >
+              {resolving ? "Resolving…" : <X className="size-4" aria-hidden="true" />}
+            </button>
+          )}
+        </>
+      )}
+    </span>
+  );
 
   return (
     <article
       id={`thread-${t.id}`}
       data-card={t.id}
-      className={`draft-card${failure ? " is-failed" : ""}${active ? " is-active" : ""}${related && !active ? " is-related" : ""}${resolved ? " is-resolved" : ""}`}
+      className={`draft-card${suggestion != null ? " is-suggestion" : ""}${failure ? " is-failed" : ""}${active ? " is-active" : ""}${related && !active ? " is-related" : ""}${resolved ? " is-resolved" : ""}`}
       onClick={(e) => !active && !e.target.closest("button, a, textarea") && onActivate()}
       onMouseEnter={() => onHover?.(true)}
       onMouseLeave={() => onHover?.(false)}
@@ -1441,24 +1750,20 @@ function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, 
           text={suggestion}
           accepted={accepted}
           clamp={compact}
-          busy={accepting}
-          finish={offer === "finish"}
-          onAccept={
-            offer === "accept"
-              ? async () => {
-                  setAccepting(true);
-                  setError("");
-                  onNote({ type: "press", id: t.id });
-                  try {
-                    await onAccept(t);
-                    onResolved();
-                  } catch (err) {
-                    // Said above the card: this one may be gone by now.
-                    onNote({ type: "fail", id: t.id, message: err.message });
-                  }
-                  setAccepting(false);
-                }
-              : null
+          actions={actions}
+          word={
+            stale ? (
+              "The passage was edited after this was suggested, so it can't be accepted as it is."
+            ) : offer === "finish" && !compact ? (
+              "Press Done to accept it."
+            ) : offer === "accept" && covered ? (
+              <>
+                Another suggestion on these words is the one shown in the text.{" "}
+                <button type="button" className="draft-text-button" onClick={onShow}>
+                  Show this one
+                </button>
+              </>
+            ) : null
           }
         />
       ) : (
@@ -1472,23 +1777,7 @@ function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, 
         </p>
       )}
       <Comment c={t.root} now={now} viewer={viewer} act={act} unsent={unsent} onError={setError} clamp={compact} onMore={onActivate}>
-        {resolved ? (
-          <button type="button" className="draft-text-button" disabled={resolving} onClick={() => resolveAs(false)}>
-            {resolving ? "Reopening…" : "Reopen"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className={`${resolving ? "draft-text-button" : "draft-icon-button"} draft-resolve`}
-            title="Resolve"
-            aria-label={resolving ? undefined : "Resolve this thread"}
-            disabled={resolving}
-            // One resolved by someone else stays while it is in hand.
-            onClick={() => resolveAs(true)}
-          >
-            {resolving ? "Resolving…" : <X className="size-4" aria-hidden="true" />}
-          </button>
-        )}
+        {suggestion == null && actions}
       </Comment>
       {compact
         ? replies > 0 && (
@@ -1544,12 +1833,13 @@ function Thread({ t, viewer, now, act, unsent, onAccept, editing, note, onNote, 
  * A suggested edit on its card: the words it takes out struck through and
  * the words it puts in marked as added, between the passage's words that
  * stay (./suggest.js). In the margin, a thread not in hand shows its opening
- * lines. Ali's has Accept while it is open and shows the whole change
- * (`onAccept`, ./suggest.js acceptOffered), and in its place, while he
- * edits, word to press Done first (`finish`).
+ * lines, a long change's words cut short to fit both what goes and what
+ * comes (the text shows it whole). `actions` is Accept and Resolve
+ * (Thread); `word` is said under the change when Accept is not offered:
+ * to press Done first while Ali edits, that the passage was edited since,
+ * or that another suggestion on the same words is the one shown.
  */
-function Suggestion({ old, text, accepted, clamp, busy, finish, onAccept }) {
-  const { lead, removed, added, tail } = suggestionParts(old, text);
+function Suggestion({ old, text, accepted, clamp, actions, word }) {
   return (
     <div className="draft-suggestion">
       <p className="draft-suggest-head">
@@ -1559,33 +1849,39 @@ function Suggestion({ old, text, accepted, clamp, busy, finish, onAccept }) {
               <Check className="size-3.5" aria-hidden="true" /> Accepted
             </>
           ) : (
-            "Suggested edit"
+            <>
+              <PencilLine className="size-3.5" aria-hidden="true" /> Suggested edit
+            </>
           )}
         </span>
-        {onAccept && (
-          <button type="button" className="draft-text-button draft-accept" onClick={onAccept} disabled={busy}>
-            <Check className="size-4" aria-hidden="true" /> {busy ? "Accepting…" : "Accept"}
-          </button>
-        )}
-        {finish && <span>Press Done to accept it</span>}
+        {actions}
       </p>
-      <p className={`draft-suggest${clamp ? " is-clamped" : ""}`}>
-        {lead}
-        {removed && (
-          <del>
-            <span className="sr-only">Delete: </span>
-            {removed}
-          </del>
-        )}
-        {added && (
-          <ins>
-            <span className="sr-only">Add: </span>
-            {added}
-          </ins>
-        )}
-        {tail}
-      </p>
+      <Change old={old} text={text} clamp={clamp} />
+      {word && <p className="draft-finish">{word}</p>}
     </div>
+  );
+}
+
+/** What a suggestion changes in its passage (./suggest.js suggestionParts): the words out struck through, the words in marked as added. */
+function Change({ old, text, clamp }) {
+  const { lead, removed, added, tail } = suggestionParts(old, text, { brief: clamp });
+  return (
+    <p className={`draft-suggest${clamp ? " is-clamped" : ""}`}>
+      {lead}
+      {removed && (
+        <del>
+          <span className="sr-only">Delete: </span>
+          {removed}
+        </del>
+      )}
+      {added && (
+        <ins>
+          <span className="sr-only">Add: </span>
+          {added}
+        </ins>
+      )}
+      {tail}
+    </p>
   );
 }
 
@@ -1789,7 +2085,9 @@ const kept = (unsent, slot, { fields = {}, fallback = "" } = {}) => {
 /**
  * A textarea that grows with what is typed, sends on Ctrl/Cmd+Enter.
  * `onText` hears every change, and `onForget` once it is sent or cancelled;
- * Escape closes without cancelling. While `held` (why, to show) it is not
+ * Escape closes without cancelling, or with `keep`, while it has words,
+ * only puts it down: a new thread's words are never out of sight unsent.
+ * While `held` (why, to show) it is not
  * sent and its text is left as it is; while `refused` (why, to show) it is
  * not sent, and its text can still be written. `optional`: it can be sent
  * empty. While its slot is sending (useSends), here or in a box drawn before
@@ -1797,7 +2095,7 @@ const kept = (unsent, slot, { fields = {}, fallback = "" } = {}) => {
  * again: what is sent is what it shows. Once it went in, the box shows what
  * is kept now (`reread`) and `onSent` hears of it.
  */
-function Box({ slot, initial = "", reread, placeholder, label, submit, onCancel, onText, onForget, onSent, autoFocus, sendLabel = "Comment", held, refused, optional, note }) {
+function Box({ slot, initial = "", reread, placeholder, label, submit, onCancel, onText, onForget, onSent, autoFocus, sendLabel = "Comment", held, refused, optional, note, keep }) {
   const sends = useContext(Sends);
   const { busy: sending, error, done } = sends.of(slot);
   const [text, setText] = useState(initial);
@@ -1848,11 +2146,14 @@ function Box({ slot, initial = "", reread, placeholder, label, submit, onCancel,
         onChange={(e) => change(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(e);
-          if (e.key === "Escape" && !sending) onCancel?.();
+          if (e.key === "Escape" && !sending) {
+            if (keep && text.trim()) e.currentTarget.blur();
+            else onCancel?.();
+          }
         }}
       />
       {note && (
-        <p className="draft-left" role="status">
+        <p className="draft-note" role="status">
           {note}
         </p>
       )}
@@ -1934,14 +2235,15 @@ function ReplyBox({ thread, act, unsent, active, onActivate }) {
  */
 const BLOCKED = "Send or cancel this first, then start another.";
 
-function Composer({ id, slot, quote, suggest, blocked, showQuote, act, review, base, unsent, onDone, onCancel }) {
-  if (suggest && quote) return <SuggestComposer id={id} slot={slot} quote={quote} blocked={blocked} showQuote={showQuote} act={act} unsent={unsent} onDone={onDone} onCancel={onCancel} />;
+function Composer({ id, slot, quote, suggest, blocked, showQuote, act, review, base, unsent, onWords, onDone, onCancel }) {
+  if (suggest && quote) return <SuggestComposer id={id} slot={slot} quote={quote} blocked={blocked} showQuote={showQuote} act={act} unsent={unsent} onWords={onWords} onDone={onDone} onCancel={onCancel} />;
   return (
     <div data-card={id} className="draft-card is-active is-composer">
       {showQuote && quote && <blockquote className="draft-quote">{quote.exact}</blockquote>}
       <Box
         {...kept(unsent, slot, { fields: quote ? { kind: "comment", quote } : {} })}
         note={blocked ? BLOCKED : ""}
+        keep
         autoFocus
         placeholder={quote ? "Comment on this passage" : "Comment on the whole draft"}
         label={quote ? "Comment on the selected passage" : "Comment on the whole draft"}
@@ -1976,8 +2278,10 @@ function Grow({ value, ...props }) {
  * may the words, which suggests deleting the passage. Words the same as the
  * passage's are not sent, and it says so. Both are kept unsent together, as
  * a comment is, under `slot`, this passage's: words emptied stay empty.
+ * What the words change is shown under them as it is typed, as the card will
+ * show it, and in the text a moment after (`onWords`).
  */
-function SuggestComposer({ id, slot, quote, blocked, showQuote, act, unsent, onDone, onCancel }) {
+function SuggestComposer({ id, slot, quote, blocked, showQuote, act, unsent, onWords, onDone, onCancel }) {
   const keptNow = unsent.get(slot);
   const [words, setWords] = useState(() => keptNow?.words ?? quote.exact);
   const [note, setNote] = useState(() => keptNow?.note ?? "");
@@ -1994,6 +2298,12 @@ function SuggestComposer({ id, slot, quote, blocked, showQuote, act, unsent, onD
 
   const same = sameAsPassage(words, quote.exact);
   const refused = tooLong(quote);
+  const heard = useRef(onWords);
+  heard.current = onWords;
+  useEffect(() => {
+    const t = setTimeout(() => heard.current?.(words), 150);
+    return () => clearTimeout(t);
+  }, [words]);
   const forget = () => {
     unsent.drop(slot);
     sends.forget(slot);
@@ -2011,14 +2321,21 @@ function SuggestComposer({ id, slot, quote, blocked, showQuote, act, unsent, onD
   }
   const keys = (e) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(e);
-    if (e.key === "Escape" && !sending) onCancel?.();
+    if (e.key !== "Escape" || sending) return;
+    // With anything written it is only put down, never out of sight unsent.
+    if (!same || note) e.currentTarget.blur();
+    else onCancel?.();
   };
 
   return (
-    <div data-card={id} className="draft-card is-active is-composer">
+    <div data-card={id} className="draft-card is-suggestion is-active is-composer">
       {showQuote && <blockquote className="draft-quote">{quote.exact}</blockquote>}
       <form ref={first} className="draft-box" onSubmit={send}>
-        <p className="draft-suggest-head">Suggest an edit</p>
+        <p className="draft-suggest-head">
+          <span>
+            <PencilLine className="size-3.5" aria-hidden="true" /> Suggest an edit
+          </span>
+        </p>
         <Grow
           value={words}
           maxLength={LIMIT.quote}
@@ -2032,6 +2349,7 @@ function SuggestComposer({ id, slot, quote, blocked, showQuote, act, unsent, onD
           onKeyDown={keys}
         />
         {words.length >= LIMIT.quote && <p className="draft-left">{full("a suggestion", LIMIT.quote)}</p>}
+        {!same && !refused && <Change old={quote.exact} text={words} />}
         <Grow
           value={note}
           maxLength={LIMIT.body}
@@ -2057,7 +2375,7 @@ function SuggestComposer({ id, slot, quote, blocked, showQuote, act, unsent, onD
           </p>
         )}
         {blocked && (
-          <p className="draft-left" role="status">
+          <p className="draft-note" role="status">
             {BLOCKED}
           </p>
         )}
@@ -2108,6 +2426,8 @@ function Sheet({ title, onClose, children }) {
     const el = dialog.current;
     const back = document.activeElement;
     el.showModal();
+    // A browser may scroll the dialog itself to what it focuses.
+    el.scrollTop = 0;
     el.querySelector(".draft-sheet-close")?.focus({ preventScroll: true });
     document.documentElement.classList.add("draft-sheet-open");
     setOpen(true);

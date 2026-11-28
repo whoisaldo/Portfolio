@@ -18,6 +18,13 @@
 // service as live before that, which ignores `key` and `as` and answers a
 // write with no session 404 too. Ali's saves of the draft (PUT /api/drafts)
 // and of its passages' places are here too, as far as his editor needs them.
+//
+// Resolving (PATCH with `resolved`) sets or clears {by, at}. A save of the
+// draft carrying `accept: <thread id>` marks that thread accepted and
+// resolved in the same save (../src/front/private/accept.js); a thread
+// accepted already is a 409 with `field: "accept"`, and nothing is written.
+// The passages' places (PUT ?a=anchors) are kept on their threads as
+// `anchor`, {gone: true} for a passage deleted.
 import { window } from "./dom.mjs";
 import { createServer } from "vite";
 import react from "@vitejs/plugin-react";
@@ -154,8 +161,13 @@ export function service({ who = "ada", legacy = false } = {}) {
       if (method === "PUT") {
         if (!s.signedIn.owner) return json(404, { error: "not found" });
         if (body.base !== s.draft.updated_at) return json(409, { error: "Saved somewhere else.", draft: s.draft });
+        const accepting = body.accept !== undefined ? s.comments.find((c) => c.id === body.accept && !c.thread) : null;
+        if (body.accept !== undefined && !accepting) return json(404, { error: "That suggestion isn't on this draft.", field: "accept" });
+        if (accepting?.accepted) return json(409, { error: "That suggestion is already accepted.", field: "accept", accepted: { id: accepting.id, ...accepting.accepted } });
         s.draft = { ...s.draft, title: body.title, date: body.date, summary: body.summary, body: body.body, updated_at: iso(s.clock++) };
-        return json(200, { draft: s.draft });
+        // The text and the mark in one save, or neither.
+        if (accepting) accepting.accepted = accepting.resolved = { by: s.signedIn.name, at: s.draft.updated_at };
+        return json(200, { draft: s.draft, ...(accepting ? { accepted: { id: accepting.id, at: s.draft.updated_at } } : {}) });
       }
       if (u.searchParams.has("slug")) return u.searchParams.get("slug") === s.draft.slug && can() ? json(200, { draft: s.draft }) : json(404, { error: "not found" });
       return json(200, { drafts: can() ? [{ slug: s.draft.slug, title: s.draft.title, date: s.draft.date, summary: s.draft.summary }] : [] });
@@ -164,12 +176,21 @@ export function service({ who = "ada", legacy = false } = {}) {
       if (!s.signedIn && method !== "GET" && !s.legacy) return json(401, { error: SIGNED_OUT });
       if (!can()) return json(404, { error: "not found" });
       if (method === "GET") return json(200, { v: String(s.comments.length), comments: seen(), draft_updated_at: s.draft.updated_at });
-      if (method === "PUT" && u.searchParams.get("a") === "anchors") return json(200, { ignored: [] });
+      if (method === "PUT" && u.searchParams.get("a") === "anchors") {
+        const ignored = [];
+        for (const { thread, exact, prefix, suffix } of body.anchors) {
+          const c = s.comments.find((x) => x.id === thread && !x.thread);
+          if (!c) ignored.push(thread);
+          else c.anchor = exact ? { exact, prefix: prefix ?? "", suffix: suffix ?? "" } : { gone: true };
+        }
+        return json(200, { ignored });
+      }
       if (method === "POST") return create(body);
       if (method === "PATCH") {
         const c = s.comments.find((x) => x.id === body.id);
         if (!c) return json(404, { error: "not found" });
         if ("body" in body) Object.assign(c, { body: body.body, edited_at: iso(s.clock++) });
+        if ("resolved" in body) c.resolved = body.resolved ? { by: s.signedIn.name, at: iso(s.clock++) } : null;
         return json(200, { comment: view(c) });
       }
       if (method === "DELETE") {

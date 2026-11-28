@@ -9,7 +9,11 @@
 // shrinks as they are edited. It is drawn with decorations, which ProseMirror
 // renders itself, as <mark class="post-quote" data-threads="…"> so the read
 // view's styles and the comments' own click and hover handling apply as they
-// are.
+// are. Passages that overlap are drawn piece by piece, each piece listing
+// the threads on it, so a thread lights only its own words. A suggested edit
+// is shown where it would be made, as the read view shows it: the words it
+// takes out struck through, and its new words after them, drawn by the
+// stylesheet and so no part of the text.
 //
 // A passage deleted entirely is a range of nothing: its thread goes to "On
 // text that changed". Undoing the deletion brings the words back inside it,
@@ -30,6 +34,7 @@ import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { groupQuotes, indexText, quoteFromRange } from "../../quotes.js";
 import { QUOTE_MAX, findWhole } from "../place.js";
+import { changeIn } from "../suggest.js";
 
 const key = new PluginKey("commentAnchors");
 
@@ -138,39 +143,150 @@ function findText(doc, inFrom, inTo, lost) {
   return range.from >= inFrom && range.to <= inTo ? range : null;
 }
 
+/**
+ * The passages as decorations. Passages that overlap are cut at each one's
+ * start and end, and each piece is a <mark> of its own listing the threads
+ * whose passage covers it, the one with the shortest passage first: so the
+ * thread in hand or under the mouse lights its own words and no others, and
+ * hovering a piece hovers the thread most closely about it.
+ */
 function decorations(doc, { ranges, items, emphasis }) {
   const placed = items.filter((t) => !t.hidden && ranges.get(t.id)?.from < ranges.get(t.id)?.to).map((t) => ({ id: t.id, at: [ranges.get(t.id).from, ranges.get(t.id).to] }));
+  const byId = new Map(items.map((t) => [t.id, t]));
+  const order = new Map(items.map((t, i) => [t.id, i]));
+  const own = new Map(placed.map((p) => [p.id, p.at]));
   const resolved = new Set(items.filter((t) => t.resolved).map((t) => t.id));
   const review = new Set(items.filter((t) => t.pending).map((t) => t.id));
+  const suggest = new Set(items.filter((t) => t.suggest).map((t) => t.id));
+  const active = emphasis.active[0];
+  const hover = emphasis.hover[0];
+  const size = (id) => own.get(id)[1] - own.get(id)[0];
   const out = [];
-  for (const { at, ids } of groupQuotes(placed)) {
-    const cls = ["post-quote"];
-    if (ids.some((id) => emphasis.active.includes(id))) cls.push("is-active");
-    if (ids.some((id) => emphasis.hover.includes(id))) cls.push("is-hover");
-    if (ids.every((id) => resolved.has(id))) cls.push("is-resolved");
-    if (ids.some((id) => review.has(id))) cls.push("is-review");
-    const attrs = { class: cls.join(" "), "data-threads": ids.join(" ") };
-    out.push(Decoration.inline(at[0], at[1], { nodeName: "mark", ...attrs }));
-    // A passage in a raw block (a video's caption) has no text of the
-    // editor's own to wrap, so the block is marked instead.
-    doc.nodesBetween(at[0], at[1], (node, pos) => {
-      if (node.type.name === "rawBlock") out.push(Decoration.node(pos, pos + node.nodeSize, { class: `editor-raw-quoted ${cls.slice(1).join(" ")}`, "data-threads": ids.join(" ") }));
-    });
+  for (const { ids } of groupQuotes(placed)) {
+    const change = shownChange(doc, ids, byId, own, emphasis);
+    const cuts = new Set(ids.flatMap((id) => own.get(id)));
+    // Cut at the words a suggestion takes out too, so each piece of them
+    // starts and ends with its <mark>: then ProseMirror draws the piece's
+    // span inside the mark, as the read view has it (see below).
+    if (change?.del) for (const at of change.del) cuts.add(at);
+    const at = [...cuts].sort((a, b) => a - b);
+    for (let i = 0; i < at.length - 1; i++) {
+      const [from, to] = [at[i], at[i + 1]];
+      const here = ids.filter((id) => own.get(id)[0] <= from && own.get(id)[1] >= to).sort((a, b) => size(a) - size(b) || order.get(a) - order.get(b));
+      if (!here.length) continue;
+      const cls = ["post-quote"];
+      if (here.includes(active)) cls.push("is-active");
+      if (here.includes(hover)) cls.push("is-hover");
+      const lit = here.includes(active) ? active : here.includes(hover) ? hover : null;
+      if (lit && suggest.has(lit)) cls.push("as-suggest");
+      if (here.every((id) => resolved.has(id))) cls.push("is-resolved");
+      if (here.some((id) => review.has(id))) cls.push("is-review");
+      if (here.every((id) => suggest.has(id))) cls.push("is-suggest");
+      const attrs = { class: cls.join(" "), "data-threads": here.join(" ") };
+      // Of decorations on the same words, ProseMirror wraps the text in the
+      // one it meets first innermost: the struck-through span goes first,
+      // so it sits inside the mark and its own colours show over the mark's.
+      if (change?.del && from >= change.del[0] && to <= change.del[1]) out.push(Decoration.inline(from, to, { class: "draft-piece is-del" }));
+      out.push(Decoration.inline(from, to, { nodeName: "mark", ...attrs }));
+      // A passage in a raw block (a video's caption) has no text of the
+      // editor's own to wrap, so the block is marked instead.
+      doc.nodesBetween(from, to, (node, pos) => {
+        if (node.type.name === "rawBlock") out.push(Decoration.node(pos, pos + node.nodeSize, { class: `editor-raw-quoted ${cls.slice(1).join(" ")}`, "data-threads": here.join(" ") }));
+      });
+    }
+    if (change?.insert) out.push(insertion(change));
   }
   return DecorationSet.create(doc, out);
+}
+
+/**
+ * The suggestion whose change a group of passages shows, and the change as
+ * document positions: {id, del: [from, to] or null, at, first, insert},
+ * `first` when the new words go before all of the passage's. At most one
+ * per group, as the changes of several would cross: the one in hand, else
+ * the first still open, each only when it has a change to show. Never the
+ * one under the mouse in place of another: new words coming and going move
+ * the text under the mouse, which then is over something else. A resolved
+ * one shows its change only while it is in hand.
+ */
+function shownChange(doc, ids, byId, own, emphasis) {
+  const open = ids.filter((id) => !byId.get(id).resolved);
+  for (const id of new Set([emphasis.active[0], ...open])) {
+    if (!ids.includes(id)) continue;
+    const c = changeAt(doc, own.get(id), byId.get(id));
+    if (c) return { id, ...c };
+  }
+  return null;
+}
+
+/**
+ * What suggestion `t` changes in its passage at [from, to), as positions,
+ * or null (./suggest.js changeIn). Only for a passage within one paragraph
+ * (or heading) holding text alone: there each character of its text is one
+ * position, so an offset in the text is the passage's start plus that
+ * offset. One that crosses into another block, or holds a line break or
+ * other inline node, shows its change on its card only.
+ */
+function changeAt(doc, [from, to], t) {
+  if (t.words == null || !t.quote?.exact) return null;
+  const $from = doc.resolve(from);
+  const $to = doc.resolve(to);
+  if (!$from.sameParent($to) || !$from.parent.isTextblock) return null;
+  let plain = true;
+  $from.parent.content.cut($from.parentOffset, $to.parentOffset).forEach((node) => {
+    if (!node.isText) plain = false;
+  });
+  if (!plain) return null;
+  const c = changeIn(doc.textBetween(from, to), t.quote.exact, t.words);
+  if (!c) return null;
+  return { del: c.from < c.to ? [from + c.from, from + c.to] : null, at: from + c.to, first: c.to === 0, insert: c.insert };
+}
+
+/**
+ * A suggestion's new words where they would go: an empty span the
+ * stylesheet writes them into (data-ins, as the read view's), so they are no
+ * part of the text ProseMirror edits or the anchors read back. ProseMirror
+ * draws a widget uneditable, and keeps the one it has while the key is the
+ * same, so typing elsewhere does not redraw it. A caret right where it is
+ * is drawn on the side words typed there will be: at the passage's start
+ * they go before the passage (mapRanges), so before its new words; at its
+ * end, after the passage and its new words. Typed anywhere inside, they
+ * change its words, and the change is no longer shown.
+ */
+function insertion({ id, del, at, first, insert }) {
+  const cls = `draft-ins${del ? " after-del" : ""}`;
+  const toDOM = () => {
+    const el = document.createElement("span");
+    el.className = cls;
+    el.dataset.ins = insert;
+    // The new words are the suggestion's, under the mouse as its passage is:
+    // else the mouse moving onto them, as they push the words after them
+    // along, would let the suggestion go, and with it the words, and back.
+    el.dataset.threads = id;
+    // Not the draft's words, so not somewhere to put the caret: a press on
+    // them leaves it where it is, and the click still opens their card.
+    el.addEventListener("mousedown", (e) => e.preventDefault());
+    return el;
+  };
+  return Decoration.widget(at, toDOM, { key: `${cls} ${id} ${insert}`, side: first ? 1 : -1, ignoreSelection: true, stopEvent: (e) => e.type === "mousedown" });
 }
 
 /**
  * The TipTap extension that keeps the passages, and the comments' handle on
  * it once the editor is up (`attach(editor)`):
  *
- *   setItems(items)     the threads, [{id, find, quote, gone, resolved, pending, hidden}]:
+ *   setItems(items)     the threads, [{id, find, quote, gone, resolved, pending, suggest, words, hidden}]:
  *                       `find` is {exact, prefix, suffix} to look for (the
  *                       anchor, or the reader's `quote` while there is none),
  *                       null for none; `gone` when the server has the
  *                       passage as deleted; `pending` for one of Ali's not
- *                       published yet (../review.js)
- *   emphasize(a, h)     the thread ids in hand and hovered
+ *                       published yet (../review.js); `suggest` for a
+ *                       suggested edit, drawn in its own colour, and
+ *                       `words` its suggested words ("" to delete the
+ *                       passage), null for a comment, its change shown in
+ *                       the text (shownChange)
+ *   emphasize(a, h)     the thread ids in hand and hovered, each lit by
+ *                       its first, the thread itself
  *   subscribe(fn)       fn(found) after every change, found as the comments
  *                       margin reads it: {placed, groups, marks, settled,
  *                       long}, `long` a Map of id → length for each passage
@@ -220,7 +336,8 @@ export function commentAnchors() {
     const dom = view?.dom;
     // Looked up when asked: ProseMirror redraws a decoration's elements
     // whenever the text inside it changes.
-    const marks = { get: (id) => (dom && placed.has(id) ? [...dom.querySelectorAll(`[data-threads~="${id}"]`)] : undefined) };
+    // A suggestion's new words (insertion) are not its passage.
+    const marks = { get: (id) => (dom && placed.has(id) ? [...dom.querySelectorAll(`[data-threads~="${id}"]:not(.draft-ins)`)] : undefined) };
     return { key: items.map((t) => t.id).join(" "), placed, groups, marks, settled: true, long: tooLong() };
   };
 
