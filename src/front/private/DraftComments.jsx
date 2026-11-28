@@ -985,7 +985,13 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   useEffect(() => {
     const root = body.current;
     if (!root) return;
-    const idsOf = (target) => target.closest?.("[data-threads]")?.dataset.threads.split(" ").filter((id) => id !== "new");
+    // The threads a spot leads to. Words a shown change strikes or adds are
+    // that suggestion's first, whatever other thread's words they are among.
+    const idsOf = (target) => {
+      const ids = target.closest?.("[data-threads]")?.dataset.threads.split(" ").filter((id) => id !== "new");
+      const of = target.closest?.("[data-of]")?.dataset.of;
+      return ids && of && of !== "new" ? [of, ...ids.filter((id) => id !== of)] : ids;
+    };
     // The highlight Enter was pressed on: the click that follows is the
     // keyboard's (Firefox gives it a `detail` of 1, as a mouse's).
     let entered = null;
@@ -997,8 +1003,9 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       const mark = e.target.closest?.("[data-threads]");
       const byKey = e.detail === 0 || (mark && mark === entered);
       entered = null;
-      // The passage of a thread being written: back to its box.
-      if (mark && !ids.length && !bridge) {
+      // The passage of a thread being written: back to its box, on words
+      // another thread has too.
+      if (mark && mark.dataset.threads.split(" ").includes("new") && !bridge) {
         e.preventDefault();
         setActive("new");
         if (!wide) setSheet({ compose: "new" });
@@ -1053,6 +1060,25 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
   }, [bridge, active, hover]);
   // On a phone the thread in hand is the sheet's, or the one being written in it.
   const handId = wide ? active : (sheet?.ids?.[0] ?? (sheet?.compose === "new" ? "new" : null));
+  // The suggestions whose change the text shows. Every open one's, as in
+  // Docs, so Accept on a card is pressed with the change in view and
+  // nothing moves under the mouse. Suggestions on overlapping words would
+  // run into each other, so of those one is shown: the one in hand, else
+  // the first still open. Never the one under the mouse in place of
+  // another: new words coming and going would move the text under it.
+  const showing = useMemo(() => {
+    const out = new Set();
+    if (bridge) return out;
+    for (const ids of new Set(found.groups.values())) {
+      const can = ids.filter((id) => found.edits.has(id));
+      const id = can.includes(handId) ? handId : can.find((c) => found.edits.get(c).open);
+      if (id) out.add(id);
+    }
+    return out;
+  }, [found, handId, bridge]);
+  // The open suggestions it does not show (`covered`): Accept is offered on
+  // one whose change is in view, and on another once it is the one shown.
+  const covered = useMemo(() => new Set(bridge ? [] : [...found.edits].filter(([id, e]) => e.open && !showing.has(id)).map(([id]) => id)), [found, showing, bridge]);
   useEffect(() => {
     if (bridge) return;
     const undo = [];
@@ -1069,39 +1095,27 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
     };
     light(handId, "is-active");
     light(hover?.[0], "is-hover");
-    // Every open suggestion's change is shown where it would be made, as in
-    // Docs: the words it takes out struck through, the words it puts in
-    // after them. So Accept on a card is pressed with the change in view,
-    // and nothing moves under the mouse. Suggestions on overlapping words
-    // would run into each other, so of those one is shown: the one in hand,
-    // else the first still open. Never the one under the mouse in place of
-    // another: new words coming and going would move the text under it.
-    for (const ids of new Set(found.groups.values())) {
-      const can = ids.filter((id) => found.edits.has(id));
-      const id = can.includes(handId) ? handId : can.find((c) => found.edits.get(c).open);
-      const e = id && found.edits.get(id);
-      if (!e) continue;
-      for (const el of e.del) cls(el, "is-del");
+    // Each change shown (`showing`, above) where it would be made: the words
+    // it takes out struck through, the words it puts in after them. They are
+    // marked as that suggestion's, so a press on them opens it, whatever
+    // other thread's words they are among.
+    for (const id of showing) {
+      const e = found.edits.get(id);
+      for (const el of e.del) {
+        cls(el, "is-del");
+        el.dataset.of = id;
+        undo.push(() => delete el.dataset.of);
+      }
       if (!e.insert || !e.at) continue;
       e.at.dataset.ins = e.insert;
-      undo.push(() => delete e.at.dataset.ins);
+      e.at.dataset.of = id;
+      undo.push(() => {
+        delete e.at.dataset.ins;
+        delete e.at.dataset.of;
+      });
     }
     return () => undo.forEach((fn) => fn());
-  }, [handId, hover, found, bridge]);
-
-  // Of suggestions on overlapping words, those not the one shown in the
-  // text (above): Accept is offered on the one whose change is in view, and
-  // on another once it is taken in hand, which shows it.
-  const covered = useMemo(() => {
-    const out = new Set();
-    if (bridge) return out;
-    for (const ids of new Set(found.groups.values())) {
-      const open = ids.filter((id) => found.edits.get(id)?.open);
-      const shown = open.includes(handId) ? handId : open[0];
-      for (const id of open) if (id !== shown) out.add(id);
-    }
-    return out;
-  }, [found, handId, bridge]);
+  }, [handId, hover, found, showing, bridge]);
 
   // On a phone a sheet covers most of the screen: the passage it is about is
   // brought into what is left above it, once, as the sheet opens.
@@ -1261,7 +1275,7 @@ export default function DraftComments({ slug, body: readBody, viewer, onLost, bo
       work={work}
       covered={covered.has(t.id)}
       // In a sheet holding several, the one to show goes first: the sheet's first is in hand.
-      onShow={() => (wide ? focusThread(t.id, { scroll: false }) : setSheet((sh) => (sh?.ids ? { ids: [t.id, ...sh.ids.filter((id) => id !== t.id)] } : sh)))}
+      onShow={() => (wide ? focusThread(t.id, { scroll: false }) : setSheet((sh) => ({ ids: [t.id, ...(sh?.ids || []).filter((id) => id !== t.id)] })))}
       active={active === t.id}
       related={(hover || []).includes(t.id)}
       // A card pressed in the margin stays where it is, and the page brings
@@ -1526,32 +1540,46 @@ function Margin({ body, found, active, order, toolbar, children }) {
     const here = new Set(cards.map((c) => c.id));
     if (active && active !== last.current.active) held.current = null;
     else if (!held.current && inside.current && [...last.current.tops.keys()].some((id) => !here.has(id))) held.current = last.current.tops;
-    const hold = held.current;
-    const top = new Array(cards.length);
-    const at = hold ? -1 : cards.findIndex((c) => c.id === active);
-    let bottom = floor - GAP;
-    cards.forEach((c, i) => {
-      top[i] = Math.max(hold?.get(c.id) ?? c.y, bottom + GAP);
-      bottom = top[i] + c.h;
-    });
-    if (at !== -1) {
-      // Docs: the active card is exactly at its passage; the rest give way.
-      // Cards above it leave where they rest only as far as it needs.
-      top[at] = Math.max(cards[at].y, floor);
-      for (let i = at - 1; i >= 0; i--) top[i] = Math.min(top[i], top[i + 1] - GAP - cards[i].h);
-      for (let i = at + 1; i < cards.length; i++) top[i] = Math.max(cards[i].y, top[i - 1] + cards[i - 1].h + GAP);
+    const layout = (hold) => {
+      const top = new Array(cards.length);
+      const at = hold ? -1 : cards.findIndex((c) => c.id === active);
+      let bottom = floor - GAP;
+      cards.forEach((c, i) => {
+        top[i] = Math.max(hold?.get(c.id) ?? c.y, bottom + GAP);
+        bottom = top[i] + c.h;
+      });
+      if (at !== -1) {
+        // Docs: the active card is exactly at its passage; the rest give way.
+        // Cards above it leave where they rest only as far as it needs.
+        top[at] = Math.max(cards[at].y, floor);
+        for (let i = at - 1; i >= 0; i--) top[i] = Math.min(top[i], top[i + 1] - GAP - cards[i].h);
+        for (let i = at + 1; i < cards.length; i++) top[i] = Math.max(cards[i].y, top[i - 1] + cards[i - 1].h + GAP);
+      }
+      return { top, at };
+    };
+    let { top, at } = layout(held.current);
+    // A card taken in hand by a press on it stays under the pointer: the
+    // page moves by as much as the card would have, which brings its passage
+    // level with it instead. Where the page cannot move that far (its top,
+    // its foot), the card moves only as far as the page can make up for, and
+    // waits there with the rest until the pointer leaves.
+    const was = last.current.tops.get(active);
+    let by = at !== -1 && inside.current && active !== last.current.active && was != null ? top[at] - was : 0;
+    if (by) {
+      const room = by < 0 ? -window.scrollY : Math.max(0, document.documentElement.scrollHeight - window.innerHeight - window.scrollY);
+      const can = by < 0 ? Math.max(by, room) : Math.min(by, room);
+      if (can !== by) {
+        held.current = new Map(last.current.tops).set(active, was + can);
+        ({ top } = layout(held.current));
+        by = can;
+      }
     }
     // Cards above the active one that do not fit under the toolbar lift it
     // with them, off the top if need be: the active card stays at its passage.
     const lift = Math.max(0, floor - top[0]) || 0;
-    // A card taken in hand by a press on it stays under the pointer: the
-    // page moves by as much as the card would have, which brings its passage
-    // level with it instead.
-    const was = last.current.tops.get(active);
-    const by = at !== -1 && inside.current && active !== last.current.active && was != null ? top[at] - was : 0;
     last.current = { tops: new Map(cards.map((c, i) => [c.id, top[i]])), active };
     if (bar.current) bar.current.style.marginTop = `${-lift}px`;
-    bottom = (bar.current?.offsetHeight || 0) - lift;
+    let bottom = (bar.current?.offsetHeight || 0) - lift;
     cards.forEach((c, i) => {
       c.el.style.order = i;
       c.el.style.marginTop = `${Math.max(GAP, top[i] - bottom)}px`;

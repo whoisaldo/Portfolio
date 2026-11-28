@@ -396,6 +396,28 @@ test("9: of two suggestions on overlapping words, the earlier one's change is sh
   assert.deepEqual(added(), ["lingered"]);
 });
 
+test("9: of two suggestions on overlapping words only the one the text shows offers Accept, and a press on the words it strikes opens it", async () => {
+  const fake = service({ who: "owner" });
+  const first = seed(fake, { quote: "fishing boats waited", suggestion: "fishing boats lingered" });
+  const second = seed(fake, { quote: "waited for the tide", suggestion: "waited for the flood" });
+  await mount(PrivateBlog, fake);
+  await until(() => inMargin(first.id) && inMargin(second.id) && struck().length, "both cards and a change");
+  const accept = (id) => card(id).querySelector('[aria-label="Accept this suggestion"]');
+  assert.ok(accept(first.id), "the one shown has Accept");
+  assert.equal(accept(second.id), null, "the other has none: its change is not in view");
+  assert.match(card(second.id).textContent, /Another suggestion on these words is the one shown in the text/);
+  // "waited" is both threads' word, and the second has fewer words there:
+  // struck by the first, a press on it opens the first.
+  await click(body().querySelector(".draft-piece.is-del"));
+  await until(() => card(first.id).classList.contains("is-active"), "the first in hand");
+  assert.ok(!card(second.id).classList.contains("is-active"));
+  // The other shown instead: Accept goes with the change in view.
+  await click(button("Show this one", card(second.id)));
+  await until(() => added()[0] === "flood", "the second's change");
+  assert.ok(accept(second.id), "now the second has Accept");
+  assert.equal(accept(first.id), null, "and the first has none");
+});
+
 // ---- 10. A suggestion being written ---------------------------------------------------------
 
 const pendingStruck = () => [...body().querySelectorAll(".is-pending .draft-piece.is-del")].map((el) => el.textContent);
